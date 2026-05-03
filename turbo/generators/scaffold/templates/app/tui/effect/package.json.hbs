@@ -1,0 +1,25 @@
+{
+  "name": "@repo/{{ packageName }}",
+  "version": "0.0.1",{{#if description}}
+  "description": "{{ description }}",{{/if}}{{#if author}}
+  "author": "{{ author }}",{{/if}}
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "check": "biome check . && tsc --noEmit",
+    "prepare": "effect-language-service patch"
+  },
+  "dependencies": {
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "@effect/language-service": "catalog:",
+    "@repo/biome-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  }
+}

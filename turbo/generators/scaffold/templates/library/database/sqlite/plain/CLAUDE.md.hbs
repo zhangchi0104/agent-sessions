@@ -1,0 +1,27 @@
+# @repo/{{ packageName }}
+
+{{#if description}}{{ description }}{{else}}A plain Drizzle (SQLite/Bun) database package.{{/if}}
+
+## Stack
+
+- `bun:sqlite` — the underlying SQLite driver (built into Bun).
+- `drizzle-orm/bun-sqlite` — Drizzle adapter.
+- `createDb(filename)` opens the SQLite database and returns a typed Drizzle instance.
+
+## Environment
+
+- `DATABASE_PATH` — path to the SQLite file. The package does not read this on its own; pass it to `createDb()`. Use `:memory:` for in-process databases. drizzle-kit reads it directly via `process.env`.
+
+## Scripts
+
+- `bun run build` — TypeScript build to `dist/`
+- `bun run check` — biome lint + `tsc --noEmit -p tsconfig.test.json`
+- `bun test` — runs an in-memory smoke test (`getUserById` against `:memory:`)
+- `bun run db:generate` — generate migrations from `src/schema.ts` into `drizzle/`
+- `bun run db:migrate` — apply pending migrations against `DATABASE_PATH`
+- `bun run db:push` — push schema directly (development only)
+- `bun run db:studio` — open Drizzle Studio against `DATABASE_PATH`
+
+## Adding tables
+
+Edit `src/schema.ts` using `drizzle-orm/sqlite-core`, then run `bun run db:generate`.

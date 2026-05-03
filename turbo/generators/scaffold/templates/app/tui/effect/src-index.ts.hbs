@@ -1,0 +1,36 @@
+import { Console, Effect } from "effect";
+
+const ESC = "\x1B[";
+const stdin = process.stdin;
+
+const render = Effect.sync(() => {
+  process.stdout.write(`${ESC}2J${ESC}H`);
+  process.stdout.write("@repo/{{ packageName }}\n\n");
+  process.stdout.write("Interactive Effect terminal UI\n\n");
+  process.stdout.write("Press q or Ctrl+C to quit.\n");
+});
+
+const cleanup = Effect.sync(() => {
+  stdin.setRawMode(false);
+  stdin.pause();
+  process.stdout.write(`${ESC}?25h${ESC}0m\n`);
+});
+
+const program = Effect.gen(function* () {
+  yield* Console.log("Starting @repo/{{ packageName }}");
+
+  stdin.setEncoding("utf8");
+  stdin.setRawMode(true);
+  stdin.resume();
+  process.stdout.write(`${ESC}?25l`);
+  yield* render;
+
+  stdin.on("data", (key) => {
+    if (key === "q" || key === "\u0003") {
+      Effect.runSync(cleanup);
+      process.exit(0);
+    }
+  });
+});
+
+Effect.runSync(program);

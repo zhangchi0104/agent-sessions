@@ -1,0 +1,22 @@
+import { PgClient } from "@effect/sql-pg";
+import * as PgDrizzle from "drizzle-orm/effect-postgres";
+import { Config, Context, Layer, type Redacted } from "effect";
+
+export interface DatabaseConfig {
+  readonly url: Redacted.Redacted<string>;
+}
+
+export class Database extends Context.Service<
+  Database,
+  PgDrizzle.EffectPgDatabase
+>()("Database") {}
+
+const pgClientLayer = (config?: Partial<DatabaseConfig>) =>
+  config?.url
+    ? PgClient.layer({ url: config.url })
+    : PgClient.layerConfig({ url: Config.redacted("DATABASE_URL") });
+
+export const layer = (config?: Partial<DatabaseConfig>) =>
+  Layer.effect(Database, PgDrizzle.makeWithDefaults()).pipe(
+    Layer.provide(pgClientLayer(config)),
+  );

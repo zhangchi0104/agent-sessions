@@ -1,0 +1,41 @@
+{
+  "name": "bun-turborepo-templates",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "check-types": "turbo run check-types",
+    "new:app": "turbo gen scaffold --args app",
+    "new:lib": "turbo gen scaffold --args library"
+  },
+  "devDependencies": {
+    "@turbo/gen": "^2.9.7",
+    "prettier": "^3.7.4",
+    "turbo": "^2.9.7",
+    "typescript": "5.9.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "bun@1.3.13",
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "packages/*",
+      "hooks/*"
+    ],
+    "catalog": {
+      "typescript": "^6.0.3",
+      "biome": "2.4.13",
+      "@biomejs/biome": "2.4.13",
+      "effect": "4.0.0-beta.59",
+      "@effect/language-service": "latest",
+      "@effect/sql-pg": "4.0.0-beta.59",
+      "drizzle-orm": "1.0.0-rc.1",
+      "drizzle-kit": "1.0.0-rc.1",
+      "@types/bun": "latest"
+    }
+  }
+}

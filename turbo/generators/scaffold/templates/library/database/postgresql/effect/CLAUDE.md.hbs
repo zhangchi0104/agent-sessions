@@ -1,0 +1,41 @@
+# @repo/{{ packageName }}
+
+{{#if description}}{{ description }}{{else}}A Drizzle + Effect (PostgreSQL) database package.{{/if}}
+
+<!-- effect-solutions:start -->
+## Effect Best Practices
+
+**IMPORTANT:** Always consult effect-solutions before writing Effect code.
+
+1. Run `effect-solutions list` to see available guides
+2. Run `effect-solutions show <topic>...` for relevant patterns (supports multiple topics)
+3. Search `~/.local/share/effect-solutions/effect` for real implementations
+
+Topics: quick-start, project-setup, tsconfig, basics, services-and-layers, data-modeling, error-handling, config, testing, cli.
+
+Never guess at Effect patterns - check the guide first.
+<!-- effect-solutions:end -->
+
+## Stack
+
+- `@effect/sql-pg` — provides `PgClient` (the postgres connection Layer).
+- `drizzle-orm/effect-postgres` — provides `PgDrizzle.makeWithDefaults()`, the Effect-wrapped Drizzle instance built on top of `PgClient`.
+- `Database` is a `Context.Service` exposing the Drizzle instance; consumers `yield* Database` and call `.select()`/`.insert()`/etc.
+
+## Environment
+
+- `DATABASE_URL` — required at runtime when `layer()` is called without a `url`. Read via `Config.redacted("DATABASE_URL")`. drizzle-kit reads the same variable directly via `process.env`.
+
+## Scripts
+
+- `bun run build` — TypeScript build to `dist/`
+- `bun run check` — biome lint + `tsc --noEmit -p tsconfig.test.json`
+- `bun test` — runs an import-only smoke test (no real database connection)
+- `bun run db:generate` — generate migrations from `src/schema.ts` into `drizzle/`
+- `bun run db:migrate` — apply pending migrations against `DATABASE_URL`
+- `bun run db:push` — push schema directly (development only)
+- `bun run db:studio` — open Drizzle Studio against `DATABASE_URL`
+
+## Adding tables
+
+Edit `src/schema.ts` using `drizzle-orm/pg-core`, then run `bun run db:generate`.

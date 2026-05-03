@@ -1,0 +1,26 @@
+# @repo/{{ packageName }}
+
+{{#if description}}{{ description }}{{else}}A plain Drizzle (PostgreSQL) database package.{{/if}}
+
+## Stack
+
+- `drizzle-orm/bun-sql` — Drizzle adapter that uses Bun's built-in `SQL` client (no separate driver dep).
+- `createDb(url)` opens a Postgres connection and returns a typed Drizzle instance.
+
+## Environment
+
+- `DATABASE_URL` — Postgres connection string. The package does not read this on its own; pass it to `createDb()`. drizzle-kit reads it directly via `process.env`.
+
+## Scripts
+
+- `bun run build` — TypeScript build to `dist/`
+- `bun run check` — biome lint + `tsc --noEmit -p tsconfig.test.json`
+- `bun test` — runs an import-only smoke test
+- `bun run db:generate` — generate migrations from `src/schema.ts` into `drizzle/`
+- `bun run db:migrate` — apply pending migrations against `DATABASE_URL`
+- `bun run db:push` — push schema directly (development only)
+- `bun run db:studio` — open Drizzle Studio against `DATABASE_URL`
+
+## Adding tables
+
+Edit `src/schema.ts` using `drizzle-orm/pg-core`, then run `bun run db:generate`.

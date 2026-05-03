@@ -1,0 +1,11 @@
+import { eq } from "drizzle-orm";
+import { Effect } from "effect";
+import { Database } from "./client.ts";
+import { users } from "./schema.ts";
+
+export const getUserById = (id: number) =>
+  Effect.gen(function* () {
+    const db = yield* Database;
+    const rows = db.select().from(users).where(eq(users.id, id)).all();
+    return rows[0];
+  });

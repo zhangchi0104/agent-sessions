@@ -1,0 +1,8 @@
+import { Database as BunDatabase } from "bun:sqlite";
+import { drizzle } from "drizzle-orm/bun-sqlite";
+import * as schema from "./schema.ts";
+
+export const createDb = (filename: string) =>
+  drizzle({ client: new BunDatabase(filename), schema });
+
+export type Db = ReturnType<typeof createDb>;

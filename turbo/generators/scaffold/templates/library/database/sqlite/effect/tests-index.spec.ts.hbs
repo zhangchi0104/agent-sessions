@@ -1,0 +1,20 @@
+import { describe, expect, test } from "bun:test";
+import { Effect } from "effect";
+import { Database, getUserById, layer } from "../src/index.ts";
+
+describe("{{ packageName }}", () => {
+  test("getUserById returns undefined for missing user", async () => {
+    const program = Effect.gen(function* () {
+      const db = yield* Database;
+      db.run(`CREATE TABLE users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
+      return yield* getUserById(1);
+    }).pipe(Effect.provide(layer({ filename: ":memory:" })));
+
+    const result = await Effect.runPromise(program);
+    expect(result).toBeUndefined();
+  });
+});

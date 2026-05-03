@@ -1,0 +1,10 @@
+import { describe, expect, test } from "bun:test";
+import { Database, layer, schema } from "../src/index.ts";
+
+describe("{{ packageName }}", () => {
+  test("module exports are wired", () => {
+    expect(typeof layer).toBe("function");
+    expect(Database).toBeDefined();
+    expect(schema).toBeDefined();
+  });
+});

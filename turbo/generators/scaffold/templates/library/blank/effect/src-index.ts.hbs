@@ -1,0 +1,4 @@
+import { Effect } from "effect";
+
+export const greet = (name: string): Effect.Effect<string> =>
+  Effect.succeed(`Hello, ${name}!`);
