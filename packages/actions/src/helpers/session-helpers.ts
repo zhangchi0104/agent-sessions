@@ -25,7 +25,7 @@ type ListSessionsPayload = {
 export const listSessions = Effect.fn("actions.listSessions")(function* (filters: ListSessionsPayload) {
   const db = yield* Database;
   const result = yield* Effect.try({
-    try: () => db.select().from(sessions).where(buildSessionsFilters(filters)).orderBy(desc(sessions.createdAt)).all(),
+    try: () => db.select().from(sessions).where(buildSessionsFilters(filters)).orderBy(desc(sessions.updatedAt)).all(),
     catch: DrizzleError.fromUnknown,
   });
   return result;
