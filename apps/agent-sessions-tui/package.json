@@ -12,6 +12,7 @@
     "prepare": "effect-language-service patch"
   },
   "dependencies": {
+    "@opentui/core": "^0.2.3",
     "@repo/actions": "workspace:*",
     "@repo/database": "workspace:*",
     "effect": "catalog:"
