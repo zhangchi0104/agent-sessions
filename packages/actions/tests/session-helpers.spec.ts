@@ -59,6 +59,7 @@ describe("session helpers", () => {
               sessionId: "old-session",
               sessionName: "Old session",
               createdAt: new Date("2026-05-01T10:00:00.000Z"),
+              updatedAt: new Date("2026-05-01T10:00:00.000Z"),
             }),
           ),
           createSession(
@@ -66,6 +67,7 @@ describe("session helpers", () => {
               sessionId: "new-session",
               sessionName: "New session",
               createdAt: new Date("2026-05-02T10:00:00.000Z"),
+              updatedAt: new Date("2026-05-02T10:00:00.000Z"),
             }),
           ),
         ]),

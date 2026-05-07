@@ -43,9 +43,7 @@ export const HookPermissionModeSchema = Schema.Literals([
   "dontAsk",
   "bypassPermissions",
 ] as const);
-export type HookPermissionMode = Schema.Schema.Type<
-  typeof HookPermissionModeSchema
->;
+export type HookPermissionMode = Schema.Schema.Type<typeof HookPermissionModeSchema>;
 
 const hookEventBaseFields = {
   session_id: Schema.String,
@@ -86,13 +84,7 @@ export const HookPermissionUpdateSchema = Schema.Union([
   }),
   Schema.Struct({
     type: Schema.Literal("setMode"),
-    mode: Schema.Literals([
-      "default",
-      "plan",
-      "acceptEdits",
-      "dontAsk",
-      "bypassPermissions",
-    ] as const),
+    mode: Schema.Literals(["default", "plan", "acceptEdits", "dontAsk", "bypassPermissions"] as const),
     destination: Schema.optionalKey(HookPermissionDestinationSchema),
   }),
   Schema.Struct({
@@ -101,9 +93,7 @@ export const HookPermissionUpdateSchema = Schema.Union([
     destination: Schema.optionalKey(HookPermissionDestinationSchema),
   }),
 ]);
-export type HookPermissionUpdate = Schema.Schema.Type<
-  typeof HookPermissionUpdateSchema
->;
+export type HookPermissionUpdate = Schema.Schema.Type<typeof HookPermissionUpdateSchema>;
 
 export const SessionStartHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -112,9 +102,7 @@ export const SessionStartHookEventSchema = Schema.Struct({
   model: Schema.String,
   agent_type: Schema.optionalKey(Schema.String),
 });
-export type SessionStartHookEvent = Schema.Schema.Type<
-  typeof SessionStartHookEventSchema
->;
+export type SessionStartHookEvent = Schema.Schema.Type<typeof SessionStartHookEventSchema>;
 
 export const SetupHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -127,35 +115,20 @@ export const InstructionsLoadedHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
   hook_event_name: Schema.Literal("InstructionsLoaded"),
   file_path: Schema.String,
-  memory_type: Schema.Literals([
-    "User",
-    "Project",
-    "Local",
-    "Managed",
-  ] as const),
-  load_reason: Schema.Literals([
-    "session_start",
-    "nested_traversal",
-    "path_glob_match",
-    "include",
-    "compact",
-  ] as const),
+  memory_type: Schema.Literals(["User", "Project", "Local", "Managed"] as const),
+  load_reason: Schema.Literals(["session_start", "nested_traversal", "path_glob_match", "include", "compact"] as const),
   globs: Schema.optionalKey(Schema.Array(Schema.String)),
   trigger_file_path: Schema.optionalKey(Schema.String),
   parent_file_path: Schema.optionalKey(Schema.String),
 });
-export type InstructionsLoadedHookEvent = Schema.Schema.Type<
-  typeof InstructionsLoadedHookEventSchema
->;
+export type InstructionsLoadedHookEvent = Schema.Schema.Type<typeof InstructionsLoadedHookEventSchema>;
 
 export const UserPromptSubmitHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
   hook_event_name: Schema.Literal("UserPromptSubmit"),
   prompt: Schema.String,
 });
-export type UserPromptSubmitHookEvent = Schema.Schema.Type<
-  typeof UserPromptSubmitHookEventSchema
->;
+export type UserPromptSubmitHookEvent = Schema.Schema.Type<typeof UserPromptSubmitHookEventSchema>;
 
 export const UserPromptExpansionHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -166,9 +139,7 @@ export const UserPromptExpansionHookEventSchema = Schema.Struct({
   command_source: Schema.String,
   prompt: Schema.String,
 });
-export type UserPromptExpansionHookEvent = Schema.Schema.Type<
-  typeof UserPromptExpansionHookEventSchema
->;
+export type UserPromptExpansionHookEvent = Schema.Schema.Type<typeof UserPromptExpansionHookEventSchema>;
 
 export const PreToolUseHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -177,22 +148,16 @@ export const PreToolUseHookEventSchema = Schema.Struct({
   tool_input: HookToolInputSchema,
   tool_use_id: Schema.String,
 });
-export type PreToolUseHookEvent = Schema.Schema.Type<
-  typeof PreToolUseHookEventSchema
->;
+export type PreToolUseHookEvent = Schema.Schema.Type<typeof PreToolUseHookEventSchema>;
 
 export const PermissionRequestHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
   hook_event_name: Schema.Literal("PermissionRequest"),
   tool_name: Schema.String,
   tool_input: HookToolInputSchema,
-  permission_suggestions: Schema.optionalKey(
-    Schema.Array(HookPermissionUpdateSchema),
-  ),
+  permission_suggestions: Schema.optionalKey(Schema.Array(HookPermissionUpdateSchema)),
 });
-export type PermissionRequestHookEvent = Schema.Schema.Type<
-  typeof PermissionRequestHookEventSchema
->;
+export type PermissionRequestHookEvent = Schema.Schema.Type<typeof PermissionRequestHookEventSchema>;
 
 export const PostToolUseHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -203,9 +168,7 @@ export const PostToolUseHookEventSchema = Schema.Struct({
   tool_use_id: Schema.String,
   duration_ms: Schema.optionalKey(Schema.Number),
 });
-export type PostToolUseHookEvent = Schema.Schema.Type<
-  typeof PostToolUseHookEventSchema
->;
+export type PostToolUseHookEvent = Schema.Schema.Type<typeof PostToolUseHookEventSchema>;
 
 export const PostToolUseFailureHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -217,18 +180,14 @@ export const PostToolUseFailureHookEventSchema = Schema.Struct({
   is_interrupt: Schema.optionalKey(Schema.Boolean),
   duration_ms: Schema.optionalKey(Schema.Number),
 });
-export type PostToolUseFailureHookEvent = Schema.Schema.Type<
-  typeof PostToolUseFailureHookEventSchema
->;
+export type PostToolUseFailureHookEvent = Schema.Schema.Type<typeof PostToolUseFailureHookEventSchema>;
 
 export const PostToolBatchHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
   hook_event_name: Schema.Literal("PostToolBatch"),
   tool_calls: Schema.Array(HookToolCallSchema),
 });
-export type PostToolBatchHookEvent = Schema.Schema.Type<
-  typeof PostToolBatchHookEventSchema
->;
+export type PostToolBatchHookEvent = Schema.Schema.Type<typeof PostToolBatchHookEventSchema>;
 
 export const PermissionDeniedHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -238,9 +197,7 @@ export const PermissionDeniedHookEventSchema = Schema.Struct({
   tool_use_id: Schema.String,
   reason: Schema.String,
 });
-export type PermissionDeniedHookEvent = Schema.Schema.Type<
-  typeof PermissionDeniedHookEventSchema
->;
+export type PermissionDeniedHookEvent = Schema.Schema.Type<typeof PermissionDeniedHookEventSchema>;
 
 export const NotificationHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -256,9 +213,7 @@ export const NotificationHookEventSchema = Schema.Struct({
     "elicitation_response",
   ] as const),
 });
-export type NotificationHookEvent = Schema.Schema.Type<
-  typeof NotificationHookEventSchema
->;
+export type NotificationHookEvent = Schema.Schema.Type<typeof NotificationHookEventSchema>;
 
 export const SubagentStartHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -266,9 +221,7 @@ export const SubagentStartHookEventSchema = Schema.Struct({
   agent_id: Schema.String,
   agent_type: Schema.String,
 });
-export type SubagentStartHookEvent = Schema.Schema.Type<
-  typeof SubagentStartHookEventSchema
->;
+export type SubagentStartHookEvent = Schema.Schema.Type<typeof SubagentStartHookEventSchema>;
 
 export const SubagentStopHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -279,9 +232,7 @@ export const SubagentStopHookEventSchema = Schema.Struct({
   agent_transcript_path: Schema.String,
   last_assistant_message: Schema.String,
 });
-export type SubagentStopHookEvent = Schema.Schema.Type<
-  typeof SubagentStopHookEventSchema
->;
+export type SubagentStopHookEvent = Schema.Schema.Type<typeof SubagentStopHookEventSchema>;
 
 const taskHookEventFields = {
   task_id: Schema.String,
@@ -296,18 +247,14 @@ export const TaskCreatedHookEventSchema = Schema.Struct({
   hook_event_name: Schema.Literal("TaskCreated"),
   ...taskHookEventFields,
 });
-export type TaskCreatedHookEvent = Schema.Schema.Type<
-  typeof TaskCreatedHookEventSchema
->;
+export type TaskCreatedHookEvent = Schema.Schema.Type<typeof TaskCreatedHookEventSchema>;
 
 export const TaskCompletedHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
   hook_event_name: Schema.Literal("TaskCompleted"),
   ...taskHookEventFields,
 });
-export type TaskCompletedHookEvent = Schema.Schema.Type<
-  typeof TaskCompletedHookEventSchema
->;
+export type TaskCompletedHookEvent = Schema.Schema.Type<typeof TaskCompletedHookEventSchema>;
 
 export const StopHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -333,9 +280,7 @@ export const StopFailureHookEventSchema = Schema.Struct({
   error_details: Schema.optionalKey(Schema.String),
   last_assistant_message: Schema.optionalKey(Schema.String),
 });
-export type StopFailureHookEvent = Schema.Schema.Type<
-  typeof StopFailureHookEventSchema
->;
+export type StopFailureHookEvent = Schema.Schema.Type<typeof StopFailureHookEventSchema>;
 
 export const TeammateIdleHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -343,9 +288,7 @@ export const TeammateIdleHookEventSchema = Schema.Struct({
   teammate_name: Schema.String,
   team_name: Schema.String,
 });
-export type TeammateIdleHookEvent = Schema.Schema.Type<
-  typeof TeammateIdleHookEventSchema
->;
+export type TeammateIdleHookEvent = Schema.Schema.Type<typeof TeammateIdleHookEventSchema>;
 
 export const ConfigChangeHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -359,9 +302,7 @@ export const ConfigChangeHookEventSchema = Schema.Struct({
   ] as const),
   file_path: Schema.optionalKey(Schema.String),
 });
-export type ConfigChangeHookEvent = Schema.Schema.Type<
-  typeof ConfigChangeHookEventSchema
->;
+export type ConfigChangeHookEvent = Schema.Schema.Type<typeof ConfigChangeHookEventSchema>;
 
 export const CwdChangedHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -369,9 +310,7 @@ export const CwdChangedHookEventSchema = Schema.Struct({
   old_cwd: Schema.String,
   new_cwd: Schema.String,
 });
-export type CwdChangedHookEvent = Schema.Schema.Type<
-  typeof CwdChangedHookEventSchema
->;
+export type CwdChangedHookEvent = Schema.Schema.Type<typeof CwdChangedHookEventSchema>;
 
 export const FileChangedHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -379,9 +318,7 @@ export const FileChangedHookEventSchema = Schema.Struct({
   file_path: Schema.String,
   event: Schema.Literals(["change", "add", "unlink"] as const),
 });
-export type FileChangedHookEvent = Schema.Schema.Type<
-  typeof FileChangedHookEventSchema
->;
+export type FileChangedHookEvent = Schema.Schema.Type<typeof FileChangedHookEventSchema>;
 
 export const WorktreeCreateHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -389,18 +326,14 @@ export const WorktreeCreateHookEventSchema = Schema.Struct({
   name: Schema.String,
   source_path: Schema.optionalKey(Schema.String),
 });
-export type WorktreeCreateHookEvent = Schema.Schema.Type<
-  typeof WorktreeCreateHookEventSchema
->;
+export type WorktreeCreateHookEvent = Schema.Schema.Type<typeof WorktreeCreateHookEventSchema>;
 
 export const WorktreeRemoveHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
   hook_event_name: Schema.Literal("WorktreeRemove"),
   worktree_path: Schema.String,
 });
-export type WorktreeRemoveHookEvent = Schema.Schema.Type<
-  typeof WorktreeRemoveHookEventSchema
->;
+export type WorktreeRemoveHookEvent = Schema.Schema.Type<typeof WorktreeRemoveHookEventSchema>;
 
 export const PreCompactHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -408,9 +341,7 @@ export const PreCompactHookEventSchema = Schema.Struct({
   trigger: Schema.Literals(["manual", "auto"] as const),
   custom_instructions: Schema.String,
 });
-export type PreCompactHookEvent = Schema.Schema.Type<
-  typeof PreCompactHookEventSchema
->;
+export type PreCompactHookEvent = Schema.Schema.Type<typeof PreCompactHookEventSchema>;
 
 export const PostCompactHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -418,9 +349,7 @@ export const PostCompactHookEventSchema = Schema.Struct({
   trigger: Schema.Literals(["manual", "auto"] as const),
   compact_summary: Schema.String,
 });
-export type PostCompactHookEvent = Schema.Schema.Type<
-  typeof PostCompactHookEventSchema
->;
+export type PostCompactHookEvent = Schema.Schema.Type<typeof PostCompactHookEventSchema>;
 
 export const SessionEndHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -434,9 +363,7 @@ export const SessionEndHookEventSchema = Schema.Struct({
     "other",
   ] as const),
 });
-export type SessionEndHookEvent = Schema.Schema.Type<
-  typeof SessionEndHookEventSchema
->;
+export type SessionEndHookEvent = Schema.Schema.Type<typeof SessionEndHookEventSchema>;
 
 export const ElicitationHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -448,9 +375,7 @@ export const ElicitationHookEventSchema = Schema.Struct({
   elicitation_id: Schema.optionalKey(Schema.String),
   requested_schema: Schema.optionalKey(Schema.Unknown),
 });
-export type ElicitationHookEvent = Schema.Schema.Type<
-  typeof ElicitationHookEventSchema
->;
+export type ElicitationHookEvent = Schema.Schema.Type<typeof ElicitationHookEventSchema>;
 
 export const ElicitationResultHookEventSchema = Schema.Struct({
   ...hookEventBaseFields,
@@ -461,9 +386,7 @@ export const ElicitationResultHookEventSchema = Schema.Struct({
   elicitation_id: Schema.optionalKey(Schema.String),
   content: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
 });
-export type ElicitationResultHookEvent = Schema.Schema.Type<
-  typeof ElicitationResultHookEventSchema
->;
+export type ElicitationResultHookEvent = Schema.Schema.Type<typeof ElicitationResultHookEventSchema>;
 
 export const HookEventSchema = Schema.Union([
   SessionStartHookEventSchema,
@@ -517,9 +440,7 @@ export const HookSpecificOutputSchema = Schema.Union([
   }),
   Schema.Struct({
     hookEventName: Schema.Literal("PreToolUse"),
-    permissionDecision: Schema.optionalKey(
-      Schema.Literals(["allow", "deny", "ask", "defer"] as const),
-    ),
+    permissionDecision: Schema.optionalKey(Schema.Literals(["allow", "deny", "ask", "defer"] as const)),
     permissionDecisionReason: Schema.optionalKey(Schema.String),
     updatedInput: Schema.optionalKey(HookToolInputSchema),
     additionalContext: Schema.optionalKey(Schema.String),
@@ -530,9 +451,7 @@ export const HookSpecificOutputSchema = Schema.Union([
       Schema.Struct({
         behavior: Schema.Literals(["allow", "deny"] as const),
         updatedInput: Schema.optionalKey(HookToolInputSchema),
-        updatedPermissions: Schema.optionalKey(
-          Schema.Array(HookPermissionUpdateSchema),
-        ),
+        updatedPermissions: Schema.optionalKey(Schema.Array(HookPermissionUpdateSchema)),
         message: Schema.optionalKey(Schema.String),
         interrupt: Schema.optionalKey(Schema.Boolean),
       }),
@@ -547,17 +466,12 @@ export const HookSpecificOutputSchema = Schema.Union([
     worktreePath: Schema.String,
   }),
   Schema.Struct({
-    hookEventName: Schema.Literals([
-      "Elicitation",
-      "ElicitationResult",
-    ] as const),
+    hookEventName: Schema.Literals(["Elicitation", "ElicitationResult"] as const),
     action: Schema.Literals(["accept", "decline", "cancel"] as const),
     content: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
   }),
 ]);
-export type HookSpecificOutput = Schema.Schema.Type<
-  typeof HookSpecificOutputSchema
->;
+export type HookSpecificOutput = Schema.Schema.Type<typeof HookSpecificOutputSchema>;
 
 export const HookEventOutputSchema = Schema.Struct({
   continue: Schema.optionalKey(Schema.Boolean),
