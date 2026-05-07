@@ -1,0 +1,27 @@
+{
+  "name": "@repo/agent-sessions-tui",
+  "version": "0.0.1",
+  "description": "Agent sessions terminal UI",
+  "author": "Alex Zhang",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "check": "biome check . && tsc --noEmit",
+    "prepare": "effect-language-service patch"
+  },
+  "dependencies": {
+    "@repo/actions": "workspace:*",
+    "@repo/database": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "@effect/language-service": "catalog:",
+    "@repo/biome-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  }
+}

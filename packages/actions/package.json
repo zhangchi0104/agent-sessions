@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "build": "tsc --build",
-    "check": "biome check . && tsc --noEmit -p tsconfig.json",
+    "check": "biome check . && tsc --noEmit -p tsconfig.test.json",
     "test": "bun --bun vitest run",
     "test:watch": "bun --bun vitest",
     "prepare": "effect-language-service patch"

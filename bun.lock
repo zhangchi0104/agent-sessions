@@ -11,6 +11,23 @@
         "typescript": "catalog:",
       },
     },
+    "apps/agent-sessions-tui": {
+      "name": "@repo/agent-sessions-tui",
+      "version": "0.0.1",
+      "dependencies": {
+        "@repo/actions": "workspace:*",
+        "@repo/database": "workspace:*",
+        "effect": "catalog:",
+      },
+      "devDependencies": {
+        "@biomejs/biome": "catalog:",
+        "@effect/language-service": "catalog:",
+        "@repo/biome-config": "workspace:*",
+        "@repo/typescript-config": "workspace:*",
+        "@types/bun": "catalog:",
+        "typescript": "catalog:",
+      },
+    },
     "packages/actions": {
       "name": "@repo/actions",
       "version": "0.0.1",
@@ -208,6 +225,8 @@
     "@oxc-project/types": ["@oxc-project/types@0.127.0", "", {}, "sha512-aIYXQBo4lCbO4z0R3FHeucQHpF46l2LbMdxRvqvuRuW2OxdnSkcng5B8+K12spgLDj93rtN3+J2Vac/TIO+ciQ=="],
 
     "@repo/actions": ["@repo/actions@workspace:packages/actions"],
+
+    "@repo/agent-sessions-tui": ["@repo/agent-sessions-tui@workspace:apps/agent-sessions-tui"],
 
     "@repo/biome-config": ["@repo/biome-config@workspace:packages/biome-config"],
 
