@@ -11,6 +11,6 @@
     "rootDir": ".",
     "plugins": [{ "name": "@effect/language-service" }]
   },
-  "include": ["src/**/*", "tests/**/*"],
+  "include": ["src/**/*", "tests/**/*", "scripts/**/*"],
   "exclude": ["dist", "node_modules"]
 }

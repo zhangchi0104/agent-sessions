@@ -9,7 +9,7 @@ import * as schema from "@repo/database/schema";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import { Effect, Layer } from "effect";
-import { createSession, listSessions } from "../src/helpers/session-helpers.ts";
+import { createSession, createSessionEvent, listSessionEvents, listSessions } from "../src/helpers/session-helpers.ts";
 
 type SessionPayload = Parameters<typeof createSession>[0];
 
@@ -156,6 +156,79 @@ describe("session helpers", () => {
 
       expect(error).toBeInstanceOf(DrizzleError);
       expect(error.message).toBe("insert failed");
+    }),
+  );
+
+  it.effect("createSessionEvent inserts hook payloads", () =>
+    Effect.gen(function* () {
+      const databasePath = yield* Effect.sync(createTestDatabase);
+      const createdAt = new Date("2026-05-01T12:00:00.000Z");
+      const hookPayload = '{"hook_event_name":"PostToolUse","tool_name":"Edit"}';
+
+      const result = yield* runWithDatabase(
+        createSessionEvent({
+          sessionId: "session-events",
+          eventName: "PostToolUse",
+          toolName: "Edit",
+          cwd: "/repo/agent-sessions",
+          payload: hookPayload,
+          createdAt,
+        }),
+        databasePath,
+      );
+
+      expect(result).toMatchObject({
+        id: 1,
+        sessionId: "session-events",
+        eventName: "PostToolUse",
+        toolName: "Edit",
+        cwd: "/repo/agent-sessions",
+        payload: hookPayload,
+      });
+      expect(result.createdAt).toEqual(createdAt);
+    }),
+  );
+
+  it.effect("listSessionEvents filters by session and event name", () =>
+    Effect.gen(function* () {
+      const databasePath = yield* Effect.sync(createTestDatabase);
+      yield* runWithDatabase(
+        Effect.all([
+          createSessionEvent({
+            sessionId: "matching-session",
+            eventName: "PostToolUse",
+            toolName: "Edit",
+            payload: "{}",
+            createdAt: new Date("2026-05-01T10:00:00.000Z"),
+          }),
+          createSessionEvent({
+            sessionId: "matching-session",
+            eventName: "PreToolUse",
+            toolName: "Edit",
+            payload: "{}",
+            createdAt: new Date("2026-05-01T11:00:00.000Z"),
+          }),
+          createSessionEvent({
+            sessionId: "other-session",
+            eventName: "PostToolUse",
+            toolName: "Edit",
+            payload: "{}",
+            createdAt: new Date("2026-05-01T12:00:00.000Z"),
+          }),
+        ]),
+        databasePath,
+      );
+
+      const result = yield* runWithDatabase(
+        listSessionEvents({
+          sessionId: "matching-session",
+          eventName: "PostToolUse",
+        }),
+        databasePath,
+      );
+
+      expect(result.map((event) => event.sessionId)).toEqual(["matching-session"]);
+      expect(result.map((event) => event.eventName)).toEqual(["PostToolUse"]);
     }),
   );
 });

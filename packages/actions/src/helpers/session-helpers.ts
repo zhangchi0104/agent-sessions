@@ -1,14 +1,26 @@
 import { type AgentNames, Database, type SessionStatus } from "@repo/database";
 import { and, desc, eq, gte, lte } from "@repo/database/drizzle";
 import { DrizzleError } from "@repo/database/errors";
-import { sessions } from "@repo/database/schema";
+import { sessionEvents, sessions } from "@repo/database/schema";
 import { Effect } from "effect";
 
 type CreateSessionPayload = typeof sessions.$inferInsert;
+type CreateSessionEventPayload = typeof sessionEvents.$inferInsert;
 export const createSession = Effect.fn("actions.createSesssion")(function* (payload: CreateSessionPayload) {
   const db = yield* Database;
   const result = yield* Effect.try({
     try: () => db.insert(sessions).values(payload).returning().get(),
+    catch: DrizzleError.fromUnknown,
+  });
+  return result;
+});
+
+export const createSessionEvent = Effect.fn("actions.createSessionEvent")(function* (
+  payload: CreateSessionEventPayload,
+) {
+  const db = yield* Database;
+  const result = yield* Effect.try({
+    try: () => db.insert(sessionEvents).values(payload).returning().get(),
     catch: DrizzleError.fromUnknown,
   });
   return result;
@@ -31,6 +43,28 @@ export const listSessions = Effect.fn("actions.listSessions")(function* (filters
   return result;
 });
 
+type ListSessionEventsPayload = {
+  sessionId?: string;
+  eventName?: string;
+  fromTimestamp?: Date;
+  toTimestamp?: Date;
+};
+
+export const listSessionEvents = Effect.fn("actions.listSessionEvents")(function* (filters: ListSessionEventsPayload) {
+  const db = yield* Database;
+  const result = yield* Effect.try({
+    try: () =>
+      db
+        .select()
+        .from(sessionEvents)
+        .where(buildSessionEventsFilters(filters))
+        .orderBy(desc(sessionEvents.createdAt))
+        .all(),
+    catch: DrizzleError.fromUnknown,
+  });
+  return result;
+});
+
 function buildSessionsFilters(payload: ListSessionsPayload) {
   const filters = [];
   if (payload.agent) {
@@ -47,6 +81,23 @@ function buildSessionsFilters(payload: ListSessionsPayload) {
   }
   if (payload.toTimestamp) {
     filters.push(lte(sessions.createdAt, payload.toTimestamp));
+  }
+  return and(...filters);
+}
+
+function buildSessionEventsFilters(payload: ListSessionEventsPayload) {
+  const filters = [];
+  if (payload.sessionId) {
+    filters.push(eq(sessionEvents.sessionId, payload.sessionId));
+  }
+  if (payload.eventName) {
+    filters.push(eq(sessionEvents.eventName, payload.eventName));
+  }
+  if (payload.fromTimestamp) {
+    filters.push(gte(sessionEvents.createdAt, payload.fromTimestamp));
+  }
+  if (payload.toTimestamp) {
+    filters.push(lte(sessionEvents.createdAt, payload.toTimestamp));
   }
   return and(...filters);
 }

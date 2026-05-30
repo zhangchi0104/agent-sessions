@@ -1,0 +1,20 @@
+{
+  "name": "agent-sessions",
+  "interface": {
+    "displayName": "Agent Sessions"
+  },
+  "plugins": [
+    {
+      "name": "codex-session-event-writer",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codex-session-event-writer"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

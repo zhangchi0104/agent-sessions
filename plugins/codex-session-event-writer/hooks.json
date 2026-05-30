@@ -1,0 +1,81 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AGENT_SESSIONS_HOOK_EVENT=SessionStart ./scripts/write-session-event.sh"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AGENT_SESSIONS_HOOK_EVENT=UserPromptSubmit ./scripts/write-session-event.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AGENT_SESSIONS_HOOK_EVENT=PreToolUse ./scripts/write-session-event.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AGENT_SESSIONS_HOOK_EVENT=PostToolUse ./scripts/write-session-event.sh"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AGENT_SESSIONS_HOOK_EVENT=Notification ./scripts/write-session-event.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AGENT_SESSIONS_HOOK_EVENT=Stop ./scripts/write-session-event.sh"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AGENT_SESSIONS_HOOK_EVENT=SubagentStop ./scripts/write-session-event.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "codex-session-event-writer",
+  "version": "0.1.0",
+  "description": "Writes Codex session hook events into a local SQLite database.",
+  "author": {
+    "name": "Alex Zhang",
+    "url": "https://github.com/zhangchi0104"
+  },
+  "homepage": "https://github.com/zhangchi0104/agent-sessions",
+  "repository": "https://github.com/zhangchi0104/agent-sessions",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "hooks",
+    "session-events",
+    "sqlite"
+  ],
+  "hooks": "./hooks.json",
+  "interface": {
+    "displayName": "Session Event Writer",
+    "shortDescription": "Persists Codex hook events to a local SQLite database.",
+    "longDescription": "Captures Codex session lifecycle, prompt, tool, notification, and stop hook payloads and writes them into a local SQLite database for later inspection.",
+    "developerName": "Alex Zhang",
+    "category": "Productivity",
+    "capabilities": [
+      "Write",
+      "Automation"
+    ],
+    "websiteURL": "https://github.com/zhangchi0104/agent-sessions",
+    "privacyPolicyURL": "https://github.com/zhangchi0104/agent-sessions",
+    "termsOfServiceURL": "https://github.com/zhangchi0104/agent-sessions",
+    "defaultPrompt": [
+      "Show recent Codex session events",
+      "Summarize tool activity from the current session"
+    ],
+    "brandColor": "#2563EB",
+    "screenshots": []
+  }
+}

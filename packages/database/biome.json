@@ -2,6 +2,6 @@
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "extends": ["@repo/biome-config/biome.json"],
   "files": {
-    "includes": ["src/**", "tests/**", "*.json", "*.ts"]
+    "includes": ["src/**", "tests/**", "scripts/**", "*.json", "*.ts"]
   }
 }
