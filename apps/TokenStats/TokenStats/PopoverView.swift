@@ -4,9 +4,10 @@
 //
 //  The popover anchored to the menu-bar item: one section per Coding Agent
 //  (Claude Code first, Codex second), each with its own Usage Windows,
-//  last-updated / staleness line, sign-in, refresh, and account controls, plus
-//  a shared Quit footer. All copy follows the glossary (Usage Window, never
-//  "session"; full agent names in the popover).
+//  last-updated / staleness line, and sign-in flow, plus a single
+//  Settings control in the footer that manages every account (sign in / sign
+//  out per agent), a global refresh control, and Quit. All copy follows the
+//  glossary (Usage Window, never "session"; full agent names in the popover).
 //
 
 import SwiftUI
@@ -27,11 +28,51 @@ struct PopoverView: View {
             Divider()
             HStack {
                 Spacer()
-                Button("Quit TokenStats") { model.quit() }
+                settings
             }
         }
         .padding(14)
-        .frame(width: 300)
+        .frame(width: 308)
+    }
+
+    /// The single account-management control: one entry per Coding Agent that
+    /// signs that agent in or out depending on its state, plus Quit.
+    private var settings: some View {
+        Menu {
+            ForEach(Array(UsageModel.order.enumerated()), id: \.element) { _, id in
+                Section(displayName(for: id)) {
+                    if model.agentStates[id] == .signedOut {
+                        Button("Sign in") { signIn(id) }
+                    } else {
+                        Button("Sign out") { model.signOut(id) }
+                    }
+                }
+            }
+
+            Divider()
+            Button("Quit TokenStats") { model.quit() }
+        } label: {
+            Image(systemName: "gearshape")
+                .imageScale(.large)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("Settings")
+        .accessibilityLabel("Settings")
+    }
+
+    private func displayName(for id: CodingAgentID) -> String {
+        switch id {
+        case .claudeCode: return "Claude Code"
+        case .codex: return "Codex"
+        }
+    }
+
+    private func signIn(_ id: CodingAgentID) {
+        switch id {
+        case .claudeCode: model.signInClaude()
+        case .codex: model.signInCodex()
+        }
     }
 
     private var header: some View {
@@ -49,12 +90,12 @@ struct PopoverView: View {
     }
 }
 
-/// One Coding Agent's section: name, state-dependent body, and its own
-/// sign-in / refresh / account controls.
+/// One Coding Agent's section: name, state-dependent body, and sign-in flow.
 private struct AgentSection: View {
     let model: UsageModel
     let id: CodingAgentID
     @Binding var pastedCode: String
+    @State private var isDiagnosticsPopoverPresented = false
 
     private var displayName: String {
         switch id {
@@ -64,7 +105,7 @@ private struct AgentSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text(displayName).font(.subheadline.weight(.semibold))
                 Spacer()
@@ -84,21 +125,19 @@ private struct AgentSection: View {
             if model.isRefreshing(id) {
                 Text("Loading usage…").font(.caption).foregroundStyle(.secondary)
             } else {
-                Text("Couldn't load usage.").font(.caption)
+                statusLine(text: "Couldn't load usage.",
+                           isStale: true,
+                           diagnostics: model.diagnostics[id])
             }
-            diagnostics
-            signedInControls
         case .fresh(let snapshot):
             windows(snapshot)
             statusLine(text: "Updated \(UsageFormatting.relativeAge(of: snapshot.fetchedAt))",
                        isStale: false)
-            signedInControls
         case .staleDisclosed(let snapshot):
             windows(snapshot)
             statusLine(text: "Couldn't refresh · last updated \(UsageFormatting.relativeAge(of: snapshot.fetchedAt))",
-                       isStale: true)
-            diagnostics
-            signedInControls
+                       isStale: true,
+                       diagnostics: model.diagnostics[id])
         }
     }
 
@@ -145,85 +184,191 @@ private struct AgentSection: View {
     // MARK: - Signed in
 
     private func windows(_ snapshot: UsageSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ForEach(Array(snapshot.windows.enumerated()), id: \.offset) { _, window in
-                WindowRow(window: window)
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 130), spacing: 10)],
+            alignment: .leading,
+            spacing: 10
+        ) {
+            ForEach(Array(visibleWindows(in: snapshot).enumerated()), id: \.offset) { _, window in
+                WindowTile(window: window)
             }
         }
     }
 
-    private func statusLine(text: String, isStale: Bool) -> some View {
-        HStack(spacing: 6) {
-            if isStale {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.secondary)
-            }
-            Text(text)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+    private func visibleWindows(in snapshot: UsageSnapshot) -> [UsageWindow] {
+        snapshot.windows.filter { window in
+            window.label == "5-hour" || window.label == "Weekly"
         }
     }
 
-    @ViewBuilder private var diagnostics: some View {
-        if let diagnostics = model.diagnostics[id] {
-            Text(diagnostics)
-                .font(.caption2.monospaced())
-                .foregroundStyle(.red)
-                .textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private var signedInControls: some View {
-        HStack {
+    @ViewBuilder private func statusLine(text: String,
+                                         isStale: Bool,
+                                         diagnostics: String? = nil) -> some View {
+        if let diagnostics, diagnostics.isEmpty == false {
             Button {
-                model.refreshManually(id)
+                isDiagnosticsPopoverPresented = true
             } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
+                StatusLineContent(text: text, isStale: isStale, showsDetailsIndicator: true)
             }
-            .disabled(model.isRefreshing(id))
-
-            Spacer()
-
-            Menu("Account") {
-                Button("Sign out") { model.signOut(id) }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .help("Show error details")
+            .accessibilityLabel("\(text). Show error details")
+            .popover(isPresented: $isDiagnosticsPopoverPresented, arrowEdge: .bottom) {
+                DiagnosticsPopover(diagnostics: diagnostics)
             }
-            .fixedSize()
+        } else {
+            StatusLineContent(text: text, isStale: isStale, showsDetailsIndicator: false)
         }
     }
 }
 
-/// One usage quota row: label, percent, bar, and reset/detail text.
-private struct WindowRow: View {
+private struct StatusLineContent: View {
+    let text: String
+    let isStale: Bool
+    let showsDetailsIndicator: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if isStale {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Text(text)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            if showsDetailsIndicator {
+                Image(systemName: "info.circle")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+}
+
+private struct DiagnosticsPopover: View {
+    let diagnostics: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Error details")
+                .font(.caption.weight(.semibold))
+
+            ScrollView {
+                Text(diagnostics)
+                    .font(.caption2.monospaced())
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(width: 300)
+            .frame(maxHeight: 180)
+        }
+        .padding(12)
+    }
+}
+
+/// One compact square usage quota tile: title/countdown header and percentage ring.
+private struct WindowTile: View {
     let window: UsageWindow
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(window.label).font(.subheadline.weight(.medium))
-                Spacer()
-                Text(UsageFormatting.percentText(window.percentConsumed))
-                    .font(.subheadline.monospacedDigit())
-            }
-            ProgressView(value: min(max(window.percentConsumed, 0), 100), total: 100)
-                .tint(.primary)
-            if let resetAt = window.resetAt {
-                HStack {
-                    Text(UsageFormatting.countdown(to: resetAt))
-                    Spacer()
-                    Text(UsageFormatting.absoluteTime(resetAt))
+        ZStack {
+            PercentRing(percent: window.percentConsumed, centerText: UsageFormatting.percentText(window.percentConsumed))
+                .frame(width: 84, height: 84)
+                .offset(y: ringVerticalOffset)
+
+            VStack(spacing: 0) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(window.label)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                        .truncationMode(.tail)
+
+                    Spacer(minLength: 4)
+
+                    if let headerAccessoryText {
+                        Text(headerAccessoryText)
+                            .font(.caption2.monospacedDigit().weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
                 }
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            } else if let detailText = window.detailText {
-                Text(detailText)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("reset time unavailable")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .aspectRatio(1, contentMode: .fit)
+        .background {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.primary.opacity(0.028))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.primary.opacity(0.075), lineWidth: 1)
+        }
+        .help(helpText)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var headerAccessoryText: String? {
+        if let resetAt = window.resetAt {
+            return UsageFormatting.timerText(to: resetAt)
+        }
+        return "-"
+    }
+
+    private var ringVerticalOffset: CGFloat {
+        10
+    }
+
+    private var helpText: String {
+        if let resetAt = window.resetAt {
+            return "\(window.label), \(UsageFormatting.percentText(window.percentConsumed)), resets at \(UsageFormatting.absoluteTime(resetAt))"
+        }
+        return "\(window.label), \(UsageFormatting.percentText(window.percentConsumed)), reset unavailable"
+    }
+
+    private var accessibilityText: String {
+        if let resetAt = window.resetAt {
+            return "\(window.label), \(UsageFormatting.percentText(window.percentConsumed)), resets in \(UsageFormatting.timerText(to: resetAt))"
+        }
+        return "\(window.label), \(UsageFormatting.percentText(window.percentConsumed)), reset unavailable"
+    }
+}
+
+private struct PercentRing: View {
+    let percent: Double
+    let centerText: String
+
+    private var progress: Double {
+        min(max(percent, 0), 100) / 100
+    }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.primary.opacity(0.11), lineWidth: 5)
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(
+                    Color.primary,
+                    style: StrokeStyle(lineWidth: 5, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+
+            Text(centerText)
+                .font(.callout.monospacedDigit().weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)
+                .padding(6)
+        }
+        .accessibilityHidden(true)
     }
 }

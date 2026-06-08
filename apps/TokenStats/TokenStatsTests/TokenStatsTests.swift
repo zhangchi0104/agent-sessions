@@ -54,6 +54,27 @@ struct TokenStatsTests {
         #expect(text == "—")
     }
 
+    @Test func resetTimerTextUsesHoursAndMinutes() {
+        let now = Date(timeIntervalSince1970: 0)
+        let resetAt = now.addingTimeInterval((2 * 60 + 14) * 60)
+
+        #expect(UsageFormatting.timerText(to: resetAt, now: now) == "02:14")
+    }
+
+    @Test func resetTimerTextRoundsPartialMinutesUp() {
+        let now = Date(timeIntervalSince1970: 0)
+        let resetAt = now.addingTimeInterval(61)
+
+        #expect(UsageFormatting.timerText(to: resetAt, now: now) == "00:02")
+    }
+
+    @Test func resetTimerTextUsesZeroWhenResetHasPassed() {
+        let now = Date(timeIntervalSince1970: 60)
+        let resetAt = Date(timeIntervalSince1970: 0)
+
+        #expect(UsageFormatting.timerText(to: resetAt, now: now) == "00:00")
+    }
+
 }
 
 struct LastKnownUsageStoreTests {

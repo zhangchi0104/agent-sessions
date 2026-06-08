@@ -110,10 +110,10 @@ struct UsageSnapshotParserTests {
         #expect(windows.allSatisfy { $0.resetAt == nil })
     }
 
-    @Test func showsMeteredWindowsAlongsideExtraUsageEvenWhenPlaceholders() throws {
+    @Test func ignoresExtraUsageWhenMeteredWindowsArePresent() throws {
         // On a usage-credit/AUD plan the 5-hour and weekly windows come back as
-        // zero with null resets, while extra_usage carries the real quota. All
-        // three are surfaced — the placeholder rows render at 0% with no reset.
+        // zero with null resets, while extra_usage carries a separate credit
+        // quota. The popover intentionally stays focused on reset windows.
         let json = Data("""
         {
           "five_hour": { "utilization": 0.0, "resets_at": null },
@@ -139,14 +139,28 @@ struct UsageSnapshotParserTests {
 
         let windows = try UsageSnapshotParser.parse(json)
 
-        #expect(windows.map(\.label) == ["5-hour", "Weekly", "Usage credits"])
+        #expect(windows.map(\.label) == ["5-hour", "Weekly"])
         #expect(windows[0].percentConsumed == 0)
         #expect(windows[0].resetAt == nil)
         #expect(windows[1].percentConsumed == 0)
-        let credits = windows[2]
-        #expect(abs(credits.percentConsumed - 36.46451612903226) < 0.0001)
-        #expect(credits.resetAt == nil)
-        #expect(credits.detailText == "56.52 / 155.00 AUD spent")
+    }
+
+    @Test func ignoresExtraUsageWhenNoUsageWindowsArePresent() throws {
+        let json = Data("""
+        {
+          "extra_usage": {
+            "is_enabled": true,
+            "monthly_limit": 15500,
+            "used_credits": 5652.0,
+            "utilization": 36.46451612903226,
+            "currency": "AUD"
+          }
+        }
+        """.utf8)
+
+        let windows = try UsageSnapshotParser.parse(json)
+
+        #expect(windows.isEmpty)
     }
 
     @Test func throwsOnUnparseablePayload() {

@@ -16,17 +16,15 @@ enum UsageSnapshotParser {
             raw.five_hour?.window(label: "5-hour"),
             raw.seven_day?.window(label: "Weekly"),
         ].compactMap { $0 }
-        guard let extraUsage = raw.extra_usage?.window else { return meteredWindows }
-        return meteredWindows + [extraUsage]
+        return meteredWindows
     }
 
     private struct RawSnapshot: Decodable {
         let five_hour: RawWindow?
         let seven_day: RawWindow?
-        let extra_usage: RawExtraUsage?
 
         enum CodingKeys: String, CodingKey {
-            case five_hour, seven_day, extra_usage
+            case five_hour, seven_day
         }
 
         init(from decoder: Decoder) throws {
@@ -35,7 +33,6 @@ enum UsageSnapshotParser {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             five_hour = try? container.decodeIfPresent(RawWindow.self, forKey: .five_hour)
             seven_day = try? container.decodeIfPresent(RawWindow.self, forKey: .seven_day)
-            extra_usage = try? container.decodeIfPresent(RawExtraUsage.self, forKey: .extra_usage)
         }
     }
 
@@ -83,33 +80,4 @@ enum UsageSnapshotParser {
         }
     }
 
-    private struct RawExtraUsage: Decodable {
-        let is_enabled: Bool?
-        let monthly_limit: Double?
-        let used_credits: Double?
-        let utilization: Double?
-        let currency: String?
-
-        var window: UsageWindow? {
-            guard is_enabled == true, let utilization else { return nil }
-            return UsageWindow(
-                label: "Usage credits",
-                percentConsumed: utilization,
-                resetAt: nil,
-                detailText: detailText
-            )
-        }
-
-        private var detailText: String? {
-            guard let used_credits, let monthly_limit else { return nil }
-            let suffix = currency.map { " \($0)" } ?? ""
-            return "\(Self.formatDollars(used_credits)) / \(Self.formatDollars(monthly_limit))\(suffix) spent"
-        }
-
-        // `used_credits` and `monthly_limit` arrive in cents (minor units), so
-        // convert to the major currency unit before display.
-        private static func formatDollars(_ cents: Double) -> String {
-            String(format: "%.2f", cents / 100)
-        }
-    }
 }

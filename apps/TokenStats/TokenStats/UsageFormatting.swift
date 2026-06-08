@@ -60,6 +60,17 @@ enum UsageFormatting {
         return "resets in \(durationText(remaining))"
     }
 
+    /// Compact countdown for small gauges, e.g. "02:14".
+    static func timerText(to resetAt: Date, now: Date = Date()) -> String {
+        let remaining = resetAt.timeIntervalSince(now)
+        guard remaining > 0 else { return "00:00" }
+        let totalSeconds = Int(remaining.rounded(.up))
+        let totalMinutes = Int(ceil(Double(totalSeconds) / 60))
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        return String(format: "%02d:%02d", hours, minutes)
+    }
+
     /// "12m ago", "2h ago", "just now".
     static func relativeAge(of date: Date, now: Date = Date()) -> String {
         let elapsed = now.timeIntervalSince(date)

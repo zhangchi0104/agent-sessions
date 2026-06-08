@@ -32,14 +32,13 @@ encodings):
 - `resets_at` may also be explicit `null` when utilization is `0.0`; keep the
   Usage Window and treat reset time as unavailable rather than dropping it.
 - On usage-credit plans, the Usage Window fields may be zero/null placeholders
-  while `extra_usage` carries the meaningful quota percentage. TokenStats shows
-  all present windows — the 5-hour/weekly rows still render (at 0% with reset
-  time unavailable) alongside `extra_usage` as **Usage credits** — so the
-  rate-limit windows remain visible once they start carrying data.
+  while `extra_usage` carries a separate credit quota percentage. TokenStats
+  ignores `extra_usage` in the popover and keeps the UI focused on the 5-hour
+  and weekly reset windows.
 - Each block is optional, and unknown keys (`seven_day_oauth_apps`, etc.) appear
   and may be `null` — decode each known block independently and ignore the rest.
 - Maps directly onto our normalized **Usage Window**: `five_hour` → primary,
-  `seven_day` → secondary; `extra_usage` → usage-credit meter when present.
+  `seven_day` → secondary.
 
 Alternative source (fallback, not chosen): the same numbers ride on normal API response headers
 `anthropic-ratelimit-unified-5h-utilization`, `-7d-utilization`, `-overage-utilization`.
