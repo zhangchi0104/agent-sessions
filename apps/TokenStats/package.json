@@ -1,0 +1,11 @@
+{
+  "name": "@repo/tokenstats",
+  "version": "0.0.1",
+  "description": "TokenStats macOS app (Swift/Xcode)",
+  "author": "Alex Zhang",
+  "private": true,
+  "scripts": {
+    "build": "xcodebuild -project TokenStats.xcodeproj -scheme TokenStats -configuration Release -derivedDataPath build build",
+    "dev": "xcodebuild -project TokenStats.xcodeproj -scheme TokenStats -configuration Debug -derivedDataPath build build && open build/Build/Products/Debug/TokenStats.app"
+  }
+}

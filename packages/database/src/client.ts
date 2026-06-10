@@ -1,0 +1,24 @@
+import { Database as BunDatabase } from "bun:sqlite";
+import { drizzle, type SQLiteBunDatabase } from "drizzle-orm/bun-sqlite";
+import { Config, Context, Effect, Layer } from "effect";
+import * as schema from "./schema.ts";
+
+export interface DatabaseConfig {
+  readonly filename: string;
+}
+
+export class Database extends Context.Service<Database, SQLiteBunDatabase<typeof schema>>()("Database") {}
+
+export const layer = (config?: Partial<DatabaseConfig>) =>
+  Layer.effect(
+    Database,
+    Effect.gen(function* () {
+      const filename =
+        config?.filename ?? (yield* Config.string("DATABASE_PATH").pipe(Config.withDefault("./local.db")));
+      const client = yield* Effect.acquireRelease(
+        Effect.sync(() => new BunDatabase(filename)),
+        (db) => Effect.sync(() => db.close()),
+      );
+      return drizzle({ client, schema });
+    }),
+  );
