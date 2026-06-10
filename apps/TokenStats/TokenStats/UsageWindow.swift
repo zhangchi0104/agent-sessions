@@ -20,4 +20,9 @@ struct UsageWindow: Equatable, Codable {
         self.percentConsumed = percentConsumed
         self.resetAt = resetAt
     }
+
+    /// Fraction of the Limit still available, expressed 0–100.
+    var percentRemaining: Double {
+        min(max(100 - percentConsumed, 0), 100)
+    }
 }

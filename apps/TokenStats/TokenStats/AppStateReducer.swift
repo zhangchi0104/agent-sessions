@@ -40,6 +40,14 @@ enum AppStateReducer {
 enum CodingAgentID: String, CaseIterable, Codable, Hashable {
     case claudeCode
     case codex
+
+    /// The full Coding Agent name shown in the popover and Settings (glossary).
+    var displayName: String {
+        switch self {
+        case .claudeCode: return "Claude Code"
+        case .codex: return "Codex"
+        }
+    }
 }
 
 struct CodingAgentStates: Equatable {

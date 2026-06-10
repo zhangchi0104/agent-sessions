@@ -11,9 +11,13 @@
 
 import SwiftUI
 
+enum TokenStatsWindowID {
+    static let settings = "settings"
+}
+
 @main
 struct TokenStatsApp: App {
-    private let model = UsageModel()
+    private let model = UsageModel(appearance: AppearanceSettings())
 
     init() {
         model.start()
@@ -22,12 +26,39 @@ struct TokenStatsApp: App {
     var body: some Scene {
         MenuBarExtra {
             PopoverView(model: model)
-                .onAppear { model.refreshOnPopoverOpen() }
         } label: {
             // Monochrome icon + per-agent percent — no threshold colors (PRD).
             Image(systemName: "gauge.with.dots.needle.33percent")
             Text(MenuBarSummary.text(for: model.menuBarSummaries))
         }
         .menuBarExtraStyle(.window)
+
+        // The dedicated settings window for managing accounts. It uses a named
+        // Window so the menu-bar popover and Command-comma can target the same
+        // native Settings surface.
+        Window("Settings", id: TokenStatsWindowID.settings) {
+            SettingsView(model: model)
+        }
+        .defaultSize(width: 700, height: 380)
+        .windowResizability(.contentMinSize)
+        // Full-size content with no opaque title strip, so the sidebar runs to
+        // the top of the window and the traffic lights float over it.
+        .windowStyle(.hiddenTitleBar)
+        .commands {
+            TokenStatsCommands()
+        }
+    }
+}
+
+struct TokenStatsCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            Button("Settings…") {
+                PopoverView.openSettingsWindow(openWindow)
+            }
+            .keyboardShortcut(",", modifiers: .command)
+        }
     }
 }

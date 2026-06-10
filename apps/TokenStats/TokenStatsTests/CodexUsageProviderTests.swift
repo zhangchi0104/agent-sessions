@@ -46,7 +46,7 @@ struct CodexUsageProviderTests {
             """, for: request)
         }
 
-        let windows = try await provider.fetchUsage()
+        let windows = try await provider.fetchUsage().windows
 
         #expect(windows.map(\.label) == ["5-hour", "Weekly"])
         #expect(windows.map(\.percentConsumed) == [24, 12])

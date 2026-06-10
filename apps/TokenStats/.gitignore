@@ -1,6 +1,9 @@
 # Xcode build output (from xcodebuild -derivedDataPath build)
 build/
 
+# Scratch space (DerivedData, critiques, logo experiments)
+.scratch/
+
 # Xcode per-user state
 xcuserdata/
 *.xcuserstate

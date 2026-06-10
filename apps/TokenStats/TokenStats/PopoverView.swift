@@ -3,26 +3,27 @@
 //  TokenStats
 //
 //  The popover anchored to the menu-bar item: one section per Coding Agent
-//  (Claude Code first, Codex second), each with its own Usage Windows,
-//  last-updated / staleness line, and sign-in flow, plus a single
+//  (in the user's Appearance order, primary first), each with its own Usage
+//  Windows, last-updated / staleness line, and sign-in flow, plus a single
 //  Settings control in the footer that manages every account (sign in / sign
 //  out per agent), a global refresh control, and Quit. All copy follows the
 //  glossary (Usage Window, never "session"; full agent names in the popover).
 //
 
 import SwiftUI
+import AppKit
 
 struct PopoverView: View {
     let model: UsageModel
-    @State private var pastedCode = ""
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
 
-            ForEach(Array(UsageModel.order.enumerated()), id: \.element) { index, id in
+            ForEach(Array(model.appearance.displayOrder.enumerated()), id: \.element) { index, id in
                 if index > 0 { Divider() }
-                AgentSection(model: model, id: id, pastedCode: $pastedCode)
+                AgentSection(model: model, id: id)
             }
 
             Divider()
@@ -35,20 +36,10 @@ struct PopoverView: View {
         .frame(width: 308)
     }
 
-    /// The single account-management control: one entry per Coding Agent that
-    /// signs that agent in or out depending on its state, plus Quit.
+    /// Footer menu: open the dedicated Settings page (account management) or quit.
     private var settings: some View {
         Menu {
-            ForEach(Array(UsageModel.order.enumerated()), id: \.element) { _, id in
-                Section(displayName(for: id)) {
-                    if model.agentStates[id] == .signedOut {
-                        Button("Sign in") { signIn(id) }
-                    } else {
-                        Button("Sign out") { model.signOut(id) }
-                    }
-                }
-            }
-
+            Button("Settings…") { Self.openSettingsWindow(openWindow) }
             Divider()
             Button("Quit TokenStats") { model.quit() }
         } label: {
@@ -61,18 +52,12 @@ struct PopoverView: View {
         .accessibilityLabel("Settings")
     }
 
-    private func displayName(for id: CodingAgentID) -> String {
-        switch id {
-        case .claudeCode: return "Claude Code"
-        case .codex: return "Codex"
-        }
-    }
-
-    private func signIn(_ id: CodingAgentID) {
-        switch id {
-        case .claudeCode: model.signInClaude()
-        case .codex: model.signInCodex()
-        }
+    /// Open the Settings window and pull it to the front. The extra `activate`
+    /// is needed because TokenStats is an LSUIElement (menu-bar-only) app, so
+    /// its windows don't come forward — or take focus — on their own.
+    static func openSettingsWindow(_ openWindow: OpenWindowAction) {
+        openWindow(id: TokenStatsWindowID.settings)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private var header: some View {
@@ -90,24 +75,35 @@ struct PopoverView: View {
     }
 }
 
+/// A small "Primary" tag next to the primary agent's name (Appearance setting).
+private struct PrimaryBadge: View {
+    var body: some View {
+        Text("Primary")
+            .font(.system(size: 9, weight: .semibold))
+            .textCase(.uppercase)
+            .foregroundStyle(.tint)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(Color.accentColor.opacity(0.15), in: Capsule())
+            .accessibilityLabel("Primary subscription")
+    }
+}
+
 /// One Coding Agent's section: name, state-dependent body, and sign-in flow.
 private struct AgentSection: View {
     let model: UsageModel
     let id: CodingAgentID
-    @Binding var pastedCode: String
+    @Environment(\.openWindow) private var openWindow
     @State private var isDiagnosticsPopoverPresented = false
 
-    private var displayName: String {
-        switch id {
-        case .claudeCode: return "Claude Code"
-        case .codex: return "Codex"
-        }
-    }
+    private var displayName: String { id.displayName }
+    private var isPrimary: Bool { model.appearance.primaryAgent == id }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(displayName).font(.subheadline.weight(.semibold))
+                if isPrimary { PrimaryBadge() }
                 Spacer()
                 if model.isRefreshing(id) {
                     ProgressView().controlSize(.small)
@@ -143,61 +139,32 @@ private struct AgentSection: View {
 
     // MARK: - Signed out
 
+    /// Signed-out agents stay lightweight in the popover: account management
+    /// (and the sign-in flows) live on the dedicated Settings page.
     @ViewBuilder private var signedOut: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Sign in to \(displayName) to see your Usage Windows.")
+            Text("Not signed in to \(displayName).")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            switch id {
-            case .claudeCode:
-                Button(model.isAwaitingCode ? "Re-open browser" : "Sign in to Claude Code") {
-                    model.signInClaude()
-                }
-                if model.isAwaitingCode {
-                    Text("Approve in your browser, then paste the code here:")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    HStack {
-                        TextField("Paste code", text: $pastedCode)
-                            .textFieldStyle(.roundedBorder)
-                        Button("Submit") {
-                            model.submitPastedCode(pastedCode)
-                            pastedCode = ""
-                        }
-                        .disabled(pastedCode.isEmpty)
-                    }
-                }
-            case .codex:
-                Button("Sign in to Codex") { model.signInCodex() }
-                Text("Approve in your browser; TokenStats finishes automatically.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+            Button("Sign in…") {
+                PopoverView.openSettingsWindow(openWindow)
             }
-
-            if let error = model.loginError[id] {
-                Text(error).font(.caption).foregroundStyle(.red)
-            }
+            .controlSize(.small)
         }
     }
 
     // MARK: - Signed in
 
-    private func windows(_ snapshot: UsageSnapshot) -> some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 130), spacing: 10)],
-            alignment: .leading,
-            spacing: 10
-        ) {
-            ForEach(Array(visibleWindows(in: snapshot).enumerated()), id: \.offset) { _, window in
-                WindowTile(window: window)
-            }
-        }
-    }
-
-    private func visibleWindows(in snapshot: UsageSnapshot) -> [UsageWindow] {
-        snapshot.windows.filter { window in
-            window.label == "5-hour" || window.label == "Weekly"
+    @ViewBuilder private func windows(_ snapshot: UsageSnapshot) -> some View {
+        let style = model.appearance.gaugeStyle
+        switch id {
+        case .claudeCode:
+            // Weekly · 5-hour · credits, the 5-hour center-weighted.
+            ClaudeGaugeCluster(snapshot: snapshot, style: style)
+        case .codex:
+            // Two equal windows, no credits meter.
+            CodexGaugeCluster(snapshot: snapshot, style: style)
         }
     }
 
@@ -269,106 +236,57 @@ private struct DiagnosticsPopover: View {
     }
 }
 
-/// One compact square usage quota tile: title/countdown header and percentage ring.
-private struct WindowTile: View {
-    let window: UsageWindow
+/// Claude's readout: three windows — weekly (left), the 5-hour "session limit"
+/// emphasized in the center, and usage credits (right). Each shows how much is
+/// *left* and is colored green/yellow/red. Drawn per the Appearance gauge style.
+private struct ClaudeGaugeCluster: View {
+    let snapshot: UsageSnapshot
+    let style: GaugeStyle
 
     var body: some View {
-        ZStack {
-            PercentRing(percent: window.percentConsumed, centerText: UsageFormatting.percentText(window.percentConsumed))
-                .frame(width: 84, height: 84)
-                .offset(y: ringVerticalOffset)
-
-            VStack(spacing: 0) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(window.label)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                        .truncationMode(.tail)
-
-                    Spacer(minLength: 4)
-
-                    if let headerAccessoryText {
-                        Text(headerAccessoryText)
-                            .font(.caption2.monospacedDigit().weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        }
-        .padding(8)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .aspectRatio(1, contentMode: .fit)
-        .background {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.primary.opacity(0.028))
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(Color.primary.opacity(0.075), lineWidth: 1)
-        }
-        .help(helpText)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityText)
+        GaugeCluster(items: items, style: style)
     }
 
-    private var headerAccessoryText: String? {
-        if let resetAt = window.resetAt {
-            return UsageFormatting.timerText(to: resetAt)
-        }
-        return "-"
+    private func window(_ label: String) -> UsageWindow? {
+        snapshot.windows.first { $0.label == label }
     }
 
-    private var ringVerticalOffset: CGFloat {
-        10
-    }
-
-    private var helpText: String {
-        if let resetAt = window.resetAt {
-            return "\(window.label), \(UsageFormatting.percentText(window.percentConsumed)), resets at \(UsageFormatting.absoluteTime(resetAt))"
-        }
-        return "\(window.label), \(UsageFormatting.percentText(window.percentConsumed)), reset unavailable"
-    }
-
-    private var accessibilityText: String {
-        if let resetAt = window.resetAt {
-            return "\(window.label), \(UsageFormatting.percentText(window.percentConsumed)), resets in \(UsageFormatting.timerText(to: resetAt))"
-        }
-        return "\(window.label), \(UsageFormatting.percentText(window.percentConsumed)), reset unavailable"
+    private var items: [GaugeContent] {
+        let weekly = window("Weekly").map { GaugeContent(window: $0) }
+            ?? .placeholder(title: "Weekly")
+        let fiveHour = window("5-hour").map { GaugeContent(window: $0, emphasized: true) }
+            ?? GaugeContent(title: "5-hour", subtitle: .unavailable, percentRemaining: 0,
+                            progress: 0, centerText: "—", emphasized: true, isEnabled: false)
+        let credits: GaugeContent = snapshot.credits.map { credits in
+            GaugeContent(
+                title: "Credits",
+                subtitle: .text("of $\(Int(credits.limitDollars.rounded()))"),
+                percentRemaining: credits.percentRemaining,
+                progress: credits.percentRemaining / 100,
+                centerText: "$\(Int(credits.remainingDollars.rounded()))"
+            )
+        } ?? .placeholder(title: "Credits")
+        return [weekly, fiveHour, credits]
     }
 }
 
-private struct PercentRing: View {
-    let percent: Double
-    let centerText: String
+/// Codex's readout in the same gauge language: two equal windows, no credits.
+private struct CodexGaugeCluster: View {
+    let snapshot: UsageSnapshot
+    let style: GaugeStyle
 
-    private var progress: Double {
-        min(max(percent, 0), 100) / 100
-    }
+    private static let diameter: CGFloat = 88
 
     var body: some View {
-        ZStack {
-            Circle()
-                .stroke(Color.primary.opacity(0.11), lineWidth: 5)
-            Circle()
-                .trim(from: 0, to: progress)
-                .stroke(
-                    Color.primary,
-                    style: StrokeStyle(lineWidth: 5, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
+        GaugeCluster(items: items, style: style,
+                     sideDiameter: Self.diameter, centerDiameter: Self.diameter,
+                     sideLineWidth: 6, centerLineWidth: 6, circularSpacing: 18)
+    }
 
-            Text(centerText)
-                .font(.callout.monospacedDigit().weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.55)
-                .padding(6)
+    private var items: [GaugeContent] {
+        ["5-hour", "Weekly"].map { label in
+            snapshot.windows.first { $0.label == label }
+                .map { GaugeContent(window: $0) } ?? .placeholder(title: label)
         }
-        .accessibilityHidden(true)
     }
 }

@@ -29,9 +29,12 @@ final class UsageModel {
     /// Claude Code's paste-the-code flow: true while awaiting the pasted code.
     private(set) var isAwaitingCode = false
 
-    /// Fixed display order and compact menu-bar labels (PRD).
-    static let order: [CodingAgentID] = [.claudeCode, .codex]
+    /// Compact menu-bar labels (PRD). Display *order* is now user-controlled
+    /// via `appearance`; internal refresh loops iterate `CodingAgentID.allCases`.
     static let shortLabels: [CodingAgentID: String] = [.claudeCode: "C", .codex: "X"]
+
+    /// User-controlled presentation preferences (order, primary, gauge style).
+    let appearance: AppearanceSettings
 
     private let claudeAuth: AuthSession
     private let codexAuth: CodexAuthSession
@@ -43,9 +46,11 @@ final class UsageModel {
     private var timerTasks: [CodingAgentID: Task<Void, Never>] = [:]
     private var wakeObserver: NSObjectProtocol?
 
-    init(claudeAuth: AuthSession = AuthSession(),
+    init(appearance: AppearanceSettings,
+         claudeAuth: AuthSession = AuthSession(),
          codexAuth: CodexAuthSession = CodexAuthSession(),
          lastKnown: LastKnownUsageStore = LastKnownUsageStore()) {
+        self.appearance = appearance
         self.claudeAuth = claudeAuth
         self.codexAuth = codexAuth
         self.lastKnown = lastKnown
@@ -63,7 +68,7 @@ final class UsageModel {
     /// Call once on launch: restore each agent's last-known snapshot, observe
     /// wake, and kick an initial refresh per agent.
     func start() {
-        for id in Self.order {
+        for id in CodingAgentID.allCases {
             if let snapshot = lastKnown.load(for: id) {
                 // Persisted data is old by definition — show it disclosed as stale.
                 apply(.fetchSucceeded(id, snapshot))
@@ -74,15 +79,16 @@ final class UsageModel {
             }
         }
         observeWake()
-        for id in Self.order {
+        for id in CodingAgentID.allCases {
             Task { await refresh(id, trigger: .timer) }
         }
     }
 
     // MARK: - View helpers
 
+    /// Menu-bar readings in the user's display order (primary first).
     var menuBarSummaries: [CodingAgentUsageSummary] {
-        Self.order.map { id in
+        appearance.displayOrder.map { id in
             CodingAgentUsageSummary(shortLabel: Self.shortLabels[id] ?? "?", state: agentStates[id])
         }
     }
@@ -91,16 +97,12 @@ final class UsageModel {
 
     // MARK: - Triggers
 
-    func refreshOnPopoverOpen() {
-        for id in Self.order { Task { await refresh(id, trigger: .popoverOpen) } }
-    }
-
     func refreshManually(_ id: CodingAgentID) {
         Task { await refresh(id, trigger: .manual) }
     }
 
     func refreshAllManually() {
-        for id in Self.order { refreshManually(id) }
+        for id in CodingAgentID.allCases { refreshManually(id) }
     }
 
     // MARK: - Auth
@@ -181,11 +183,11 @@ final class UsageModel {
         defer { refreshing.remove(id) }
 
         do {
-            let windows = try await provider.fetchUsage()
+            let reading = try await provider.fetchUsage()
             // The user may have signed out while the fetch was in flight; if so,
             // discard the result rather than resurrecting cleared usage.
             guard isSignedIn(id) else { return }
-            let snapshot = UsageSnapshot(windows: windows, fetchedAt: Date())
+            let snapshot = UsageSnapshot(windows: reading.windows, credits: reading.credits, fetchedAt: Date())
             lastKnown.save(snapshot, for: id)
             lastFetch[id] = Date()
             failures[id] = 0
@@ -238,7 +240,7 @@ final class UsageModel {
         ) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
-                for id in Self.order { Task { await self.refresh(id, trigger: .wake) } }
+                for id in CodingAgentID.allCases { Task { await self.refresh(id, trigger: .wake) } }
             }
         }
     }

@@ -21,7 +21,7 @@ struct CodexUsageProvider: UsageProvider {
     /// `ChatGPT-Account-Id`. nil omits the header.
     let accountID: () async throws -> String?
 
-    func fetchUsage() async throws -> [UsageWindow] {
+    func fetchUsage() async throws -> UsageReading {
         var request = URLRequest(url: Self.usageEndpoint)
         request.timeoutInterval = 20 // surface a network hang as an error, not an endless spinner
         request.setValue("Bearer \(try await accessToken())", forHTTPHeaderField: "Authorization")
@@ -42,6 +42,6 @@ struct CodexUsageProvider: UsageProvider {
         guard !windows.isEmpty else {
             throw UsageError.noWindows(body: body)
         }
-        return windows
+        return UsageReading(windows: windows)
     }
 }

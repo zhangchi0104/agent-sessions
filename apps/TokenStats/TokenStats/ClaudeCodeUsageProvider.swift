@@ -16,7 +16,7 @@ struct ClaudeCodeUsageProvider: UsageProvider {
     /// Supplies a valid bearer token, refreshing silently if needed.
     let accessToken: () async throws -> String
 
-    func fetchUsage() async throws -> [UsageWindow] {
+    func fetchUsage() async throws -> UsageReading {
         var request = URLRequest(url: Self.usageEndpoint)
         request.timeoutInterval = 20 // surface a network hang as an error, not an endless spinner
         request.setValue("Bearer \(try await accessToken())", forHTTPHeaderField: "Authorization")
@@ -34,6 +34,6 @@ struct ClaudeCodeUsageProvider: UsageProvider {
         guard !windows.isEmpty else {
             throw UsageError.noWindows(body: body)
         }
-        return windows
+        return UsageReading(windows: windows, credits: UsageSnapshotParser.parseCredits(data))
     }
 }

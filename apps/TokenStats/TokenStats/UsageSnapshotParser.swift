@@ -19,6 +19,36 @@ enum UsageSnapshotParser {
         return meteredWindows
     }
 
+    /// The usage-credit balance from `extra_usage`, or nil when the plan has no
+    /// enabled credit quota. Tolerant: a missing/malformed block yields nil
+    /// rather than throwing, so it never sinks the metered-window parse.
+    static func parseCredits(_ data: Data) -> CreditBalance? {
+        guard
+            let envelope = try? JSONDecoder().decode(CreditEnvelope.self, from: data),
+            let extra = envelope.extra_usage,
+            extra.is_enabled == true,
+            let limit = extra.monthly_limit, limit > 0
+        else { return nil }
+        return CreditBalance(
+            usedCents: extra.used_credits ?? 0,
+            limitCents: limit,
+            utilization: extra.utilization ?? 0,
+            currency: extra.currency ?? "USD"
+        )
+    }
+
+    private struct CreditEnvelope: Decodable {
+        let extra_usage: ExtraUsage?
+    }
+
+    private struct ExtraUsage: Decodable {
+        let is_enabled: Bool?
+        let monthly_limit: Double?
+        let used_credits: Double?
+        let utilization: Double?
+        let currency: String?
+    }
+
     private struct RawSnapshot: Decodable {
         let five_hour: RawWindow?
         let seven_day: RawWindow?

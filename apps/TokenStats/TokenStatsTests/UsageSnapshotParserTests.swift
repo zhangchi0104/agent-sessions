@@ -110,10 +110,45 @@ struct UsageSnapshotParserTests {
         #expect(windows.allSatisfy { $0.resetAt == nil })
     }
 
+    @Test func parsesCreditsFromExtraUsage() {
+        // extra_usage amounts are cents: 5652 = $56.52 used of $155.00.
+        let json = Data("""
+        {
+          "five_hour": { "utilization": 0.0, "resets_at": null },
+          "extra_usage": {
+            "is_enabled": true,
+            "monthly_limit": 15500,
+            "used_credits": 5652.0,
+            "utilization": 36.46451612903226,
+            "currency": "AUD"
+          }
+        }
+        """.utf8)
+
+        let credits = try? #require(UsageSnapshotParser.parseCredits(json))
+
+        #expect(credits?.limitDollars == 155)
+        #expect(credits?.remainingDollars == 98.48)
+        #expect(credits?.currency == "AUD")
+        #expect(credits.map { Int($0.percentRemaining.rounded()) } == 64)
+    }
+
+    @Test func returnsNoCreditsWhenExtraUsageDisabledOrAbsent() {
+        let disabled = Data("""
+        { "extra_usage": { "is_enabled": false, "monthly_limit": 15500 } }
+        """.utf8)
+        let absent = Data("""
+        { "five_hour": { "utilization": 0.0, "resets_at": null } }
+        """.utf8)
+
+        #expect(UsageSnapshotParser.parseCredits(disabled) == nil)
+        #expect(UsageSnapshotParser.parseCredits(absent) == nil)
+    }
+
     @Test func ignoresExtraUsageWhenMeteredWindowsArePresent() throws {
         // On a usage-credit/AUD plan the 5-hour and weekly windows come back as
         // zero with null resets, while extra_usage carries a separate credit
-        // quota. The popover intentionally stays focused on reset windows.
+        // quota — surfaced separately via parseCredits, not as a reset window.
         let json = Data("""
         {
           "five_hour": { "utilization": 0.0, "resets_at": null },
