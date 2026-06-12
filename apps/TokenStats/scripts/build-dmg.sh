@@ -71,6 +71,24 @@ codesign --force --deep --options runtime --timestamp \
   "$APP_PATH"
 codesign --verify --strict --verbose=2 "$APP_PATH"
 
+# Guard: the signed app MUST carry the keychain-access-groups entitlement.
+# KeychainTokenStore uses the data-protection keychain, which grants an access
+# group ONLY via this entitlement on a non-sandboxed app — without it every
+# token save/load fails with errSecMissingEntitlement (-34018) and both sign-ins
+# break (regression history: commit c04930f dropped it with the sandbox keys).
+# We read it back from the SIGNED binary because that is what ships; an empty or
+# mis-built entitlements file would otherwise sail through to users.
+echo "==> Verifying signed entitlements"
+SIGNED_ENTITLEMENTS="$(codesign -d --entitlements - --xml "$APP_PATH" 2>/dev/null || true)"
+case "$SIGNED_ENTITLEMENTS" in
+  *keychain-access-groups*dev.otakuma.TokenStats*) ;;
+  *)
+    echo "error: signed app is missing the keychain-access-groups entitlement" >&2
+    echo "       (token Keychain access would fail with -34018; aborting release)" >&2
+    exit 1
+    ;;
+esac
+
 echo "==> Packaging DMG: $DMG_PATH"
 mkdir -p "$DIST"
 rm -f "$DMG_PATH"

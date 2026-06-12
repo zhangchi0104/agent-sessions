@@ -10,7 +10,19 @@
 	     used before are RESTRICTED entitlements: with no embedded provisioning
 	     profile, AMFI SIGKILLs the app at launch (codesign/spctl/notarization
 	     don't catch this — only the runtime kernel does). So we run without the
-	     sandbox (ENABLE_APP_SANDBOX = NO) and request no restricted entitlements.
-	     Keychain access uses the default team-based access group. -->
+	     sandbox (ENABLE_APP_SANDBOX = NO) and request no restricted entitlements. -->
+
+	<!-- keychain-access-groups is NOT a restricted entitlement: it is
+	     self-authorized by the signing team identifier ($(AppIdentifierPrefix)),
+	     needs no provisioning profile, and does not trip AMFI. It is required
+	     here because KeychainTokenStore uses the data-protection keychain
+	     (kSecUseDataProtectionKeychain), which grants an access group ONLY via
+	     this entitlement — a non-sandboxed app gets no default data-protection
+	     access group. Without it, SecItem* fail with errSecMissingEntitlement
+	     (-34018) on every token save/load. -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)dev.otakuma.TokenStats</string>
+	</array>
 </dict>
 </plist>
