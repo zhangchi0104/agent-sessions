@@ -175,16 +175,16 @@ struct CircularUsageGauge: View {
     private var numberSize: CGFloat { diameter * 0.24 }
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             CircularGauge(progress: content.isEnabled ? content.progress : 0,
                           tint: tint, diameter: diameter,
                           lineWidth: lineWidth, isRing: isRing) {
                 face
             }
 
-            VStack(spacing: 1) {
+            VStack(spacing: 2) {
                 Text(content.title)
-                    .font((content.emphasized ? Font.subheadline : .caption).weight(.semibold))
+                    .font((content.emphasized ? Font.body : .callout).weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 subtitleLabel
@@ -226,22 +226,22 @@ struct CircularUsageGauge: View {
         case .reset(let display, _):
             HStack(spacing: 2) {
                 Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 8, weight: .semibold))
+                    .font(.system(size: 9, weight: .semibold))
                 Text(display)
-                    .font(.caption2.monospacedDigit())
+                    .font(.callout.monospacedDigit())
             }
             .foregroundStyle(.secondary)
             .lineLimit(1)
             .minimumScaleFactor(0.85)
         case .text(let text):
             Text(text)
-                .font(.caption2.monospacedDigit())
+                .font(.callout.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
         case .unavailable:
             Text("—")
-                .font(.caption2)
+                .font(.callout)
                 .foregroundStyle(.tertiary)
         }
     }
@@ -255,24 +255,24 @@ struct BarUsageGauge: View {
     private var tint: Color { content.tint }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 6) {
                 Text(content.title)
-                    .font((content.emphasized ? Font.subheadline : .caption).weight(.semibold))
+                    .font((content.emphasized ? Font.body : .callout).weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 if content.isEnabled && content.status == .critical {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.caption2)
+                        .font(.callout)
                         .foregroundStyle(tint)
                 }
                 Spacer(minLength: 6)
                 Text(content.centerText)
-                    .font(.system(.callout, design: .rounded).weight(.semibold).monospacedDigit())
+                    .font(.system(.body, design: .rounded).weight(.semibold).monospacedDigit())
                     .foregroundStyle(.primary)
                 if content.isEnabled {
                     Text("left")
-                        .font(.caption2.weight(.medium))
+                        .font(.callout.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -299,15 +299,15 @@ struct BarUsageGauge: View {
         case .reset(let display, _):
             HStack(spacing: 3) {
                 Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 8, weight: .semibold))
+                    .font(.system(size: 9, weight: .semibold))
                 Text(display)
-                    .font(.caption2.monospacedDigit())
+                    .font(.callout.monospacedDigit())
             }
             .foregroundStyle(.secondary)
         case .text(let text):
-            Text(text).font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+            Text(text).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
         case .unavailable:
-            Text("—").font(.caption2).foregroundStyle(.tertiary)
+            Text("—").font(.callout).foregroundStyle(.tertiary)
         }
     }
 }

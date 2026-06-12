@@ -2,11 +2,11 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "startup|resume|clear",
+        "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "bun ./bin/agent-sessions-cli.js codex SessionStart"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/bin/agent-sessions-cli.js\" claude SessionStart"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun ./bin/agent-sessions-cli.js codex UserPromptSubmit"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/bin/agent-sessions-cli.js\" claude UserPromptSubmit"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun ./bin/agent-sessions-cli.js codex PreToolUse"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/bin/agent-sessions-cli.js\" claude PreToolUse"
           }
         ]
       }
@@ -39,7 +39,18 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun ./bin/agent-sessions-cli.js codex PostToolUse"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/bin/agent-sessions-cli.js\" claude PostToolUse"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/bin/agent-sessions-cli.js\" claude PermissionRequest"
           }
         ]
       }
@@ -50,7 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun ./bin/agent-sessions-cli.js codex Notification"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/bin/agent-sessions-cli.js\" claude Notification"
           }
         ]
       }
@@ -61,18 +72,18 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun ./bin/agent-sessions-cli.js codex Stop"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/bin/agent-sessions-cli.js\" claude Stop"
           }
         ]
       }
     ],
-    "SubagentStop": [
+    "SessionEnd": [
       {
         "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "bun ./bin/agent-sessions-cli.js codex SubagentStop"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/bin/agent-sessions-cli.js\" claude SessionEnd"
           }
         ]
       }

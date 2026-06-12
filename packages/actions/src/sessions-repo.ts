@@ -4,6 +4,7 @@ import type { sessionEvents, sessions } from "@repo/database/schema";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import { type ApplyHookEventInput, applyHookEvent } from "./helpers/apply-hook-event.ts";
 import { createSession, createSessionEvent, listSessionEvents, listSessions } from "./helpers/session-helpers.ts";
 
 type Session = typeof sessions.$inferSelect;
@@ -18,6 +19,7 @@ interface ISessionsRepo {
   createSession: (payload: CreateSessionPayload) => Effect.Effect<Session, DrizzleError>;
   listSessionEvents: (filters: ListSessionEventsFilters) => Effect.Effect<SessionEvent[], DrizzleError>;
   createSessionEvent: (payload: CreateSessionEventPayload) => Effect.Effect<SessionEvent, DrizzleError>;
+  applyHookEvent: (input: ApplyHookEventInput) => Effect.Effect<void, DrizzleError>;
 }
 
 export class SessionsRepo extends Context.Service<SessionsRepo, ISessionsRepo>()("@actions/Sessions") {
@@ -32,6 +34,7 @@ export class SessionsRepo extends Context.Service<SessionsRepo, ISessionsRepo>()
         createSession: (payload) => createSession(payload).pipe(provideDb),
         listSessionEvents: (filters) => listSessionEvents(filters).pipe(provideDb),
         createSessionEvent: (payload) => createSessionEvent(payload).pipe(provideDb),
+        applyHookEvent: (input) => applyHookEvent(input).pipe(provideDb),
       });
     }),
   );
