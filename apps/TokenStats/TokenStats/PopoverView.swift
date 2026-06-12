@@ -58,9 +58,9 @@ struct PopoverView: View {
                 AgentSection(model: model, id: id)
             }
         }
-        // Polls only while the Usage tab shows the figure; SwiftUI cancels
-        // this when the tab (or popover) goes away.
-        .task { await tokensTodayModel.pollWhileVisible() }
+        // Watches transcripts only while the Usage tab shows the figure;
+        // SwiftUI cancels this when the tab (or popover) goes away.
+        .task { await tokensTodayModel.observeWhileVisible() }
     }
 
     /// Footer menu: open the dedicated Settings page (account management) or quit.

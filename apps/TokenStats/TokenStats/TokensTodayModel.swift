@@ -5,9 +5,11 @@
 //  Owns the "tokens today" hero figure at the top of the Usage tab: token
 //  usage summed across every Coding Agent's local files touched today —
 //  Claude Code transcripts (all projects) and Codex session rollouts. The
-//  sources are plain files written by other processes, so the model re-reads
-//  on an interval while visible; the shared TranscriptTokenReader keeps that
-//  cheap by only parsing newly appended bytes.
+//  sources are plain files written by other processes, so while visible the
+//  model seeds once and then re-reads on each file-change tick from a
+//  TranscriptChangeSource (ADR-0003) rather than polling; the shared
+//  TranscriptTokenReader keeps each re-read cheap by only parsing newly
+//  appended bytes.
 //
 
 import Foundation
@@ -33,14 +35,18 @@ final class TokensTodayModel {
     /// The file roots to scan, one per Coding Agent. Adding an agent is one
     /// entry here (plus reader support for its file format).
     private let roots: [(label: String, path: String)]
+    /// Ticks when a watched transcript changes, driving a re-read (ADR-0003).
+    private let changeSource: TranscriptChangeSource
 
     init(reader: TranscriptTokenReader,
          roots: [(label: String, path: String)] = [
              ("Claude Code", SessionStore.realHomeDirectory() + "/.claude/projects"),
              ("Codex", SessionStore.realHomeDirectory() + "/.codex/sessions"),
-         ]) {
+         ],
+         changeSource: TranscriptChangeSource? = nil) {
         self.reader = reader
         self.roots = roots
+        self.changeSource = changeSource ?? FSEventsTranscriptChangeSource(paths: roots.map(\.path))
     }
 
     func refresh() async {
@@ -60,14 +66,13 @@ final class TokensTodayModel {
         }
     }
 
-    /// Refresh immediately, then keep refreshing until cancelled. Drive from a
-    /// SwiftUI `.task`, which cancels this loop when the Usage tab disappears.
-    /// Short interval so the big counter visibly ticks while the popover is
-    /// open; the incremental reader keeps each tick cheap.
-    func pollWhileVisible(interval: Duration = .seconds(5)) async {
-        while !Task.isCancelled {
+    /// Seed today's totals, then re-read whenever the watched transcript files
+    /// change. Drive from a SwiftUI `.task`, which cancels this when the Usage
+    /// tab disappears (ADR-0003: watch only while visible).
+    func observeWhileVisible() async {
+        await refresh()
+        for await _ in changeSource.ticks() {
             await refresh()
-            try? await Task.sleep(for: interval)
         }
     }
 }
