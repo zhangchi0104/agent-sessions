@@ -1,0 +1,24 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "agent-sessions",
+  "metadata": {
+    "description": "Track live coding-agent sessions and their status. Hooks record lifecycle events into a shared SQLite database that the agent-sessions TUI reads."
+  },
+  "owner": {
+    "name": "Alex Zhang"
+  },
+  "plugins": [
+    {
+      "name": "claude-session-event-writer",
+      "description": "Records Claude Code session hooks and derives session status (RUNNING / PENDING_APPROVAL / IDLE) into the shared agent-sessions SQLite database.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Alex Zhang"
+      },
+      "source": "./plugins/claude-session-event-writer",
+      "category": "productivity",
+      "homepage": "https://github.com/zhangchi0104/agent-sessions",
+      "tags": ["claude-code", "hooks", "session-events", "sqlite"]
+    }
+  ]
+}

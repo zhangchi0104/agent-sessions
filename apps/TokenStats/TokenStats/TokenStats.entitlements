@@ -6,5 +6,21 @@
 	<array>
 		<string>$(AppIdentifierPrefix)dev.otakuma.TokenStats</string>
 	</array>
+	<!-- The shared agent-sessions SQLite database (written by the hook CLIs)
+	     lives in the real home, outside our sandbox container. It runs in WAL
+	     mode, so even a read-only connection needs to touch the -shm/-wal
+	     sidecars — hence read-write on the directory; the app still opens the
+	     database SQLITE_OPEN_READONLY. -->
+	<key>com.apple.security.temporary-exception.files.home-relative-path.read-write</key>
+	<array>
+		<string>/.local/agent-sessions/</string>
+	</array>
+	<!-- Agent transcript/rollout files, read to sum token usage:
+	     Claude Code transcripts and Codex session rollouts. -->
+	<key>com.apple.security.temporary-exception.files.home-relative-path.read-only</key>
+	<array>
+		<string>/.claude/projects/</string>
+		<string>/.codex/sessions/</string>
+	</array>
 </dict>
 </plist>

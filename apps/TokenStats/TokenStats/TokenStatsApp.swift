@@ -18,14 +18,23 @@ enum TokenStatsWindowID {
 @main
 struct TokenStatsApp: App {
     private let model = UsageModel(appearance: AppearanceSettings())
+    private let sessionsModel: SessionsModel
+    private let tokensTodayModel: TokensTodayModel
 
     init() {
+        // One reader shared by both models, so a transcript parsed for the
+        // Sessions tab doesn't get re-parsed for the tokens-today figure.
+        let tokenReader = TranscriptTokenReader()
+        sessionsModel = SessionsModel(tokenReader: tokenReader)
+        tokensTodayModel = TokensTodayModel(reader: tokenReader)
         model.start()
     }
 
     var body: some Scene {
         MenuBarExtra {
-            PopoverView(model: model)
+            PopoverView(model: model,
+                        sessionsModel: sessionsModel,
+                        tokensTodayModel: tokensTodayModel)
         } label: {
             // Monochrome icon + per-agent percent — no threshold colors (PRD).
             Image(systemName: "gauge.with.dots.needle.33percent")

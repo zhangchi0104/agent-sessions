@@ -1,0 +1,30 @@
+{
+  "name": "@repo/agent-sessions-cli",
+  "version": "0.0.1",
+  "description": "Agent sessions hook CLI — updates session status from Claude Code / Codex hooks",
+  "author": "Alex Zhang",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "agent-sessions-cli": "src/index.ts"
+  },
+  "scripts": {
+    "start": "bun src/index.ts",
+    "build:bundle": "bun build src/index.ts --target=bun --outfile dist/agent-sessions-cli.js && for p in codex-session-event-writer claude-session-event-writer; do mkdir -p \"../../plugins/$p/bin\" && cp dist/agent-sessions-cli.js \"../../plugins/$p/bin/agent-sessions-cli.js\"; done",
+    "check": "biome check . && tsc --noEmit",
+    "prepare": "effect-language-service patch"
+  },
+  "dependencies": {
+    "@repo/actions": "workspace:*",
+    "@repo/database": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "@effect/language-service": "catalog:",
+    "@repo/biome-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  }
+}

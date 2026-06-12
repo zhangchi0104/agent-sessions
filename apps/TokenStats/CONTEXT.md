@@ -12,6 +12,10 @@ Claude Code can also return an `extra_usage` usage-credit meter. It is not a Usa
 
 > **Flagged ambiguity — "session limit":** Claude Code's own UI calls the 5-hour Usage Window the "session limit" and the weekly one the "weekly limit." We do **not** adopt "session limit," because **Session** here means a conversation. The 5-hour period is always a **Usage Window**.
 
+**Tokens Today**:
+The raw sum of input/output/cache tokens across all of a Coding Agent's transcript entries since local midnight — an informational *odometer*, **not** a quota measure. It carries no Limit and no reset semantics, and must never be presented as a **Usage Window**. Its source is the agent's local transcript files (Claude Code: every transcript under `~/.claude/projects`, spanning all projects), which is only an *estimate* of consumption — per ADR-0001 the authoritative quota figure comes from the usage endpoint, never from file sums. Tokens Today exists alongside the Usage Window as a separate, deliberately-unweighted "how much did I push through today" figure.
+_Avoid_: presenting Tokens Today as a percentage, a limit, or a remaining-quota figure; conflating it with the Usage Window gauge.
+
 **Limit**:
 The maximum usage allowed within a Usage Window. Consumption is shown as a percentage of this.
 _Avoid_: Cap, allowance (when referring to the metered ceiling specifically).
