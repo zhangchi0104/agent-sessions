@@ -1,9 +1,11 @@
 name: Release TokenStats
 
-# On every push to main that touches the TokenStats app, semantic-release
+# On every push to main or dev that touches the TokenStats app, semantic-release
 # inspects the conventional-commit history, computes the next version, then
 # builds + codesigns (Developer ID) + notarizes a .dmg and publishes it as a
 # GitHub Release asset under a `tokenstats-v<version>` tag.
+#   - dev  -> beta prereleases, e.g. tokenstats-v1.2.0-beta.1 (marked pre-release)
+#   - main -> stable releases,  e.g. tokenstats-v1.2.0
 #
 # Required repository secrets (Settings → Secrets and variables → Actions):
 #   MACOS_CERT_P12_BASE64   base64 of a "Developer ID Application" cert + key (.p12)
@@ -16,7 +18,7 @@ name: Release TokenStats
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - "apps/TokenStats/**"
       - ".github/workflows/release-tokenstats.yml"
@@ -28,7 +30,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: release-tokenstats
+  group: release-tokenstats-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
