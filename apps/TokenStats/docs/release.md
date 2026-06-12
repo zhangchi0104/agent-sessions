@@ -2,14 +2,27 @@
 
 Releases are fully automated by `.github/workflows/release-tokenstats.yml`.
 
+## Channels
+
+| Branch | Channel | Example version | GitHub Release |
+| --- | --- | --- | --- |
+| `dev`  | beta   | `1.2.0-beta.1`  | marked **pre-release** |
+| `main` | stable | `1.2.0`         | normal release |
+
+Land work on `dev` to ship a beta `.dmg`; merging `dev` → `main` promotes the
+same changes to a stable release. Beta numbers increment per push to `dev`
+(`-beta.1`, `-beta.2`, …) and collapse to the clean version on `main`.
+
 ## Flow
 
-1. You merge commits to `main` that touch `apps/TokenStats/**`, using
-   [Conventional Commits](https://www.conventionalcommits.org/) (`fix:`, `feat:`,
-   `feat!:` / `BREAKING CHANGE:`).
+1. You push/merge commits that touch `apps/TokenStats/**` to `dev` or `main`,
+   using [Conventional Commits](https://www.conventionalcommits.org/) (`fix:`,
+   `feat:`, `feat!:` / `BREAKING CHANGE:`).
 2. [semantic-release](https://semantic-release.gitbook.io/) reads the commit
-   history and computes the next [SemVer](https://semver.org/) version.
+   history and computes the next [SemVer](https://semver.org/) version for that
+   branch's channel.
    - `fix:` → patch, `feat:` → minor, breaking → major.
+   - On `dev` the result carries a `-beta.N` suffix.
    - No release-worthy commits → nothing happens.
 3. `scripts/build-dmg.sh <version>` builds the app at that version, codesigns it
    with **Developer ID Application** (hardened runtime), packages a `.dmg`,
