@@ -37,7 +37,7 @@ jobs:
   release:
     runs-on: macos-15 # needs Xcode 26 (project objectVersion 77 / macOS 26 SDK)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0 # semantic-release needs full history + tags
           persist-credentials: false
@@ -54,9 +54,9 @@ jobs:
           sudo xcode-select -switch "$XC"
           xcodebuild -version
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Import signing certificate
         env:
