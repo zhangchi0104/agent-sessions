@@ -35,15 +35,24 @@ concurrency:
 
 jobs:
   release:
-    runs-on: macos-14
+    runs-on: macos-15 # needs Xcode 26 (project objectVersion 77 / macOS 26 SDK)
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # semantic-release needs full history + tags
           persist-credentials: false
 
-      - name: Select Xcode
-        run: sudo xcode-select -switch /Applications/Xcode.app
+      - name: Select Xcode 26
+        run: |
+          set -euo pipefail
+          echo "Available Xcodes:"; ls -d /Applications/Xcode*.app
+          # The project is a macOS 26 / Xcode 26 format; the image default (16.x)
+          # can't read it. Pick the newest installed Xcode 26.
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$XC" ] || XC=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          echo "Selecting $XC"
+          sudo xcode-select -switch "$XC"
+          xcodebuild -version
 
       - uses: actions/setup-node@v4
         with:
