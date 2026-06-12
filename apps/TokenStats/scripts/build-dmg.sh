@@ -26,7 +26,7 @@ BUILD_NUMBER="${BUILD_NUMBER:-1}"
 
 APP_NAME="TokenStats"
 PROJECT="TokenStats.xcodeproj"
-TARGET="TokenStats"
+SCHEME="TokenStats"
 ENTITLEMENTS="TokenStats/TokenStats.entitlements"
 DERIVED="build"
 APP_PATH="${DERIVED}/Build/Products/Release/${APP_NAME}.app"
@@ -38,11 +38,12 @@ cd "$(dirname "$0")/.."
 
 echo "==> Building ${APP_NAME} ${VERSION} (build ${BUILD_NUMBER})"
 # Build unsigned: CI can't reliably use Xcode automatic signing, so we strip
-# signing here and apply a Developer ID signature manually below. We build the
-# target directly (-target) because no shared scheme is checked in.
+# signing here and apply a Developer ID signature manually below. -scheme (not
+# -target) is required alongside -derivedDataPath; the scheme is shared in
+# TokenStats.xcodeproj/xcshareddata so it resolves on CI.
 xcodebuild \
   -project "$PROJECT" \
-  -target "$TARGET" \
+  -scheme "$SCHEME" \
   -configuration Release \
   -derivedDataPath "$DERIVED" \
   CODE_SIGNING_ALLOWED=NO \
