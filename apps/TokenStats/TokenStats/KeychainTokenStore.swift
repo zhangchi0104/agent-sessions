@@ -6,18 +6,24 @@
 //  keychain item — never Claude Code's (ADR-0001). One JSON-encoded generic
 //  password item.
 //
-//  Uses the data-protection keychain (kSecUseDataProtectionKeychain). Access is
-//  governed by the app's keychain access group — declared via the
-//  keychain-access-groups entitlement (see TokenStats.entitlements,
-//  "$(AppIdentifierPrefix)dev.otakuma.TokenStats") — NOT by the legacy
-//  interactive ACL. A sandboxed app's identity doesn't line up with the legacy
-//  keychain's "Always Allow" model, so the legacy store re-prompts for the
-//  login-keychain password on every rebuild/rerun; the data-protection keychain
-//  grants access purely by entitlement match and never prompts.
+//  Uses the LEGACY (file-based) login keychain — deliberately NOT the
+//  data-protection keychain (kSecUseDataProtectionKeychain). The data-protection
+//  keychain grants access via a keychain access group, which requires the
+//  `keychain-access-groups` entitlement. On a notarized, non-sandboxed
+//  Developer ID app with no embedded provisioning profile, AMFI treats
+//  keychain-access-groups as an unauthorized restricted entitlement and
+//  SIGKILLs the process at launch ("TokenStats.app can't be opened", exit 137)
+//  — codesign/spctl/notarization all pass; only the runtime kernel rejects it.
+//  See ADR-0004.
 //
-//  Items live in the app's own access group, so they are private to TokenStats
-//  and survive rebuilds. AuthSession also caches the token in memory, so we
-//  touch the keychain at most once per launch.
+//  The legacy keychain needs no entitlement: access is governed by the item's
+//  ACL, keyed to the app's code signature. TokenStats creates and reads its own
+//  item, so it adds itself to that ACL on save and never prompts on its own
+//  reads. The released build has a stable Developer ID signature, so the grant
+//  persists across launches. (During local development the signature changes per
+//  build, so a debug rebuild may re-prompt for the login-keychain password once
+//  — a dev-only annoyance, not a shipped-app issue.) AuthSession also caches the
+//  token in memory, so we touch the keychain at most once per launch.
 //
 
 import Foundation
@@ -64,9 +70,10 @@ struct KeychainTokenStore {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
-            // Opt into the modern, entitlement-governed keychain — no per-rebuild
-            // "allow access to your keychain" prompts.
-            kSecUseDataProtectionKeychain as String: true,
+            // Intentionally the legacy login keychain: the data-protection
+            // keychain would require the keychain-access-groups entitlement,
+            // which AMFI SIGKILLs this Developer ID app over at launch. See the
+            // file header and ADR-0004.
         ]
     }
 

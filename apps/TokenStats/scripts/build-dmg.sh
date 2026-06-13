@@ -71,20 +71,23 @@ codesign --force --deep --options runtime --timestamp \
   "$APP_PATH"
 codesign --verify --strict --verbose=2 "$APP_PATH"
 
-# Guard: the signed app MUST carry the keychain-access-groups entitlement.
-# KeychainTokenStore uses the data-protection keychain, which grants an access
-# group ONLY via this entitlement on a non-sandboxed app — without it every
-# token save/load fails with errSecMissingEntitlement (-34018) and both sign-ins
-# break (regression history: commit c04930f dropped it with the sandbox keys).
-# We read it back from the SIGNED binary because that is what ships; an empty or
-# mis-built entitlements file would otherwise sail through to users.
-echo "==> Verifying signed entitlements"
+# Guard: the signed app MUST NOT carry any RESTRICTED entitlement. AMFI
+# authorizes restricted entitlements only against an embedded provisioning
+# profile, which this direct-distribution Developer ID build does not have, so
+# any such key makes the kernel SIGKILL the app at launch ("can't be opened",
+# exit 137) — codesign/spctl/notarization don't catch it. This bit us twice:
+# App Sandbox temporary-exceptions (commit c04930f) and keychain-access-groups
+# (commit 79a2c01, added on the false premise that it is AMFI-safe). We read the
+# entitlements back from the SIGNED binary because that is what actually ships.
+# (KeychainTokenStore uses the legacy login keychain, which needs no entitlement
+# — see ADR-0004.)
+echo "==> Verifying signed entitlements carry no restricted keys"
 SIGNED_ENTITLEMENTS="$(codesign -d --entitlements - --xml "$APP_PATH" 2>/dev/null || true)"
 case "$SIGNED_ENTITLEMENTS" in
-  *keychain-access-groups*dev.otakuma.TokenStats*) ;;
-  *)
-    echo "error: signed app is missing the keychain-access-groups entitlement" >&2
-    echo "       (token Keychain access would fail with -34018; aborting release)" >&2
+  *keychain-access-groups*|*com.apple.security.temporary-exception*|*com.apple.security.app-sandbox*)
+    echo "error: signed app carries a restricted entitlement AMFI will SIGKILL at launch" >&2
+    echo "       (keychain-access-groups / sandbox temporary-exception; aborting release)" >&2
+    echo "$SIGNED_ENTITLEMENTS" >&2
     exit 1
     ;;
 esac
