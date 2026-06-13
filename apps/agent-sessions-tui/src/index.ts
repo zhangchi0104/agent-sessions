@@ -1,24 +1,21 @@
 import { mkdirSync } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import { parseArgs } from "node:util";
 import { createCliRenderer } from "@opentui/core";
 import { SessionsRepo } from "@repo/actions";
-import { layer as databaseLayer, migrate } from "@repo/database";
+import { layer as databaseLayer, migrate, resolveDatabasePath } from "@repo/database";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { mountUi } from "./tui.ts";
 
-const DEFAULT_DB_PATH = join(homedir(), ".local", "agent-sessions", "sessions.db");
-
 const { values } = parseArgs({
   args: process.argv.slice(2),
   options: {
-    db: { type: "string", default: DEFAULT_DB_PATH },
+    db: { type: "string" },
   },
   strict: true,
 });
-const db = values.db ?? DEFAULT_DB_PATH;
+const db = values.db ?? resolveDatabasePath();
 mkdirSync(dirname(db), { recursive: true });
 
 const appLayer = SessionsRepo.layerDrizzle.pipe(Layer.provideMerge(databaseLayer({ filename: db })));

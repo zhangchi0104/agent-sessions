@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AGENT_SESSIONS_HOOK_EVENT=SessionStart ./scripts/write-session-event.sh"
+            "command": "bun ./bin/agent-sessions-cli.js codex SessionStart"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AGENT_SESSIONS_HOOK_EVENT=UserPromptSubmit ./scripts/write-session-event.sh"
+            "command": "bun ./bin/agent-sessions-cli.js codex UserPromptSubmit"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AGENT_SESSIONS_HOOK_EVENT=PreToolUse ./scripts/write-session-event.sh"
+            "command": "bun ./bin/agent-sessions-cli.js codex PreToolUse"
           }
         ]
       }
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AGENT_SESSIONS_HOOK_EVENT=PostToolUse ./scripts/write-session-event.sh"
+            "command": "bun ./bin/agent-sessions-cli.js codex PostToolUse"
           }
         ]
       }
@@ -50,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AGENT_SESSIONS_HOOK_EVENT=Notification ./scripts/write-session-event.sh"
+            "command": "bun ./bin/agent-sessions-cli.js codex Notification"
           }
         ]
       }
@@ -61,7 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AGENT_SESSIONS_HOOK_EVENT=Stop ./scripts/write-session-event.sh"
+            "command": "bun ./bin/agent-sessions-cli.js codex Stop"
           }
         ]
       }
@@ -72,7 +72,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AGENT_SESSIONS_HOOK_EVENT=SubagentStop ./scripts/write-session-event.sh"
+            "command": "bun ./bin/agent-sessions-cli.js codex SubagentStop"
           }
         ]
       }

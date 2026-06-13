@@ -28,6 +28,10 @@ build
 dist
 *.tsbuildinfo
 
+# Plugin bundles — built by CI and published to the `release` branch,
+# not committed to source branches.
+plugins/*/bin/
+
 
 # Debug
 npm-debug.log*
@@ -37,3 +41,10 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+# Code-signing / notarization material — never commit. Provide via CI secrets.
+*.p12
+*.p8
+*.cer
+*.mobileprovision
+AuthKey_*

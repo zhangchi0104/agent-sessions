@@ -2,9 +2,23 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>keychain-access-groups</key>
-	<array>
-		<string>$(AppIdentifierPrefix)dev.otakuma.TokenStats</string>
-	</array>
+	<!-- TokenStats ships as a notarized, NON-sandboxed Developer ID menu-bar
+	     app and requests NO restricted entitlements. It reads agent transcripts
+	     and the shared agent-sessions SQLite database from home-relative paths
+	     (~/.claude, ~/.codex, ~/.local/agent-sessions); a non-sandboxed app
+	     reads those directly with no entitlement.
+
+	     This dict MUST stay empty of restricted keys. AMFI authorizes restricted
+	     entitlements only against an embedded provisioning profile, which a
+	     direct-distribution Developer ID build does not carry — so ANY restricted
+	     entitlement (App Sandbox temporary-exceptions, AND keychain-access-groups)
+	     makes the kernel SIGKILL the app the instant it launches
+	     ("TokenStats.app can't be opened", exit 137). codesign, spctl and
+	     notarization do NOT catch this; only the runtime kernel does. See ADR-0004.
+
+	     In particular do NOT re-add keychain-access-groups: it was added (commit
+	     79a2c01) on the false premise that it is self-authorized and AMFI-safe —
+	     empirically it is killed here regardless of team prefix. KeychainTokenStore
+	     therefore uses the legacy login keychain, which needs no entitlement. -->
 </dict>
 </plist>

@@ -1,125 +1,151 @@
-# Bun Monorepo Template
+# agent-sessions
 
-A Bun-first Turborepo template for TypeScript workspaces. It ships shared
-TypeScript and Biome configuration packages plus a custom Turborepo generator
-for scaffolding apps, libraries, and Drizzle database packages.
+A Bun-first Turborepo that hosts two related coding-agent tools, plus a Claude
+Code plugin marketplace. Each tool is its own [bounded
+context](CONTEXT-MAP.md) with its own glossary:
 
-## What's Included
+- **Agent Sessions** — track the live coding-agent **sessions** you have running
+  (across Claude Code and Codex) and see at a glance which one is working, which
+  is waiting on you, and which is idle. Lifecycle hooks record events into a
+  shared SQLite database that a TUI reads. *(Documented below.)*
+- **[TokenStats](apps/TokenStats/)** — a macOS status-bar app showing how much of
+  a coding agent's usage allowance you've consumed and when it resets.
+  *(See [TokenStats](#tokenstats).)*
 
-- Bun workspaces for `apps/*`, `packages/*`, and `hooks/*`.
-- Turborepo tasks for `build`, `dev`, `lint`, and `check-types`.
-- Shared TypeScript configs in `@repo/typescript-config`.
-- Shared Biome config in `@repo/biome-config`.
-- A custom `scaffold` generator under `turbo/generators`.
-- Bun tests for the generator behavior.
+This repository is also a **Claude Code plugin marketplace** (see
+[Plugin marketplace](#plugin-marketplace)).
 
-## Repository Layout
+## How it works
+
+```
+Claude Code ─┐                      ┌─ sessions table (status per session)
+             ├─ hooks ─> agent-sessions-cli ─> SQLite ─┤
+Codex ───────┘                      └─ session_events (append-only log)
+                                              ▲
+                                  agent-sessions-tui reads it
+```
+
+Each agent runs a hook on its lifecycle events (prompt submitted, tool about to
+run, turn stopped, …). The hook invokes a small bundled CLI that appends the raw
+event and upserts the session's **status** — `RUNNING`, `PENDING_APPROVAL`, or
+`IDLE` — answering "who are we waiting on?". See
+[`apps/agent-sessions-tui/CONTEXT.md`](apps/agent-sessions-tui/CONTEXT.md) for the
+domain glossary and [`apps/agent-sessions-tui/docs/adr/`](apps/agent-sessions-tui/docs/adr/)
+for the design decisions.
+
+## Plugin marketplace
+
+The repo's root [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json)
+makes it a Claude Code plugin marketplace. The plugin bundles are **not** on
+`main` — CI builds them and publishes the **`release`** branch (see
+[Releasing](#releasing)), so add the marketplace from that branch using the full
+git URL (the `owner/repo` shorthand only reads the default branch):
+
+```
+/plugin marketplace add https://github.com/zhangchi0104/agent-sessions.git#release
+/plugin install claude-session-event-writer@agent-sessions
+```
+
+For local development, build the bundles and point the marketplace at your
+checkout instead:
+
+```
+cd apps/agent-sessions-cli && bun run build:bundle
+/plugin marketplace add /path/to/agent-sessions
+```
+
+Available plugins:
+
+| Plugin | Agent | What it does |
+|--------|-------|--------------|
+| [`claude-session-event-writer`](plugins/claude-session-event-writer/) | Claude Code | Records session hooks and derives status into the shared DB |
+| [`codex-session-event-writer`](plugins/codex-session-event-writer/) | Codex | Same, for Codex (installed via Codex's marketplace — see its README) |
+
+Both plugins run the same self-contained CLI bundle from their `bin/` and write to
+the canonical database `~/.local/agent-sessions/sessions.db` (override with
+`AGENT_SESSIONS_DB`), so the TUI shows Claude and Codex sessions together.
+
+> The Codex plugin is a Codex-format plugin and is **not** listed in the Claude
+> marketplace; it's registered separately in
+> [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json).
+
+## TokenStats
+
+[`apps/TokenStats/`](apps/TokenStats/) is a macOS status-bar app (Swift/SwiftUI)
+that shows how much of a coding agent's usage allowance has been consumed and
+when it resets. Claude Code is supported first; Codex support is being shaped
+behind the same trust bar. It reads the agent's authoritative usage endpoint for
+the gauge and sums local transcript files for an informational "tokens today"
+odometer — see [`apps/TokenStats/CONTEXT.md`](apps/TokenStats/CONTEXT.md) for the
+domain glossary and [`apps/TokenStats/docs/adr/`](apps/TokenStats/docs/adr/) for
+the design decisions.
+
+**Install:** download the latest codesigned, notarized `.dmg` from the
+[releases](https://github.com/zhangchi0104/agent-sessions/releases) (tags are
+scoped `tokenstats-v*`; betas are marked pre-release).
+
+**Build locally** (requires Xcode):
+
+```sh
+cd apps/TokenStats
+bun run dev      # build Debug and launch the app
+bun run build    # build Release
+```
+
+Releases are fully automated — pushes to `dev` cut a beta `.dmg` and `main` cuts
+a stable one. See [`apps/TokenStats/docs/release.md`](apps/TokenStats/docs/release.md).
+
+## Layout
 
 ```txt
 .
+├── .claude-plugin/marketplace.json   # Claude Code plugin marketplace
+├── apps/
+│   ├── agent-sessions-cli/           # hook CLI (bundled into the plugins)
+│   ├── agent-sessions-tui/           # terminal viewer + domain glossary/ADRs
+│   └── TokenStats/                   # macOS usage-tracking app (own context)
 ├── packages/
-│   ├── biome-config/         # Shared Biome config package
-│   └── typescript-config/    # Shared TypeScript config package
-├── turbo/
-│   └── generators/           # Turborepo generator source, tests, and templates
-├── docs/superpowers/         # Design notes and implementation plans
-├── package.json
-├── turbo.json
-└── bun.lock
+│   ├── actions/                      # SessionsRepo, status derivation, hook schema
+│   ├── database/                     # Drizzle schema + SQLite client
+│   ├── biome-config/ typescript-config/
+├── plugins/
+│   ├── claude-session-event-writer/  # Claude plugin (hooks + bundled CLI)
+│   └── codex-session-event-writer/   # Codex plugin (hooks + bundled CLI)
+└── turbo/generators/                 # workspace scaffolding generator
 ```
 
-Generated projects are created in:
+## Development
 
-- `apps/<name>` for applications
-- `packages/<name>` for libraries and database packages
-
-## Requirements
-
-- Bun `1.3.13` or newer compatible with the lockfile
-- Node.js `>=18`
-
-Install dependencies:
+Bun-first Turborepo. Requires Bun `1.3.13`+.
 
 ```sh
 bun install
-```
-
-## Scripts
-
-Run these from the repository root:
-
-```sh
-bun run build
-bun run dev
-bun run lint
+bun run build          # turbo build
 bun run check-types
-bun run format
 ```
 
-The first four scripts delegate to Turborepo. `format` runs Prettier over
-TypeScript and Markdown files.
-
-## Scaffolding Projects
-
-Use the custom Turborepo generator:
+Rebuild the CLI bundle into both plugins after changing the CLI or its deps:
 
 ```sh
-bunx turbo gen scaffold
+cd apps/agent-sessions-cli && bun run build:bundle
 ```
 
-The generator prompts for:
+Per-package scripts (`check`, `test`, etc.) live in each package's `package.json`.
 
-- project type: library or app
-- library kind: blank or Drizzle database
-- database engine: PostgreSQL or SQLite
-- app framework: Bun, Hono, Elysia, Nitro, or Astro
-- whether to include Effect
-- package metadata
+## Releasing
 
-Blank libraries and Bun apps are generated entirely from local templates.
-Hono, Elysia, Nitro, and Astro apps shell out to their official create commands,
-then normalize the generated project for this workspace. When Effect is enabled,
-the generator patches the app entrypoint, package metadata, and TypeScript
-configuration as needed.
+Two independent pipelines, each scoped to its own artifacts:
 
-Every generated project also gets an `AGENTS.md` symlink pointing at
-`CLAUDE.md`.
+**Plugins.** The plugin bundles (`plugins/*/bin/agent-sessions-cli.js`) are
+gitignored on source branches. The [`Publish release branch`](.github/workflows/release-plugins.yml)
+GitHub Action builds them and force-pushes a **`release`** branch — `main` plus
+the built bundles — on every relevant push to `main` (or via manual
+`workflow_dispatch`). That branch is what users install as a marketplace
+(`…agent-sessions.git#release`). Nothing about releasing requires committing a
+build artifact to `main`.
 
-## Generator Templates
-
-Templates live in `turbo/generators/scaffold/templates` and are organized by
-project shape:
-
-```txt
-app/bun/{effect,plain}
-library/blank/{effect,plain}
-library/database/{postgresql,sqlite}/{effect,plain}
-```
-
-Database library templates include Drizzle configuration and schema/client
-files. SQLite templates also include a starter `src/queries.ts`.
-
-## Testing
-
-Run the generator tests with Bun:
-
-```sh
-bun test turbo/generators/scaffold/index.test.ts
-```
-
-The tests cover prompt behavior, template selection, app create commands, and
-Effect patch helpers.
-
-## Shared Packages
-
-### `@repo/typescript-config`
-
-Provides reusable TypeScript configuration files:
-
-- `tsconfig.base.json`
-- `tsconfig.bundled.json`
-- `tsconfig.tsc.json`
-
-### `@repo/biome-config`
-
-Provides the shared Biome configuration exported as `biome.json`.
+**TokenStats.** The [`release-tokenstats`](.github/workflows/release-tokenstats.yml)
+workflow runs semantic-release on pushes touching `apps/TokenStats/**`: `dev`
+ships a beta `.dmg`, `main` a stable one, each codesigned, notarized, and
+attached to a `tokenstats-v*` GitHub Release. See
+[`apps/TokenStats/docs/release.md`](apps/TokenStats/docs/release.md).

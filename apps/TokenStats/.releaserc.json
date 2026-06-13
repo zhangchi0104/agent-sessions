@@ -1,0 +1,28 @@
+{
+  "branches": [
+    "main",
+    { "name": "dev", "prerelease": "beta" }
+  ],
+  "tagFormat": "tokenstats-v${version}",
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "./scripts/build-dmg.sh ${nextRelease.version}"
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          {
+            "path": "dist/*.dmg",
+            "label": "TokenStats ${nextRelease.version} (macOS .dmg)"
+          }
+        ]
+      }
+    ]
+  ]
+}
