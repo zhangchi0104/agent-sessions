@@ -1,11 +1,19 @@
 # agent-sessions
 
-Track the live coding-agent **sessions** you have running — across Claude Code
-and Codex — and see at a glance which one is working, which is waiting on you,
-and which is idle. Lifecycle hooks record events into a shared SQLite database
-that a TUI reads.
+A Bun-first Turborepo that hosts two related coding-agent tools, plus a Claude
+Code plugin marketplace. Each tool is its own [bounded
+context](CONTEXT-MAP.md) with its own glossary:
 
-This repository is also a **Claude Code plugin marketplace** (see below).
+- **Agent Sessions** — track the live coding-agent **sessions** you have running
+  (across Claude Code and Codex) and see at a glance which one is working, which
+  is waiting on you, and which is idle. Lifecycle hooks record events into a
+  shared SQLite database that a TUI reads. *(Documented below.)*
+- **[TokenStats](apps/TokenStats/)** — a macOS status-bar app showing how much of
+  a coding agent's usage allowance you've consumed and when it resets.
+  *(See [TokenStats](#tokenstats).)*
+
+This repository is also a **Claude Code plugin marketplace** (see
+[Plugin marketplace](#plugin-marketplace)).
 
 ## How it works
 
@@ -61,6 +69,32 @@ the canonical database `~/.local/agent-sessions/sessions.db` (override with
 > marketplace; it's registered separately in
 > [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json).
 
+## TokenStats
+
+[`apps/TokenStats/`](apps/TokenStats/) is a macOS status-bar app (Swift/SwiftUI)
+that shows how much of a coding agent's usage allowance has been consumed and
+when it resets. Claude Code is supported first; Codex support is being shaped
+behind the same trust bar. It reads the agent's authoritative usage endpoint for
+the gauge and sums local transcript files for an informational "tokens today"
+odometer — see [`apps/TokenStats/CONTEXT.md`](apps/TokenStats/CONTEXT.md) for the
+domain glossary and [`apps/TokenStats/docs/adr/`](apps/TokenStats/docs/adr/) for
+the design decisions.
+
+**Install:** download the latest codesigned, notarized `.dmg` from the
+[releases](https://github.com/zhangchi0104/agent-sessions/releases) (tags are
+scoped `tokenstats-v*`; betas are marked pre-release).
+
+**Build locally** (requires Xcode):
+
+```sh
+cd apps/TokenStats
+bun run dev      # build Debug and launch the app
+bun run build    # build Release
+```
+
+Releases are fully automated — pushes to `dev` cut a beta `.dmg` and `main` cuts
+a stable one. See [`apps/TokenStats/docs/release.md`](apps/TokenStats/docs/release.md).
+
 ## Layout
 
 ```txt
@@ -69,7 +103,7 @@ the canonical database `~/.local/agent-sessions/sessions.db` (override with
 ├── apps/
 │   ├── agent-sessions-cli/           # hook CLI (bundled into the plugins)
 │   ├── agent-sessions-tui/           # terminal viewer + domain glossary/ADRs
-│   └── TokenStats/                   # (separate context — usage tracking)
+│   └── TokenStats/                   # macOS usage-tracking app (own context)
 ├── packages/
 │   ├── actions/                      # SessionsRepo, status derivation, hook schema
 │   ├── database/                     # Drizzle schema + SQLite client
@@ -100,10 +134,18 @@ Per-package scripts (`check`, `test`, etc.) live in each package's `package.json
 
 ## Releasing
 
-The plugin bundles (`plugins/*/bin/agent-sessions-cli.js`) are gitignored on
-source branches. The [`Publish release branch`](.github/workflows/release-plugins.yml)
+Two independent pipelines, each scoped to its own artifacts:
+
+**Plugins.** The plugin bundles (`plugins/*/bin/agent-sessions-cli.js`) are
+gitignored on source branches. The [`Publish release branch`](.github/workflows/release-plugins.yml)
 GitHub Action builds them and force-pushes a **`release`** branch — `main` plus
 the built bundles — on every relevant push to `main` (or via manual
 `workflow_dispatch`). That branch is what users install as a marketplace
 (`…agent-sessions.git#release`). Nothing about releasing requires committing a
 build artifact to `main`.
+
+**TokenStats.** The [`release-tokenstats`](.github/workflows/release-tokenstats.yml)
+workflow runs semantic-release on pushes touching `apps/TokenStats/**`: `dev`
+ships a beta `.dmg`, `main` a stable one, each codesigned, notarized, and
+attached to a `tokenstats-v*` GitHub Release. See
+[`apps/TokenStats/docs/release.md`](apps/TokenStats/docs/release.md).
