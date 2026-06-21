@@ -8,8 +8,13 @@
 //  side-by-side readings (e.g. "C: 24% X: 12%") when both are. Clicking opens
 //  the popover anchored to it.
 //
+//  The app's long-lived models live on an AppDelegate rather than the App struct
+//  so the same instances can be shared with the AppKit-hosted onboarding window
+//  and presented on first launch (see OnboardingWindowController).
+//
 
 import SwiftUI
+import AppKit
 
 enum TokenStatsWindowID {
     static let settings = "settings"
@@ -17,28 +22,17 @@ enum TokenStatsWindowID {
 
 @main
 struct TokenStatsApp: App {
-    private let model = UsageModel(appearance: AppearanceSettings())
-    private let sessionsModel: SessionsModel
-    private let tokensTodayModel: TokensTodayModel
-
-    init() {
-        // One reader shared by both models, so a transcript parsed for the
-        // Sessions tab doesn't get re-parsed for the tokens-today figure.
-        let tokenReader = TranscriptTokenReader()
-        sessionsModel = SessionsModel(tokenReader: tokenReader)
-        tokensTodayModel = TokensTodayModel(reader: tokenReader)
-        model.start()
-    }
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
         MenuBarExtra {
-            PopoverView(model: model,
-                        sessionsModel: sessionsModel,
-                        tokensTodayModel: tokensTodayModel)
+            PopoverView(model: appDelegate.model,
+                        sessionsModel: appDelegate.sessionsModel,
+                        tokensTodayModel: appDelegate.tokensTodayModel)
         } label: {
             // Monochrome icon + per-agent percent — no threshold colors (PRD).
             Image(systemName: "gauge.with.dots.needle.33percent")
-            Text(MenuBarSummary.text(for: model.menuBarSummaries))
+            Text(MenuBarSummary.text(for: appDelegate.model.menuBarSummaries))
         }
         .menuBarExtraStyle(.window)
 
@@ -46,7 +40,8 @@ struct TokenStatsApp: App {
         // Window so the menu-bar popover and Command-comma can target the same
         // native Settings surface.
         Window("Settings", id: TokenStatsWindowID.settings) {
-            SettingsView(model: model)
+            SettingsView(model: appDelegate.model,
+                         onRunSetupAgain: { appDelegate.showOnboarding() })
         }
         .defaultSize(width: 700, height: 380)
         .windowResizability(.contentMinSize)
@@ -56,6 +51,42 @@ struct TokenStatsApp: App {
         .commands {
             TokenStatsCommands()
         }
+    }
+}
+
+/// Owns the app's long-lived models and the onboarding window. As an
+/// `@NSApplicationDelegateAdaptor`, it's created before the scenes, so the App
+/// struct reads its models when building them.
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    let model: UsageModel
+    let sessionsModel: SessionsModel
+    let tokensTodayModel: TokensTodayModel
+    let onboarding = OnboardingSettings()
+    private var onboardingController: OnboardingWindowController?
+
+    override init() {
+        // One reader shared by both models, so a transcript parsed for the
+        // Sessions tab doesn't get re-parsed for the tokens-today figure.
+        let tokenReader = TranscriptTokenReader()
+        model = UsageModel(appearance: AppearanceSettings())
+        sessionsModel = SessionsModel(tokenReader: tokenReader)
+        tokensTodayModel = TokensTodayModel(reader: tokenReader)
+        super.init()
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        model.start()
+        if !onboarding.completed { showOnboarding() }
+    }
+
+    /// Present (or re-present) the first-run onboarding flow. Reused for both the
+    /// automatic first-launch prompt and the "Run setup again" action in Settings.
+    func showOnboarding() {
+        if onboardingController == nil {
+            onboardingController = OnboardingWindowController(model: model, onboarding: onboarding)
+        }
+        onboardingController?.show()
     }
 }
 

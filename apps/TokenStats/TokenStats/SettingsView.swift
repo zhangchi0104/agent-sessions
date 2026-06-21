@@ -14,6 +14,9 @@ import AppKit
 /// The top-level Settings window: a sidebar of sections with a detail pane.
 struct SettingsView: View {
     let model: UsageModel
+    /// Re-presents the first-run onboarding flow (the About pane's "Run setup
+    /// again"). Defaults to a no-op so previews and tests can omit it.
+    var onRunSetupAgain: () -> Void = {}
     @State private var selection: SettingsSection? = .accounts
     private static let sidebarWidth: CGFloat = 218
 
@@ -30,7 +33,7 @@ struct SettingsView: View {
                 switch selection ?? .accounts {
                 case .accounts: AccountsPane(model: model)
                 case .appearance: AppearancePane(appearance: model.appearance)
-                case .about: AboutPane()
+                case .about: AboutPane(onRunSetupAgain: onRunSetupAgain)
                 }
             }
             // Pin the detail column's size so a greedy detail pane (e.g. the
@@ -301,6 +304,8 @@ private struct GaugeStylePreview: View {
 
 /// App identity: icon, version, a one-line description, and a source link.
 private struct AboutPane: View {
+    let onRunSetupAgain: () -> Void
+
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: "gauge.with.dots.needle.33percent")
@@ -323,6 +328,9 @@ private struct AboutPane: View {
                  destination: URL(string: "https://github.com/zhangchi0104/TokenStats")!)
                 .font(.callout)
                 .padding(.top, 2)
+
+            Button("Run setup again", action: onRunSetupAgain)
+                .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
@@ -444,8 +452,9 @@ private enum ConnectionStatus {
 }
 
 /// A small rounded-tile glyph that anchors each account row — the macOS
-/// System Settings convention of a colored icon leading the row label.
-private struct AgentIconBadge: View {
+/// System Settings convention of a colored icon leading the row label. Shared
+/// with the onboarding flow's account tiles.
+struct AgentIconBadge: View {
     let id: CodingAgentID
 
     var body: some View {
