@@ -12,7 +12,6 @@
 //
 
 import SwiftUI
-import AppKit
 
 struct OnboardingView: View {
     let model: UsageModel
@@ -23,6 +22,12 @@ struct OnboardingView: View {
 
     @State private var step: Step = .disclosure
     @State private var hooksDetected = false
+
+    // Per-agent hook install state (the hooks step drives these).
+    @State private var installed: Set<CodingAgentID> = []
+    @State private var installing: Set<CodingAgentID> = []
+    @State private var installErrors: [CodingAgentID: String] = [:]
+    @State private var bunAvailable = true
 
     /// The ordered steps. `rawValue` drives Back/Continue and the step indicator.
     /// The disclosure leads so the user reads what TokenStats accesses before any
@@ -202,29 +207,86 @@ struct OnboardingView: View {
     private var hooksStep: some View {
         VStack(alignment: .leading, spacing: 18) {
             stepHeading("Enable live tracking",
-                        "Real-time session and token tracking comes from a small hook "
-                        + "plugin that records activity to a database TokenStats reads. "
-                        + "Install it in your agent with the commands below.")
+                        "Live session and token tracking comes from a small hook that records "
+                        + "activity to a local database TokenStats reads. TokenStats can install "
+                        + "it for you — everything stays on your Mac.")
             detectionBanner
-            CommandBlock(
-                title: "Claude Code",
-                subtitle: "Run in a Claude Code session:",
-                command: "/plugin marketplace add https://github.com/zhangchi0104/agent-sessions.git#release\n"
-                    + "/plugin install claude-session-event-writer@agent-sessions")
-            CommandBlock(
-                title: "Codex",
-                subtitle: "Add to your Codex config (replace the path with your checkout):",
-                command: """
-                [marketplaces.agent-sessions]
-                source_type = "local"
-                source = "/path/to/agent-sessions"
-
-                [plugins."codex-session-event-writer@agent-sessions"]
-                enabled = true
-                """)
-            Text("Requires bun on your PATH. You can skip this and set it up later.")
+            AgentInstallRow(
+                id: .claudeCode,
+                installed: installed.contains(.claudeCode),
+                installing: installing.contains(.claudeCode),
+                bunAvailable: bunAvailable,
+                error: installErrors[.claudeCode],
+                installedNote: nil,
+                onInstall: { install(.claudeCode) },
+                onRemove: { uninstall(.claudeCode) })
+            AgentInstallRow(
+                id: .codex,
+                installed: installed.contains(.codex),
+                installing: installing.contains(.codex),
+                bunAvailable: bunAvailable,
+                error: installErrors[.codex],
+                installedNote: "Codex asks you to approve the hook once on its next launch — "
+                    + "accept it in Codex's hook review and tracking starts.",
+                onInstall: { install(.codex) },
+                onRemove: { uninstall(.codex) })
+            if !bunAvailable {
+                Label("bun isn't installed — the hooks run on it. Install from bun.sh, then try again.",
+                      systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("You can skip this and set it up later from Settings.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+        .task { await refreshInstallStatus() }
+    }
+
+    private func refreshInstallStatus() async {
+        // Off the main actor — findBun() may spawn a login shell.
+        bunAvailable = await Task.detached { HookInstaller.bunAvailable() }.value
+        var done: Set<CodingAgentID> = []
+        if await Task.detached(operation: { HookInstaller.isClaudeInstalled() }).value { done.insert(.claudeCode) }
+        if await Task.detached(operation: { HookInstaller.isCodexInstalled() }).value { done.insert(.codex) }
+        installed = done
+    }
+
+    private func install(_ id: CodingAgentID) {
+        run(id) {
+            switch id {
+            case .claudeCode: try HookInstaller.installClaude()
+            case .codex: try HookInstaller.installCodex()
+            }
+        }
+    }
+
+    private func uninstall(_ id: CodingAgentID) {
+        run(id) {
+            switch id {
+            case .claudeCode: try HookInstaller.uninstallClaude()
+            case .codex: try HookInstaller.uninstallCodex()
+            }
+        }
+    }
+
+    /// Run an install/uninstall for one agent off the main actor, then re-read
+    /// that agent's state so the row reflects what's actually on disk.
+    private func run(_ id: CodingAgentID, _ work: @escaping @Sendable () throws -> Void) {
+        installing.insert(id)
+        installErrors[id] = nil
+        Task {
+            do {
+                try await Task.detached(operation: work).value
+            } catch {
+                installErrors[id] = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            }
+            let isInstalled = await Task.detached(operation: {
+                id == .claudeCode ? HookInstaller.isClaudeInstalled() : HookInstaller.isCodexInstalled()
+            }).value
+            if isInstalled { installed.insert(id) } else { installed.remove(id) }
+            installing.remove(id)
         }
     }
 
@@ -418,34 +480,44 @@ private struct OnboardingAccountRow: View {
     }
 }
 
-/// A titled, copyable command snippet. The Copy button latches to a "Copied"
-/// confirmation so the user gets feedback that the clipboard was written.
-private struct CommandBlock: View {
-    let title: String
-    let subtitle: String
-    let command: String
-    @State private var copied = false
+/// One agent's one-click hook install tile: identity, install/remove control,
+/// an optional post-install note (Codex's "approve once"), and any error.
+private struct AgentInstallRow: View {
+    let id: CodingAgentID
+    let installed: Bool
+    let installing: Bool
+    let bunAvailable: Bool
+    let error: String?
+    /// Shown once installed — e.g. Codex's one-time approval reminder.
+    let installedNote: String?
+    let onInstall: () -> Void
+    let onRemove: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(title).font(.callout.weight(.semibold))
-                Spacer()
-                Button(action: copy) {
-                    Label(copied ? "Copied" : "Copy",
-                          systemImage: copied ? "checkmark" : "doc.on.doc")
+            HStack(spacing: 12) {
+                AgentIconBadge(id: id)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(id.displayName).font(.body.weight(.semibold))
+                    Text(installed ? "Hook installed" : "One-click install")
                         .font(.caption)
+                        .foregroundStyle(installed ? .green : .secondary)
                 }
-                .buttonStyle(.borderless)
+                Spacer(minLength: 0)
+                control
             }
-            Text(subtitle).font(.caption).foregroundStyle(.secondary)
-            Text(command)
-                .font(.system(.caption, design: .monospaced))
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(10)
-                .background(.black.opacity(0.06),
-                            in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            if installed, let installedNote {
+                Label(installedNote, systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let error {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -453,9 +525,22 @@ private struct CommandBlock: View {
                     in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
-    private func copy() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(command, forType: .string)
-        copied = true
+    @ViewBuilder private var control: some View {
+        if installing {
+            ProgressView().controlSize(.small)
+        } else if installed {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .imageScale(.large)
+                Button("Remove", role: .destructive, action: onRemove)
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+            }
+        } else {
+            Button("Install", action: onInstall)
+                .buttonStyle(.borderedProminent)
+                .disabled(!bunAvailable)
+        }
     }
 }
