@@ -5,7 +5,7 @@ A macOS status bar app that shows how much of a Coding Agent's usage allowance h
 ## Language
 
 **Usage Window**:
-A rolling time period over which a Coding Agent meters usage against a quota, with enough authoritative data for TokenStats to show consumption and reset timing. Claude Code has two: a ~5-hour window (the primary gauge) and a 7-day weekly window (secondary). The app's central concept — "how much have I used, and when does it reset." In the Claude Code API these are `five_hour` and `seven_day` (see `docs/claude-code-integration.md`). Codex data should be called a Usage Window only if discovery confirms the same kind of trusted consumption/reset concept.
+A rolling time period over which a Coding Agent meters usage against a quota, with enough authoritative data for TokenStats to show consumption and reset timing. Claude Code has three: a ~5-hour window (the primary gauge), a 7-day weekly window (secondary), and the weekly Fable-scoped window (third gauge). The app's central concept — "how much have I used, and when does it reset." In the Claude Code API the first two are `five_hour` and `seven_day`; the Fable one is the `limits` entry with `kind: "weekly_scoped"` scoped to the Fable model (see `docs/claude-code-integration.md`). Codex data should be called a Usage Window only if discovery confirms the same kind of trusted consumption/reset concept.
 _Avoid_: Session (means a conversation, not a billing period), quota period.
 
 Claude Code can also return an `extra_usage` usage-credit meter. It is not a Usage Window because no reset timestamp is exposed, and TokenStats intentionally does not show it in the popover.

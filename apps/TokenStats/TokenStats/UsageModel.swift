@@ -187,7 +187,7 @@ final class UsageModel {
             // The user may have signed out while the fetch was in flight; if so,
             // discard the result rather than resurrecting cleared usage.
             guard isSignedIn(id) else { return }
-            let snapshot = UsageSnapshot(windows: reading.windows, credits: reading.credits, fetchedAt: Date())
+            let snapshot = UsageSnapshot(windows: reading.windows, fetchedAt: Date())
             lastKnown.save(snapshot, for: id)
             lastFetch[id] = Date()
             failures[id] = 0

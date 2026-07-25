@@ -38,7 +38,7 @@ enum GaugeStatus {
 
 /// The line under (or beside) a dial. `reset` shows a ↻ glyph + compact duration
 /// ("2d 3h") so it stays narrow, while carrying the full spoken form ("resets in
-/// 2d 3h") for VoiceOver. `text` is a plain caption (credits' cap).
+/// 2d 3h") for VoiceOver. `text` is a plain caption.
 enum GaugeSubtitle: Equatable {
     case reset(display: String, spoken: String)
     case text(String)
@@ -62,15 +62,16 @@ enum GaugeSubtitle: Equatable {
 }
 
 /// One Usage Window's reading, decoupled from how it's drawn. Built from a
-/// `UsageWindow`, from a credit balance, or as a neutral placeholder.
+/// `UsageWindow` or as a neutral placeholder.
 struct GaugeContent: Identifiable {
     let id = UUID()
     let title: String
     let subtitle: GaugeSubtitle
     /// Percent still available (0–100); drives color + the spoken label.
     let percentRemaining: Double
-    /// What the meter fills to, 0…1. Equals percentRemaining/100 for windows, but
-    /// credits pass it explicitly so the dollar face and the fill stay in sync.
+    /// What the meter fills to, 0…1. Equals percentRemaining/100 for windows;
+    /// readings whose face isn't a percentage pass it explicitly so the face
+    /// and the fill stay in sync.
     let progress: Double
     let centerText: String
     var emphasized: Bool = false
@@ -86,7 +87,7 @@ struct GaugeContent: Identifiable {
         self.emphasized = emphasized
     }
 
-    /// Designated init, used for credits, the placeholder, and previews.
+    /// Designated init, used for the placeholder and previews.
     init(title: String, subtitle: GaugeSubtitle, percentRemaining: Double, progress: Double,
          centerText: String, emphasized: Bool = false, isEnabled: Bool = true) {
         self.title = title
@@ -98,7 +99,7 @@ struct GaugeContent: Identifiable {
         self.isEnabled = isEnabled
     }
 
-    /// A neutral, dataless reading (e.g. credits the plan doesn't expose).
+    /// A neutral, dataless reading (e.g. a quota the plan doesn't expose).
     static func placeholder(title: String) -> GaugeContent {
         GaugeContent(title: title, subtitle: .unavailable, percentRemaining: 0,
                      progress: 0, centerText: "—", isEnabled: false)

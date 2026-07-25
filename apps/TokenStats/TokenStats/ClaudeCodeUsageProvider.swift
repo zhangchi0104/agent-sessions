@@ -34,6 +34,6 @@ struct ClaudeCodeUsageProvider: UsageProvider {
         guard !windows.isEmpty else {
             throw UsageError.noWindows(body: body)
         }
-        return UsageReading(windows: windows, credits: UsageSnapshotParser.parseCredits(data))
+        return UsageReading(windows: windows)
     }
 }

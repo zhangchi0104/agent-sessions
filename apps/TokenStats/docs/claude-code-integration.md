@@ -19,9 +19,23 @@ encodings):
   "seven_day": { "utilization": 18.0, "resets_at": "2026-05-28T06:00:00.816789+00:00" }, // "weekly limit"
   "seven_day_oauth_apps": null,
   "extra_usage": { "is_enabled": true, "monthly_limit": 15500, "used_credits": 5652.0, "utilization": 36.46, "currency": "AUD" }, // credit amounts are in cents: 5652 = $56.52 of $155.00
-  // also seen: seven_day_opus, seven_day_sonnet, overage
+  "limits": [ // per-model / per-surface quotas, added after the 2026-05-28 capture
+    { "kind": "weekly_scoped", "group": "model", "percent": 61.0, "resets_at": "2026-07-27T06:00:00+00:00",
+      "scope": { "model": { "display_name": "Fable 5" } } }
+  ],
+  // also seen: seven_day_opus, seven_day_sonnet, cinder_cove ("Claude Code and Cowork credit"), overage
 }
 ```
+
+- **Per-model weekly quotas live in `limits`, not in a `seven_day_<model>` block.**
+  Read from Claude Code v2.1.219: the response schema is
+  `{five_hour, seven_day, seven_day_oauth_apps, seven_day_opus, seven_day_sonnet, cinder_cove, extra_usage, limits}`,
+  and the client renders each `limits` entry with `kind == "weekly_scoped"` and a
+  `scope.model` as **"Current week (\<display_name\>)"**. There is no
+  `seven_day_fable` key — Fable's weekly quota is the `limits` entry whose
+  `scope.model.display_name` mentions Fable (e.g. `"Fable 5"`). `percent` uses the
+  same 0–100 encoding as a window's `utilization`, and `resets_at` the same
+  ISO-8601-or-null encoding. TokenStats maps it to the **Fable** Usage Window.
 
 - `utilization` is **already a percent (0–100)** — use it directly. (The old
   "fraction 0..1, multiply by 100" reconstruction was wrong: real values like
@@ -33,12 +47,11 @@ encodings):
   Usage Window and treat reset time as unavailable rather than dropping it.
 - On usage-credit plans, the Usage Window fields may be zero/null placeholders
   while `extra_usage` carries a separate credit quota percentage. TokenStats
-  ignores `extra_usage` in the popover and keeps the UI focused on the 5-hour
-  and weekly reset windows.
+  ignores `extra_usage` in the popover and keeps the UI focused on reset windows.
 - Each block is optional, and unknown keys (`seven_day_oauth_apps`, etc.) appear
   and may be `null` — decode each known block independently and ignore the rest.
 - Maps directly onto our normalized **Usage Window**: `five_hour` → primary,
-  `seven_day` → secondary.
+  `seven_day` → secondary, the Fable-scoped `limits` entry → third gauge.
 
 Alternative source (fallback, not chosen): the same numbers ride on normal API response headers
 `anthropic-ratelimit-unified-5h-utilization`, `-7d-utilization`, `-overage-utilization`.

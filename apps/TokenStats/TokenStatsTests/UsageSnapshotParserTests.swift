@@ -110,45 +110,75 @@ struct UsageSnapshotParserTests {
         #expect(windows.allSatisfy { $0.resetAt == nil })
     }
 
-    @Test func parsesCreditsFromExtraUsage() {
-        // extra_usage amounts are cents: 5652 = $56.52 used of $155.00.
+    @Test func parsesFableWeeklyLimitFromScopedLimits() throws {
+        // Per-model weekly quotas arrive in the generic `limits` array, keyed by
+        // the model's display name — not as a top-level seven_day_* block.
         let json = Data("""
         {
-          "five_hour": { "utilization": 0.0, "resets_at": null },
-          "extra_usage": {
-            "is_enabled": true,
-            "monthly_limit": 15500,
-            "used_credits": 5652.0,
-            "utilization": 36.46451612903226,
-            "currency": "AUD"
-          }
+          "five_hour": { "utilization": 42.0, "resets_at": "\(isoEpoch42)" },
+          "limits": [
+            {
+              "kind": "weekly_scoped", "group": "model", "percent": 61.0,
+              "resets_at": "\(isoEpoch99)",
+              "scope": { "model": { "display_name": "Fable 5" } }
+            }
+          ]
         }
         """.utf8)
 
-        let credits = try? #require(UsageSnapshotParser.parseCredits(json))
+        let windows = try UsageSnapshotParser.parse(json)
 
-        #expect(credits?.limitDollars == 155)
-        #expect(credits?.remainingDollars == 98.48)
-        #expect(credits?.currency == "AUD")
-        #expect(credits.map { Int($0.percentRemaining.rounded()) } == 64)
+        #expect(windows.map(\.label) == ["5-hour", "Fable"])
+        #expect(windows[1].percentConsumed == 61)
+        #expect(windows[1].resetAt == Date(timeIntervalSince1970: 99))
     }
 
-    @Test func returnsNoCreditsWhenExtraUsageDisabledOrAbsent() {
-        let disabled = Data("""
-        { "extra_usage": { "is_enabled": false, "monthly_limit": 15500 } }
-        """.utf8)
-        let absent = Data("""
-        { "five_hour": { "utilization": 0.0, "resets_at": null } }
+    @Test func ignoresScopedLimitsForOtherModelsAndKinds() throws {
+        let json = Data("""
+        {
+          "five_hour": { "utilization": 42.0, "resets_at": "\(isoEpoch42)" },
+          "limits": [
+            {
+              "kind": "weekly_scoped", "group": "model", "percent": 12.0,
+              "resets_at": "\(isoEpoch99)",
+              "scope": { "model": { "display_name": "Opus 5" } }
+            },
+            {
+              "kind": "monthly_spend", "group": "org", "percent": 8.0,
+              "resets_at": null, "scope": null
+            },
+            { "kind": "weekly_scoped", "group": "surface", "percent": 3.0, "resets_at": null }
+          ]
+        }
         """.utf8)
 
-        #expect(UsageSnapshotParser.parseCredits(disabled) == nil)
-        #expect(UsageSnapshotParser.parseCredits(absent) == nil)
+        let windows = try UsageSnapshotParser.parse(json)
+
+        #expect(windows.map(\.label) == ["5-hour"])
+    }
+
+    @Test func keepsFableLimitWhenResetTimestampIsNull() throws {
+        let json = Data("""
+        {
+          "limits": [
+            {
+              "kind": "weekly_scoped", "percent": 0.0, "resets_at": null,
+              "scope": { "model": { "display_name": "Fable 5" }, "surface": null }
+            }
+          ]
+        }
+        """.utf8)
+
+        let windows = try UsageSnapshotParser.parse(json)
+
+        #expect(windows.map(\.label) == ["Fable"])
+        #expect(windows[0].resetAt == nil)
     }
 
     @Test func ignoresExtraUsageWhenMeteredWindowsArePresent() throws {
         // On a usage-credit/AUD plan the 5-hour and weekly windows come back as
         // zero with null resets, while extra_usage carries a separate credit
-        // quota — surfaced separately via parseCredits, not as a reset window.
+        // quota — which TokenStats does not surface.
         let json = Data("""
         {
           "five_hour": { "utilization": 0.0, "resets_at": null },
