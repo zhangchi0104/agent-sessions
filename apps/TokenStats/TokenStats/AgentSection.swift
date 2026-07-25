@@ -81,10 +81,10 @@ struct AgentSection: View {
         let style = model.appearance.gaugeStyle
         switch id {
         case .claudeCode:
-            // Weekly · 5-hour · credits, the 5-hour center-weighted.
+            // Weekly · 5-hour · Fable, the 5-hour center-weighted.
             ClaudeGaugeCluster(snapshot: snapshot, style: style)
         case .codex:
-            // Two equal windows, no credits meter.
+            // Two equal windows, no per-model meter.
             CodexGaugeCluster(snapshot: snapshot, style: style)
         }
     }
@@ -182,8 +182,9 @@ private struct StatusLineContent: View {
 }
 
 /// Claude's readout: three windows — weekly (left), the 5-hour "session limit"
-/// emphasized in the center, and usage credits (right). Each shows how much is
-/// *left* and is colored green/yellow/red. Drawn per the Appearance gauge style.
+/// emphasized in the center, and the weekly Fable limit (right). Each shows how
+/// much is *left* and is colored green/yellow/red. Drawn per the Appearance
+/// gauge style.
 private struct ClaudeGaugeCluster: View {
     let snapshot: UsageSnapshot
     let style: GaugeStyle
@@ -202,20 +203,14 @@ private struct ClaudeGaugeCluster: View {
         let fiveHour = window("5-hour").map { GaugeContent(window: $0, emphasized: true) }
             ?? GaugeContent(title: "5-hour", subtitle: .unavailable, percentRemaining: 0,
                             progress: 0, centerText: "—", emphasized: true, isEnabled: false)
-        let credits: GaugeContent = snapshot.credits.map { credits in
-            GaugeContent(
-                title: "Credits",
-                subtitle: .text("of $\(Int(credits.limitDollars.rounded()))"),
-                percentRemaining: credits.percentRemaining,
-                progress: credits.percentRemaining / 100,
-                centerText: "$\(Int(credits.remainingDollars.rounded()))"
-            )
-        } ?? .placeholder(title: "Credits")
-        return [weekly, fiveHour, credits]
+        // Plans without a Fable-specific weekly quota get the neutral placeholder.
+        let fable = window("Fable").map { GaugeContent(window: $0) }
+            ?? .placeholder(title: "Fable")
+        return [weekly, fiveHour, fable]
     }
 }
 
-/// Codex's readout in the same gauge language: two equal windows, no credits.
+/// Codex's readout in the same gauge language: two equal windows, no third meter.
 private struct CodexGaugeCluster: View {
     let snapshot: UsageSnapshot
     let style: GaugeStyle

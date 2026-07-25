@@ -9,15 +9,13 @@
 
 import Foundation
 
-/// One fetch's result: the metered Usage Windows plus an optional usage-credit
-/// balance. Agents without credits leave `credits` nil.
+/// One fetch's result: the metered Usage Windows.
 struct UsageReading {
     let windows: [UsageWindow]
-    var credits: CreditBalance? = nil
 }
 
 protocol UsageProvider {
-    /// Fetch the current Usage Windows (primary 5-hour first) and any credits.
+    /// Fetch the current Usage Windows (primary 5-hour first).
     func fetchUsage() async throws -> UsageReading
 }
 

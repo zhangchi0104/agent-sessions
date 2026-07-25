@@ -15,46 +15,30 @@ enum UsageSnapshotParser {
         let meteredWindows = [
             raw.five_hour?.window(label: "5-hour"),
             raw.seven_day?.window(label: "Weekly"),
+            raw.fableWeekly?.window(label: "Fable"),
         ].compactMap { $0 }
         return meteredWindows
-    }
-
-    /// The usage-credit balance from `extra_usage`, or nil when the plan has no
-    /// enabled credit quota. Tolerant: a missing/malformed block yields nil
-    /// rather than throwing, so it never sinks the metered-window parse.
-    static func parseCredits(_ data: Data) -> CreditBalance? {
-        guard
-            let envelope = try? JSONDecoder().decode(CreditEnvelope.self, from: data),
-            let extra = envelope.extra_usage,
-            extra.is_enabled == true,
-            let limit = extra.monthly_limit, limit > 0
-        else { return nil }
-        return CreditBalance(
-            usedCents: extra.used_credits ?? 0,
-            limitCents: limit,
-            utilization: extra.utilization ?? 0,
-            currency: extra.currency ?? "USD"
-        )
-    }
-
-    private struct CreditEnvelope: Decodable {
-        let extra_usage: ExtraUsage?
-    }
-
-    private struct ExtraUsage: Decodable {
-        let is_enabled: Bool?
-        let monthly_limit: Double?
-        let used_credits: Double?
-        let utilization: Double?
-        let currency: String?
     }
 
     private struct RawSnapshot: Decodable {
         let five_hour: RawWindow?
         let seven_day: RawWindow?
+        /// Per-model weekly quotas ride in this generic array rather than in a
+        /// top-level `seven_day_<model>` block (Claude Code renders them as
+        /// "Current week (<model>)").
+        let limits: [RawScopedLimit]?
+
+        /// Fable's weekly quota: the model-scoped weekly entry whose model
+        /// display name mentions Fable (e.g. "Fable 5").
+        var fableWeekly: RawScopedLimit? {
+            limits?.first {
+                $0.kind == "weekly_scoped"
+                    && $0.modelDisplayName?.localizedCaseInsensitiveContains("fable") == true
+            }
+        }
 
         enum CodingKeys: String, CodingKey {
-            case five_hour, seven_day
+            case five_hour, seven_day, limits
         }
 
         init(from decoder: Decoder) throws {
@@ -63,6 +47,39 @@ enum UsageSnapshotParser {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             five_hour = try? container.decodeIfPresent(RawWindow.self, forKey: .five_hour)
             seven_day = try? container.decodeIfPresent(RawWindow.self, forKey: .seven_day)
+            limits = try? container.decodeIfPresent([RawScopedLimit].self, forKey: .limits)
+        }
+    }
+
+    /// One entry of the `limits` array. Every field is optional so an entry of a
+    /// shape we don't recognize reads as "not the limit we're looking for"
+    /// instead of failing the whole array's decode.
+    private struct RawScopedLimit: Decodable {
+        let kind: String?
+        /// Percent consumed (0–100), same encoding as a window's `utilization`.
+        let percent: Double?
+        let resets_at: String?
+        let scope: Scope?
+
+        var modelDisplayName: String? { scope?.model?.display_name }
+
+        struct Scope: Decodable {
+            let model: Model?
+
+            struct Model: Decodable {
+                let display_name: String?
+            }
+        }
+
+        /// Same rules as a top-level window: an explicit null reset time keeps
+        /// the window with unknown timing, an unparseable one drops it.
+        func window(label: String) -> UsageWindow? {
+            guard let percent else { return nil }
+            guard let resets_at else {
+                return UsageWindow(label: label, percentConsumed: percent, resetAt: nil)
+            }
+            guard let resetAt = UsageSnapshotParser.parseTimestamp(resets_at) else { return nil }
+            return UsageWindow(label: label, percentConsumed: percent, resetAt: resetAt)
         }
     }
 
@@ -93,21 +110,21 @@ enum UsageSnapshotParser {
             guard let resetTimestamp else {
                 return UsageWindow(label: label, percentConsumed: utilization, resetAt: nil)
             }
-            guard let resetAt = Self.parseTimestamp(resetTimestamp) else { return nil }
+            guard let resetAt = UsageSnapshotParser.parseTimestamp(resetTimestamp) else { return nil }
             return UsageWindow(label: label, percentConsumed: utilization, resetAt: resetAt)
         }
+    }
 
-        private static func parseTimestamp(_ string: String) -> Date? {
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = formatter.date(from: string) { return date }
-            // Fall back for any fractional-second precision (e.g. microseconds)
-            // by stripping the fraction, then parsing without it.
-            formatter.formatOptions = [.withInternetDateTime]
-            let stripped = string.replacingOccurrences(
-                of: #"\.\d+"#, with: "", options: .regularExpression)
-            return formatter.date(from: stripped)
-        }
+    private static func parseTimestamp(_ string: String) -> Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: string) { return date }
+        // Fall back for any fractional-second precision (e.g. microseconds)
+        // by stripping the fraction, then parsing without it.
+        formatter.formatOptions = [.withInternetDateTime]
+        let stripped = string.replacingOccurrences(
+            of: #"\.\d+"#, with: "", options: .regularExpression)
+        return formatter.date(from: stripped)
     }
 
 }
