@@ -1,0 +1,48 @@
+name: Test TokenStats
+
+# Runs the Swift test suite (TokenStatsTests, via the shared TokenStats scheme)
+# on every pull request and on pushes to the release branches. This is the same
+# `npm test` script a developer runs locally, so CI and the desk agree.
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "apps/TokenStats/**"
+      - ".github/workflows/test-tokenstats.yml"
+  pull_request:
+    paths:
+      - "apps/TokenStats/**"
+      - ".github/workflows/test-tokenstats.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-tokenstats-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-15 # needs Xcode 26 (project objectVersion 77 / macOS 26 SDK)
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode 26
+        run: |
+          set -euo pipefail
+          echo "Available Xcodes:"; ls -d /Applications/Xcode*.app
+          # The project is a macOS 26 / Xcode 26 format; the image default (16.x)
+          # can't read it. Pick the newest installed Xcode 26.
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$XC" ] || XC=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          echo "Selecting $XC"
+          sudo xcode-select -switch "$XC"
+          xcodebuild -version
+
+      - name: Test
+        working-directory: apps/TokenStats
+        run: npm test
