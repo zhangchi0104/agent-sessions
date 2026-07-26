@@ -2,13 +2,12 @@
 //  OnboardingView.swift
 //  TokenStats
 //
-//  The first-run onboarding dialog: a three-step card hosted in its own window
-//  (see OnboardingWindowController). Step 1 connects the Coding Agents and picks
-//  the primary subscription (reusing UsageModel's sign-in flows). Step 2 guides
-//  the user to install the live-tracking hook plugin — TokenStats can't install
-//  it (it's a Claude Code / Codex plugin), so we show the copyable commands and
-//  watch for the shared sessions database to appear as proof the hooks fired.
-//  Step 3 is a wrap-up summary. Every step is skippable.
+//  The first-run onboarding card, hosted in its own window (see
+//  OnboardingWindowController). This file is the chrome and the navigation:
+//  the header, the step order, and Back/Continue. Each step is its own file —
+//  a disclosure of what TokenStats accesses, connecting the Coding Agents
+//  (reusing UsageModel's sign-in flows), and a wrap-up summary. Every step is
+//  skippable.
 //
 
 import SwiftUI
@@ -106,8 +105,8 @@ struct OnboardingView: View {
     }
 }
 
-/// The three-segment progress indicator under the title: filled up to and
-/// including the current step, with the current segment widened.
+/// The progress indicator under the title: one segment per step, filled up to
+/// and including the current step, with the current segment widened.
 private struct StepIndicator: View {
     let current: OnboardingView.Step
 

@@ -2,9 +2,9 @@
 //  TokensTodayWatchTests.swift
 //  TokenStatsTests
 //
-//  Behavior of the Usage tab's "tokens today" figure under the file-watch
-//  refresh model (ADR-0003): it seeds today's total when the tab becomes
-//  visible and re-reads when a change is observed, all in-process. Only the OS
+//  Behavior of the popover's Tokens Today figure under the file-watch refresh
+//  model (ADR-0003): it seeds today's total when the popover becomes visible
+//  and re-reads when a change is observed, all in-process. Only the OS
 //  file-watch boundary is faked; the real TranscriptTokenReader parses real
 //  fixture transcripts in a temp directory.
 //
@@ -70,7 +70,7 @@ struct TokensTodayWatchTests {
         source.emit()
         try? await Task.sleep(for: .milliseconds(100))
 
-        #expect(model.usage?.totalTokens == 150) // unchanged: watch stopped with the tab
+        #expect(model.usage?.totalTokens == 150) // unchanged: watch stopped with the popover
     }
 }
 

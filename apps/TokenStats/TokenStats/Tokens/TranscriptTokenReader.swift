@@ -8,15 +8,15 @@
 //  span several lines (one per content block), so totals are deduplicated by
 //  message id; Codex `token_count` events carry per-turn deltas that sum
 //  directly. Both formats are append-only, so the reader remembers how far it
-//  has parsed per file and only reads what was appended since — polling stays
-//  cheap even for long-running sessions.
+//  has parsed per file and only reads what was appended since — a re-read
+//  stays cheap even for a transcript that has been growing all day.
 //
 
 import Foundation
 
-/// Token totals for one Session, summed across the distinct API responses in
-/// its transcript. Cache tokens are tracked separately so the UI can disclose
-/// the breakdown.
+/// Token totals summed across the distinct API responses in one transcript, or
+/// across a whole scan root. Cache tokens are tracked separately so the UI can
+/// disclose the breakdown.
 struct TokenUsage: Equatable, Sendable {
     var inputTokens = 0
     var outputTokens = 0

@@ -22,8 +22,8 @@
 //  reads. The released build has a stable Developer ID signature, so the grant
 //  persists across launches. (During local development the signature changes per
 //  build, so a debug rebuild may re-prompt for the login-keychain password once
-//  — a dev-only annoyance, not a shipped-app issue.) AuthSession also caches the
-//  token in memory, so we touch the keychain at most once per launch.
+//  — a dev-only annoyance, not a shipped-app issue.) AgentTokenCache also holds
+//  the token in memory, so we touch the keychain at most once per launch.
 //
 
 import Foundation

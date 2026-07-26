@@ -2,9 +2,12 @@
 //  OAuthFlow.swift
 //  TokenStats
 //
-//  Pure OAuth helpers — PKCE generation, authorize-URL construction, and token
-//  response parsing. Network and browser side-effects live in OAuthClient.
-//  Parameters are unofficial; see docs/claude-code-integration.md and ADR-0001.
+//  The OAuth vocabulary both Coding Agents share — the stored token pair, PKCE
+//  generation, and base64url — alongside Claude Code's own endpoints,
+//  authorize-URL construction, and token-response parsing. Codex's equivalents
+//  live in CodexOAuthFlow; network and browser side-effects live in the
+//  clients. Parameters are unofficial; see docs/claude-code-integration.md and
+//  ADR-0001.
 //
 
 import Foundation

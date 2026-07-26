@@ -2,7 +2,7 @@
 //  TranscriptChangeSource.swift
 //  TokenStats
 //
-//  The file-watch seam behind the Usage tab's "tokens today" refresh (ADR-0003):
+//  The file-watch seam behind the popover's Tokens Today refresh (ADR-0003):
 //  a source that ticks whenever transcripts under the watched roots change, so
 //  TokensTodayModel can re-read instead of polling on a timer. The real source
 //  wraps FSEvents; tests inject a fake that ticks on demand.
@@ -12,7 +12,7 @@ import Foundation
 
 /// Emits a tick whenever a watched transcript file changes. Iterating the
 /// stream stops — and the underlying watch tears down — when the consuming task
-/// is cancelled (i.e. when the Usage tab disappears).
+/// is cancelled (i.e. when the popover closes).
 protocol TranscriptChangeSource: Sendable {
     func ticks() -> AsyncStream<Void>
 }

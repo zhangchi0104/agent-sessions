@@ -4,7 +4,7 @@
 //
 //  Today's token consumption across every Coding Agent (Claude Code
 //  transcripts + Codex rollouts) as one hero figure — every token in and out
-//  of the model — large and bold at the top of the Usage tab. Digit changes
+//  of the model — large and bold at the top of the popover. Digit changes
 //  roll with a slot-machine effect (`numericText`) as the count grows — or
 //  just swap under Reduce Motion. The per-agent and input/output splits live
 //  in the tooltip.

@@ -3,8 +3,8 @@
 //  TokenStats
 //
 //  The thin seam the rest of the app talks to. Returns a normalized list of
-//  Usage Windows so the UI never depends on Claude Code specifics (PRD).
-//  MVP has one conformer: ClaudeCodeUsageProvider.
+//  Usage Windows so the UI never depends on any one Coding Agent's specifics
+//  (PRD). One conformer per agent, built by that agent's registry entry.
 //
 
 import Foundation

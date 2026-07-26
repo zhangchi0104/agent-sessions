@@ -2,9 +2,9 @@
 //  OnboardingSettings.swift
 //  TokenStats
 //
-//  Tracks whether the first-run onboarding has been dismissed. The flow guides a
-//  new user through connecting their Coding Agents, installing the live-tracking
-//  hooks, and a wrap-up screen — and is skippable. "Skip" and "Finish" both flip
+//  Tracks whether the first-run onboarding has been dismissed. The flow walks a
+//  new user through what TokenStats accesses, connecting their Coding Agents,
+//  and a wrap-up screen — and is skippable. "Skip" and "Finish" both flip
 //  `completed`, so the window never auto-presents again; the user can still
 //  re-run it from Settings. Persisted to UserDefaults so the choice survives
 //  relaunch, mirroring `AppearanceSettings`.

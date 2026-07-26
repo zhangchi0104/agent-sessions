@@ -2,7 +2,7 @@
 //  AgentSection.swift
 //  TokenStats
 //
-//  One Coding Agent's section of the Usage tab: name (with the Primary badge
+//  One Coding Agent's section of the popover: name (with the Primary badge
 //  per the Appearance setting), the agent's Usage Window gauges, the
 //  right-aligned last-updated / staleness line with inline-expandable error
 //  diagnostics, and the signed-out state's pointer to Settings.

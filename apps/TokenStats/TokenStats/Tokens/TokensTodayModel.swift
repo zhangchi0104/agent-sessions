@@ -2,7 +2,7 @@
 //  TokensTodayModel.swift
 //  TokenStats
 //
-//  Owns the "tokens today" hero figure at the top of the Usage tab: token
+//  Owns the Tokens Today hero figure at the top of the popover: token
 //  usage summed across every Coding Agent's local files touched today —
 //  Claude Code transcripts (all projects) and Codex session rollouts. The
 //  sources are plain files written by other processes, so while visible the
@@ -65,8 +65,8 @@ final class TokensTodayModel {
     }
 
     /// Seed today's totals, then re-read whenever the watched transcript files
-    /// change. Drive from a SwiftUI `.task`, which cancels this when the Usage
-    /// tab disappears (ADR-0003: watch only while visible).
+    /// change. Drive from a SwiftUI `.task`, which cancels this when the
+    /// popover closes (ADR-0003: watch only while visible).
     func observeWhileVisible() async {
         await refresh()
         for await _ in changeSource.ticks() {

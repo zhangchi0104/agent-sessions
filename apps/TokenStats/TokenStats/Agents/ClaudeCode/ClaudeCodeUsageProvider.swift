@@ -2,7 +2,7 @@
 //  ClaudeCodeUsageProvider.swift
 //  TokenStats
 //
-//  Sole UsageProvider for the MVP. Performs the authenticated GET against the
+//  Claude Code's UsageProvider. Performs the authenticated GET against the
 //  OAuth usage endpoint and delegates parsing to UsageSnapshotParser.
 //  Endpoint is unofficial; see docs/claude-code-integration.md and ADR-0001.
 //

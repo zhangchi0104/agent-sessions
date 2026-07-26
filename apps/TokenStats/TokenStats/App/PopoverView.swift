@@ -2,13 +2,12 @@
 //  PopoverView.swift
 //  TokenStats
 //
-//  The popover anchored to the menu-bar item: a glass tab bar switching
-//  between the Usage tab (the combined tokens-today hero, then one
-//  AgentSection per Coding Agent in the user's Appearance order, primary
-//  first) and the Sessions tab, plus a single Settings control in the footer
-//  that manages every account (sign in / sign out per agent), a global
-//  refresh control, and Quit. All copy follows the glossary (Usage Window,
-//  never "session"; full agent names in the popover).
+//  The popover anchored to the menu-bar item: the combined Tokens Today hero,
+//  then one AgentSection per Coding Agent in the user's Appearance order,
+//  primary first. The footer carries a global refresh control and a single
+//  Settings control that reaches account management (sign in / sign out per
+//  agent) and Quit. All copy follows the glossary (Usage Window, never
+//  "session"; full agent names in the popover).
 //
 
 import SwiftUI
