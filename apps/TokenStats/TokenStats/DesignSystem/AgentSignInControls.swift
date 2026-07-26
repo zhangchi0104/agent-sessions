@@ -29,10 +29,10 @@ struct AgentSignInControls: View {
     @ViewBuilder var body: some View {
         switch agent.signInStyle {
         case .pasteCode:
-            Button(model.isAwaitingCode ? "Re-open browser" : "Sign in to \(agent.displayName)") {
+            Button(model.isAwaitingCode(id) ? "Re-open browser" : "Sign in to \(agent.displayName)") {
                 model.signIn(id)
             }
-            if model.isAwaitingCode {
+            if model.isAwaitingCode(id) {
                 Text("Approve TokenStats in your browser, then paste the code here:")
                     .font(font)
                     .foregroundStyle(.secondary)

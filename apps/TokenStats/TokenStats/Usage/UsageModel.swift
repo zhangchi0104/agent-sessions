@@ -27,8 +27,11 @@ final class UsageModel {
     private(set) var diagnostics: [CodingAgentID: String] = [:]
     /// Sign-in failure messages per agent.
     private(set) var loginError: [CodingAgentID: String] = [:]
-    /// Claude Code's paste-the-code flow: true while awaiting the pasted code.
-    private(set) var isAwaitingCode = false
+    /// Agents whose sign-in has opened the browser and is now waiting for the
+    /// user to bring a code back. Only a `.pasteCode` agent is ever inserted, so
+    /// a reader asks whether *this* agent is waiting and never has to know which
+    /// agent that is.
+    private(set) var awaitingCode: Set<CodingAgentID> = []
 
     /// User-controlled presentation preferences (order, primary, gauge style).
     let appearance: AppearanceSettings
@@ -84,6 +87,8 @@ final class UsageModel {
 
     func isRefreshing(_ id: CodingAgentID) -> Bool { refreshing.contains(id) }
 
+    func isAwaitingCode(_ id: CodingAgentID) -> Bool { awaitingCode.contains(id) }
+
     // MARK: - Triggers
 
     func refreshManually(_ id: CodingAgentID) {
@@ -102,7 +107,7 @@ final class UsageModel {
     func signIn(_ id: CodingAgentID) {
         guard let agent = agents[id] else { return }
         loginError[id] = nil
-        if agent.signInStyle == .pasteCode { isAwaitingCode = true }
+        if agent.signInStyle == .pasteCode { awaitingCode.insert(id) }
         Task {
             do {
                 try await agent.auth.beginSignIn()
@@ -123,7 +128,7 @@ final class UsageModel {
             do {
                 try await agent.auth.completeSignIn(pastedCode: code)
                 loginError[id] = nil
-                isAwaitingCode = false
+                awaitingCode.remove(id)
                 await refresh(id, trigger: .manual)
             } catch {
                 loginError[id] = "Sign-in failed: \(detail(of: error))"
@@ -134,9 +139,9 @@ final class UsageModel {
     func signOut(_ id: CodingAgentID) {
         guard let agent = agents[id] else { return }
         agent.auth.signOut()
-        // The pasted-code prompt belongs to whichever agent is mid-flow; signing
-        // that agent out abandons it.
-        if agent.signInStyle == .pasteCode { isAwaitingCode = false }
+        // Signing an agent out abandons any code it was waiting for. An agent
+        // that never waits was never in the set, so this needs no style check.
+        awaitingCode.remove(id)
         lastKnown.clear(for: id)
         lastFetch[id] = nil
         failures[id] = 0

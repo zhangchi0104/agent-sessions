@@ -15,16 +15,23 @@ enum ConnectionStatus {
     case awaitingCode
     case signedOut
 
-    /// Read one agent's state out of the model. Awaiting-code only applies to
-    /// the paste-a-code sign-in flow, which today is Claude Code's.
-    init(model: UsageModel, id: CodingAgentID) {
-        if model.agentStates[id] != .signedOut {
+    /// The join of the two axes this status sits on, as a pure function of
+    /// both: what the usage state says about the account, and whether a
+    /// sign-in for it is mid-flight. Usage state wins — an agent that is
+    /// serving data is connected whatever a stale flag says.
+    init(state: AppState, awaitingCode: Bool) {
+        if state != .signedOut {
             self = .connected
-        } else if id == .claudeCode && model.isAwaitingCode {
+        } else if awaitingCode {
             self = .awaitingCode
         } else {
             self = .signedOut
         }
+    }
+
+    /// Read one agent's status out of the model.
+    init(model: UsageModel, id: CodingAgentID) {
+        self.init(state: model.agentStates[id], awaitingCode: model.isAwaitingCode(id))
     }
 
     var label: String {
