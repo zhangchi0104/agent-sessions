@@ -27,7 +27,6 @@ struct TokenStatsApp: App {
     var body: some Scene {
         MenuBarExtra {
             PopoverView(model: appDelegate.model,
-                        sessionsModel: appDelegate.sessionsModel,
                         tokensTodayModel: appDelegate.tokensTodayModel)
         } label: {
             // Monochrome icon + per-agent percent — no threshold colors (PRD).
@@ -60,18 +59,13 @@ struct TokenStatsApp: App {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model: UsageModel
-    let sessionsModel: SessionsModel
     let tokensTodayModel: TokensTodayModel
     let onboarding = OnboardingSettings()
     private var onboardingController: OnboardingWindowController?
 
     override init() {
-        // One reader shared by both models, so a transcript parsed for the
-        // Sessions tab doesn't get re-parsed for the tokens-today figure.
-        let tokenReader = TranscriptTokenReader()
         model = UsageModel(appearance: AppearanceSettings())
-        sessionsModel = SessionsModel(tokenReader: tokenReader)
-        tokensTodayModel = TokensTodayModel(reader: tokenReader)
+        tokensTodayModel = TokensTodayModel(reader: TranscriptTokenReader())
         super.init()
     }
 

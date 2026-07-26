@@ -1,5 +1,5 @@
 {
-  "name": "@repo/tokenstats",
+  "name": "tokenstats",
   "version": "0.0.1",
   "description": "TokenStats macOS app (Swift/Xcode)",
   "author": "Alex Zhang",

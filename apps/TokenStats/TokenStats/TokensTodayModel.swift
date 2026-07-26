@@ -40,8 +40,8 @@ final class TokensTodayModel {
 
     init(reader: TranscriptTokenReader,
          roots: [(label: String, path: String)] = [
-             ("Claude Code", SessionStore.realHomeDirectory() + "/.claude/projects"),
-             ("Codex", SessionStore.realHomeDirectory() + "/.codex/sessions"),
+             ("Claude Code", realHomeDirectory() + "/.claude/projects"),
+             ("Codex", realHomeDirectory() + "/.codex/sessions"),
          ],
          changeSource: TranscriptChangeSource? = nil) {
         self.reader = reader

@@ -1,9 +1,0 @@
-import { describe, expect, test } from "bun:test";
-import { createDb, schema } from "../src/index.ts";
-
-describe("{{ packageName }}", () => {
-  test("module exports are wired", () => {
-    expect(typeof createDb).toBe("function");
-    expect(schema).toBeDefined();
-  });
-});

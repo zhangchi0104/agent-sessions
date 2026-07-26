@@ -16,23 +16,14 @@ import AppKit
 
 struct PopoverView: View {
     let model: UsageModel
-    let sessionsModel: SessionsModel
     let tokensTodayModel: TokensTodayModel
     @Environment(\.openWindow) private var openWindow
-    @State private var tab: PopoverTab = .usage
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
 
-            GlassTabBar(selection: $tab)
-
-            switch tab {
-            case .usage:
-                usage
-            case .sessions:
-                SessionsView(model: sessionsModel)
-            }
+            usage
 
             Divider()
             HStack {
@@ -46,8 +37,8 @@ struct PopoverView: View {
         .frame(width: 332)
     }
 
-    /// The Usage tab: the combined tokens-today figure (every Coding Agent)
-    /// on top, then one section per agent in the user's display order.
+    /// The combined tokens-today figure (every Coding Agent) on top, then one
+    /// section per agent in the user's display order.
     @ViewBuilder private var usage: some View {
         VStack(alignment: .leading, spacing: 16) {
             if let usage = tokensTodayModel.usage {
@@ -58,8 +49,8 @@ struct PopoverView: View {
                 AgentSection(model: model, id: id)
             }
         }
-        // Watches transcripts only while the Usage tab shows the figure;
-        // SwiftUI cancels this when the tab (or popover) goes away.
+        // Watches transcripts only while the popover shows the figure;
+        // SwiftUI cancels this when the popover goes away.
         .task { await tokensTodayModel.observeWhileVisible() }
     }
 
@@ -92,17 +83,14 @@ struct PopoverView: View {
             Text("TokenStats").font(.title3.weight(.semibold))
             Spacer()
             Button {
-                switch tab {
-                case .usage: model.refreshAllManually()
-                case .sessions: Task { await sessionsModel.refresh() }
-                }
+                model.refreshAllManually()
             } label: {
                 Image(systemName: "arrow.clockwise")
             }
             .buttonStyle(.borderless)
-            // ⌘R refreshes whichever tab is visible while the popover is up.
+            // ⌘R refreshes every Coding Agent while the popover is up.
             .keyboardShortcut("r", modifiers: .command)
-            .help(tab == .usage ? "Refresh all (⌘R)" : "Refresh sessions (⌘R)")
+            .help("Refresh all (⌘R)")
         }
     }
 }
