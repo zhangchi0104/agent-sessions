@@ -19,12 +19,16 @@ struct AgentBrand {
     let tint: Color
 }
 
-/// How an agent's browser sign-in comes back to the app.
+/// What a browser sign-in still asks of the user once the browser is open.
+///
+/// Both cases name the user-visible step, never the transport underneath it —
+/// how an approval finds its way back to the app is that agent's own business,
+/// and a UI that knows about it is a UI that will reach for agent identity.
 enum SignInStyle: Equatable {
-    /// The browser shows a code the user pastes into TokenStats.
+    /// The browser shows a code the user has to paste into TokenStats.
     case pasteCode
-    /// The browser redirects to a loopback listener; the app finishes on its own.
-    case loopback
+    /// Nothing further to do; the app completes the sign-in on its own.
+    case selfCompleting
 }
 
 /// How one Coding Agent's Usage Windows are drawn: which windows, in what

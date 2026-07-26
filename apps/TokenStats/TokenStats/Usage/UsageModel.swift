@@ -101,9 +101,9 @@ final class UsageModel {
 
     // MARK: - Auth
 
-    /// Open the browser for one agent. A `.loopback` agent is signed in by the
-    /// time this finishes; a `.pasteCode` agent then waits for the user to bring
-    /// a code back to `submitPastedCode`.
+    /// Open the browser for one agent. A `.selfCompleting` agent is signed in by
+    /// the time this finishes; a `.pasteCode` agent then waits for the user to
+    /// bring a code back to `submitPastedCode`.
     func signIn(_ id: CodingAgentID) {
         guard let agent = agents[id] else { return }
         loginError[id] = nil
@@ -112,7 +112,7 @@ final class UsageModel {
             do {
                 try await agent.auth.beginSignIn()
                 loginError[id] = nil
-                if agent.signInStyle == .loopback {
+                if agent.signInStyle == .selfCompleting {
                     await refresh(id, trigger: .manual)
                 }
             } catch {

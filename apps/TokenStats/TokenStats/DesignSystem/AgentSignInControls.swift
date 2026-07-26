@@ -10,8 +10,8 @@
 import SwiftUI
 
 /// One Coding Agent's sign-in controls: the button that opens the browser, plus
-/// whatever that agent's flow needs afterwards — a paste-the-code field for
-/// Claude Code, a reassurance line for Codex's loopback.
+/// whatever that agent's flow still needs from the user afterwards — a
+/// paste-the-code field, or a line reassuring them there is nothing left to do.
 ///
 /// Emits sibling views rather than a container, so a `Form` still lays each one
 /// out as its own row exactly as it did before this was extracted.
@@ -44,7 +44,7 @@ struct AgentSignInControls: View {
                         .disabled(pastedCode.isEmpty)
                 }
             }
-        case .loopback:
+        case .selfCompleting:
             Button("Sign in to \(agent.displayName)") { model.signIn(id) }
             Text("Approve in your browser; TokenStats finishes automatically.")
                 .font(font)

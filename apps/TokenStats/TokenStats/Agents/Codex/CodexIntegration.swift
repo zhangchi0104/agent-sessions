@@ -14,7 +14,7 @@ struct CodexIntegration: CodingAgentIntegration {
     let shortLabel = "X"
     let brand = AgentBrand(assetName: "BrandCodex",                          // OpenAI mark
                            tint: Color(red: 0.04, green: 0.64, blue: 0.50))  // OpenAI green
-    let signInStyle: SignInStyle = .loopback
+    let signInStyle: SignInStyle = .selfCompleting
 
     /// Two equal windows, no per-model meter. Sized as a deliberate two-up
     /// pair, not Claude's three-slot row with the center missing: equal dials

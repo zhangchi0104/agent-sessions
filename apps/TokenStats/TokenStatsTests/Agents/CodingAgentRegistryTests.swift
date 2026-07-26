@@ -39,7 +39,7 @@ private let expectedAgents: [AgentFacts] = [
     AgentFacts(id: .codex,
                displayName: "Codex",
                shortLabel: "X",
-               signInStyle: .loopback,
+               signInStyle: .selfCompleting,
                windowLabels: ["5-hour", "Weekly"],
                emphasizedWindow: nil,
                transcriptSubpath: "/.codex/sessions"),

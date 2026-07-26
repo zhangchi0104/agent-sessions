@@ -31,9 +31,9 @@ protocol AgentAuthSession: AnyObject {
     func accountID() -> String?
     func signOut()
 
-    /// Open the browser to sign in. A `.loopback` agent's sign-in is finished
-    /// when this returns; a `.pasteCode` agent's returns as soon as the browser
-    /// is open, and finishes in `completeSignIn(pastedCode:)`.
+    /// Open the browser to sign in. A `.selfCompleting` agent's sign-in is
+    /// finished when this returns; a `.pasteCode` agent's returns as soon as the
+    /// browser is open, and finishes in `completeSignIn(pastedCode:)`.
     func beginSignIn() async throws
     /// Exchange the code the user pasted back for tokens.
     func completeSignIn(pastedCode: String) async throws
