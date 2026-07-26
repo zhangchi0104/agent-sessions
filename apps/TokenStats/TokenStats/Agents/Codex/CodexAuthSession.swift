@@ -3,40 +3,40 @@
 //  TokenStats
 //
 //  Owns TokenStats' independent ChatGPT/OpenAI OAuth identity for Codex
-//  (ADR-0002): runs the loopback login, persists tokens to its OWN keychain
-//  entry (account "codex", never Claude Code's), and hands out a valid access
-//  token + ChatGPT account id, refreshing silently on expiry. Never reads or
-//  refreshes Codex's own ~/.codex/auth.json.
+//  (ADR-0002), persisted to its OWN keychain entry (account "codex", never
+//  Claude Code's). Never reads or refreshes Codex's own ~/.codex/auth.json.
+//  Caching, sign-out, and the refresh-on-expiry path come from the shared
+//  AgentTokenCache; what stays here is the loopback login.
 //
 
 import Foundation
 
-final class CodexAuthSession {
-    private let store: KeychainTokenStore
+final class CodexAuthSession: AgentAuthSession {
+    private let cache: AgentTokenCache
     private let client: CodexOAuthClient
 
-    private var cached: OAuthTokens?
-    private var loaded = false
-
-    init(store: KeychainTokenStore = KeychainTokenStore(account: "codex"),
-         client: CodexOAuthClient = CodexOAuthClient()) {
-        self.store = store
+    init(store: any TokenStore = KeychainTokenStore(account: "codex"),
+         client: CodexOAuthClient = CodexOAuthClient(),
+         now: @escaping () -> Date = Date.init) {
         self.client = client
-    }
-
-    private func currentTokens() -> OAuthTokens? {
-        if !loaded {
-            cached = store.load()
-            loaded = true
+        self.cache = AgentTokenCache(store: store, now: now) { expired in
+            try await client.refresh(tokens: expired)
         }
-        return cached
     }
 
-    var isSignedIn: Bool { currentTokens() != nil }
+    var isSignedIn: Bool { cache.isSignedIn }
+
+    func validAccessToken() async throws -> String { try await cache.validAccessToken() }
+
+    /// The ChatGPT account id for the usage header, from the most recent tokens.
+    func accountID() -> String? { cache.accountID() }
+
+    func signOut() { cache.signOut() }
 
     /// One-shot loopback login: bind a port, open the browser, await the
-    /// redirect, exchange the code, and store the tokens.
-    func login() async throws {
+    /// redirect, exchange the code, and store the tokens. Unlike the
+    /// paste-a-code flow, this returns only once sign-in is complete.
+    func beginSignIn() async throws {
         let listener = try LoopbackAuthListener()
         defer { listener.cancel() }
         let port = try await listener.start()
@@ -58,30 +58,6 @@ final class CodexAuthSession {
         guard !tokens.refreshToken.isEmpty else {
             throw UsageError.loginFailed("Sign-in did not return a refresh token; cannot stay signed in.")
         }
-        try store.save(tokens)
-        cached = tokens
-        loaded = true
-    }
-
-    func signOut() {
-        store.clear()
-        cached = nil
-        loaded = true
-    }
-
-    /// A valid bearer token, refreshing first if the stored one has expired.
-    func validAccessToken() async throws -> String {
-        guard var tokens = currentTokens() else { throw UsageError.notSignedIn }
-        if tokens.isExpired {
-            tokens = try await client.refresh(tokens: tokens)
-            try store.save(tokens)
-            cached = tokens
-        }
-        return tokens.accessToken
-    }
-
-    /// The ChatGPT account id for the usage header, from the most recent tokens.
-    func accountID() -> String? {
-        currentTokens()?.accountID
+        try cache.adopt(tokens)
     }
 }

@@ -7,8 +7,9 @@
 //  holds one AppState per agent (the UI renders all of them) and owns the
 //  refresh triggers — per-agent timer, app-level wake, popover-open, manual.
 //
-//  Each agent runs the same loop the single-agent model used, parameterized by
-//  CodingAgentID, so one agent's failures/backoff never affect another's.
+//  Every agent runs the same loop, and every per-agent difference it needs
+//  comes from that agent's CodingAgentIntegration rather than a branch here, so
+//  one agent's failures and backoff never affect another's.
 //
 
 import Foundation
@@ -29,15 +30,13 @@ final class UsageModel {
     /// Claude Code's paste-the-code flow: true while awaiting the pasted code.
     private(set) var isAwaitingCode = false
 
-    /// Compact menu-bar labels (PRD). Display *order* is now user-controlled
-    /// via `appearance`; internal refresh loops iterate `CodingAgentID.allCases`.
-    static let shortLabels: [CodingAgentID: String] = [.claudeCode: "C", .codex: "X"]
-
     /// User-controlled presentation preferences (order, primary, gauge style).
     let appearance: AppearanceSettings
 
-    private let claudeAuth: AuthSession
-    private let codexAuth: CodexAuthSession
+    /// The registered Coding Agents, keyed by id. Every per-agent fact this
+    /// model needs — the compact label, the provider, the auth session, the
+    /// sign-in style — is read from here rather than branched on.
+    private let agents: [CodingAgentID: any CodingAgentIntegration]
     private let lastKnown: LastKnownUsageStore
     private let providers: [CodingAgentID: UsageProvider]
 
@@ -47,22 +46,12 @@ final class UsageModel {
     private var wakeObserver: NSObjectProtocol?
 
     init(appearance: AppearanceSettings,
-         claudeAuth: AuthSession = AuthSession(),
-         codexAuth: CodexAuthSession = CodexAuthSession(),
+         agents: [any CodingAgentIntegration],
          lastKnown: LastKnownUsageStore = LastKnownUsageStore()) {
         self.appearance = appearance
-        self.claudeAuth = claudeAuth
-        self.codexAuth = codexAuth
         self.lastKnown = lastKnown
-        self.providers = [
-            .claudeCode: ClaudeCodeUsageProvider(accessToken: { [claudeAuth] in
-                try await claudeAuth.validAccessToken()
-            }),
-            .codex: CodexUsageProvider(
-                accessToken: { [codexAuth] in try await codexAuth.validAccessToken() },
-                accountID: { [codexAuth] in codexAuth.accountID() }
-            ),
-        ]
+        self.agents = Dictionary(uniqueKeysWithValues: agents.map { ($0.id, $0) })
+        self.providers = Dictionary(uniqueKeysWithValues: agents.map { ($0.id, $0.makeProvider()) })
     }
 
     /// Call once on launch: restore each agent's last-known snapshot, observe
@@ -89,7 +78,7 @@ final class UsageModel {
     /// Menu-bar readings in the user's display order (primary first).
     var menuBarSummaries: [CodingAgentUsageSummary] {
         appearance.displayOrder.map { id in
-            CodingAgentUsageSummary(shortLabel: Self.shortLabels[id] ?? "?", state: agentStates[id])
+            CodingAgentUsageSummary(shortLabel: agents[id]?.shortLabel ?? "?", state: agentStates[id])
         }
     }
 
@@ -107,48 +96,47 @@ final class UsageModel {
 
     // MARK: - Auth
 
-    /// Claude Code: open the browser; the user pastes a code back.
-    func signInClaude() {
-        loginError[.claudeCode] = nil
-        isAwaitingCode = true
-        claudeAuth.beginLogin()
-    }
-
-    func submitPastedCode(_ code: String) {
+    /// Open the browser for one agent. A `.loopback` agent is signed in by the
+    /// time this finishes; a `.pasteCode` agent then waits for the user to bring
+    /// a code back to `submitPastedCode`.
+    func signIn(_ id: CodingAgentID) {
+        guard let agent = agents[id] else { return }
+        loginError[id] = nil
+        if agent.signInStyle == .pasteCode { isAwaitingCode = true }
         Task {
             do {
-                try await claudeAuth.completeLogin(pastedCode: code)
-                loginError[.claudeCode] = nil
-                isAwaitingCode = false
-                await refresh(.claudeCode, trigger: .manual)
+                try await agent.auth.beginSignIn()
+                loginError[id] = nil
+                if agent.signInStyle == .loopback {
+                    await refresh(id, trigger: .manual)
+                }
             } catch {
-                loginError[.claudeCode] = "Sign-in failed: \(detail(of: error))"
+                loginError[id] = "Sign-in failed: \(detail(of: error))"
             }
         }
     }
 
-    /// Codex: one-shot loopback login (browser approval, no paste).
-    func signInCodex() {
-        loginError[.codex] = nil
+    /// Finish a `.pasteCode` sign-in with the code the user brought back.
+    func submitPastedCode(_ code: String, for id: CodingAgentID) {
+        guard let agent = agents[id] else { return }
         Task {
             do {
-                try await codexAuth.login()
-                loginError[.codex] = nil
-                await refresh(.codex, trigger: .manual)
+                try await agent.auth.completeSignIn(pastedCode: code)
+                loginError[id] = nil
+                isAwaitingCode = false
+                await refresh(id, trigger: .manual)
             } catch {
-                loginError[.codex] = "Sign-in failed: \(detail(of: error))"
+                loginError[id] = "Sign-in failed: \(detail(of: error))"
             }
         }
     }
 
     func signOut(_ id: CodingAgentID) {
-        switch id {
-        case .claudeCode:
-            claudeAuth.signOut()
-            isAwaitingCode = false
-        case .codex:
-            codexAuth.signOut()
-        }
+        guard let agent = agents[id] else { return }
+        agent.auth.signOut()
+        // The pasted-code prompt belongs to whichever agent is mid-flow; signing
+        // that agent out abandons it.
+        if agent.signInStyle == .pasteCode { isAwaitingCode = false }
         lastKnown.clear(for: id)
         lastFetch[id] = nil
         failures[id] = 0
@@ -210,10 +198,7 @@ final class UsageModel {
     }
 
     private func isSignedIn(_ id: CodingAgentID) -> Bool {
-        switch id {
-        case .claudeCode: return claudeAuth.isSignedIn
-        case .codex: return codexAuth.isSignedIn
-        }
+        agents[id]?.auth.isSignedIn ?? false
     }
 
     private func detail(of error: Error) -> String {

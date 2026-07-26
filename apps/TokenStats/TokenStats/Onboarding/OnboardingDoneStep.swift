@@ -28,7 +28,7 @@ struct OnboardingDoneStep: View {
                            connectedCount > 0 ? "\(connectedCount) of \(CodingAgentID.allCases.count) agents connected"
                                               : "No agents connected yet")
                 summaryRow("star.circle.fill", .accentColor,
-                           "Primary: \(model.appearance.primaryAgent.displayName)")
+                           "Primary: \(model.appearance.primaryAgent.integration.displayName)")
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)

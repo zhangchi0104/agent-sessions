@@ -26,8 +26,8 @@ struct OAuthTokens: Codable, Equatable {
         self.accountID = accountID
     }
 
-    /// True once we're within a minute of expiry — refresh proactively.
-    var isExpired: Bool { Date() >= expiresAt.addingTimeInterval(-60) }
+    /// True once `now` is within a minute of expiry — refresh proactively.
+    func isExpired(at now: Date) -> Bool { now >= expiresAt.addingTimeInterval(-60) }
 }
 
 struct PKCE: Equatable {

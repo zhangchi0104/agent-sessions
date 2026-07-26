@@ -25,7 +25,7 @@ struct AppearancePane: View {
             Section {
                 Picker("Primary subscription", selection: $appearance.primaryAgent) {
                     ForEach(CodingAgentID.allCases, id: \.self) { id in
-                        Text(id.displayName).tag(id)
+                        Text(id.integration.displayName).tag(id)
                     }
                 }
             } header: {
@@ -104,7 +104,7 @@ private struct OrderRow: View {
         } label: {
             HStack(spacing: 10) {
                 AgentIconBadge(id: id)
-                Text(id.displayName)
+                Text(id.integration.displayName)
                 if appearance.primaryAgent == id {
                     Text("Primary")
                         .font(.caption2.weight(.semibold))
@@ -114,7 +114,7 @@ private struct OrderRow: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(appearance.primaryAgent == id
-                            ? "\(id.displayName), primary" : id.displayName)
+                            ? "\(id.integration.displayName), primary" : id.integration.displayName)
         .accessibilityHint(draggable ? "Draggable. Drag to reorder." : "")
     }
 }

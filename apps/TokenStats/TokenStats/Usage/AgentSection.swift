@@ -17,7 +17,7 @@ struct AgentSection: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isDiagnosticsExpanded = false
 
-    private var displayName: String { id.displayName }
+    private var displayName: String { id.integration.displayName }
     private var isPrimary: Bool { model.appearance.primaryAgent == id }
 
     var body: some View {
@@ -77,16 +77,17 @@ struct AgentSection: View {
 
     // MARK: - Signed in
 
-    @ViewBuilder private func windows(_ snapshot: UsageSnapshot) -> some View {
-        let style = model.appearance.gaugeStyle
-        switch id {
-        case .claudeCode:
-            // Weekly · 5-hour · Fable, the 5-hour center-weighted.
-            ClaudeGaugeCluster(snapshot: snapshot, style: style)
-        case .codex:
-            // Two equal windows, no per-model meter.
-            CodexGaugeCluster(snapshot: snapshot, style: style)
-        }
+    /// Which windows this agent shows, in what order, and at what size all come
+    /// from its registry entry — this view just draws whatever it declares.
+    private func windows(_ snapshot: UsageSnapshot) -> some View {
+        let layout = id.integration.gaugeLayout
+        return GaugeCluster(items: layout.items(for: snapshot),
+                            style: model.appearance.gaugeStyle,
+                            sideDiameter: layout.sideDiameter,
+                            centerDiameter: layout.centerDiameter,
+                            sideLineWidth: layout.sideLineWidth,
+                            centerLineWidth: layout.centerLineWidth,
+                            circularSpacing: layout.circularSpacing)
     }
 
     /// Diagnostics expand inline below the status line rather than in a
@@ -177,60 +178,6 @@ private struct StatusLineContent: View {
                     // Long status text must not compress or displace the chevron.
                     .fixedSize()
             }
-        }
-    }
-}
-
-/// Claude's readout: three windows — weekly (left), the 5-hour "session limit"
-/// emphasized in the center, and the weekly Fable limit (right). Each shows how
-/// much is *left* and is colored green/yellow/red. Drawn per the Appearance
-/// gauge style.
-private struct ClaudeGaugeCluster: View {
-    let snapshot: UsageSnapshot
-    let style: GaugeStyle
-
-    var body: some View {
-        GaugeCluster(items: items, style: style)
-    }
-
-    private func window(_ label: String) -> UsageWindow? {
-        snapshot.windows.first { $0.label == label }
-    }
-
-    private var items: [GaugeContent] {
-        let weekly = window("Weekly").map { GaugeContent(window: $0) }
-            ?? .placeholder(title: "Weekly")
-        let fiveHour = window("5-hour").map { GaugeContent(window: $0, emphasized: true) }
-            ?? GaugeContent(title: "5-hour", subtitle: .unavailable, percentRemaining: 0,
-                            progress: 0, centerText: "—", emphasized: true, isEnabled: false)
-        // Plans without a Fable-specific weekly quota get the neutral placeholder.
-        let fable = window("Fable").map { GaugeContent(window: $0) }
-            ?? .placeholder(title: "Fable")
-        return [weekly, fiveHour, fable]
-    }
-}
-
-/// Codex's readout in the same gauge language: two equal windows, no third meter.
-private struct CodexGaugeCluster: View {
-    let snapshot: UsageSnapshot
-    let style: GaugeStyle
-
-    // Sized as a deliberate two-up pair, not Claude's three-slot row with the
-    // center missing: equal dials larger than Claude's side dials, with wide
-    // spacing, centered in the popover's 300pt content width (96+32+96 = 224).
-    private static let diameter: CGFloat = 96
-    private static let spacing: CGFloat = 32
-
-    var body: some View {
-        GaugeCluster(items: items, style: style,
-                     sideDiameter: Self.diameter, centerDiameter: Self.diameter,
-                     sideLineWidth: 6, centerLineWidth: 6, circularSpacing: Self.spacing)
-    }
-
-    private var items: [GaugeContent] {
-        ["5-hour", "Weekly"].map { label in
-            snapshot.windows.first { $0.label == label }
-                .map { GaugeContent(window: $0) } ?? .placeholder(title: label)
         }
     }
 }

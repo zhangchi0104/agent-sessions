@@ -97,10 +97,12 @@ struct GaugeContent: Identifiable {
         self.isEnabled = isEnabled
     }
 
-    /// A neutral, dataless reading (e.g. a quota the plan doesn't expose).
-    static func placeholder(title: String) -> GaugeContent {
+    /// A neutral, dataless reading (e.g. a quota the plan doesn't expose). It
+    /// keeps its slot's emphasis so an absent center window still holds the
+    /// center's size rather than collapsing the row.
+    static func placeholder(title: String, emphasized: Bool = false) -> GaugeContent {
         GaugeContent(title: title, subtitle: .unavailable, percentRemaining: 0,
-                     progress: 0, centerText: "—", isEnabled: false)
+                     progress: 0, centerText: "—", emphasized: emphasized, isEnabled: false)
     }
 
     var status: GaugeStatus { GaugeStatus(remaining: percentRemaining) }

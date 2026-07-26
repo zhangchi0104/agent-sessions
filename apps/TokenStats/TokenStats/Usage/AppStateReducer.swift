@@ -37,17 +37,12 @@ enum AppStateReducer {
     }
 }
 
+/// Which Coding Agent a piece of state belongs to. Identity only — everything
+/// else about an agent is declared by its CodingAgentIntegration, reachable
+/// through `integration`.
 enum CodingAgentID: String, CaseIterable, Codable, Hashable {
     case claudeCode
     case codex
-
-    /// The full Coding Agent name shown in the popover and Settings (glossary).
-    var displayName: String {
-        switch self {
-        case .claudeCode: return "Claude Code"
-        case .codex: return "Codex"
-        }
-    }
 }
 
 struct CodingAgentStates: Equatable {

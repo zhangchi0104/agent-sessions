@@ -32,17 +32,15 @@ final class TokensTodayModel {
     private(set) var perAgent: [AgentTokens] = []
 
     private let reader: TranscriptTokenReader
-    /// The file roots to scan, one per Coding Agent. Adding an agent is one
-    /// entry here (plus reader support for its file format).
+    /// The file roots to scan, one per Coding Agent. The app passes
+    /// `CodingAgentRegistry.transcriptRoots`, so adding an agent adds a root
+    /// (all this model needs beyond that is reader support for its format).
     private let roots: [(label: String, path: String)]
     /// Ticks when a watched transcript changes, driving a re-read (ADR-0003).
     private let changeSource: TranscriptChangeSource
 
     init(reader: TranscriptTokenReader,
-         roots: [(label: String, path: String)] = [
-             ("Claude Code", realHomeDirectory() + "/.claude/projects"),
-             ("Codex", realHomeDirectory() + "/.codex/sessions"),
-         ],
+         roots: [(label: String, path: String)],
          changeSource: TranscriptChangeSource? = nil) {
         self.reader = reader
         self.roots = roots

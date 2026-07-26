@@ -14,12 +14,16 @@ import SwiftUI
 struct AgentIconBadge: View {
     let id: CodingAgentID
 
+    /// The mark and tile color are the agent's own, declared in its registry
+    /// entry — the asset is a template SVG, so it tints white over the tile.
+    private var brand: AgentBrand { id.integration.brand }
+
     var body: some View {
         RoundedRectangle(cornerRadius: 6, style: .continuous)
-            .fill(tint)
+            .fill(brand.tint)
             .frame(width: 26, height: 26)
             .overlay(
-                Image(logo)
+                Image(brand.assetName)
                     .renderingMode(.template)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -27,20 +31,5 @@ struct AgentIconBadge: View {
                     .foregroundStyle(.white)
             )
             .accessibilityHidden(true)
-    }
-
-    /// The brand mark in the asset catalog (template SVGs that tint white).
-    private var logo: String {
-        switch id {
-        case .claudeCode: return "BrandClaude" // Anthropic / Claude spark
-        case .codex: return "BrandCodex"       // OpenAI mark
-        }
-    }
-
-    private var tint: Color {
-        switch id {
-        case .claudeCode: return Color(red: 0.85, green: 0.47, blue: 0.34) // Claude clay
-        case .codex: return Color(red: 0.04, green: 0.64, blue: 0.50)      // OpenAI green
-        }
     }
 }

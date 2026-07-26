@@ -24,11 +24,13 @@ struct AgentSignInControls: View {
 
     @State private var pastedCode = ""
 
+    private var agent: any CodingAgentIntegration { id.integration }
+
     @ViewBuilder var body: some View {
-        switch id {
-        case .claudeCode:
-            Button(model.isAwaitingCode ? "Re-open browser" : "Sign in to Claude Code") {
-                model.signInClaude()
+        switch agent.signInStyle {
+        case .pasteCode:
+            Button(model.isAwaitingCode ? "Re-open browser" : "Sign in to \(agent.displayName)") {
+                model.signIn(id)
             }
             if model.isAwaitingCode {
                 Text("Approve TokenStats in your browser, then paste the code here:")
@@ -42,8 +44,8 @@ struct AgentSignInControls: View {
                         .disabled(pastedCode.isEmpty)
                 }
             }
-        case .codex:
-            Button("Sign in to Codex") { model.signInCodex() }
+        case .loopback:
+            Button("Sign in to \(agent.displayName)") { model.signIn(id) }
             Text("Approve in your browser; TokenStats finishes automatically.")
                 .font(font)
                 .foregroundStyle(.secondary)
@@ -52,7 +54,7 @@ struct AgentSignInControls: View {
 
     private func submit() {
         guard !pastedCode.isEmpty else { return }
-        model.submitPastedCode(pastedCode)
+        model.submitPastedCode(pastedCode, for: id)
         pastedCode = ""
     }
 }

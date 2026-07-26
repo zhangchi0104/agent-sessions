@@ -64,8 +64,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingController: OnboardingWindowController?
 
     override init() {
-        model = UsageModel(appearance: AppearanceSettings())
-        tokensTodayModel = TokensTodayModel(reader: TranscriptTokenReader())
+        // Both models are driven by the registered Coding Agents: the usage
+        // model refreshes one per agent, and Tokens Today scans one transcript
+        // root per agent.
+        model = UsageModel(appearance: AppearanceSettings(), agents: CodingAgentRegistry.all)
+        tokensTodayModel = TokensTodayModel(reader: TranscriptTokenReader(),
+                                            roots: CodingAgentRegistry.transcriptRoots)
         super.init()
     }
 

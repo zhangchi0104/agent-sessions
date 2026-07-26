@@ -18,8 +18,9 @@ struct OnboardingAccountsStep: View {
                                   "Sign in so TokenStats can read your usage. Connect one or both — "
                                   + "or skip and do it later in Settings.")
             VStack(spacing: 12) {
-                OnboardingAccountRow(model: model, id: .claudeCode)
-                OnboardingAccountRow(model: model, id: .codex)
+                ForEach(CodingAgentID.allCases, id: \.self) { id in
+                    OnboardingAccountRow(model: model, id: id)
+                }
             }
             primaryPicker
         }
@@ -32,7 +33,7 @@ struct OnboardingAccountsStep: View {
                 get: { model.appearance.primaryAgent },
                 set: { model.appearance.primaryAgent = $0 })) {
                 ForEach(CodingAgentID.allCases, id: \.self) { id in
-                    Text(id.displayName).tag(id)
+                    Text(id.integration.displayName).tag(id)
                 }
             }
             .pickerStyle(.segmented)
@@ -58,7 +59,7 @@ private struct OnboardingAccountRow: View {
             HStack(spacing: 12) {
                 AgentIconBadge(id: id)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(id.displayName).font(.body.weight(.semibold))
+                    Text(id.integration.displayName).font(.body.weight(.semibold))
                     ConnectionStatusLabel(status: ConnectionStatus(model: model, id: id),
                                           font: .caption, style: .tintedText)
                 }

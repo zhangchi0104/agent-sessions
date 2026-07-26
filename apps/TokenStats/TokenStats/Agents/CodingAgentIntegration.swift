@@ -1,0 +1,80 @@
+//
+//  CodingAgentIntegration.swift
+//  TokenStats
+//
+//  Everything that varies from one Coding Agent to the next, declared in one
+//  place per agent. Before this existed the same two agents were spelled out
+//  again in the menu-bar labels, the provider table, the sign-out and
+//  signed-in checks, the icon badge, the gauge layout, the sign-in controls,
+//  and the transcript scan roots. Adding a third agent meant finding all of
+//  them; now it means one conformance and one line in the registry.
+//
+
+import SwiftUI
+
+/// An agent's mark in the asset catalog and the tile color behind it.
+struct AgentBrand {
+    /// A template SVG in the asset catalog, tinted white over `tint`.
+    let assetName: String
+    let tint: Color
+}
+
+/// How an agent's browser sign-in comes back to the app.
+enum SignInStyle: Equatable {
+    /// The browser shows a code the user pastes into TokenStats.
+    case pasteCode
+    /// The browser redirects to a loopback listener; the app finishes on its own.
+    case loopback
+}
+
+/// How one Coding Agent's Usage Windows are drawn: which windows, in what
+/// order, which one carries the emphasis, and the circular sizing that suits
+/// that many dials.
+struct GaugeLayout {
+    /// One slot in the row, in display order.
+    struct Slot {
+        let label: String
+        var emphasized: Bool = false
+    }
+
+    let slots: [Slot]
+    var sideDiameter: CGFloat = 70
+    var centerDiameter: CGFloat = 104
+    var sideLineWidth: CGFloat = 5
+    var centerLineWidth: CGFloat = 7
+    var circularSpacing: CGFloat = 14
+
+    /// The readings to draw for one snapshot: each slot filled from the window
+    /// that matches it, or a neutral placeholder when the plan doesn't expose
+    /// that window.
+    func items(for snapshot: UsageSnapshot) -> [GaugeContent] {
+        slots.map { slot in
+            snapshot.windows.first { $0.label == slot.label }
+                .map { GaugeContent(window: $0, emphasized: slot.emphasized) }
+                ?? .placeholder(title: slot.label, emphasized: slot.emphasized)
+        }
+    }
+}
+
+/// One Coding Agent, and every fact about it the rest of the app needs.
+protocol CodingAgentIntegration {
+    var id: CodingAgentID { get }
+    /// The full name shown in the popover and Settings (glossary).
+    var displayName: String { get }
+    /// The compact menu-bar label used when more than one agent is readable.
+    var shortLabel: String { get }
+    var brand: AgentBrand { get }
+    var auth: any AgentAuthSession { get }
+    var signInStyle: SignInStyle { get }
+    var gaugeLayout: GaugeLayout { get }
+    /// The directory Tokens Today scans for this agent's transcripts.
+    var transcriptRoot: String { get }
+
+    func makeProvider() -> UsageProvider
+}
+
+extension CodingAgentID {
+    /// This agent's registered integration — the single declaration of every
+    /// per-agent fact.
+    var integration: any CodingAgentIntegration { CodingAgentRegistry.agent(self) }
+}

@@ -60,7 +60,7 @@ private struct AccountSection: View {
             } label: {
                 HStack(spacing: 10) {
                     AgentIconBadge(id: id)
-                    Text(id.displayName).font(.headline)
+                    Text(id.integration.displayName).font(.headline)
                 }
             }
 
