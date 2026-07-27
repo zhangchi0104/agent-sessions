@@ -41,25 +41,64 @@ Versioning config lives in `apps/TokenStats/.releaserc.json`. The tag is scoped
 
 Set these under **Settings → Secrets and variables → Actions**:
 
-| Secret | What it is |
-| --- | --- |
-| `MACOS_CERT_P12_BASE64` | `base64` of a *Developer ID Application* certificate + private key exported as `.p12` |
-| `MACOS_CERT_PASSWORD` | Password protecting that `.p12` |
-| `KEYCHAIN_PASSWORD` | Any throwaway password for the temporary CI keychain |
-| `NOTARY_KEY_P8_BASE64` | `base64` of an App Store Connect API key (`.p8`) with the *Developer* role |
-| `NOTARY_KEY_ID` | The API key's Key ID |
-| `NOTARY_ISSUER_ID` | App Store Connect Issuer ID |
+| Secret | What it is | Where it comes from |
+| --- | --- | --- |
+| `MACOS_CERT_P12_BASE64` | `base64` of a *Developer ID Application* certificate + private key exported as `.p12` | Apple Developer account (see below) |
+| `MACOS_CERT_PASSWORD` | Password protecting that `.p12` | You choose it at export time |
+| `KEYCHAIN_PASSWORD` | Any throwaway password for the temporary CI keychain | Random string you generate |
+| `NOTARY_KEY_P8_BASE64` | `base64` of an App Store Connect API key (`.p8`) with the *Developer* role | App Store Connect (see below) |
+| `NOTARY_KEY_ID` | The API key's Key ID | Shown next to the key in App Store Connect |
+| `NOTARY_ISSUER_ID` | App Store Connect Issuer ID | Shown above the key list (one UUID per team) |
 
-Generate the base64 values with, e.g.:
+`GITHUB_TOKEN` is injected by Actions automatically — don't add it.
+
+### Signing certificate (`MACOS_CERT_*`)
+
+Requires Account Holder or Admin on the signing team (`472VSX7V86`, already set
+in the Xcode project).
+
+1. Xcode → Settings → Accounts → select the team → Manage Certificates → `+` →
+   **Developer ID Application**. (Or issue it manually from a CSR at
+   <https://developer.apple.com/account/resources/certificates>.)
+2. Keychain Access → *My Certificates* → right-click
+   `Developer ID Application: … (472VSX7V86)` → **Export**, save as `.p12` and
+   set a password — that password is `MACOS_CERT_PASSWORD`. Export the
+   certificate row (which carries the private key with it), not the bare private
+   key: without the key, `security import` succeeds in CI but codesign finds no
+   usable identity.
+3. Encode it:
+
+   ```sh
+   base64 -i DeveloperIDApp.p12 | pbcopy
+   ```
+
+Developer ID certificates expire after 5 years; re-export and update the secret
+when that happens.
+
+### Notarization key (`NOTARY_*`)
+
+Notarization uses an App Store Connect API key rather than an Apple ID +
+app-specific password — no 2FA prompts, and it can be revoked on its own.
+
+1. <https://appstoreconnect.apple.com/access/integrations/api> → **Team Keys** →
+   `+` → role **Developer** (sufficient for notarization).
+2. Download the `.p8` — it is only downloadable **once**. The same page shows the
+   **Key ID** (`NOTARY_KEY_ID`) and, above the list, the **Issuer ID**
+   (`NOTARY_ISSUER_ID`).
+3. Encode it:
+
+   ```sh
+   base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy
+   ```
+
+### CI keychain password (`KEYCHAIN_PASSWORD`)
+
+Nothing to do with Apple — it only unlocks the throwaway keychain the workflow
+creates and deletes in the same run. Any random string works:
 
 ```sh
-base64 -i DeveloperIDApp.p12 | pbcopy
-base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy
+openssl rand -base64 24 | pbcopy
 ```
-
-The signing team (`472VSX7V86`) is already set in the Xcode project. Notarization
-uses an App Store Connect API key (preferred over an Apple ID + app-specific
-password — no 2FA prompts, easily revocable).
 
 ## Testing the build locally
 
