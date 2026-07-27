@@ -36,11 +36,11 @@ final class UsageModel {
     /// User-controlled presentation preferences (order, primary, gauge style).
     let appearance: AppearanceSettings
 
-    /// The registered Coding Agents, keyed by id. Every per-agent fact this
-    /// model needs — the compact label, the provider, the auth session, the
-    /// sign-in style — is read from here rather than branched on.
-    private let agents: [CodingAgentID: any CodingAgentIntegration]
     private let lastKnown: LastKnownUsageStore
+    /// One provider per Coding Agent, built once from that agent's registry
+    /// entry. Every other per-agent fact this model needs — the compact label,
+    /// the auth session, the sign-in style — is read from `id.integration`,
+    /// the same place the views read it, so the two can never disagree.
     private let providers: [CodingAgentID: UsageProvider]
 
     private var lastFetch: [CodingAgentID: Date] = [:]
@@ -49,12 +49,11 @@ final class UsageModel {
     private var wakeObserver: NSObjectProtocol?
 
     init(appearance: AppearanceSettings,
-         agents: [any CodingAgentIntegration],
          lastKnown: LastKnownUsageStore = LastKnownUsageStore()) {
         self.appearance = appearance
         self.lastKnown = lastKnown
-        self.agents = Dictionary(uniqueKeysWithValues: agents.map { ($0.id, $0) })
-        self.providers = Dictionary(uniqueKeysWithValues: agents.map { ($0.id, $0.makeProvider()) })
+        self.providers = Dictionary(uniqueKeysWithValues:
+            CodingAgentID.allCases.map { ($0, $0.integration.makeProvider()) })
     }
 
     /// Call once on launch: restore each agent's last-known snapshot, observe
@@ -81,7 +80,7 @@ final class UsageModel {
     /// Menu-bar readings in the user's display order (primary first).
     var menuBarSummaries: [CodingAgentUsageSummary] {
         appearance.displayOrder.map { id in
-            CodingAgentUsageSummary(shortLabel: agents[id]?.shortLabel ?? "?", state: agentStates[id])
+            CodingAgentUsageSummary(shortLabel: id.integration.shortLabel, state: agentStates[id])
         }
     }
 
@@ -105,7 +104,7 @@ final class UsageModel {
     /// the time this finishes; a `.pasteCode` agent then waits for the user to
     /// bring a code back to `submitPastedCode`.
     func signIn(_ id: CodingAgentID) {
-        guard let agent = agents[id] else { return }
+        let agent = id.integration
         loginError[id] = nil
         if agent.signInStyle == .pasteCode { awaitingCode.insert(id) }
         Task {
@@ -116,6 +115,11 @@ final class UsageModel {
                     await refresh(id, trigger: .manual)
                 }
             } catch {
+                // The browser never opened, so there is no code coming. Retire
+                // the awaiting state with the error, or the user is left staring
+                // at a paste field they can never satisfy — and cannot dismiss,
+                // since Sign out only appears once connected.
+                awaitingCode.remove(id)
                 loginError[id] = "Sign-in failed: \(detail(of: error))"
             }
         }
@@ -123,10 +127,9 @@ final class UsageModel {
 
     /// Finish a `.pasteCode` sign-in with the code the user brought back.
     func submitPastedCode(_ code: String, for id: CodingAgentID) {
-        guard let agent = agents[id] else { return }
         Task {
             do {
-                try await agent.auth.completeSignIn(pastedCode: code)
+                try await id.integration.auth.completeSignIn(pastedCode: code)
                 loginError[id] = nil
                 awaitingCode.remove(id)
                 await refresh(id, trigger: .manual)
@@ -137,8 +140,7 @@ final class UsageModel {
     }
 
     func signOut(_ id: CodingAgentID) {
-        guard let agent = agents[id] else { return }
-        agent.auth.signOut()
+        id.integration.auth.signOut()
         // Signing an agent out abandons any code it was waiting for. An agent
         // that never waits was never in the set, so this needs no style check.
         awaitingCode.remove(id)
@@ -167,6 +169,10 @@ final class UsageModel {
         }
         guard isSignedIn(id) else {
             apply(.signedOut(id))
+            // Keep the loop alive. A signed-out reading can be transient — a
+            // keychain that wasn't readable yet — and without a timer here that
+            // agent would never poll again for the rest of the launch.
+            scheduleTimer(id, after: decision.nextInterval)
             return
         }
         guard let provider = providers[id] else { return }
@@ -187,6 +193,11 @@ final class UsageModel {
             diagnostics[id] = nil
             apply(.fetchSucceeded(id, snapshot))
         } catch {
+            // Same reasoning as the success path: a sign-out during the fetch
+            // has already cleared this agent's diagnostics and failure count,
+            // and writing the failure back would re-arm a backoff timer for an
+            // account the user just disconnected.
+            guard isSignedIn(id) else { return }
             diagnostics[id] = detail(of: error)
             failures[id] = (failures[id] ?? 0) + 1
             apply(.fetchFailed(id))
@@ -203,7 +214,7 @@ final class UsageModel {
     }
 
     private func isSignedIn(_ id: CodingAgentID) -> Bool {
-        agents[id]?.auth.isSignedIn ?? false
+        id.integration.auth.isSignedIn
     }
 
     private func detail(of error: Error) -> String {

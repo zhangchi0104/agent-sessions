@@ -9,14 +9,16 @@
 
 import Foundation
 
-/// The user's *real* home directory. Inside the App Sandbox,
-/// `NSHomeDirectory()` points at the container, while the Coding Agents write
-/// their transcripts under the actual home — which the entitlements'
-/// home-relative exceptions grant us read access to.
+/// The user's *real* home directory, where the Coding Agents write their
+/// transcripts. TokenStats is a non-sandboxed Developer ID app and reads those
+/// paths directly, with no entitlement — and must keep it that way: any
+/// restricted entitlement, App Sandbox temporary-exceptions included, makes the
+/// kernel SIGKILL the app at launch. See ADR-0004 and TokenStats.entitlements.
 ///
-/// `nonisolated` because callers resolve scan roots off the main actor; the
-/// target defaults to `MainActor` isolation, which a bare global would inherit.
-nonisolated func realHomeDirectory() -> String {
+/// `NSHomeDirectory()` is the fallback rather than the answer because it points
+/// at the container for a sandboxed process, which this app is not, but may be
+/// under a future host that runs it sandboxed.
+func realHomeDirectory() -> String {
     if let passwd = getpwuid(getuid()), let dir = passwd.pointee.pw_dir {
         return String(cString: dir)
     }

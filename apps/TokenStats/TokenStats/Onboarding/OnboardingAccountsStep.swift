@@ -60,7 +60,8 @@ private struct OnboardingAccountRow: View {
                 AgentIconBadge(id: id)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(id.integration.displayName).font(.body.weight(.semibold))
-                    ConnectionStatusLabel(status: ConnectionStatus(model: model, id: id),
+                    ConnectionStatusLabel(status: ConnectionStatus(state: model.agentStates[id],
+                                                                   awaitingCode: model.isAwaitingCode(id)),
                                           font: .caption, style: .tintedText)
                 }
                 Spacer(minLength: 0)

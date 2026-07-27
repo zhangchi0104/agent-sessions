@@ -103,8 +103,18 @@ struct CodingAgentRegistryTests {
 
     @Test(arguments: expectedAgents)
     func gaugeLayoutReadsEachWindowFromTheSnapshotByLabel(_ expected: AgentFacts) {
-        let windows = expected.windowLabels.enumerated().map { index, label in
-            UsageWindow(label: label, percentConsumed: Double(index * 10),
+        // A distinct, label-keyed figure per window, so a slot that picked the
+        // wrong window shows up as the wrong number rather than passing.
+        func consumed(for label: String) -> Double {
+            Double(((expected.windowLabels.firstIndex(of: label) ?? 0) * 10) + 5)
+        }
+        // Deliberately REVERSED, i.e. not in slot order — the real parsers don't
+        // emit it that way (Claude Code's yields 5-hour, Weekly, Fable while its
+        // layout draws Weekly, 5-hour, Fable), and a fixture in slot order would
+        // pass even for an implementation that ignored slots entirely and mapped
+        // the snapshot straight through.
+        let windows = expected.windowLabels.reversed().map { label in
+            UsageWindow(label: label, percentConsumed: consumed(for: label),
                         resetAt: Date(timeIntervalSince1970: 1716800000))
         }
         let layout = CodingAgentRegistry.agent(expected.id).gaugeLayout
@@ -112,10 +122,10 @@ struct CodingAgentRegistryTests {
         let items = layout.items(for: UsageSnapshot(windows: windows, fetchedAt: Date()))
         let titles = items.map(\.title)
         let enabled = items.map(\.isEnabled)
-        // Slot order is the layout's, not the snapshot's: each slot took the
-        // window whose label matches it.
+        // Slot order is the layout's, not the snapshot's, and each slot carries
+        // the figure belonging to its own label.
         let remaining = items.map(\.percentRemaining)
-        let expectedRemaining = windows.map(\.percentRemaining)
+        let expectedRemaining = expected.windowLabels.map { 100 - consumed(for: $0) }
 
         #expect(titles == expected.windowLabels)
         #expect(enabled == titles.map { _ in true })

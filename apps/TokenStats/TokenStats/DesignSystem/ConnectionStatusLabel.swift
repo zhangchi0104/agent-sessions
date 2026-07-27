@@ -29,11 +29,6 @@ enum ConnectionStatus {
         }
     }
 
-    /// Read one agent's status out of the model.
-    init(model: UsageModel, id: CodingAgentID) {
-        self.init(state: model.agentStates[id], awaitingCode: model.isAwaitingCode(id))
-    }
-
     var label: String {
         switch self {
         case .connected: return "Connected"

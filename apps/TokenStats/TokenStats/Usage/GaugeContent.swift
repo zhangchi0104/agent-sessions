@@ -62,7 +62,11 @@ enum GaugeSubtitle: Equatable {
 /// One Usage Window's reading, decoupled from how it's drawn. Built from a
 /// `UsageWindow` or as a neutral placeholder.
 struct GaugeContent: Identifiable {
-    let id = UUID()
+    /// The window's own name. Stable across rebuilds, unlike a fresh UUID —
+    /// which made `ForEach` treat every re-render as a new set of gauges and
+    /// crossfade the dial row against itself. Titles are unique within a
+    /// cluster, since a layout fills one slot per label.
+    var id: String { title }
     let title: String
     let subtitle: GaugeSubtitle
     /// Percent still available (0–100); drives color + the spoken label.

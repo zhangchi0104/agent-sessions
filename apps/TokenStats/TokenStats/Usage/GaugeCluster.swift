@@ -10,18 +10,31 @@
 
 import SwiftUI
 
-/// Lays a group of readings out per style: side-by-side dials/rings, or a
-/// stacked list of bars. For circular styles the emphasized item is drawn larger.
-struct GaugeCluster: View {
-    let items: [GaugeContent]
-    let style: GaugeStyle
-    /// Circular sizing: emphasized items use `centerDiameter`, the rest `sideDiameter`.
+/// The circular-gauge geometry a cluster is drawn with. Declared once, here,
+/// and referenced by each Coding Agent's `GaugeLayout` — so retuning the dials
+/// is one edit rather than three files that can drift apart.
+struct GaugeSizing {
+    /// Emphasized items use `centerDiameter`, the rest `sideDiameter`.
     var sideDiameter: CGFloat = 70
     var centerDiameter: CGFloat = 104
     var sideLineWidth: CGFloat = 5
     var centerLineWidth: CGFloat = 7
     /// Horizontal spacing between circular gauges.
     var circularSpacing: CGFloat = 14
+}
+
+/// Lays a group of readings out per style: side-by-side dials/rings, or a
+/// stacked list of bars. For circular styles the emphasized item is drawn larger.
+struct GaugeCluster: View {
+    let items: [GaugeContent]
+    let style: GaugeStyle
+    var sizing = GaugeSizing()
+
+    private var sideDiameter: CGFloat { sizing.sideDiameter }
+    private var centerDiameter: CGFloat { sizing.centerDiameter }
+    private var sideLineWidth: CGFloat { sizing.sideLineWidth }
+    private var centerLineWidth: CGFloat { sizing.centerLineWidth }
+    private var circularSpacing: CGFloat { sizing.circularSpacing }
 
     var body: some View {
         Group {

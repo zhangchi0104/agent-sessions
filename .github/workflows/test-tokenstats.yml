@@ -37,7 +37,9 @@ jobs:
           echo "Available Xcodes:"; ls -d /Applications/Xcode*.app
           # The project is a macOS 26 / Xcode 26 format; the image default (16.x)
           # can't read it. Pick the newest installed Xcode 26.
-          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          # `|| true` matters: under `set -e` + `pipefail`, a no-match `ls`
+          # fails the whole assignment and kills the step before the fallback.
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1 || true)
           [ -n "$XC" ] || XC=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
           echo "Selecting $XC"
           sudo xcode-select -switch "$XC"

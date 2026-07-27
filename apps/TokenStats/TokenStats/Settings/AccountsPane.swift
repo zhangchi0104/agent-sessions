@@ -78,5 +78,7 @@ private struct AccountSection: View {
 
     private var isConnected: Bool { model.agentStates[id] != .signedOut }
 
-    private var status: ConnectionStatus { ConnectionStatus(model: model, id: id) }
+    private var status: ConnectionStatus {
+        ConnectionStatus(state: model.agentStates[id], awaitingCode: model.isAwaitingCode(id))
+    }
 }

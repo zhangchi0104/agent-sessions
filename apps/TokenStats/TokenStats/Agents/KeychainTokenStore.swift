@@ -51,14 +51,26 @@ struct KeychainTokenStore {
         guard status == errSecSuccess else { throw KeychainError.status(status) }
     }
 
-    func load() -> OAuthTokens? {
+    /// Distinguishes "no account stored" from "the keychain would not answer".
+    /// A locked login keychain or a denied ACL prompt reports the latter, so the
+    /// caller can retry instead of concluding the user is signed out.
+    func load() -> Result<OAuthTokens?, Error> {
         var query = baseQuery
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data else { return nil }
-        return try? JSONDecoder().decode(OAuthTokens.self, from: data)
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        switch status {
+        case errSecSuccess:
+            // An item that won't decode is a stored account we can't use; that
+            // is a genuine "nothing here", not a read failure to retry.
+            guard let data = result as? Data else { return .success(nil) }
+            return .success(try? JSONDecoder().decode(OAuthTokens.self, from: data))
+        case errSecItemNotFound:
+            return .success(nil)
+        default:
+            return .failure(KeychainError.status(status))
+        }
     }
 
     func clear() {

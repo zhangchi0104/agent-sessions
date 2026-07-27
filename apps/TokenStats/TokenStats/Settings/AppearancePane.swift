@@ -137,8 +137,9 @@ private struct GaugeStylePreview: View {
 
     var body: some View {
         GaugeCluster(items: sample, style: style,
-                     sideDiameter: 60, centerDiameter: 78,
-                     sideLineWidth: 5, centerLineWidth: 6, circularSpacing: 16)
+                     sizing: GaugeSizing(sideDiameter: 60, centerDiameter: 78,
+                                         sideLineWidth: 5, centerLineWidth: 6,
+                                         circularSpacing: 16))
             .frame(maxWidth: style == .bar ? 260 : .infinity)
     }
 }

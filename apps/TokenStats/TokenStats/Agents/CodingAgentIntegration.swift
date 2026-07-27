@@ -42,11 +42,10 @@ struct GaugeLayout {
     }
 
     let slots: [Slot]
-    var sideDiameter: CGFloat = 70
-    var centerDiameter: CGFloat = 104
-    var sideLineWidth: CGFloat = 5
-    var centerLineWidth: CGFloat = 7
-    var circularSpacing: CGFloat = 14
+    /// Geometry for the circular styles. The numbers themselves live on
+    /// `GaugeSizing` in the design system; an agent only overrides what its own
+    /// slot count needs.
+    var sizing = GaugeSizing()
 
     /// The readings to draw for one snapshot: each slot filled from the window
     /// that matches it, or a neutral placeholder when the plan doesn't expose

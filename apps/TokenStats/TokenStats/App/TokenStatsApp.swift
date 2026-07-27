@@ -67,13 +67,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Both models are driven by the registered Coding Agents: the usage
         // model refreshes one per agent, and Tokens Today scans one transcript
         // root per agent.
-        model = UsageModel(appearance: AppearanceSettings(), agents: CodingAgentRegistry.all)
+        model = UsageModel(appearance: AppearanceSettings())
         tokensTodayModel = TokensTodayModel(reader: TranscriptTokenReader(),
                                             roots: CodingAgentRegistry.transcriptRoots)
         super.init()
     }
 
+    /// True when this process is hosting the unit-test bundle rather than
+    /// serving a user.
+    static var isRunningUnitTests: Bool {
+        let environment = ProcessInfo.processInfo.environment
+        return environment["XCTestConfigurationFilePath"] != nil
+            || environment["XCTestBundlePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // The test bundle is hosted by this app under the shipped bundle id, so
+        // starting up for a test run would read the developer's real Keychain
+        // accounts, call both usage endpoints, and overwrite their persisted
+        // snapshot — and on a fresh CI runner, where the onboarding flag is
+        // unset, it would also present the onboarding window and steal focus.
+        // Tests construct the models they need directly.
+        guard !Self.isRunningUnitTests else { return }
         model.start()
         if !onboarding.completed { showOnboarding() }
     }

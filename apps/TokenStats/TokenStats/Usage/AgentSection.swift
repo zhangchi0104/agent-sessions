@@ -83,11 +83,7 @@ struct AgentSection: View {
         let layout = id.integration.gaugeLayout
         return GaugeCluster(items: layout.items(for: snapshot),
                             style: model.appearance.gaugeStyle,
-                            sideDiameter: layout.sideDiameter,
-                            centerDiameter: layout.centerDiameter,
-                            sideLineWidth: layout.sideLineWidth,
-                            centerLineWidth: layout.centerLineWidth,
-                            circularSpacing: layout.circularSpacing)
+                            sizing: layout.sizing)
     }
 
     /// Diagnostics expand inline below the status line rather than in a

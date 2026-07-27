@@ -15,7 +15,10 @@ import Foundation
 /// tests without touching the user's real Keychain.
 protocol TokenStore {
     func save(_ tokens: OAuthTokens) throws
-    func load() -> OAuthTokens?
+    /// `.success(nil)` means there is no stored account. `.failure` means the
+    /// store could not be read and the answer is *unknown* — which is not the
+    /// same thing, and must not be cached as "signed out".
+    func load() -> Result<OAuthTokens?, Error>
     func clear()
 }
 
@@ -66,6 +69,9 @@ final class AgentTokenCache {
     /// there was nothing".
     private var cached: OAuthTokens?
     private var loaded = false
+    /// Bumped by `signOut()`. `validAccessToken` captures it before awaiting a
+    /// refresh and re-checks after, so a sign-out that lands mid-flight wins.
+    private var signOutGeneration = 0
 
     init(store: any TokenStore,
          now: @escaping () -> Date = Date.init,
@@ -77,25 +83,37 @@ final class AgentTokenCache {
 
     var tokens: OAuthTokens? {
         if !loaded {
-            cached = store.load()
-            loaded = true
+            switch store.load() {
+            case .success(let stored):
+                cached = stored
+                loaded = true
+            case .failure:
+                // A store we couldn't read is not an account that isn't there.
+                // Leaving `loaded` false lets the next call retry, instead of
+                // latching a locked keychain into "signed out" for the whole
+                // launch and making the user reconnect for nothing.
+                cached = nil
+            }
         }
         return cached
     }
 
     var isSignedIn: Bool { tokens != nil }
 
-    /// Take ownership of freshly minted tokens at the end of a login.
+    /// Take ownership of freshly minted tokens at the end of a login. The
+    /// in-memory copy is set first: if persisting fails, the user stays signed
+    /// in for this launch rather than losing a login they just approved.
     func adopt(_ tokens: OAuthTokens) throws {
-        try store.save(tokens)
         cached = tokens
         loaded = true
+        try store.save(tokens)
     }
 
     func signOut() {
         store.clear()
         cached = nil
         loaded = true
+        signOutGeneration += 1
     }
 
     /// A valid bearer token, refreshing first if the stored one has expired. A
@@ -105,9 +123,15 @@ final class AgentTokenCache {
     func validAccessToken() async throws -> String {
         guard var current = tokens else { throw UsageError.notSignedIn }
         if current.isExpired(at: now()) {
+            let generation = signOutGeneration
             current = try await refreshTokens(current)
-            try store.save(current)
+            // The refresh released the main actor for a network round trip, so
+            // the user may have signed out while it was in flight. Discard the
+            // new tokens rather than writing credentials they just revoked back
+            // into the store.
+            guard generation == signOutGeneration else { throw UsageError.notSignedIn }
             cached = current
+            try store.save(current)
         }
         return current.accessToken
     }

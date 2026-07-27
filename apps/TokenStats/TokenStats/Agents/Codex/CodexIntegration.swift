@@ -22,8 +22,8 @@ struct CodexIntegration: CodingAgentIntegration {
     /// popover's 300pt content width (96+32+96 = 224).
     let gaugeLayout = GaugeLayout(
         slots: [.init(label: "5-hour"), .init(label: "Weekly")],
-        sideDiameter: 96, centerDiameter: 96,
-        sideLineWidth: 6, centerLineWidth: 6, circularSpacing: 32
+        sizing: GaugeSizing(sideDiameter: 96, centerDiameter: 96,
+                            sideLineWidth: 6, centerLineWidth: 6, circularSpacing: 32)
     )
 
     var transcriptRoot: String { realHomeDirectory() + "/.codex/sessions" }
