@@ -1,6 +1,0 @@
-import { eq } from "drizzle-orm";
-import type { Db } from "./client.ts";
-import { users } from "./schema.ts";
-
-export const getUserById = (db: Db, id: number) =>
-  db.select().from(users).where(eq(users.id, id)).get();
