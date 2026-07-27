@@ -1,6 +1,6 @@
 # TokenStats
 
-A macOS status bar app that shows how much of a Coding Agent's usage allowance has been consumed and when it resets. Claude Code is supported first; Codex support is being shaped behind the same trust bar.
+A native status-area app that shows how much of a Coding Agent's usage allowance has been consumed and when it resets. The original client is a macOS menu-bar app; a native Windows notification-area companion lives under `apps/TokenStats.Windows`.
 
 ## Language
 
@@ -23,6 +23,13 @@ _Avoid_: treating a Model as a user setting; folding agent-initiated Models into
 **Token Kind**:
 One of the four disjoint ways a token is counted against a request: **direct input**, **output**, **cache write**, **cache read**. The Token Odometer's third axis, and the four columns of the Tokens tab; a total is their sum and no token is counted twice. Cache read dominates almost everywhere but not uniformly — 67% to 97% of a Model's total — which is why the tab draws the proportion as well as printing the figures. Cache write is Claude-only: Codex reports `cached_input_tokens` (a read) and nothing else, so its cache-write figure is *structurally absent*, not zero by chance.
 _Avoid_: "input" for the sum of direct input and the two cache kinds — direct input is one kind among four, and that sum has no name; "cache creation" (the API's field name; the glossary's word is cache write).
+
+**API-equivalent usage estimate**:
+An optional Windows presentation of Token Odometer records as an estimated USD value, derived from the Model recorded in each transcript entry and that Model's standard official API list prices. Direct input, cache write, cache read, and output are each priced in the category the API documents. Missing or unrecognized Models remain unpriced, so a mixed result is marked partial. This is not an actual bill: a transcript cannot reliably reconstruct every pricing modifier, subscription term, discount, or non-token charge.
+
+The Windows client also retains a **billable Token** summary for users who prefer a token count over a currency estimate. That summary is `direct input + cache write + output`; cache read remains visible as a Token Kind in the Odometer table but is excluded from this specific summary. Neither presentation changes the four-kind Token Odometer total.
+
+_Avoid_: calling the API-equivalent estimate a Usage Window, presenting it as an invoice, or treating the billable Token summary as the Token Odometer's four-kind total.
 
 **Limit**:
 The maximum usage allowed within a Usage Window. Consumption is shown as a percentage of this.

@@ -7,6 +7,14 @@
 # Build Outputs
 build
 dist
+bin/
+obj/
+publish/
+
+# Local .NET CLI/NuGet state used by sandboxed development
+.dotnet/
+.dotnet-cli/
+.nuget/
 
 # Misc
 .DS_Store

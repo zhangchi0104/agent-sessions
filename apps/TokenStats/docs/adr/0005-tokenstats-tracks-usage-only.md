@@ -2,7 +2,8 @@
 
 Date: 2026-07-26
 
-Status: Accepted
+Status: Accepted; language constraint amended by
+[ADR-0006](0006-native-windows-companion.md)
 
 Supersedes [agent-sessions ADR-0001 — Bundled-JS hook CLI run by bun](../../../../docs/adr/0001-bundled-js-hook-cli.md)
 and [agent-sessions ADR-0002 — No ENDED status](../../../../docs/adr/0002-no-ended-status.md).

@@ -1,8 +1,23 @@
 # Tokens Today stays an in-process estimate, not a shared-DB figure
 
-**Tokens Today** — the raw sum of input/output/cache tokens across every Claude Code transcript touched since local midnight — is computed **in-process inside TokenStats**, from local transcript files, held in memory. It is deliberately **not** promoted to the shared SQLite database, a watcher daemon, or any IPC surface. The popover's Usage tab refreshes it by **watching `~/.claude/projects` with FSEvents while visible** instead of polling on a timer.
+The **Today counter** is computed **in-process inside TokenStats** from local
+transcript files and held in memory. Its Token view is
+`raw input + cache writes + output`; cache reads are disclosed but excluded
+from that total. Its optional Usage view is a derived API-equivalent estimate
+that applies the recorded model's standard list prices to the same categories,
+including cache reads. Unknown models remain unpriced and make the estimate
+partial.
 
-This sits under ADR-0001: Tokens Today is the *estimate-grade* local-file figure that ADR-0001 rejected as the source of truth for the authoritative **Usage Window**. It survives only as a separate informational odometer (see `CONTEXT.md`), never as a quota measure.
+Neither the parsed token records nor the derived estimate is promoted to the
+shared SQLite database, a watcher daemon, or any IPC surface. The macOS
+popover's Usage tab refreshes its local data by **watching
+`~/.claude/projects` with FSEvents while visible** instead of polling on a
+timer.
+
+This sits under ADR-0001: the Today counter is the *estimate-grade* local-file
+figure that ADR-0001 rejected as the source of truth for the authoritative
+**Usage Window**. It survives only as a separate informational reading (see
+`CONTEXT.md`), never as a quota measure or an actual bill.
 
 ## Context
 
@@ -20,7 +35,11 @@ With the sole consumer being a resident app and the menu-bar label driven by the
 
 ## Decision
 
-Keep Tokens Today **in-process and in-memory** in TokenStats. Do not add a token table, a watcher daemon, or an IPC surface.
+Keep the Today counter **in-process and in-memory** in TokenStats. Do not add a
+token table, a watcher daemon, or an IPC surface. The Usage view is a pure
+derivation over the same in-memory transcript records and a versioned list-price
+catalog; adding it does not change this persistence or source-of-truth
+decision.
 
 Replace the Usage tab's 5-second poll with an **FSEvents watch on `~/.claude/projects`, armed only while the Usage tab is visible**. On a coalesced change event, re-run the existing `dailyUsage` walk wholesale (no narrowing by changed path):
 

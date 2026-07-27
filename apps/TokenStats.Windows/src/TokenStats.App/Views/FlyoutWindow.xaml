@@ -1,0 +1,111 @@
+<Window
+    x:Class="TokenStats.App.Views.FlyoutWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="TokenStats"
+    Width="392"
+    MaxHeight="760"
+    AllowsTransparency="True"
+    Background="Transparent"
+    ResizeMode="NoResize"
+    ShowInTaskbar="False"
+    SizeToContent="Height"
+    Style="{StaticResource {x:Type Window}}"
+    Topmost="True"
+    WindowStyle="None">
+    <Border
+        Margin="12"
+        Padding="16"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        BorderBrush="{DynamicResource BorderBrush}"
+        BorderThickness="1"
+        CornerRadius="14">
+        <Border.Effect>
+            <DropShadowEffect
+                BlurRadius="22"
+                Direction="270"
+                Opacity="0.24"
+                ShadowDepth="5"
+                Color="#70000000" />
+        </Border.Effect>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                    VerticalAlignment="Center"
+                    FontSize="16"
+                    FontWeight="SemiBold"
+                    Text="TokenStats" />
+                <Button
+                    x:Name="RefreshButton"
+                    Grid.Column="1"
+                    Style="{StaticResource IconButton}"
+                    ToolTip="Refresh all (Ctrl+R)"
+                    AutomationProperties.Name="Refresh all"
+                    Click="RefreshButton_OnClick"
+                    Content="&#xE72C;" />
+            </Grid>
+
+            <ScrollViewer
+                x:Name="ContentScroll"
+                Grid.Row="1"
+                MaxHeight="650"
+                HorizontalScrollBarVisibility="Disabled"
+                VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <Border
+                        x:Name="TokensTodayPanel"
+                        Margin="0,0,0,14"
+                        Background="Transparent"
+                        ToolTipService.ShowDuration="30000"
+                        Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock
+                                x:Name="TokensTodayCount"
+                                FontFamily="Segoe UI Variable Display, Segoe UI"
+                                FontSize="40"
+                                FontWeight="Bold"
+                                Text="0" />
+                            <TextBlock
+                                x:Name="TokensTodayLabel"
+                                Margin="1,-2,0,0"
+                                Style="{StaticResource SecondaryText}"
+                                Text="tokens today" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel x:Name="AgentsPanel" />
+                </StackPanel>
+            </ScrollViewer>
+
+            <Grid Grid.Row="2" Margin="0,12,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="1" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Border Background="{DynamicResource BorderBrush}" />
+                <StackPanel
+                    Grid.Row="1"
+                    Margin="0,10,0,0"
+                    HorizontalAlignment="Right"
+                    Orientation="Horizontal">
+                    <Button
+                        x:Name="SettingsButton"
+                        Style="{StaticResource IconButton}"
+                        ToolTip="Settings (Ctrl+,)"
+                        AutomationProperties.Name="Settings"
+                        Click="SettingsButton_OnClick"
+                        Content="&#xE713;" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
