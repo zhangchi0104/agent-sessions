@@ -214,15 +214,19 @@ public static class UsageFormatting
             return "—";
         }
 
-        var format = estimate.CostUsd switch
+        if (estimate.CostUsd < 0)
         {
-            >= 100m => "0",
-            >= 1m => "0.00",
-            >= 0.01m => "0.000",
-            >= 0.001m => "0.0000",
-            _ => "0.000000",
-        };
-        var value = estimate.CostUsd.ToString(format, CultureInfo.InvariantCulture);
+            throw new ArgumentOutOfRangeException(
+                nameof(estimate),
+                estimate.CostUsd,
+                "API-equivalent cost cannot be negative.");
+        }
+
+        var rounded = decimal.Round(
+            estimate.CostUsd,
+            2,
+            MidpointRounding.ToPositiveInfinity);
+        var value = rounded.ToString("0.00", CultureInfo.InvariantCulture);
         return $"${value}{(estimate.IsPartial ? "+" : string.Empty)}";
     }
 

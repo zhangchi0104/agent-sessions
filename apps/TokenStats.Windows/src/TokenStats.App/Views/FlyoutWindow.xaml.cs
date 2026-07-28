@@ -93,7 +93,6 @@ public partial class FlyoutWindow : Window
         _hasNotificationAreaAnchor = true;
         Render();
         Show();
-        UpdateLayout();
         PositionNearNotificationArea(settleDpi: true);
         Activate();
         Focus();
@@ -359,7 +358,7 @@ public partial class FlyoutWindow : Window
             if (!_tokenOdometer.IsScanning &&
                 !string.IsNullOrWhiteSpace(scanError))
             {
-                TokenSummaryValue.Text = "—";
+                SetTokenSummaryValue("—");
                 TokenSummaryLabel.Text =
                     $"Couldn't read {readingRange.Label()}";
                 TokenSummaryPanel.ToolTip =
@@ -370,7 +369,7 @@ public partial class FlyoutWindow : Window
             }
             else
             {
-                TokenSummaryValue.Text = "—";
+                SetTokenSummaryValue("—");
                 TokenSummaryLabel.Text = $"Reading {readingRange.Label()}…";
                 TokenSummaryPanel.ToolTip =
                     $"Reading token usage for {readingRange.Label()}.";
@@ -451,7 +450,14 @@ public partial class FlyoutWindow : Window
         TokenUsage? usage,
         TokenRange displayedRange)
     {
-        TokenSummaryValue.Text = usage?.BillableTokens.ToString("N0") ?? "—";
+        SetTokenSummaryValue(
+            usage?.BillableTokens.ToString("N0") ?? "—",
+            usage?.BillableTokens,
+            usage is null
+                ? null
+                : new TokenSummaryTransitionKey(
+                    TodayMetricMode.Token,
+                    displayedRange));
         TokenSummaryLabel.Text =
             $"billing tokens · {displayedRange.Label()}";
         TokenSummaryPanel.ToolTip = usage is null
@@ -474,7 +480,7 @@ public partial class FlyoutWindow : Window
     {
         if (usage is null)
         {
-            TokenSummaryValue.Text = "—";
+            SetTokenSummaryValue("—");
             TokenSummaryLabel.Text =
                 $"API-equivalent · {displayedRange.Label()}";
             TokenSummaryPanel.ToolTip =
@@ -489,7 +495,14 @@ public partial class FlyoutWindow : Window
         var estimate = ApiPricingCatalog.Estimate(
             usage,
             pricingDate);
-        TokenSummaryValue.Text = UsageFormatting.ApiEquivalentCost(estimate);
+        SetTokenSummaryValue(
+            UsageFormatting.ApiEquivalentCost(estimate),
+            estimate.IsAvailable ? estimate.CostUsd : null,
+            estimate.IsAvailable
+                ? new TokenSummaryTransitionKey(
+                    TodayMetricMode.Usage,
+                    displayedRange)
+                : null);
         TokenSummaryLabel.Text =
             $"API-equivalent · {displayedRange.Label()}";
         var unpriced = estimate.IsPartial
@@ -504,6 +517,7 @@ public partial class FlyoutWindow : Window
         TokenSummaryPanel.ToolTip =
             "Standard API-equivalent estimate by recorded model; includes all " +
             "four Token Kinds at list rates regardless of the display toggles. " +
+            "The final total is rounded upward to the nearest cent. " +
             "Claude cache writes without TTL detail use the default 5-minute rate. " +
             $"Models: {(models.Length > 0 ? models : "unknown")}. " +
             $"Prices reviewed {ApiPricingCatalog.LastReviewed:yyyy-MM-dd}." +
@@ -516,6 +530,18 @@ public partial class FlyoutWindow : Window
                 : "API-equivalent usage unavailable because the transcript " +
                   "model is unknown");
     }
+
+    private void SetTokenSummaryValue(
+        string text,
+        decimal? numericValue = null,
+        TokenSummaryTransitionKey? transitionKey = null) =>
+        TokenSummaryValue.SetAnimatedValue(
+            text,
+            numericValue,
+            transitionKey,
+            animate:
+                numericValue.HasValue &&
+                _selectedTab == FlyoutTab.Tokens);
 
     private FrameworkElement BuildTokenAgentSection(
         string label,
@@ -1230,7 +1256,7 @@ public partial class FlyoutWindow : Window
             var availableHeight = Math.Max(1, (working.Height - 16) / scale);
             var availableWidth = Math.Max(1, (working.Width - 16) / scale);
             MaxWidth = availableWidth;
-            MaxHeight = Math.Min(760, availableHeight);
+            MaxHeight = availableHeight;
             UpdateLayout();
             var width = Math.Max(1, (int)Math.Ceiling(ActualWidth * scale));
             var height = Math.Max(1, (int)Math.Ceiling(ActualHeight * scale));
@@ -1281,6 +1307,10 @@ public partial class FlyoutWindow : Window
         Usage,
         Tokens,
     }
+
+    private readonly record struct TokenSummaryTransitionKey(
+        TodayMetricMode Metric,
+        TokenRange Range);
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr window);

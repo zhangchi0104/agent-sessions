@@ -32,7 +32,8 @@ range:
   cache reads at the applicable cached-input price. It always uses all four
   recorded Token Kinds, regardless of display filters. Entries whose model is
   missing or absent from the pricing catalog remain unpriced and make the
-  displayed estimate explicitly partial.
+  displayed estimate explicitly partial. The final sum is rounded upward once
+  to the nearest cent and always displayed with two decimal places.
 
 API equivalent is not a Usage Window, an invoice, a reconstruction of a Claude
 or ChatGPT subscription, or a promise that the same amount was actually billed.
@@ -123,6 +124,9 @@ SmartScreen.
   adopts it when the Coding Agent creates it.
 - The Today/7-day/30-day range is restored across app restarts. Range changes
   keep the last completed table dimmed until the new scan lands atomically.
+- Billing tokens and API equivalent use per-digit vertical rolling transitions
+  when their value, summary mode, or displayed range changes. The animation
+  follows the Windows client-area animation accessibility preference.
 - Token Kind filters update the table's selected total while the raw four-kind
   Odometer and objective Billing/API-equivalent summaries remain unchanged.
   Enabled cells can show value, percentage, or value-and-percentage according to
@@ -131,9 +135,11 @@ SmartScreen.
 - The flyout can be pinned so it remains visible and always on top. The pin
   choice is restored across app restarts; Escape and explicit tray actions
   still dismiss it.
-- Every layout-affecting change—including a range, filter, display mode, tab,
-  scan result, or expanded diagnostic—repositions and constrains the flyout to
-  the notification area's current monitor work area.
+- The flyout grows with its content up to the notification area's current
+  monitor work area and uses vertical scrolling only when the content truly
+  cannot fit. Every layout-affecting change—including a range, filter, display
+  mode, tab, scan result, or expanded diagnostic—repositions it inside that work
+  area.
 - Codex `token_count` events are cumulative, so Windows counts only advances in
   `total_token_usage`, adopts a new baseline after a counter reset, and uses
   `last_token_usage` only to exclude an inherited rollout head. Model

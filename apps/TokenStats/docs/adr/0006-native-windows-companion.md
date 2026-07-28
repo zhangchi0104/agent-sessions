@@ -53,7 +53,10 @@ Add a separate native Windows application under `apps/TokenStats.Windows`:
   attribution, includes priced cache reads, and marks unknown models as
   partial. Both are objective over the full recorded usage for the selected
   time range and ignore Token Kind display filters. Neither summary changes the
-  four-kind Odometer total.
+  four-kind Odometer total. API equivalent rounds the final aggregate upward
+  once to the nearest cent and displays exactly two decimal places. Both summary
+  values use per-digit vertical rolling transitions for value, mode, and range
+  changes when Windows client-area animations are enabled.
 - Windows normalizes Codex Usage Windows using the returned duration and
   renders the windows actually present. A missing short-term window does not
   produce a fixed 5-hour placeholder.
@@ -63,10 +66,11 @@ Add a separate native Windows application under `apps/TokenStats.Windows`:
 - Windows persists the Token Odometer range and the flyout pin choice across
   restarts. A pinned flyout remains visible and always on top; an unpinned
   flyout keeps notification-area auto-dismiss behavior.
-- Any operation that changes flyout layout repositions and constrains it to the
-  notification area's monitor work area. This includes range and Token Kind
-  changes, Display preference changes, tab changes, scan results, and expanded
-  diagnostics.
+- The flyout grows with content up to the notification area's monitor work area
+  and uses vertical scrolling only when content cannot fit. Any operation that
+  changes flyout layout repositions it inside that work area. This includes
+  range and Token Kind changes, Display preference changes, tab changes, scan
+  results, and expanded diagnostics.
 - Because the tray tooltip consumes the objective Token summary while the
   flyout is closed, Windows seeds the persisted range at startup and keeps debounced
   `FileSystemWatcher` subscriptions active for the resident app's lifetime.
@@ -128,8 +132,8 @@ behavior:
    four-kind Odometer and from the Billing/API-equivalent summary; disabled
    kinds retain a dimmed raw value but no percentage.
 2. The chosen Token Odometer range and flyout pin preference survive process
-   restarts, and every size-changing operation repositions the flyout inside
-   the current work area.
+   restarts. The flyout grows to the current work-area limit before scrolling,
+   and every size-changing operation repositions it inside that work area.
 3. The Windows watcher is application-resident rather than Tokens-tab-visible.
    This revises only the watcher lifetime from ADR-0003; the no-daemon,
    no-database, and no-IPC architecture remains accepted.

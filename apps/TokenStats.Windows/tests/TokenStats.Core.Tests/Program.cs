@@ -521,6 +521,33 @@ internal static class Program
                 TokenRange.ThirtyDays,
                 TodayMetricMode.Usage,
                 new DateOnly(2026, 7, 27)));
+
+        var apiCostCases = new (decimal Cost, string Expected)[]
+        {
+            (0m, "$0.00"),
+            (1m, "$1.00"),
+            (1.2300m, "$1.23"),
+            (1.230_001m, "$1.24"),
+            (0.000_001m, "$0.01"),
+            (99.999m, "$100.00"),
+            (100.001m, "$100.01"),
+        };
+        foreach (var (cost, expected) in apiCostCases)
+        {
+            Check.Equal(
+                expected,
+                UsageFormatting.ApiEquivalentCost(
+                    new ApiCostEstimate(cost, 1, 0, [])));
+        }
+
+        Check.Equal(
+            "$1.24+",
+            UsageFormatting.ApiEquivalentCost(
+                new ApiCostEstimate(1.230_001m, 1, 1, ["unknown"])));
+        Check.Equal(
+            "—",
+            UsageFormatting.ApiEquivalentCost(
+                new ApiCostEstimate(0, 0, 1, ["unknown"])));
     }
 
     private static void ApiPricingCatalogPricesKnownModelsAndDisclosesUnknown()

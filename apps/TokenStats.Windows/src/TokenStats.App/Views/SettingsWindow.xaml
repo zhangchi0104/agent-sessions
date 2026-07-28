@@ -122,7 +122,7 @@
                     <TextBlock
                         Margin="0,6,0,0"
                         Style="{StaticResource SecondaryText}"
-                        Text="API equivalent estimates standard list-price cost by recorded model. Billing tokens count direct input + cache write + output; cache reads stay visible in the Odometer table but are excluded from this summary. Token Kind display toggles do not change either summary."
+                        Text="API equivalent estimates standard list-price cost by recorded model and rounds the final total upward to the nearest cent. Billing tokens count direct input + cache write + output; cache reads stay visible in the Odometer table but are excluded from this summary. Token Kind display toggles do not change either summary."
                         TextWrapping="Wrap" />
 
                     <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Token values" />

@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Automation;
+using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.IO;
@@ -214,7 +215,7 @@ internal static class Program
                         model = "claude-opus-4-6",
                         usage = new
                         {
-                            input_tokens = 100,
+                            input_tokens = 0,
                             output_tokens = 0,
                             cache_creation_input_tokens = 0,
                             cache_read_input_tokens = 900,
@@ -501,7 +502,9 @@ internal static class Program
         };
         try
         {
-            ShowAndCompleteLayout(flyout);
+            flyout.ShowFlyout();
+            PumpDispatcher(flyout.Dispatcher);
+            flyout.UpdateLayout();
             var tokensTab = FindNamed<RadioButton>(flyout, "TokensTabButton");
             var apiMetric = FindNamed<RadioButton>(flyout, "ApiMetricButton");
             var billingMetric =
@@ -510,7 +513,22 @@ internal static class Program
                 FindNamed<RadioButton>(flyout, "SevenDaysRangeButton");
             var pin = FindNamed<ToggleButton>(flyout, "PinButton");
             var summaryValue =
-                FindNamed<TextBlock>(flyout, "TokenSummaryValue");
+                FindNamed<RollingNumberText>(flyout, "TokenSummaryValue");
+            var summaryPeer =
+                UIElementAutomationPeer.CreatePeerForElement(summaryValue) ??
+                throw new InvalidOperationException(
+                    "The rolling token summary did not create an automation peer.");
+            if (summaryPeer.GetAutomationControlType() !=
+                    AutomationControlType.Text ||
+                summaryPeer.GetName() != summaryValue.Text ||
+                summaryValue.Focusable ||
+                summaryValue.IsTabStop)
+            {
+                throw new InvalidOperationException(
+                    "The rolling token summary automation peer did not expose " +
+                    "its final text as a non-focusable Text control.");
+            }
+
             var tableTotal =
                 FindNamed<TextBlock>(flyout, "TokenTableTotal");
             var kindButtons = new[]
@@ -549,29 +567,48 @@ internal static class Program
                     "The redundant Token Kind explanation row is still visible.");
             }
 
+            var billingRevisionBeforeApi =
+                summaryValue.TransitionRevision;
             apiMetric.IsChecked = true;
             PumpDispatcher(flyout.Dispatcher);
             var apiSummaryBeforeFilter = summaryValue.Text;
-            if (settings.Appearance.TodayMetric != TodayMetricMode.Usage ||
+            var apiRevision = summaryValue.TransitionRevision;
+            if (apiRevision <= billingRevisionBeforeApi ||
+                settings.Appearance.TodayMetric != TodayMetricMode.Usage ||
                 !apiSummaryBeforeFilter.StartsWith("$", StringComparison.Ordinal) ||
+                summaryPeer.GetName() != apiSummaryBeforeFilter ||
+                SystemParameters.ClientAreaAnimation &&
+                    !summaryValue.IsRolling ||
                 new AppSettingsStore(settings.SettingsPath)
                     .Appearance.TodayMetric != TodayMetricMode.Usage)
             {
                 throw new InvalidOperationException(
-                    "The API-equivalent flyout choice was not rendered and persisted.");
+                    "The API-equivalent metric switch did not revise and " +
+                    "animate the rolling summary before rendering and persisting.");
             }
 
             billingMetric.IsChecked = true;
             PumpDispatcher(flyout.Dispatcher);
-            if (settings.Appearance.TodayMetric != TodayMetricMode.Token ||
+            var billingRevision = summaryValue.TransitionRevision;
+            if (billingRevision <= apiRevision ||
+                settings.Appearance.TodayMetric != TodayMetricMode.Token ||
                 summaryValue.Text != "150")
             {
                 throw new InvalidOperationException(
-                    "The unfiltered Billing tokens summary was not 150.");
+                    "The Billing metric switch did not revise the rolling " +
+                    "summary or render 150.");
             }
 
             apiMetric.IsChecked = true;
             PumpDispatcher(flyout.Dispatcher);
+            var filteredApiRevision = summaryValue.TransitionRevision;
+            if (filteredApiRevision <= billingRevision)
+            {
+                throw new InvalidOperationException(
+                    "Switching back to API equivalent did not revise the " +
+                    "rolling summary.");
+            }
+
             kindButtons[1].IsChecked = false;
             PumpDispatcher(flyout.Dispatcher);
             var excludedOutput = FindTokenCell(flyout, "Output");
@@ -690,10 +727,11 @@ internal static class Program
                     "The flyout range choice was not persisted.");
             }
 
-            VerifyThirtyDayTokenTableFitsVisibleViewport(
+            VerifyThirtyDayTokenTableGrowthAndFallback(
                 flyout,
                 settings,
-                tokens);
+                tokens,
+                summaryValue);
         }
         finally
         {
@@ -712,10 +750,11 @@ internal static class Program
         }
     }
 
-    private static void VerifyThirtyDayTokenTableFitsVisibleViewport(
+    private static void VerifyThirtyDayTokenTableGrowthAndFallback(
         FlyoutWindow flyout,
         AppSettingsStore settings,
-        TokenOdometerWatcher tokens)
+        TokenOdometerWatcher tokens,
+        RollingNumberText summaryValue)
     {
         settings.SaveAppearance(
             settings.Appearance with
@@ -726,6 +765,25 @@ internal static class Program
             });
         PumpDispatcher(flyout.Dispatcher);
 
+        var tokensScroll =
+            FindNamed<ScrollViewer>(flyout, "TokensContentScroll");
+        flyout.UpdateLayout();
+        PumpDispatcher(flyout.Dispatcher);
+        flyout.UpdateLayout();
+        var sevenDayHeight = flyout.ActualHeight;
+        var sevenDayExtentHeight = tokensScroll.ExtentHeight;
+        if (tokens.SelectedRange != TokenRange.SevenDays ||
+            tokensScroll.ComputedVerticalScrollBarVisibility ==
+                Visibility.Visible)
+        {
+            throw new InvalidOperationException(
+                "The seven-day Value (percentage) growth baseline was " +
+                "unexpectedly constrained.");
+        }
+
+        var sevenDaySummaryText = summaryValue.Text;
+        var sevenDaySummaryRevision =
+            summaryValue.TransitionRevision;
         var thirtyDays =
             FindNamed<RadioButton>(flyout, "ThirtyDaysRangeButton");
         thirtyDays.IsChecked = true;
@@ -735,29 +793,52 @@ internal static class Program
                 tokens.SelectedRange == TokenRange.ThirtyDays &&
                 tokens.DisplayedRange == TokenRange.ThirtyDays &&
                 tokens.PendingRange is null &&
-                tokens.Usage?.CacheReadTokens == 900,
+                tokens.Usage?.CacheReadTokens == 900 &&
+                summaryValue.TransitionRevision > sevenDaySummaryRevision,
             "The 30-day viewport fixture did not finish scanning.");
-
-        if (settings.Appearance.TokenValueDisplay !=
-                TokenValueDisplayMode.ValueAndPercentage ||
-            settings.Appearance.SelectedTokenRange != TokenRange.ThirtyDays)
+        if (sevenDaySummaryText != "350" ||
+            summaryValue.Text != sevenDaySummaryText ||
+            summaryValue.TransitionRevision <= sevenDaySummaryRevision)
         {
             throw new InvalidOperationException(
-                "The constrained viewport was not rendered in the 30-day " +
-                "Value (percentage) state.");
+                "Landing the 30-day range did not revise the rolling summary " +
+                "key while preserving the unchanged 350 Billing text.");
         }
 
-        var tokensScroll =
-            FindNamed<ScrollViewer>(flyout, "TokensContentScroll");
-        tokensScroll.Height = 180;
-        flyout.UpdateLayout();
         WaitForUi(
             flyout.Dispatcher,
             () =>
-                tokensScroll.ComputedVerticalScrollBarVisibility ==
-                    Visibility.Visible,
-            "The constrained token table did not show a vertical scrollbar.");
+            {
+                flyout.UpdateLayout();
+                return
+                    tokensScroll.ExtentHeight >
+                        sevenDayExtentHeight + 0.5 &&
+                    flyout.ActualHeight > sevenDayHeight + 0.5;
+            },
+            "The flyout did not grow to show the larger 30-day token table.");
         flyout.UpdateLayout();
+
+        if (settings.Appearance.TokenValueDisplay !=
+                TokenValueDisplayMode.ValueAndPercentage ||
+            settings.Appearance.SelectedTokenRange != TokenRange.ThirtyDays ||
+            tokensScroll.ComputedVerticalScrollBarVisibility ==
+                Visibility.Visible ||
+            tokensScroll.ExtentHeight > tokensScroll.ViewportHeight + 0.5)
+        {
+            throw new InvalidOperationException(
+                "The 30-day Value (percentage) flyout did not prefer window " +
+                $"growth: seven-day window={sevenDayHeight:0.###}, " +
+                $"30-day window={flyout.ActualHeight:0.###}, " +
+                $"extent={tokensScroll.ExtentHeight:0.###}, " +
+                $"viewport={tokensScroll.ViewportHeight:0.###}, " +
+                "vertical scrollbar=" +
+                $"{tokensScroll.ComputedVerticalScrollBarVisibility}.");
+        }
+
+        VerifyStableTokenSummaryRefresh(
+            flyout.Dispatcher,
+            tokens,
+            summaryValue);
 
         var cacheReadCell = EnumerateVisualDescendants<TextBlock>(flyout)
             .FirstOrDefault(text =>
@@ -768,39 +849,97 @@ internal static class Program
                 text.Text.Contains('\n')) ??
             throw new InvalidOperationException(
                 "The 30-day Cache Read value-and-percentage cell was not rendered.");
-        cacheReadCell.BringIntoView();
-        PumpDispatcher(flyout.Dispatcher);
-        flyout.UpdateLayout();
 
-        var viewport = FindVisualDescendant<ScrollContentPresenter>(
+        VerifyConstrainedTokenTableFallback(
+            flyout,
             tokensScroll,
-            _ => true);
-        var verticalScrollBar = FindVisualDescendant<ScrollBar>(
-            tokensScroll,
-            scrollBar =>
-                scrollBar.Orientation == Orientation.Vertical &&
-                scrollBar.Visibility == Visibility.Visible &&
-                scrollBar.ActualWidth > 0);
-        var cellBounds = cacheReadCell
-            .TransformToAncestor(tokensScroll)
-            .TransformBounds(new Rect(cacheReadCell.RenderSize));
-        var viewportBounds = viewport
-            .TransformToAncestor(tokensScroll)
-            .TransformBounds(new Rect(viewport.RenderSize));
-        var scrollBarBounds = verticalScrollBar
-            .TransformToAncestor(tokensScroll)
-            .TransformBounds(new Rect(verticalScrollBar.RenderSize));
-        const double layoutTolerance = 0.5;
-        if (cellBounds.Left < viewportBounds.Left - layoutTolerance ||
-            cellBounds.Right > viewportBounds.Right + layoutTolerance ||
-            cellBounds.Right > scrollBarBounds.Left + layoutTolerance ||
-            tokensScroll.ScrollableWidth > layoutTolerance)
+            cacheReadCell);
+    }
+
+    private static void VerifyStableTokenSummaryRefresh(
+        Dispatcher dispatcher,
+        TokenOdometerWatcher tokens,
+        RollingNumberText summaryValue)
+    {
+        var expectedText = summaryValue.Text;
+        var expectedRevision = summaryValue.TransitionRevision;
+        for (var refresh = 0; refresh < 2; refresh++)
         {
-            throw new InvalidOperationException(
-                "The 30-day Cache Read value cell escaped the visible token " +
-                $"viewport: cell={cellBounds}, viewport={viewportBounds}, " +
-                $"vertical scrollbar={scrollBarBounds}, " +
-                $"scrollable width={tokensScroll.ScrollableWidth:0.###}.");
+            tokens.RefreshAsync().GetAwaiter().GetResult();
+            PumpDispatcher(dispatcher);
+            if (tokens.IsScanning ||
+                summaryValue.Text != expectedText ||
+                summaryValue.TransitionRevision != expectedRevision)
+            {
+                throw new InvalidOperationException(
+                    "Refreshing an unchanged token summary revised its " +
+                    $"transition on pass {refresh + 1}: " +
+                    $"text='{summaryValue.Text}', expected='{expectedText}', " +
+                    $"revision={summaryValue.TransitionRevision}, " +
+                    $"expected revision={expectedRevision}.");
+            }
+        }
+    }
+
+    private static void VerifyConstrainedTokenTableFallback(
+        FlyoutWindow flyout,
+        ScrollViewer tokensScroll,
+        TextBlock cacheReadCell)
+    {
+        tokensScroll.Height = 180;
+        try
+        {
+            flyout.UpdateLayout();
+            WaitForUi(
+                flyout.Dispatcher,
+                () =>
+                    tokensScroll.ComputedVerticalScrollBarVisibility ==
+                        Visibility.Visible,
+                "The extremely constrained token table did not fall back " +
+                "to a vertical scrollbar.");
+            flyout.UpdateLayout();
+
+            cacheReadCell.BringIntoView();
+            PumpDispatcher(flyout.Dispatcher);
+            flyout.UpdateLayout();
+
+            var viewport = FindVisualDescendant<ScrollContentPresenter>(
+                tokensScroll,
+                _ => true);
+            var verticalScrollBar = FindVisualDescendant<ScrollBar>(
+                tokensScroll,
+                scrollBar =>
+                    scrollBar.Orientation == Orientation.Vertical &&
+                    scrollBar.Visibility == Visibility.Visible &&
+                    scrollBar.ActualWidth > 0);
+            var cellBounds = cacheReadCell
+                .TransformToAncestor(tokensScroll)
+                .TransformBounds(new Rect(cacheReadCell.RenderSize));
+            var viewportBounds = viewport
+                .TransformToAncestor(tokensScroll)
+                .TransformBounds(new Rect(viewport.RenderSize));
+            var scrollBarBounds = verticalScrollBar
+                .TransformToAncestor(tokensScroll)
+                .TransformBounds(new Rect(verticalScrollBar.RenderSize));
+            const double layoutTolerance = 0.5;
+            if (cellBounds.Left < viewportBounds.Left - layoutTolerance ||
+                cellBounds.Right > viewportBounds.Right + layoutTolerance ||
+                cellBounds.Right > scrollBarBounds.Left + layoutTolerance ||
+                tokensScroll.ScrollableWidth > layoutTolerance)
+            {
+                throw new InvalidOperationException(
+                    "The constrained fallback allowed the 30-day Cache Read " +
+                    $"cell to escape its visible viewport: cell={cellBounds}, " +
+                    $"viewport={viewportBounds}, vertical scrollbar=" +
+                    $"{scrollBarBounds}, scrollable width=" +
+                    $"{tokensScroll.ScrollableWidth:0.###}.");
+            }
+        }
+        finally
+        {
+            tokensScroll.ClearValue(FrameworkElement.HeightProperty);
+            flyout.UpdateLayout();
+            PumpDispatcher(flyout.Dispatcher);
         }
     }
 
