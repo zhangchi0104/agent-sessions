@@ -246,7 +246,7 @@
                         <StackPanel x:Name="TokenTablePanel">
                             <Grid Margin="0,0,0,4">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="110" />
+                                    <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="64" />
                                     <ColumnDefinition Width="64" />
                                     <ColumnDefinition Width="64" />

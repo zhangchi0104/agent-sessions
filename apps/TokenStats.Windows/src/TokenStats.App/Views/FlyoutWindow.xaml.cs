@@ -607,7 +607,7 @@ public partial class FlyoutWindow : Window
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition
         {
-            Width = new GridLength(110),
+            Width = new GridLength(1, GridUnitType.Star),
         });
         for (var index = 0; index < values.Length; index++)
         {

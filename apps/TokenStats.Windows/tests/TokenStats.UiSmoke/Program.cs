@@ -200,6 +200,30 @@ internal static class Program
             File.SetLastWriteTimeUtc(
                 olderTranscript,
                 watcherNow.UtcDateTime);
+            var thirtyDayTranscript = Path.Combine(
+                roots[0].Item2,
+                "smoke-thirty-day.jsonl");
+            File.WriteAllText(
+                thirtyDayTranscript,
+                JsonSerializer.Serialize(new
+                {
+                    timestamp = watcherNow.AddDays(-10).ToString("O"),
+                    message = new
+                    {
+                        id = "smoke-thirty-day",
+                        model = "claude-opus-4-6",
+                        usage = new
+                        {
+                            input_tokens = 100,
+                            output_tokens = 0,
+                            cache_creation_input_tokens = 0,
+                            cache_read_input_tokens = 900,
+                        },
+                    },
+                }) + Environment.NewLine);
+            File.SetLastWriteTimeUtc(
+                thirtyDayTranscript,
+                watcherNow.UtcDateTime);
             var tokens = new TokenOdometerWatcher(
                 new TranscriptTokenReader(),
                 roots,
@@ -665,6 +689,11 @@ internal static class Program
                 throw new InvalidOperationException(
                     "The flyout range choice was not persisted.");
             }
+
+            VerifyThirtyDayTokenTableFitsVisibleViewport(
+                flyout,
+                settings,
+                tokens);
         }
         finally
         {
@@ -680,6 +709,98 @@ internal static class Program
             tokens.SelectRangeAsync(TokenRange.Today).GetAwaiter().GetResult();
             flyout.AllowClose();
             flyout.Close();
+        }
+    }
+
+    private static void VerifyThirtyDayTokenTableFitsVisibleViewport(
+        FlyoutWindow flyout,
+        AppSettingsStore settings,
+        TokenOdometerWatcher tokens)
+    {
+        settings.SaveAppearance(
+            settings.Appearance with
+            {
+                SelectedTokenKinds = TokenKindSelection.All,
+                TokenValueDisplay =
+                    TokenValueDisplayMode.ValueAndPercentage,
+            });
+        PumpDispatcher(flyout.Dispatcher);
+
+        var thirtyDays =
+            FindNamed<RadioButton>(flyout, "ThirtyDaysRangeButton");
+        thirtyDays.IsChecked = true;
+        WaitForUi(
+            flyout.Dispatcher,
+            () =>
+                tokens.SelectedRange == TokenRange.ThirtyDays &&
+                tokens.DisplayedRange == TokenRange.ThirtyDays &&
+                tokens.PendingRange is null &&
+                tokens.Usage?.CacheReadTokens == 900,
+            "The 30-day viewport fixture did not finish scanning.");
+
+        if (settings.Appearance.TokenValueDisplay !=
+                TokenValueDisplayMode.ValueAndPercentage ||
+            settings.Appearance.SelectedTokenRange != TokenRange.ThirtyDays)
+        {
+            throw new InvalidOperationException(
+                "The constrained viewport was not rendered in the 30-day " +
+                "Value (percentage) state.");
+        }
+
+        var tokensScroll =
+            FindNamed<ScrollViewer>(flyout, "TokensContentScroll");
+        tokensScroll.Height = 180;
+        flyout.UpdateLayout();
+        WaitForUi(
+            flyout.Dispatcher,
+            () =>
+                tokensScroll.ComputedVerticalScrollBarVisibility ==
+                    Visibility.Visible,
+            "The constrained token table did not show a vertical scrollbar.");
+        flyout.UpdateLayout();
+
+        var cacheReadCell = EnumerateVisualDescendants<TextBlock>(flyout)
+            .FirstOrDefault(text =>
+                text.ToolTip is string tooltip &&
+                tooltip.StartsWith(
+                    "Cache read: 900 ",
+                    StringComparison.Ordinal) &&
+                text.Text.Contains('\n')) ??
+            throw new InvalidOperationException(
+                "The 30-day Cache Read value-and-percentage cell was not rendered.");
+        cacheReadCell.BringIntoView();
+        PumpDispatcher(flyout.Dispatcher);
+        flyout.UpdateLayout();
+
+        var viewport = FindVisualDescendant<ScrollContentPresenter>(
+            tokensScroll,
+            _ => true);
+        var verticalScrollBar = FindVisualDescendant<ScrollBar>(
+            tokensScroll,
+            scrollBar =>
+                scrollBar.Orientation == Orientation.Vertical &&
+                scrollBar.Visibility == Visibility.Visible &&
+                scrollBar.ActualWidth > 0);
+        var cellBounds = cacheReadCell
+            .TransformToAncestor(tokensScroll)
+            .TransformBounds(new Rect(cacheReadCell.RenderSize));
+        var viewportBounds = viewport
+            .TransformToAncestor(tokensScroll)
+            .TransformBounds(new Rect(viewport.RenderSize));
+        var scrollBarBounds = verticalScrollBar
+            .TransformToAncestor(tokensScroll)
+            .TransformBounds(new Rect(verticalScrollBar.RenderSize));
+        const double layoutTolerance = 0.5;
+        if (cellBounds.Left < viewportBounds.Left - layoutTolerance ||
+            cellBounds.Right > viewportBounds.Right + layoutTolerance ||
+            cellBounds.Right > scrollBarBounds.Left + layoutTolerance ||
+            tokensScroll.ScrollableWidth > layoutTolerance)
+        {
+            throw new InvalidOperationException(
+                "The 30-day Cache Read value cell escaped the visible token " +
+                $"viewport: cell={cellBounds}, viewport={viewportBounds}, " +
+                $"vertical scrollbar={scrollBarBounds}, " +
+                $"scrollable width={tokensScroll.ScrollableWidth:0.###}.");
         }
     }
 
