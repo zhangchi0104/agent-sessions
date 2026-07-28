@@ -1,36 +1,43 @@
 # TokenStats for Windows
 
-A native Windows notification-area app for TokenStats' two core surfaces:
+A native Windows notification-area app for TokenStats' two-tab flyout:
 
-- **Usage Windows** for Claude Code and Codex, fetched directly from each
-  Coding Agent over TokenStats' independent OAuth session.
-- A local **Today counter**, derived from native Windows transcript directories
-  and switchable between Token and Usage views.
+- **Usage** shows the authoritative Usage Windows for Claude Code and Codex,
+  fetched directly from each Coding Agent over TokenStats' independent OAuth
+  session.
+- **Tokens** shows a local Token Odometer derived from native Windows transcript
+  directories for Today, 7 days, or 30 days. It groups four disjoint Token
+  Kinds by Coding Agent and Model.
 
 The tray tooltip carries the compact reading (`76%` or
 `C: 76% X: 88%`). Click the tray gauge for the full flyout; right-click it for
 Refresh, Settings, and Quit.
 
-## Today counter
+## Tokens and API-equivalent estimates
 
-The Appearance settings let the user switch the Today counter between two
-views over the same local transcript data:
+The Tokens tab retains a Windows-specific summary mode over the selected
+range:
 
-- **Token** is `raw input + cache writes + output`. Cache reads remain visible
-  in the breakdown but are deliberately excluded from this total.
-- **Usage** is an estimated USD API-equivalent value. Each transcript entry is
+- **Billing tokens** is `direct input + cache writes + output`. Cache reads
+  remain visible in the Odometer table but are deliberately excluded from this
+  summary.
+- **API equivalent** is an estimated USD value. Each transcript entry is
   attributed to its recorded model and valued using that model's standard
-  official API list prices. Unlike the Token total, this estimate includes
+  official API list prices. Unlike Billing tokens, this estimate includes
   cache reads at the applicable cache-read price. Entries whose model is
   missing or absent from the pricing catalog remain unpriced and make the
   displayed estimate explicitly partial.
 
-Usage is not an invoice, a reconstruction of a Claude or ChatGPT subscription,
-or a promise that the same amount was actually billed. Local transcripts do
-not reliably identify every pricing modifier, including long-context
-surcharges, Priority/Flex/Batch processing, data residency or partner routing,
-private discounts, and separate tool charges. The estimate therefore applies
-standard API list prices only.
+API equivalent is not a Usage Window, an invoice, a reconstruction of a Claude
+or ChatGPT subscription, or a promise that the same amount was actually billed.
+Local transcripts do not reliably identify every pricing modifier, including
+long-context surcharges, Priority/Flex/Batch processing, data residency or
+partner routing, private discounts, and separate tool charges. The estimate
+therefore applies standard API list prices only.
+
+The Odometer table itself always uses the cross-platform raw definition:
+`direct input + output + cache write + cache read`. The four columns are
+`IN`, `OUT`, `C·W`, and `C·R`; no category is counted twice.
 
 Pricing sources, last checked **2026-07-27**:
 
@@ -86,8 +93,18 @@ SmartScreen.
 - The flyout, Settings, onboarding, native title bars, controls, and tray menu
   follow the Windows app theme at startup and while the app is running. Windows
   High Contrast colors take precedence over the light and dark palettes.
-- Opening the flyout refreshes Usage Windows and starts a recursive transcript
-  watcher. Hiding it disposes the watcher.
+- Opening the flyout refreshes Usage Windows. The recursive transcript watcher
+  runs only while the Tokens tab is visible; switching back to Usage or hiding
+  the flyout disposes it.
+- Each Tokens-tab appearance starts on Today. Range changes keep the last
+  completed table dimmed until the Today/7-day/30-day scan lands atomically.
+- Codex `token_count` events are cumulative, so Windows counts only advances in
+  `total_token_usage`, adopts a new baseline after a counter reset, and uses
+  `last_token_usage` only to exclude an inherited rollout head. Model
+  attribution follows both `turn_context` and `thread_settings_applied`.
+- `%USERPROFILE%\.codex\archived_sessions` is intentionally not scanned, matching
+  the macOS Token Odometer. A historical Codex total can therefore shrink when
+  an active rollout is archived.
 - Healthy usage refreshes every 30 minutes. Failures back off independently per
   agent up to six hours, while the last known reading remains visibly stale.
 - “Start with Windows” is off by default and uses the current-user Run key for

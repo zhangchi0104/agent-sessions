@@ -17,29 +17,33 @@ namespace TokenStats.App.Views;
 public partial class FlyoutWindow : Window
 {
     private readonly UsageCoordinator _coordinator;
-    private readonly TokensTodayWatcher _tokensToday;
+    private readonly TokenOdometerWatcher _tokenOdometer;
     private readonly Action _showSettings;
     private readonly Action _quit;
     private readonly HashSet<AgentId> _expandedDiagnostics = [];
     private readonly DispatcherTimer _ageTimer;
+    private FlyoutTab _selectedTab = FlyoutTab.Usage;
+    private TodayMetricMode _tokenSummaryMetric;
     private bool _allowClose;
     private bool _refreshInFlight;
+    private bool _updatingControls;
 
     public FlyoutWindow(
         UsageCoordinator coordinator,
-        TokensTodayWatcher tokensToday,
+        TokenOdometerWatcher tokenOdometer,
         Action showSettings,
         Action quit)
     {
         _coordinator = coordinator;
-        _tokensToday = tokensToday;
+        _tokenOdometer = tokenOdometer;
         _showSettings = showSettings;
         _quit = quit;
+        _tokenSummaryMetric = _coordinator.Appearance.TodayMetric;
         InitializeComponent();
         WindowsThemeService.Attach(this);
 
         _coordinator.Changed += Coordinator_OnChanged;
-        _tokensToday.Changed += TokensToday_OnChanged;
+        _tokenOdometer.Changed += TokenOdometer_OnChanged;
         WindowsThemeService.ThemeChanged += WindowsThemeService_OnThemeChanged;
         Deactivated += FlyoutWindow_OnDeactivated;
         Closing += FlyoutWindow_OnClosing;
@@ -66,11 +70,24 @@ public partial class FlyoutWindow : Window
         };
         SettingsButton.ContextMenu = settingsMenu;
         _ageTimer = new DispatcherTimer(TimeSpan.FromSeconds(30), DispatcherPriority.Background, (_, _) => Render(), Dispatcher);
+        _updatingControls = true;
+        UsageTabButton.IsChecked = true;
+        ApiMetricButton.IsChecked =
+            _tokenSummaryMetric == TodayMetricMode.Usage;
+        BillingMetricButton.IsChecked =
+            _tokenSummaryMetric == TodayMetricMode.Token;
+        TodayRangeButton.IsChecked = true;
+        _updatingControls = false;
         Render();
     }
 
     public void ShowFlyout()
     {
+        if (_selectedTab == FlyoutTab.Tokens)
+        {
+            _ = _tokenOdometer.SetVisibleAsync(true);
+        }
+
         Render();
         Show();
         UpdateLayout();
@@ -78,7 +95,6 @@ public partial class FlyoutWindow : Window
         Activate();
         Focus();
         _ageTimer.Start();
-        _ = _tokensToday.SetVisibleAsync(true);
         _ = _coordinator.RefreshAllAsync(RefreshTrigger.PopoverOpen);
     }
 
@@ -91,10 +107,84 @@ public partial class FlyoutWindow : Window
 
         Hide();
         _ageTimer.Stop();
-        _ = _tokensToday.SetVisibleAsync(false);
+        _ = _tokenOdometer.SetVisibleAsync(false);
     }
 
     public void AllowClose() => _allowClose = true;
+
+    private async void UsageTabButton_OnChecked(
+        object sender,
+        RoutedEventArgs eventArgs)
+    {
+        if (_updatingControls || !IsInitialized)
+        {
+            return;
+        }
+
+        _selectedTab = FlyoutTab.Usage;
+        RenderTabVisibility();
+        await _tokenOdometer.SetVisibleAsync(false).ConfigureAwait(true);
+    }
+
+    private async void TokensTabButton_OnChecked(
+        object sender,
+        RoutedEventArgs eventArgs)
+    {
+        if (_updatingControls || !IsInitialized)
+        {
+            return;
+        }
+
+        _selectedTab = FlyoutTab.Tokens;
+        RenderTabVisibility();
+        if (IsVisible)
+        {
+            await _tokenOdometer.SetVisibleAsync(true).ConfigureAwait(true);
+        }
+
+        RenderTokenOdometer();
+    }
+
+    private void ApiMetricButton_OnChecked(
+        object sender,
+        RoutedEventArgs eventArgs)
+    {
+        if (_updatingControls || !IsInitialized)
+        {
+            return;
+        }
+
+        _tokenSummaryMetric = TodayMetricMode.Usage;
+        RenderTokenOdometer();
+    }
+
+    private void BillingMetricButton_OnChecked(
+        object sender,
+        RoutedEventArgs eventArgs)
+    {
+        if (_updatingControls || !IsInitialized)
+        {
+            return;
+        }
+
+        _tokenSummaryMetric = TodayMetricMode.Token;
+        RenderTokenOdometer();
+    }
+
+    private async void RangeButton_OnChecked(
+        object sender,
+        RoutedEventArgs eventArgs)
+    {
+        if (_updatingControls ||
+            !IsInitialized ||
+            sender is not RadioButton { Tag: string rangeName } ||
+            !Enum.TryParse<TokenRange>(rangeName, out var range))
+        {
+            return;
+        }
+
+        await _tokenOdometer.SelectRangeAsync(range).ConfigureAwait(true);
+    }
 
     private async void RefreshButton_OnClick(object sender, RoutedEventArgs eventArgs)
     {
@@ -107,8 +197,19 @@ public partial class FlyoutWindow : Window
         RefreshButton.IsEnabled = false;
         try
         {
-            await _coordinator.RefreshAllAsync(RefreshTrigger.Manual)
-                .ConfigureAwait(true);
+            var usageRefresh =
+                _coordinator.RefreshAllAsync(RefreshTrigger.Manual);
+            if (_selectedTab == FlyoutTab.Tokens)
+            {
+                await Task.WhenAll(
+                        usageRefresh,
+                        _tokenOdometer.RefreshAsync())
+                    .ConfigureAwait(true);
+            }
+            else
+            {
+                await usageRefresh.ConfigureAwait(true);
+            }
         }
         finally
         {
@@ -129,8 +230,8 @@ public partial class FlyoutWindow : Window
     private void Coordinator_OnChanged(object? sender, EventArgs eventArgs) =>
         Dispatcher.BeginInvoke(Render);
 
-    private void TokensToday_OnChanged(object? sender, EventArgs eventArgs) =>
-        Dispatcher.BeginInvoke(RenderTokensToday);
+    private void TokenOdometer_OnChanged(object? sender, EventArgs eventArgs) =>
+        Dispatcher.BeginInvoke(RenderTokenOdometer);
 
     private void Render()
     {
@@ -140,7 +241,8 @@ public partial class FlyoutWindow : Window
             return;
         }
 
-        RenderTokensToday();
+        RenderTabVisibility();
+        RenderTokenOdometer();
         AgentsPanel.Children.Clear();
         var agents = _coordinator.Agents;
         for (var index = 0; index < agents.Count; index++)
@@ -159,59 +261,146 @@ public partial class FlyoutWindow : Window
         }
     }
 
-    private void RenderTokensToday()
+    private void RenderTabVisibility()
     {
-        var usage = _tokensToday.Usage;
-        if (usage is null)
+        var showUsage = _selectedTab == FlyoutTab.Usage;
+        UsageContentScroll.Visibility =
+            showUsage ? Visibility.Visible : Visibility.Collapsed;
+        TokensContentScroll.Visibility =
+            showUsage ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void RenderTokenOdometer()
+    {
+        if (!Dispatcher.CheckAccess())
         {
-            TokensTodayPanel.Visibility = Visibility.Collapsed;
+            Dispatcher.BeginInvoke(RenderTokenOdometer);
             return;
         }
 
-        TokensTodayPanel.Visibility = Visibility.Visible;
-        if (_coordinator.Appearance.TodayMetric == TodayMetricMode.Usage)
+        var selectedRange = _tokenOdometer.SelectedRange;
+        _updatingControls = true;
+        TodayRangeButton.IsChecked = selectedRange == TokenRange.Today;
+        SevenDaysRangeButton.IsChecked = selectedRange == TokenRange.SevenDays;
+        ThirtyDaysRangeButton.IsChecked =
+            selectedRange == TokenRange.ThirtyDays;
+        _updatingControls = false;
+
+        var usage = _tokenOdometer.Usage;
+        var displayedRange = _tokenOdometer.DisplayedRange;
+        var hasLoaded = _tokenOdometer.HasLoaded;
+        var pendingRange = _tokenOdometer.PendingRange;
+        if (!hasLoaded)
         {
-            RenderApiEquivalentToday(usage);
+            var readingRange = pendingRange ?? selectedRange;
+            TokenSummaryValue.Text = "—";
+            TokenSummaryLabel.Text = $"Reading {readingRange.Label()}…";
+            TokenSummaryPanel.ToolTip =
+                $"Reading token usage for {readingRange.Label()}.";
+            AutomationProperties.SetName(
+                TokenSummaryPanel,
+                $"Reading token usage for {readingRange.Label()}");
+        }
+        else if (_tokenSummaryMetric == TodayMetricMode.Usage)
+        {
+            RenderApiEquivalent(usage, displayedRange);
         }
         else
         {
-            RenderBillingTokensToday(usage);
+            RenderBillingTokens(usage, displayedRange);
+        }
+
+        OdometerProgress.Visibility = _tokenOdometer.IsScanning
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        OdometerStatusText.Text =
+            _tokenOdometer.IsScanning
+                ? $"Reading {(pendingRange ?? selectedRange).Label()}…"
+                : hasLoaded
+                    ? displayedRange.Label()
+                    : $"Reading {selectedRange.Label()}…";
+        TokenTablePanel.Visibility =
+            hasLoaded ? Visibility.Visible : Visibility.Collapsed;
+        TokenTablePanel.Opacity =
+            _tokenOdometer.IsScanning && hasLoaded
+                ? 0.58
+                : 1;
+        TokenTableTotal.Text =
+            $"{displayedRange.Label()} · four token kinds";
+
+        TokenRowsPanel.Children.Clear();
+        if (!hasLoaded)
+        {
+            return;
+        }
+
+        var slices = _tokenOdometer.PerAgent;
+        var displayOrder = _coordinator.Appearance.DisplayOrder();
+        for (var index = 0; index < displayOrder.Count; index++)
+        {
+            if (index > 0)
+            {
+                TokenRowsPanel.Children.Add(new Border
+                {
+                    Height = 1,
+                    Margin = new Thickness(0, 11, 0, 11),
+                    Background = FindBrush("BorderBrush"),
+                });
+            }
+
+            var definition = AgentRegistry.Get(displayOrder[index]);
+            var slice = slices.FirstOrDefault(
+                item => string.Equals(
+                    item.Label,
+                    definition.DisplayName,
+                    StringComparison.OrdinalIgnoreCase));
+            TokenRowsPanel.Children.Add(
+                BuildTokenAgentSection(definition.DisplayName, slice?.Usage));
         }
     }
 
-    private void RenderBillingTokensToday(TokenUsage usage)
+    private void RenderBillingTokens(
+        TokenUsage? usage,
+        TokenRange displayedRange)
     {
-        TokensTodayCount.Text = usage.BillableTokens.ToString("N0");
-        TokensTodayLabel.Text = "billing tokens today";
-        var agentSplit = string.Join(
-            " · ",
-            _tokensToday.PerAgent.Select(
-                slice => $"{slice.Label} {slice.Usage.BillableTokens:N0}"));
-        TokensTodayPanel.ToolTip =
-            $"{(agentSplit.Length > 0 ? agentSplit + " — " : string.Empty)}" +
-            $"{UsageFormatting.TokenBreakdown(usage)}. " +
-            "Token excludes cache reads.";
+        TokenSummaryValue.Text = usage?.BillableTokens.ToString("N0") ?? "—";
+        TokenSummaryLabel.Text =
+            $"billing tokens · {displayedRange.Label()}";
+        TokenSummaryPanel.ToolTip = usage is null
+            ? $"No billing token usage for {displayedRange.Label()}."
+            : $"{UsageFormatting.TokenBreakdown(usage)}. " +
+              "Billing tokens include direct input, cache writes, and output; " +
+              "cache reads remain visible in the table but are excluded from this total.";
         AutomationProperties.SetName(
-            TokensTodayPanel,
-            $"{usage.BillableTokens:N0} billing tokens today; cache reads excluded");
+            TokenSummaryPanel,
+            usage is null
+                ? $"No billing token usage for {displayedRange.Label()}"
+                : $"{usage.BillableTokens:N0} billing tokens for " +
+                  $"{displayedRange.Label()}; cache reads excluded");
     }
 
-    private void RenderApiEquivalentToday(TokenUsage usage)
+    private void RenderApiEquivalent(
+        TokenUsage? usage,
+        TokenRange displayedRange)
     {
+        if (usage is null)
+        {
+            TokenSummaryValue.Text = "—";
+            TokenSummaryLabel.Text =
+                $"API-equivalent · {displayedRange.Label()}";
+            TokenSummaryPanel.ToolTip =
+                $"No API-equivalent usage for {displayedRange.Label()}.";
+            AutomationProperties.SetName(
+                TokenSummaryPanel,
+                $"No API-equivalent usage for {displayedRange.Label()}");
+            return;
+        }
+
         var pricingDate = DateOnly.FromDateTime(DateTime.Today);
         var estimate = ApiPricingCatalog.Estimate(usage, pricingDate);
-        TokensTodayCount.Text = UsageFormatting.ApiEquivalentCost(estimate);
-        TokensTodayLabel.Text = "API-equivalent today";
-
-        var agentSplit = string.Join(
-            " · ",
-            _tokensToday.PerAgent.Select(slice =>
-            {
-                var agentEstimate =
-                    ApiPricingCatalog.Estimate(slice.Usage, pricingDate);
-                return $"{slice.Label} " +
-                       UsageFormatting.ApiEquivalentCost(agentEstimate);
-            }));
+        TokenSummaryValue.Text = UsageFormatting.ApiEquivalentCost(estimate);
+        TokenSummaryLabel.Text =
+            $"API-equivalent · {displayedRange.Label()}";
         var unpriced = estimate.IsPartial
             ? $" Unpriced: {string.Join(", ", estimate.UnpricedModels)} " +
               $"({estimate.UnpricedTokens:N0} tokens)."
@@ -221,20 +410,206 @@ public partial class FlyoutWindow : Window
             usage.ModelUsage
                 .Select(item => item.Model ?? "unknown model")
                 .Distinct(StringComparer.OrdinalIgnoreCase));
-        TokensTodayPanel.ToolTip =
-            $"{(agentSplit.Length > 0 ? agentSplit + " — " : string.Empty)}" +
+        TokenSummaryPanel.ToolTip =
             "Standard API-equivalent estimate by recorded model; includes " +
-            "raw input, cache writes, cache reads, and output at list rates. " +
+            "direct input, cache writes, cache reads, and output at list rates. " +
             "Claude cache writes without TTL detail use the default 5-minute rate. " +
             $"Models: {(models.Length > 0 ? models : "unknown")}. " +
             $"Prices reviewed {ApiPricingCatalog.LastReviewed:yyyy-MM-dd}." +
             unpriced;
         AutomationProperties.SetName(
-            TokensTodayPanel,
+            TokenSummaryPanel,
             estimate.IsAvailable
-                ? $"{UsageFormatting.ApiEquivalentCost(estimate)} estimated API-equivalent usage today"
-                : "API-equivalent usage unavailable because the transcript model is unknown");
+                ? $"{UsageFormatting.ApiEquivalentCost(estimate)} estimated " +
+                  $"API-equivalent usage for {displayedRange.Label()}"
+                : "API-equivalent usage unavailable because the transcript " +
+                  "model is unknown");
     }
+
+    private FrameworkElement BuildTokenAgentSection(
+        string label,
+        TokenUsage? usage)
+    {
+        var section = new StackPanel();
+        var header = new Grid();
+        header.ColumnDefinitions.Add(new ColumnDefinition());
+        header.ColumnDefinitions.Add(new ColumnDefinition
+        {
+            Width = GridLength.Auto,
+        });
+        header.Children.Add(new TextBlock
+        {
+            Text = label.ToUpperInvariant(),
+            FontSize = 12.5,
+            FontWeight = FontWeights.SemiBold,
+        });
+        var total = new TextBlock
+        {
+            Text = usage is null
+                ? "—"
+                : UsageFormatting.CompactTokenCount(usage.OdometerTokens),
+            FontFamily = new FontFamily("Cascadia Mono, Consolas"),
+            FontSize = 11.5,
+            Foreground = FindBrush("SecondaryTextBrush"),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            ToolTip = usage is null
+                ? "No token usage in this range."
+                : $"{usage.OdometerTokens:N0} tokens",
+        };
+        Grid.SetColumn(total, 1);
+        header.Children.Add(total);
+        AutomationProperties.SetName(
+            header,
+            usage is null
+                ? $"{label}, no token usage in this range"
+                : $"{label}, {usage.OdometerTokens:N0} tokens");
+        section.Children.Add(header);
+
+        var models = usage?.ModelUsage
+            .OrderByDescending(item => item.Breakdown.MeteredTokenTotal)
+            .ThenBy(item => item.Model, StringComparer.OrdinalIgnoreCase)
+            .ToArray() ?? [];
+        if (models.Length == 0)
+        {
+            section.Children.Add(new TextBlock
+            {
+                Text = "No token usage in this range.",
+                Margin = new Thickness(0, 5, 0, 0),
+                FontSize = 11.5,
+                Foreground = FindBrush("SecondaryTextBrush"),
+            });
+            return section;
+        }
+
+        foreach (var model in models)
+        {
+            section.Children.Add(BuildTokenModelRow(model));
+        }
+
+        return section;
+    }
+
+    private FrameworkElement BuildTokenModelRow(ModelTokenUsage model)
+    {
+        var breakdown = model.Breakdown;
+        var row = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
+        var values = new[]
+        {
+            breakdown.Amount(TokenKind.DirectInput),
+            breakdown.Amount(TokenKind.Output),
+            breakdown.Amount(TokenKind.CacheWrite),
+            breakdown.Amount(TokenKind.CacheRead),
+        };
+        var modelName = string.IsNullOrWhiteSpace(model.Model)
+            ? "unknown"
+            : model.Model;
+
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition
+        {
+            Width = new GridLength(110),
+        });
+        for (var index = 0; index < values.Length; index++)
+        {
+            grid.ColumnDefinitions.Add(new ColumnDefinition
+            {
+                Width = new GridLength(56),
+            });
+        }
+
+        grid.Children.Add(new TextBlock
+        {
+            Text = modelName,
+            FontSize = 11.5,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            ToolTip = modelName,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        for (var index = 0; index < values.Length; index++)
+        {
+            var value = new TextBlock
+            {
+                Text = FormatTokenCell(values[index]),
+                FontFamily = new FontFamily("Cascadia Mono, Consolas"),
+                FontSize = 10.5,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = $"{TokenKindName(index)}: {values[index]:N0}",
+            };
+            Grid.SetColumn(value, index + 1);
+            grid.Children.Add(value);
+        }
+
+        AutomationProperties.SetName(
+            grid,
+            $"{modelName}; direct input {values[0]:N0}; output {values[1]:N0}; " +
+            $"cache write {values[2]:N0}; cache read {values[3]:N0}");
+        row.Children.Add(grid);
+        row.Children.Add(BuildTokenProportionBar(values));
+        return row;
+    }
+
+    private static FrameworkElement BuildTokenProportionBar(long[] values)
+    {
+        var total = values.Sum();
+        var bar = new Grid
+        {
+            Height = 4,
+            Margin = new Thickness(0, 4, 0, 0),
+            Background = FindBrush("SubtleBackgroundBrush"),
+            ClipToBounds = true,
+            ToolTip =
+                $"IN {values[0]:N0} · OUT {values[1]:N0} · " +
+                $"C·W {values[2]:N0} · C·R {values[3]:N0}",
+        };
+        AutomationProperties.SetName(
+            bar,
+            "Token proportions: " +
+            $"direct input {values[0]:N0}, output {values[1]:N0}, " +
+            $"cache write {values[2]:N0}, cache read {values[3]:N0}");
+        for (var index = 0; index < values.Length; index++)
+        {
+            var weight = total == 0
+                ? 0
+                : (double)values[index] / total;
+            bar.ColumnDefinitions.Add(new ColumnDefinition
+            {
+                Width = new GridLength(weight, GridUnitType.Star),
+                MinWidth = values[index] > 0 ? 1.5 : 0,
+            });
+            var segment = new Border
+            {
+                Background = TokenKindBrush(index),
+                Opacity = 0.9,
+            };
+            Grid.SetColumn(segment, index);
+            bar.Children.Add(segment);
+        }
+
+        return bar;
+    }
+
+    private static string FormatTokenCell(long value) =>
+        value == 0 ? "–" : UsageFormatting.CompactTokenCount(value);
+
+    private static Brush TokenKindBrush(int index) =>
+        FindBrush(
+            index switch
+            {
+                0 => "TokenInputBrush",
+                1 => "TokenOutputBrush",
+                2 => "TokenCacheWriteBrush",
+                _ => "TokenCacheReadBrush",
+            });
+
+    private static string TokenKindName(int index) =>
+        index switch
+        {
+            0 => "Direct input",
+            1 => "Output",
+            2 => "Cache write",
+            _ => "Cache read",
+        };
 
     private FrameworkElement BuildAgentSection(AgentPresentation agent)
     {
@@ -554,7 +929,7 @@ public partial class FlyoutWindow : Window
     {
         _ageTimer.Stop();
         _coordinator.Changed -= Coordinator_OnChanged;
-        _tokensToday.Changed -= TokensToday_OnChanged;
+        _tokenOdometer.Changed -= TokenOdometer_OnChanged;
         WindowsThemeService.ThemeChanged -= WindowsThemeService_OnThemeChanged;
     }
 
@@ -613,7 +988,9 @@ public partial class FlyoutWindow : Window
             280,
             (working.Height - 16) / scale);
         MaxHeight = availableHeight;
-        ContentScroll.MaxHeight = Math.Max(170, availableHeight - 110);
+        var contentHeight = Math.Max(170, availableHeight - 164);
+        UsageContentScroll.MaxHeight = contentHeight;
+        TokensContentScroll.MaxHeight = contentHeight;
         UpdateLayout();
         var width = Math.Max(1, (int)Math.Ceiling(ActualWidth * scale));
         var height = Math.Max(1, (int)Math.Ceiling(ActualHeight * scale));
@@ -673,6 +1050,12 @@ public partial class FlyoutWindow : Window
     {
         NoZOrder = 0x0004,
         NoOwnerZOrder = 0x0200,
+    }
+
+    private enum FlyoutTab
+    {
+        Usage,
+        Tokens,
     }
 
     [DllImport("user32.dll")]

@@ -10,7 +10,7 @@ Amends [ADR-0005 — TokenStats tracks usage only](0005-tokenstats-tracks-usage-
 
 TokenStats currently ships as a native macOS menu-bar application. Windows
 users need the same two surfaces: authoritative Coding Agent **Usage Windows**
-and the local **Tokens Today** odometer.
+and the local **Token Odometer**.
 
 The usage-only simplification in ADR-0005 removed a separate cross-language
 Sessions product: hooks, plugins, a bundled JavaScript CLI, SQLite, and its
@@ -38,10 +38,14 @@ Add a separate native Windows application under `apps/TokenStats.Windows`:
   file watching, sleep/resume events, and tray lifecycle.
 - The Windows app uses the same independent OAuth identities and never reads or
   refreshes either Coding Agent's own credentials.
-- The Windows Today counter offers Token and Usage views. Token counts raw
-  input, cache writes, and output while excluding cache reads; Usage derives an
-  API-equivalent list-price estimate from transcript model attribution,
-  includes priced cache reads, and marks unknown models as partial.
+- The Windows Tokens tab implements the shared Token Odometer over Today,
+  7 days, or 30 days, grouped by Coding Agent, Model, and the four disjoint
+  Token Kinds.
+- Windows retains two summary presentations inside that tab. Billing tokens
+  count direct input, cache writes, and output while excluding cache reads;
+  API equivalent derives a list-price estimate from transcript model
+  attribution, includes priced cache reads, and marks unknown models as
+  partial. Neither summary changes the four-kind Odometer total.
 - Windows normalizes Codex Usage Windows using the returned duration and
   renders the windows actually present. A missing short-term window does not
   produce a fixed 5-hour placeholder.
@@ -62,11 +66,10 @@ macOS refresh policy already names a `popoverOpen` trigger but does not
 currently connect it; this is treated as a Windows behavior correction, not a
 claim of exact implementation parity.
 
-As of 2026-07-27, Windows also implements the switchable Today counter and
-duration-driven Codex window rendering described above. The macOS Today counter
-still uses its legacy all-token total and has not yet migrated. This temporary
-platform difference is explicit; the shared specification describes the
-target, not current implementation parity.
+Windows also implements the switchable Billing tokens/API equivalent summary
+and duration-driven Codex window rendering described above. The pricing summary
+is an intentional Windows extension; it is neither an invoice nor a Usage
+Window.
 
 The scope decision from ADR-0005 is unchanged: TokenStats still contains no
 Sessions tab, hooks, plugins, SQLite store, waiting-state tracker, or transcript
@@ -81,9 +84,9 @@ daemon. C# is introduced only for the Windows client.
 - **Positive:** neither platform's release artifact depends on building the
   other platform first.
 - **Negative:** equivalent behavior is implemented independently in Swift and
-  C#, so parser fixtures and acceptance tests must guard against drift. Until
-  the pending macOS Today-counter migration lands, the documented platform
-  difference must remain visible rather than being mistaken for parity.
+  C#, so parser fixtures and acceptance tests must guard against drift. The
+  Windows-only pricing summary must remain clearly separated from the shared
+  raw Token Odometer semantics.
 - **Negative:** Windows packaging, Authenticode signing, SmartScreen reputation,
   and release assets require their own pipeline and credentials.
 - **Risk:** the Claude and Codex endpoints are unofficial. Codex login and usage

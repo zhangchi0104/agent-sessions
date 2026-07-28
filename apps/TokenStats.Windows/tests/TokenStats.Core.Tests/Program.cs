@@ -23,6 +23,7 @@ internal static class Program
             new(nameof(CodexOAuthExtractsAccountId), Sync(CodexOAuthExtractsAccountId)),
             new(nameof(FormattingPreservesRemainingSemantics), Sync(FormattingPreservesRemainingSemantics)),
             new(nameof(TokenMetricExcludesCacheReads), Sync(TokenMetricExcludesCacheReads)),
+            new(nameof(TokenOdometerKindsIncludeCacheReads), Sync(TokenOdometerKindsIncludeCacheReads)),
             new(nameof(ApiPricingCatalogPricesKnownModelsAndDisclosesUnknown), Sync(ApiPricingCatalogPricesKnownModelsAndDisclosesUnknown)),
             new(nameof(RefreshPolicyAppliesCadenceAndBackoff), Sync(RefreshPolicyAppliesCadenceAndBackoff)),
             new(nameof(StateReducerDisclosesStaleData), Sync(StateReducerDisclosesStaleData)),
@@ -34,7 +35,11 @@ internal static class Program
             new(nameof(ClaudeTranscriptsCaptureModelAndCacheWriteDurations), ClaudeTranscriptsCaptureModelAndCacheWriteDurations),
             new(nameof(CodexTranscriptsSplitCachedInputAndScanRecursively), CodexTranscriptsSplitCachedInputAndScanRecursively),
             new(nameof(CodexTranscriptsTrackModelsCacheWritesAndUnknown), CodexTranscriptsTrackModelsCacheWritesAndUnknown),
+            new(nameof(CodexRunningTotalsDeduplicateAdvanceAndReset), CodexRunningTotalsDeduplicateAdvanceAndReset),
+            new(nameof(CodexOpeningBaselineExcludesInheritedHead), CodexOpeningBaselineExcludesInheritedHead),
+            new(nameof(CodexModelAttributionBackfillsAndReadsThreadSettings), CodexModelAttributionBackfillsAndReadsThreadSettings),
             new(nameof(CodexTranscriptRetainsModelAcrossIncrementalAppends), CodexTranscriptRetainsModelAcrossIncrementalAppends),
+            new(nameof(TokenRangesUseExactLocalCalendarDays), TokenRangesUseExactLocalCalendarDays),
             new(nameof(TranscriptReadsOnlyAppendedBytesAndRetainsPartialLines), TranscriptReadsOnlyAppendedBytesAndRetainsPartialLines),
         };
 
@@ -399,6 +404,33 @@ internal static class Program
         Check.Equal(125L, usage.MeteredTokens);
         Check.Equal(25L, usage.Breakdown.TokenMetricTotal);
         Check.Equal(125L, usage.Breakdown.MeteredTokenTotal);
+    }
+
+    private static void TokenOdometerKindsIncludeCacheReads()
+    {
+        var usage = new TokenUsage
+        {
+            InputTokens = 11,
+            OutputTokens = 22,
+            CacheWriteTokens = 13,
+            CacheWrite1HourTokens = 20,
+            CacheReadTokens = 44,
+        };
+
+        Check.Equal(11L, usage.Amount(TokenKind.DirectInput));
+        Check.Equal(22L, usage.Amount(TokenKind.Output));
+        Check.Equal(33L, usage.Amount(TokenKind.CacheWrite));
+        Check.Equal(44L, usage.Amount(TokenKind.CacheRead));
+        Check.Equal(66L, usage.BillableTokens);
+        Check.Equal(110L, usage.OdometerTokens);
+        Check.Equal("Today", TokenRange.Today.Label());
+        Check.Equal("7 days", TokenRange.SevenDays.Label());
+        Check.Equal("30 days", TokenRange.ThirtyDays.Label());
+
+        var namedUnknown = ModelName.Named("unknown");
+        Check.False(namedUnknown.IsUnattributed);
+        Check.True(ModelName.Unattributed.IsUnattributed);
+        Check.False(namedUnknown == ModelName.Unattributed);
     }
 
     private static void ApiPricingCatalogPricesKnownModelsAndDisclosesUnknown()
@@ -830,16 +862,24 @@ internal static class Program
         var transcript = Path.Combine(temp.Path, "claude-model.jsonl");
         File.WriteAllText(
             transcript,
-            ClaudeLine(
-                "model-response",
-                "2026-07-27T10:00:00Z",
-                input: 10,
-                output: 5,
-                cacheCreation: 30,
-                cacheRead: 2,
-                model: "claude-sonnet-5-20260701",
-                cacheWrite5Minute: 10,
-                cacheWrite1Hour: 20) +
+            string.Join(
+                '\n',
+                ClaudeLine(
+                    "model-response",
+                    "2026-07-27T10:00:00Z",
+                    input: 10,
+                    output: 5,
+                    cacheCreation: 30,
+                    cacheRead: 2,
+                    model: "claude-sonnet-5-20260701",
+                    cacheWrite5Minute: 10,
+                    cacheWrite1Hour: 20),
+                ClaudeLine(
+                    "<synthetic>",
+                    "2026-07-27T10:01:00Z",
+                    input: 0,
+                    output: 0,
+                    model: "synthetic")) +
             "\n");
         File.SetLastWriteTimeUtc(transcript, now.UtcDateTime);
 
@@ -881,9 +921,9 @@ internal static class Program
             output: 20);
         var cachedExceedsInput = CodexLine(
             "2026-07-27T10:01:00Z",
-            input: 5,
-            cachedInput: 10,
-            output: 2);
+            input: 105,
+            cachedInput: 45,
+            output: 22);
         File.WriteAllText(
             transcript,
             string.Join('\n', first, cachedExceedsInput) + "\n");
@@ -921,17 +961,17 @@ internal static class Program
                 CodexTurnContextLine("gpt-5.6-sol"),
                 CodexLine(
                     "2026-07-27T10:00:00Z",
-                    input: 100,
-                    cachedInput: 30,
-                    output: 20,
-                    cacheWrite: 10),
+                    input: 110,
+                    cachedInput: 32,
+                    output: 23,
+                    cacheWrite: 11),
                 CodexTurnContextLine("gpt-5.6-terra"),
                 CodexLine(
                     "2026-07-27T10:01:00Z",
-                    input: 50,
-                    cachedInput: 5,
-                    output: 10,
-                    cacheWrite: 5)) +
+                    input: 160,
+                    cachedInput: 37,
+                    output: 33,
+                    cacheWrite: 16)) +
             "\n");
         File.SetLastWriteTimeUtc(transcript, now.UtcDateTime);
 
@@ -945,21 +985,14 @@ internal static class Program
         Check.Equal(37L, usage.CacheReadTokens);
         Check.Equal(156L, usage.TotalTokens);
         Check.Equal(193L, usage.MeteredTokens);
-        Check.Equal(3, usage.ModelUsage.Count);
-
-        var unknown = usage.ModelUsage.Single(item => item.Model is null);
-        Check.Equal(AgentId.Codex, unknown.AgentId);
-        Check.Equal(7L, unknown.Breakdown.RawInputTokens);
-        Check.Equal(1L, unknown.Breakdown.CacheWriteTokens);
-        Check.Equal(2L, unknown.Breakdown.CacheReadTokens);
-        Check.Equal(3L, unknown.Breakdown.OutputTokens);
+        Check.Equal(2, usage.ModelUsage.Count);
 
         var sol = usage.ModelUsage.Single(
             item => item.Model == "gpt-5.6-sol");
-        Check.Equal(60L, sol.Breakdown.RawInputTokens);
-        Check.Equal(10L, sol.Breakdown.CacheWriteTokens);
-        Check.Equal(30L, sol.Breakdown.CacheReadTokens);
-        Check.Equal(20L, sol.Breakdown.OutputTokens);
+        Check.Equal(67L, sol.Breakdown.RawInputTokens);
+        Check.Equal(11L, sol.Breakdown.CacheWriteTokens);
+        Check.Equal(32L, sol.Breakdown.CacheReadTokens);
+        Check.Equal(23L, sol.Breakdown.OutputTokens);
 
         var terra = usage.ModelUsage.Single(
             item => item.Model == "gpt-5.6-terra");
@@ -967,6 +1000,172 @@ internal static class Program
         Check.Equal(5L, terra.Breakdown.CacheWriteTokens);
         Check.Equal(5L, terra.Breakdown.CacheReadTokens);
         Check.Equal(10L, terra.Breakdown.OutputTokens);
+    }
+
+    private static Task CodexRunningTotalsDeduplicateAdvanceAndReset()
+    {
+        using var advancing = new TemporaryDirectory();
+        var advancingTranscript = Path.Combine(
+            advancing.Path,
+            "rollout-running.jsonl");
+        File.WriteAllText(
+            advancingTranscript,
+            string.Join(
+                '\n',
+                CodexLine(
+                    "2026-07-27T10:00:00Z",
+                    input: 1000,
+                    cachedInput: 400,
+                    output: 100),
+                CodexLine(
+                    "2026-07-27T10:00:01Z",
+                    input: 1000,
+                    cachedInput: 400,
+                    output: 100),
+                CodexLine(
+                    "2026-07-27T10:01:00Z",
+                    input: 1500,
+                    cachedInput: 600,
+                    output: 250)) +
+            "\n");
+
+        var reader = new TranscriptTokenReader(TimeZoneInfo.Utc);
+        var advanced = Check.NotNull(
+            reader.UsageForTranscript(advancingTranscript));
+        Check.Equal(2, advanced.ResponseCount);
+        Check.Equal(900L, advanced.InputTokens);
+        Check.Equal(600L, advanced.CacheReadTokens);
+        Check.Equal(250L, advanced.OutputTokens);
+        Check.Equal(1750L, advanced.OdometerTokens);
+
+        using var resetting = new TemporaryDirectory();
+        var resettingTranscript = Path.Combine(
+            resetting.Path,
+            "rollout-reset.jsonl");
+        File.WriteAllText(
+            resettingTranscript,
+            string.Join(
+                '\n',
+                CodexLine(
+                    "2026-07-27T10:00:00Z",
+                    input: 1000,
+                    cachedInput: 400,
+                    output: 100),
+                CodexLine(
+                    "2026-07-27T10:01:00Z",
+                    input: 200,
+                    cachedInput: 50,
+                    output: 20),
+                CodexLine(
+                    "2026-07-27T10:02:00Z",
+                    input: 500,
+                    cachedInput: 100,
+                    output: 60)) +
+            "\n");
+
+        var reset = Check.NotNull(
+            reader.UsageForTranscript(resettingTranscript));
+        Check.Equal(2, reset.ResponseCount);
+        Check.Equal(850L, reset.InputTokens);
+        Check.Equal(450L, reset.CacheReadTokens);
+        Check.Equal(140L, reset.OutputTokens);
+        Check.Equal(1440L, reset.OdometerTokens);
+        return Task.CompletedTask;
+    }
+
+    private static Task CodexOpeningBaselineExcludesInheritedHead()
+    {
+        using var temp = new TemporaryDirectory();
+        var transcript = Path.Combine(temp.Path, "rollout-resumed.jsonl");
+        File.WriteAllText(
+            transcript,
+            CodexLine(
+                "2026-07-27T10:00:00Z",
+                input: 1000,
+                cachedInput: 400,
+                output: 100,
+                lastInput: 200,
+                lastCachedInput: 80,
+                lastOutput: 20) +
+            "\n");
+
+        var reader = new TranscriptTokenReader(TimeZoneInfo.Utc);
+        var usage = Check.NotNull(reader.UsageForTranscript(transcript));
+        Check.Equal(1, usage.ResponseCount);
+        Check.Equal(120L, usage.InputTokens);
+        Check.Equal(80L, usage.CacheReadTokens);
+        Check.Equal(20L, usage.OutputTokens);
+        Check.Equal(220L, usage.OdometerTokens);
+        return Task.CompletedTask;
+    }
+
+    private static async Task CodexModelAttributionBackfillsAndReadsThreadSettings()
+    {
+        using var temp = new TemporaryDirectory();
+        var now = DateTimeOffset.Parse("2026-07-27T12:00:00Z", Invariant);
+        var attributedTranscript = Path.Combine(
+            temp.Path,
+            "rollout-attributed.jsonl");
+        File.WriteAllText(
+            attributedTranscript,
+            string.Join(
+                '\n',
+                CodexLine(
+                    "2026-07-27T10:00:00Z",
+                    input: 100,
+                    cachedInput: 20,
+                    output: 10),
+                CodexThreadSettingsLine("gpt-5.6-sol"),
+                CodexLine(
+                    "2026-07-27T10:01:00Z",
+                    input: 200,
+                    cachedInput: 50,
+                    output: 30),
+                CodexTurnContextLine("unknown"),
+                CodexLine(
+                    "2026-07-27T10:02:00Z",
+                    input: 250,
+                    cachedInput: 60,
+                    output: 40)) +
+            "\n");
+        File.SetLastWriteTimeUtc(attributedTranscript, now.UtcDateTime);
+
+        var unattributedTranscript = Path.Combine(
+            temp.Path,
+            "rollout-unattributed.jsonl");
+        File.WriteAllText(
+            unattributedTranscript,
+            CodexLine(
+                "2026-07-27T11:00:00Z",
+                input: 10,
+                cachedInput: 2,
+                output: 3) +
+            "\n");
+        File.SetLastWriteTimeUtc(unattributedTranscript, now.UtcDateTime);
+
+        var reader = new TranscriptTokenReader(TimeZoneInfo.Utc);
+        var usage = Check.NotNull(
+            await reader.TodayUsageAsync(temp.Path, now).ConfigureAwait(false));
+
+        var sol = usage.ModelUsage.Single(
+            item => item.Model == "gpt-5.6-sol");
+        Check.Equal(150L, sol.Breakdown.RawInputTokens);
+        Check.Equal(50L, sol.Breakdown.CacheReadTokens);
+        Check.Equal(30L, sol.Breakdown.OutputTokens);
+
+        var namedUnknown = usage.ModelUsage.Single(
+            item => item.Model == "unknown");
+        Check.False(namedUnknown.Name.IsUnattributed);
+        Check.Equal(40L, namedUnknown.Breakdown.RawInputTokens);
+        Check.Equal(10L, namedUnknown.Breakdown.CacheReadTokens);
+        Check.Equal(10L, namedUnknown.Breakdown.OutputTokens);
+
+        var unattributed = usage.ModelUsage.Single(
+            item => item.Name.IsUnattributed);
+        Check.True(unattributed.Model is null);
+        Check.Equal(8L, unattributed.Breakdown.RawInputTokens);
+        Check.Equal(2L, unattributed.Breakdown.CacheReadTokens);
+        Check.Equal(3L, unattributed.Breakdown.OutputTokens);
     }
 
     private static Task CodexTranscriptRetainsModelAcrossIncrementalAppends()
@@ -990,7 +1189,24 @@ internal static class Program
             "\n");
         var attributed = Check.NotNull(reader.UsageForTranscript(transcript));
         Check.Equal(1, attributed.ModelUsage.Count);
-        Check.Equal("gpt-5.6-sol", attributed.ModelUsage[0].Model);
+        Check.Equal("GPT-5.6-SOL", attributed.ModelUsage[0].Model);
+
+        File.AppendAllText(
+            transcript,
+            CodexLine(
+                "2026-07-27T10:00:30Z",
+                input: 150,
+                cachedInput: 40,
+                output: 30,
+                cacheWrite: 15) +
+            "\n");
+        var advanced = Check.NotNull(reader.UsageForTranscript(transcript));
+        Check.Equal(2, advanced.ResponseCount);
+        Check.Equal(95L, advanced.InputTokens);
+        Check.Equal(40L, advanced.CacheReadTokens);
+        Check.Equal(15L, advanced.CacheWriteTokens);
+        Check.Equal(30L, advanced.OutputTokens);
+        Check.Equal("GPT-5.6-SOL", advanced.ModelUsage[0].Model);
 
         // Truncation replaces the parse state, including the remembered model.
         File.WriteAllText(
@@ -1006,6 +1222,79 @@ internal static class Program
         Check.Equal(1, afterTruncation.ModelUsage.Count);
         Check.True(afterTruncation.ModelUsage[0].Model is null);
         return Task.CompletedTask;
+    }
+
+    private static async Task TokenRangesUseExactLocalCalendarDays()
+    {
+        using var temp = new TemporaryDirectory();
+        var now = DateTimeOffset.Parse("2026-07-27T12:00:00Z", Invariant);
+        var transcript = Path.Combine(temp.Path, "range.jsonl");
+        File.WriteAllText(
+            transcript,
+            string.Join(
+                '\n',
+                ClaudeLine(
+                    "today",
+                    "2026-07-27T10:00:00Z",
+                    input: 10,
+                    output: 0,
+                    model: "range-model"),
+                ClaudeLine(
+                    "day-3",
+                    "2026-07-24T10:00:00Z",
+                    input: 200,
+                    output: 0,
+                    model: "range-model"),
+                ClaudeLine(
+                    "day-9",
+                    "2026-07-18T10:00:00Z",
+                    input: 3000,
+                    output: 0,
+                    model: "range-model"),
+                ClaudeLine(
+                    "day-40",
+                    "2026-06-17T10:00:00Z",
+                    input: 40000,
+                    output: 0,
+                    model: "range-model")) +
+            "\n");
+        File.SetLastWriteTimeUtc(transcript, now.UtcDateTime);
+
+        var reader = new TranscriptTokenReader(TimeZoneInfo.Utc);
+        var today = Check.NotNull(
+            await reader
+                .RangeUsageAsync(
+                    temp.Path,
+                    TokenRange.Today,
+                    now)
+                .ConfigureAwait(false));
+        var sevenDays = Check.NotNull(
+            await reader
+                .RangeUsageAsync(
+                    temp.Path,
+                    TokenRange.SevenDays,
+                    now)
+                .ConfigureAwait(false));
+        var thirtyDays = Check.NotNull(
+            await reader
+                .RangeUsageAsync(
+                    temp.Path,
+                    TokenRange.ThirtyDays,
+                    now)
+                .ConfigureAwait(false));
+
+        Check.Equal(10L, today.OdometerTokens);
+        Check.Equal(210L, sevenDays.OdometerTokens);
+        Check.Equal(3210L, thirtyDays.OdometerTokens);
+        Check.Equal(
+            new DateOnly(2026, 7, 27),
+            TokenRange.Today.StartDate(now, TimeZoneInfo.Utc));
+        Check.Equal(
+            new DateOnly(2026, 7, 21),
+            TokenRange.SevenDays.StartDate(now, TimeZoneInfo.Utc));
+        Check.Equal(
+            new DateOnly(2026, 6, 28),
+            TokenRange.ThirtyDays.StartDate(now, TimeZoneInfo.Utc));
     }
 
     private static async Task TranscriptReadsOnlyAppendedBytesAndRetainsPartialLines()
@@ -1126,7 +1415,13 @@ internal static class Program
         long input,
         long cachedInput,
         long output,
-        long cacheWrite = 0) =>
+        long cacheWrite = 0,
+        long cacheWrite1Hour = 0,
+        long? lastInput = null,
+        long? lastCachedInput = null,
+        long? lastOutput = null,
+        long? lastCacheWrite = null,
+        long? lastCacheWrite1Hour = null) =>
         JsonSerializer.Serialize(
             new Dictionary<string, object?>
             {
@@ -1137,12 +1432,24 @@ internal static class Program
                     ["type"] = "token_count",
                     ["info"] = new Dictionary<string, object?>
                     {
-                        ["last_token_usage"] = new Dictionary<string, long>
+                        ["total_token_usage"] = new Dictionary<string, long>
                         {
                             ["input_tokens"] = input,
                             ["cached_input_tokens"] = cachedInput,
                             ["cache_write_input_tokens"] = cacheWrite,
+                            ["cache_write_1h_input_tokens"] = cacheWrite1Hour,
                             ["output_tokens"] = output,
+                        },
+                        ["last_token_usage"] = new Dictionary<string, long>
+                        {
+                            ["input_tokens"] = lastInput ?? input,
+                            ["cached_input_tokens"] =
+                                lastCachedInput ?? cachedInput,
+                            ["cache_write_input_tokens"] =
+                                lastCacheWrite ?? cacheWrite,
+                            ["cache_write_1h_input_tokens"] =
+                                lastCacheWrite1Hour ?? cacheWrite1Hour,
+                            ["output_tokens"] = lastOutput ?? output,
                         },
                     },
                 },
@@ -1156,6 +1463,21 @@ internal static class Program
                 ["payload"] = new Dictionary<string, object?>
                 {
                     ["model"] = model,
+                },
+            });
+
+    private static string CodexThreadSettingsLine(string? model) =>
+        JsonSerializer.Serialize(
+            new Dictionary<string, object?>
+            {
+                ["type"] = "event_msg",
+                ["payload"] = new Dictionary<string, object?>
+                {
+                    ["type"] = "thread_settings_applied",
+                    ["thread_settings"] = new Dictionary<string, object?>
+                    {
+                        ["model"] = model,
+                    },
                 },
             });
 

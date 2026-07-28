@@ -14,7 +14,7 @@ public partial class App : System.Windows.Application
     private HttpClient? _httpClient;
     private AppSettingsStore? _settings;
     private UsageCoordinator? _coordinator;
-    private TokensTodayWatcher? _tokensToday;
+    private TokenOdometerWatcher? _tokenOdometer;
     private FlyoutWindow? _flyout;
     private SettingsWindow? _settingsWindow;
     private OnboardingWindow? _onboardingWindow;
@@ -63,10 +63,10 @@ public partial class App : System.Windows.Application
         };
 
         _coordinator = new UsageCoordinator(_settings, auth, providers);
-        _tokensToday = new TokensTodayWatcher(new TranscriptTokenReader());
+        _tokenOdometer = new TokenOdometerWatcher(new TranscriptTokenReader());
         _flyout = new FlyoutWindow(
             _coordinator,
-            _tokensToday,
+            _tokenOdometer,
             ShowSettings,
             Quit);
         _tray = new TrayIconService(
@@ -213,9 +213,9 @@ public partial class App : System.Windows.Application
         _flyout?.Close();
         _settingsWindow?.Close();
         _onboardingWindow?.Close();
-        if (_tokensToday is not null)
+        if (_tokenOdometer is not null)
         {
-            await _tokensToday.DisposeAsync().ConfigureAwait(true);
+            await _tokenOdometer.DisposeAsync().ConfigureAwait(true);
         }
 
         if (_coordinator is not null)

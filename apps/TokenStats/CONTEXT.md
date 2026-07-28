@@ -27,9 +27,9 @@ _Avoid_: "input" for the sum of direct input and the two cache kinds — direct 
 **API-equivalent usage estimate**:
 An optional Windows presentation of Token Odometer records as an estimated USD value, derived from the Model recorded in each transcript entry and that Model's standard official API list prices. Direct input, cache write, cache read, and output are each priced in the category the API documents. Missing or unrecognized Models remain unpriced, so a mixed result is marked partial. This is not an actual bill: a transcript cannot reliably reconstruct every pricing modifier, subscription term, discount, or non-token charge.
 
-The Windows client also retains a **billable Token** summary for users who prefer a token count over a currency estimate. That summary is `direct input + cache write + output`; cache read remains visible as a Token Kind in the Odometer table but is excluded from this specific summary. Neither presentation changes the four-kind Token Odometer total.
+The Windows client also retains a **Billing tokens** summary for users who prefer a token count over a currency estimate. That summary is `direct input + cache write + output`; cache read remains visible as a Token Kind in the Odometer table but is excluded from this specific summary. Neither presentation changes the four-kind Token Odometer total.
 
-_Avoid_: calling the API-equivalent estimate a Usage Window, presenting it as an invoice, or treating the billable Token summary as the Token Odometer's four-kind total.
+_Avoid_: calling the API-equivalent estimate a Usage Window, presenting it as an invoice, or treating Billing tokens as the Token Odometer's four-kind total.
 
 **Limit**:
 The maximum usage allowed within a Usage Window. Consumption is shown as a percentage of this.

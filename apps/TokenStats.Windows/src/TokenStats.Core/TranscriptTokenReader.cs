@@ -34,7 +34,10 @@ public sealed class TranscriptTokenReader
     public TokenUsage? TodayUsage(
         string root,
         DateTimeOffset? now = null) =>
-        TodayUsageCore(root, now ?? DateTimeOffset.Now, CancellationToken.None);
+        RangeUsage(
+            root,
+            TokenRange.Today,
+            now);
 
     /// <summary>
     /// Runs the filesystem scan away from the UI thread.
@@ -43,9 +46,38 @@ public sealed class TranscriptTokenReader
         string root,
         DateTimeOffset? now = null,
         CancellationToken cancellationToken = default) =>
+        RangeUsageAsync(
+            root,
+            TokenRange.Today,
+            now,
+            cancellationToken);
+
+    /// <summary>
+    /// Returns usage in a rolling local-calendar range, today inclusive,
+    /// grouped by agent and model in <see cref="TokenUsage.ModelUsage"/>.
+    /// </summary>
+    public TokenUsage? RangeUsage(
+        string root,
+        TokenRange range,
+        DateTimeOffset? now = null) =>
+        RangeUsageCore(
+            root,
+            range,
+            now ?? DateTimeOffset.Now,
+            CancellationToken.None);
+
+    /// <summary>
+    /// Runs a rolling-range filesystem scan away from the UI thread.
+    /// </summary>
+    public Task<TokenUsage?> RangeUsageAsync(
+        string root,
+        TokenRange range,
+        DateTimeOffset? now = null,
+        CancellationToken cancellationToken = default) =>
         Task.Run(
-            () => TodayUsageCore(
+            () => RangeUsageCore(
                 root,
+                range,
                 now ?? DateTimeOffset.Now,
                 cancellationToken),
             cancellationToken);
@@ -66,8 +98,9 @@ public sealed class TranscriptTokenReader
         }
     }
 
-    private TokenUsage? TodayUsageCore(
+    private TokenUsage? RangeUsageCore(
         string root,
+        TokenRange range,
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
@@ -82,7 +115,11 @@ public sealed class TranscriptTokenReader
                 return null;
             }
 
-            var today = LocalDate(now);
+            var rangeStart = range.StartDate(now, localTimeZone);
+            var days = Enumerable
+                .Range(0, range.Days())
+                .Select(rangeStart.AddDays)
+                .ToHashSet();
             var combined = new TokenUsage();
             try
             {
@@ -101,7 +138,7 @@ public sealed class TranscriptTokenReader
                             Path.GetExtension(path),
                             ".jsonl",
                             StringComparison.OrdinalIgnoreCase) ||
-                        !WasModifiedOnOrAfter(path, today))
+                        !WasModifiedOnOrAfter(path, rangeStart))
                     {
                         continue;
                     }
@@ -111,10 +148,28 @@ public sealed class TranscriptTokenReader
                         fullPath,
                         now,
                         cancellationToken);
-                    if (states.TryGetValue(fullPath, out var state) &&
-                        state.PerDay.TryGetValue(today, out var usage))
+                    if (!states.TryGetValue(fullPath, out var state))
                     {
-                        combined.Add(usage);
+                        continue;
+                    }
+
+                    foreach (var day in days)
+                    {
+                        if (state.PerDay.TryGetValue(day, out var usage))
+                        {
+                            combined.Add(usage);
+                        }
+                    }
+
+                    foreach (var item in state.PendingByDay)
+                    {
+                        if (days.Contains(item.Key.Day))
+                        {
+                            combined.AddAttribution(
+                                item.Key.AgentId,
+                                ModelName.Unattributed,
+                                item.Value);
+                        }
                     }
                 }
             }
@@ -243,9 +298,21 @@ public sealed class TranscriptTokenReader
             }
 
             states[path] = state;
-            return state.Usage.ResponseCount > 0
-                ? state.Usage.Clone()
-                : null;
+            if (state.Usage.ResponseCount == 0)
+            {
+                return null;
+            }
+
+            var result = state.Usage.Clone();
+            foreach (var item in state.PendingByAgent)
+            {
+                result.AddAttribution(
+                    item.Key,
+                    ModelName.Unattributed,
+                    item.Value);
+            }
+
+            return result;
         }
     }
 
@@ -399,9 +466,14 @@ public sealed class TranscriptTokenReader
         }
 
         var bytes = line.Span;
-        if (bytes.IndexOf("\"usage\""u8) < 0 &&
-            bytes.IndexOf("\"token_count\""u8) < 0 &&
-            bytes.IndexOf("\"turn_context\""u8) < 0)
+        var carriesUsage =
+            bytes.IndexOf("\"usage\""u8) >= 0 ||
+            bytes.IndexOf("\"token_count\""u8) >= 0;
+        var namesModel =
+            !carriesUsage &&
+            (bytes.IndexOf("\"turn_context\""u8) >= 0 ||
+             bytes.IndexOf("\"thread_settings\""u8) >= 0);
+        if (!carriesUsage && !namesModel)
         {
             return;
         }
@@ -415,8 +487,9 @@ public sealed class TranscriptTokenReader
                 return;
             }
 
-            if (TryUpdateCodexModel(root, state))
+            if (TryReadCodexModel(root, out var codexModel))
             {
+                AdoptCodexModel(codexModel, state);
                 return;
             }
 
@@ -429,14 +502,20 @@ public sealed class TranscriptTokenReader
             {
                 Record(
                     AgentId.ClaudeCode,
-                    model,
+                    string.IsNullOrWhiteSpace(model)
+                        ? null
+                        : ModelName.Named(model),
                     claudeUsage,
                     timestamp,
                     state);
                 return;
             }
 
-            if (TryParseCodex(root, out var codexUsage, out timestamp))
+            if (TryParseCodex(
+                    root,
+                    state,
+                    out var codexUsage,
+                    out timestamp))
             {
                 Record(
                     AgentId.Codex,
@@ -523,6 +602,7 @@ public sealed class TranscriptTokenReader
 
     private static bool TryParseCodex(
         JsonElement root,
+        ParseState state,
         out TokenUsage usage,
         out string? timestamp)
     {
@@ -536,19 +616,70 @@ public sealed class TranscriptTokenReader
                 StringComparison.Ordinal) ||
             !payload.TryGetProperty("info", out var info) ||
             info.ValueKind != JsonValueKind.Object ||
-            !info.TryGetProperty("last_token_usage", out var rawUsage) ||
+            !info.TryGetProperty("total_token_usage", out var rawUsage) ||
             rawUsage.ValueKind != JsonValueKind.Object)
         {
             return false;
         }
 
+        var current = ReadCodexRunningTotal(rawUsage);
+        var previous = state.CodexRunningTotal ??
+                       OpeningBaseline(info, current);
+        var directInput = current.DirectInput - previous.DirectInput;
+        var output = current.Output - previous.Output;
+        var cacheWrite = current.CacheWrite - previous.CacheWrite;
+        var cacheWrite1Hour =
+            current.CacheWrite1Hour - previous.CacheWrite1Hour;
+        var cacheRead = current.CacheRead - previous.CacheRead;
+
+        // A reset or malformed running total contributes nothing, but it still
+        // becomes the new baseline. Otherwise every later event would be
+        // rejected until the counter climbed back above its former high-water
+        // mark.
+        if (directInput < 0 ||
+            output < 0 ||
+            cacheWrite < 0 ||
+            cacheWrite1Hour < 0 ||
+            cacheRead < 0)
+        {
+            state.CodexRunningTotal = current;
+            return false;
+        }
+
+        state.CodexRunningTotal = current;
+        usage.InputTokens = directInput;
+        usage.OutputTokens = output;
+        usage.CacheWriteTokens = cacheWrite;
+        usage.CacheWrite1HourTokens = cacheWrite1Hour;
+        usage.CacheReadTokens = cacheRead;
+        if (usage.OdometerTokens == 0)
+        {
+            return false;
+        }
+
+        usage.ResponseCount = 1;
+        timestamp = ReadString(root, "timestamp");
+        return true;
+    }
+
+    private static CodexRunningTotal ReadCodexRunningTotal(
+        JsonElement rawUsage)
+    {
         var totalInput = Math.Max(ReadInteger(rawUsage, "input_tokens"), 0);
         var cachedInput = Math.Max(
             ReadInteger(rawUsage, "cached_input_tokens"),
             0);
         var cacheWrite = Math.Max(
-            ReadInteger(rawUsage, "cache_write_input_tokens"),
-            ReadInteger(rawUsage, "cache_write_tokens"));
+            Math.Max(
+                ReadInteger(rawUsage, "cache_write_input_tokens"),
+                ReadInteger(rawUsage, "cache_write_tokens")),
+            0);
+        var cacheWrite1Hour = Math.Max(
+            Math.Max(
+                ReadInteger(rawUsage, "cache_write_1h_input_tokens"),
+                ReadInteger(rawUsage, "cache_write_1h_tokens")),
+            0);
+
         if (rawUsage.TryGetProperty("input_tokens_details", out var details) &&
             details.ValueKind == JsonValueKind.Object)
         {
@@ -562,45 +693,155 @@ public sealed class TranscriptTokenReader
                 Math.Max(
                     ReadInteger(details, "cache_write_tokens"),
                     ReadInteger(details, "cache_write_input_tokens")));
+            cacheWrite1Hour = Math.Max(
+                cacheWrite1Hour,
+                Math.Max(
+                    ReadInteger(details, "cache_write_1h_tokens"),
+                    ReadInteger(details, "cache_write_1h_input_tokens")));
         }
 
         cachedInput = Math.Clamp(cachedInput, 0, totalInput);
-        cacheWrite = Math.Clamp(cacheWrite, 0, totalInput - cachedInput);
-        usage.InputTokens = totalInput - cachedInput - cacheWrite;
-        usage.OutputTokens = Math.Max(ReadInteger(rawUsage, "output_tokens"), 0);
-        usage.CacheWriteTokens = cacheWrite;
-        usage.CacheReadTokens = cachedInput;
-        usage.ResponseCount = 1;
-        timestamp = ReadString(root, "timestamp");
-        return true;
+        cacheWrite1Hour = Math.Clamp(
+            cacheWrite1Hour,
+            0,
+            totalInput - cachedInput);
+        cacheWrite = Math.Clamp(
+            cacheWrite,
+            0,
+            totalInput - cachedInput - cacheWrite1Hour);
+        return new CodexRunningTotal(
+            totalInput - cachedInput - cacheWrite - cacheWrite1Hour,
+            Math.Max(ReadInteger(rawUsage, "output_tokens"), 0),
+            cacheWrite,
+            cacheWrite1Hour,
+            cachedInput);
     }
 
-    private static bool TryUpdateCodexModel(
-        JsonElement root,
-        ParseState state)
+    private static CodexRunningTotal OpeningBaseline(
+        JsonElement info,
+        CodexRunningTotal current)
     {
-        if (!string.Equals(
-                ReadString(root, "type"),
-                "turn_context",
-                StringComparison.Ordinal) ||
-            !root.TryGetProperty("payload", out var payload) ||
+        if (!info.TryGetProperty("last_token_usage", out var lastUsage) ||
+            lastUsage.ValueKind != JsonValueKind.Object)
+        {
+            return default;
+        }
+
+        var turn = ReadCodexRunningTotal(lastUsage);
+        if (turn == default)
+        {
+            return default;
+        }
+
+        return current.Subtracting(turn);
+    }
+
+    private static bool TryReadCodexModel(
+        JsonElement root,
+        out ModelName model)
+    {
+        model = ModelName.Unattributed;
+        if (!root.TryGetProperty("payload", out var payload) ||
             payload.ValueKind != JsonValueKind.Object)
         {
             return false;
         }
 
-        state.ActiveCodexModel = ReadString(payload, "model");
+        string? value = null;
+        if (string.Equals(
+                ReadString(root, "type"),
+                "turn_context",
+                StringComparison.Ordinal))
+        {
+            value = ReadString(payload, "model");
+        }
+        else if (string.Equals(
+                     ReadString(payload, "type"),
+                     "thread_settings_applied",
+                     StringComparison.Ordinal) &&
+                 payload.TryGetProperty(
+                     "thread_settings",
+                     out var threadSettings) &&
+                 threadSettings.ValueKind == JsonValueKind.Object)
+        {
+            value = ReadString(threadSettings, "model");
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        model = ModelName.Named(value);
         return true;
+    }
+
+    private static void AdoptCodexModel(
+        ModelName model,
+        ParseState state)
+    {
+        state.ActiveCodexModel = model;
+        if (state.PendingByAgent.Remove(
+                AgentId.Codex,
+                out var allPending))
+        {
+            state.Usage.AddAttribution(
+                AgentId.Codex,
+                model,
+                allPending);
+        }
+
+        foreach (var item in state.PendingByDay
+                     .Where(item => item.Key.AgentId == AgentId.Codex)
+                     .ToArray())
+        {
+            if (state.PerDay.TryGetValue(item.Key.Day, out var daily))
+            {
+                daily.AddAttribution(
+                    AgentId.Codex,
+                    model,
+                    item.Value);
+            }
+
+            state.PendingByDay.Remove(item.Key);
+        }
     }
 
     private void Record(
         AgentId agentId,
-        string? model,
+        ModelName? model,
         TokenUsage usage,
         string? timestamp,
         ParseState state)
     {
-        state.Usage.AddAttributed(agentId, model, usage);
+        // Claude can write synthetic all-zero responses, and duplicate Codex
+        // running totals produce zero deltas. Neither is a response or a row.
+        if (usage.OdometerTokens == 0)
+        {
+            return;
+        }
+
+        state.Usage.Add(usage);
+        if (model is { } attributedModel)
+        {
+            state.Usage.AddAttribution(
+                agentId,
+                attributedModel,
+                usage);
+        }
+        else
+        {
+            if (!state.PendingByAgent.TryGetValue(
+                    agentId,
+                    out var pending))
+            {
+                pending = new TokenUsage();
+                state.PendingByAgent.Add(agentId, pending);
+            }
+
+            pending.Add(usage);
+        }
+
         if (!TryParseTimestamp(timestamp, out var parsed))
         {
             return;
@@ -613,7 +854,23 @@ public sealed class TranscriptTokenReader
             state.PerDay.Add(day, daily);
         }
 
-        daily.AddAttributed(agentId, model, usage);
+        daily.Add(usage);
+        if (model is { } dailyModel)
+        {
+            daily.AddAttribution(agentId, dailyModel, usage);
+            return;
+        }
+
+        var pendingKey = new PendingUsageKey(day, agentId);
+        if (!state.PendingByDay.TryGetValue(
+                pendingKey,
+                out var dailyPending))
+        {
+            dailyPending = new TokenUsage();
+            state.PendingByDay.Add(pendingKey, dailyPending);
+        }
+
+        dailyPending.Add(usage);
     }
 
     private static long ReadInteger(JsonElement element, string property)
@@ -694,8 +951,30 @@ public sealed class TranscriptTokenReader
             new(StringComparer.Ordinal);
         public TokenUsage Usage { get; } = new();
         public Dictionary<DateOnly, TokenUsage> PerDay { get; } = [];
-        public string? ActiveCodexModel { get; set; }
+        public Dictionary<AgentId, TokenUsage> PendingByAgent { get; } = [];
+        public Dictionary<PendingUsageKey, TokenUsage> PendingByDay { get; } = [];
+        public ModelName? ActiveCodexModel { get; set; }
+        public CodexRunningTotal? CodexRunningTotal { get; set; }
         public DateTimeOffset LastAccessed { get; set; } = DateTimeOffset.Now;
         public DateTime LastWriteUtc { get; set; }
+    }
+
+    private readonly record struct PendingUsageKey(
+        DateOnly Day,
+        AgentId AgentId);
+
+    private readonly record struct CodexRunningTotal(
+        long DirectInput,
+        long Output,
+        long CacheWrite,
+        long CacheWrite1Hour,
+        long CacheRead)
+    {
+        public CodexRunningTotal Subtracting(CodexRunningTotal other) => new(
+            Math.Max(DirectInput - other.DirectInput, 0),
+            Math.Max(Output - other.Output, 0),
+            Math.Max(CacheWrite - other.CacheWrite, 0),
+            Math.Max(CacheWrite1Hour - other.CacheWrite1Hour, 0),
+            Math.Max(CacheRead - other.CacheRead, 0));
     }
 }

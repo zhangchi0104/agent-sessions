@@ -144,7 +144,31 @@ internal static class Program
                         },
                     },
                 }) + Environment.NewLine);
-            var tokens = new TokensTodayWatcher(
+            var olderTranscript = Path.Combine(
+                roots[0].Item2,
+                "smoke-older.jsonl");
+            File.WriteAllText(
+                olderTranscript,
+                JsonSerializer.Serialize(new
+                {
+                    timestamp = watcherNow.AddDays(-3).ToString("O"),
+                    message = new
+                    {
+                        id = "smoke-older",
+                        model = "claude-sonnet-4-6",
+                        usage = new
+                        {
+                            input_tokens = 200,
+                            output_tokens = 0,
+                            cache_creation_input_tokens = 0,
+                            cache_read_input_tokens = 0,
+                        },
+                    },
+                }) + Environment.NewLine);
+            File.SetLastWriteTimeUtc(
+                olderTranscript,
+                watcherNow.UtcDateTime);
+            var tokens = new TokenOdometerWatcher(
                 new TranscriptTokenReader(),
                 roots,
                 () => watcherNow);
@@ -152,7 +176,40 @@ internal static class Program
             if (tokens.Usage?.TotalTokens != 150)
             {
                 throw new InvalidOperationException(
-                    "The visible-only transcript watcher did not seed Tokens Today.");
+                    "The visible-only transcript watcher did not seed the Token Odometer.");
+            }
+            if (!tokens.HasLoaded ||
+                tokens.IsScanning ||
+                tokens.SelectedRange != TokenRange.Today ||
+                tokens.DisplayedRange != TokenRange.Today ||
+                tokens.PendingRange is not null ||
+                tokens.PerAgent.Count != roots.Length ||
+                tokens.PerAgent[1].Usage is not null)
+            {
+                throw new InvalidOperationException(
+                    "The Token Odometer did not publish a complete, ordered Today state.");
+            }
+
+            tokens.SelectRangeAsync(TokenRange.SevenDays)
+                .GetAwaiter()
+                .GetResult();
+            if (tokens.Usage?.OdometerTokens != 350 ||
+                tokens.SelectedRange != TokenRange.SevenDays ||
+                tokens.DisplayedRange != TokenRange.SevenDays ||
+                tokens.PendingRange is not null)
+            {
+                throw new InvalidOperationException(
+                    "The Token Odometer did not land its seven-day range atomically.");
+            }
+
+            tokens.SetVisibleAsync(false).GetAwaiter().GetResult();
+            tokens.SetVisibleAsync(true).GetAwaiter().GetResult();
+            if (tokens.SelectedRange != TokenRange.Today ||
+                tokens.DisplayedRange != TokenRange.Today ||
+                tokens.Usage?.OdometerTokens != 150)
+            {
+                throw new InvalidOperationException(
+                    "A new Tokens-tab appearance did not reset the range to Today.");
             }
 
             watcherNow = watcherNow.AddDays(1);
@@ -160,7 +217,7 @@ internal static class Program
             if (tokens.Usage is not null)
             {
                 throw new InvalidOperationException(
-                    "Tokens Today retained the previous local day after midnight.");
+                    "The Token Odometer retained the previous local day after midnight.");
             }
 
             watcherNow = watcherNow.AddDays(-1);
@@ -235,6 +292,10 @@ internal static class Program
                     ["SelectedItemTextBrush"] = Rgb(0x08, 0x86, 0x6D),
                     ["DangerBrush"] = Rgb(0xC9, 0x37, 0x37),
                     ["WarningBrush"] = Rgb(0xA6, 0x68, 0x00),
+                    ["TokenInputBrush"] = Rgb(0x21, 0x6B, 0xC7),
+                    ["TokenOutputBrush"] = Rgb(0x17, 0x78, 0x59),
+                    ["TokenCacheWriteBrush"] = Rgb(0x9E, 0x6B, 0x0F),
+                    ["TokenCacheReadBrush"] = Rgb(0x66, 0x5C, 0x9E),
                     ["TooltipBackgroundBrush"] = Rgb(0xFF, 0xFF, 0xFF),
                 });
             VerifyThemePalette(
@@ -262,6 +323,10 @@ internal static class Program
                     ["SelectedItemTextBrush"] = Rgb(0x45, 0xD0, 0xAD),
                     ["DangerBrush"] = Rgb(0xFF, 0x7B, 0x72),
                     ["WarningBrush"] = Rgb(0xF1, 0xC7, 0x5B),
+                    ["TokenInputBrush"] = Rgb(0x4A, 0x99, 0xF0),
+                    ["TokenOutputBrush"] = Rgb(0x38, 0xAD, 0x87),
+                    ["TokenCacheWriteBrush"] = Rgb(0xD9, 0x9E, 0x38),
+                    ["TokenCacheReadBrush"] = Rgb(0x8F, 0x85, 0xBF),
                     ["TooltipBackgroundBrush"] = Rgb(0x38, 0x3C, 0x42),
                 });
             VerifyThemePalette(
@@ -290,6 +355,10 @@ internal static class Program
                         SystemColors.HighlightTextColor,
                     ["DangerBrush"] = SystemColors.HotTrackColor,
                     ["WarningBrush"] = SystemColors.HotTrackColor,
+                    ["TokenInputBrush"] = SystemColors.HighlightColor,
+                    ["TokenOutputBrush"] = SystemColors.HotTrackColor,
+                    ["TokenCacheWriteBrush"] = SystemColors.WindowTextColor,
+                    ["TokenCacheReadBrush"] = SystemColors.GrayTextColor,
                     ["TooltipBackgroundBrush"] = SystemColors.InfoColor,
                 });
         }
@@ -345,10 +414,11 @@ internal static class Program
 
     private static void VerifyRuntimeThemeSwitch(
         UsageCoordinator coordinator,
-        TokensTodayWatcher tokens,
+        TokenOdometerWatcher tokens,
         ResourceDictionary resources)
     {
         WindowsThemeService.Apply(resources, WindowsAppTheme.Light);
+        tokens.SetVisibleAsync(true).GetAwaiter().GetResult();
         var flyout = new FlyoutWindow(
             coordinator,
             tokens,
@@ -360,6 +430,26 @@ internal static class Program
         try
         {
             ShowAndCompleteLayout(flyout);
+            var usageTab =
+                flyout.FindName("UsageTabButton") as RadioButton ??
+                throw new InvalidOperationException(
+                    "Usage tab button could not be found.");
+            var tokensTab =
+                flyout.FindName("TokensTabButton") as RadioButton ??
+                throw new InvalidOperationException(
+                    "Tokens tab button could not be found.");
+            var rangeButton =
+                flyout.FindName("SevenDaysRangeButton") as RadioButton ??
+                throw new InvalidOperationException(
+                    "Token range button could not be found.");
+            if (!usageTab.Focusable ||
+                !tokensTab.Focusable ||
+                !rangeButton.Focusable)
+            {
+                throw new InvalidOperationException(
+                    "Flyout navigation must use keyboard-focusable controls.");
+            }
+
             var status = FindVisualDescendant<TextBlock>(
                 flyout,
                 text => text.Text.StartsWith(
@@ -371,10 +461,10 @@ internal static class Program
                     Math.Abs(border.Height - 1) < 0.01 &&
                     border.Margin.Top >= 14);
             var gauge = FindVisualDescendant<UsageGauge>(flyout, _ => true);
-            var todayLabel =
-                flyout.FindName("TokensTodayLabel") as TextBlock ??
+            var summaryLabel =
+                flyout.FindName("TokenSummaryLabel") as TextBlock ??
                 throw new InvalidOperationException(
-                    "Tokens Today label could not be found.");
+                    "Token summary label could not be found.");
 
             AssertBrushColor(
                 status.Foreground,
@@ -385,10 +475,40 @@ internal static class Program
                 Rgb(0xD9, 0xDC, 0xE1),
                 "Light generated separator");
             AssertBrushColor(
-                todayLabel.Foreground,
+                summaryLabel.Foreground,
                 Rgb(0x62, 0x67, 0x6F),
                 "Light DynamicResource text");
             var lightGauge = RenderVisual(gauge);
+
+            tokensTab.IsChecked = true;
+            FlushThemeChange(flyout);
+            var usageScroll =
+                flyout.FindName("UsageContentScroll") as ScrollViewer ??
+                throw new InvalidOperationException(
+                    "Usage scroll view could not be found.");
+            var tokensScroll =
+                flyout.FindName("TokensContentScroll") as ScrollViewer ??
+                throw new InvalidOperationException(
+                    "Tokens scroll view could not be found.");
+            if (usageScroll.Visibility != Visibility.Collapsed ||
+                tokensScroll.Visibility != Visibility.Visible)
+            {
+                throw new InvalidOperationException(
+                    "Tokens tab did not replace the Usage gauge content.");
+            }
+
+            AssertTokenColumnColors(
+                flyout,
+                [
+                    Rgb(0x21, 0x6B, 0xC7),
+                    Rgb(0x17, 0x78, 0x59),
+                    Rgb(0x9E, 0x6B, 0x0F),
+                    Rgb(0x66, 0x5C, 0x9E),
+                ],
+                "Light");
+            _ = FindVisualDescendant<TextBlock>(
+                flyout,
+                text => text.Text == "–" && Grid.GetColumn(text) == 3);
 
             WindowsThemeService.Apply(resources, WindowsAppTheme.Dark);
             FlushThemeChange(flyout);
@@ -412,9 +532,21 @@ internal static class Program
                 Rgb(0x46, 0x4A, 0x50),
                 "Dark generated separator");
             AssertBrushColor(
-                todayLabel.Foreground,
+                summaryLabel.Foreground,
                 Rgb(0xB3, 0xB8, 0xC0),
                 "Dark DynamicResource text");
+            AssertTokenColumnColors(
+                flyout,
+                [
+                    Rgb(0x4A, 0x99, 0xF0),
+                    Rgb(0x38, 0xAD, 0x87),
+                    Rgb(0xD9, 0x9E, 0x38),
+                    Rgb(0x8F, 0x85, 0xBF),
+                ],
+                "Dark");
+            usageTab.IsChecked = true;
+            FlushThemeChange(flyout);
+            gauge = FindVisualDescendant<UsageGauge>(flyout, _ => true);
             var darkGauge = RenderVisual(gauge);
             AssertSnapshotsDiffer(
                 "UsageGauge runtime Light/Dark switch",
@@ -444,16 +576,55 @@ internal static class Program
         }
         finally
         {
+            tokens.SetVisibleAsync(false).GetAwaiter().GetResult();
             flyout.AllowClose();
             flyout.Close();
             WindowsThemeService.Apply(resources, WindowsAppTheme.Light);
         }
     }
 
+    private static void AssertTokenColumnColors(
+        DependencyObject root,
+        IReadOnlyList<Color> expected,
+        string theme)
+    {
+        var labels = new[] { "IN", "OUT", "C·W", "C·R" };
+        for (var index = 0; index < labels.Length; index++)
+        {
+            var heading = FindVisualDescendant<TextBlock>(
+                root,
+                text => text.Text == labels[index]);
+            AssertBrushColor(
+                heading.Foreground,
+                expected[index],
+                $"{theme} {labels[index]} token column");
+        }
+
+        var proportionBar = FindVisualDescendant<Grid>(
+            root,
+            grid =>
+                Math.Abs(grid.Height - 4) < 0.01 &&
+                VisualTreeHelper.GetChildrenCount(grid) == 4);
+        for (var index = 0; index < expected.Count; index++)
+        {
+            if (VisualTreeHelper.GetChild(proportionBar, index) is not
+                Border segment)
+            {
+                throw new InvalidOperationException(
+                    $"{theme} token proportion segment {index} is missing.");
+            }
+
+            AssertBrushColor(
+                segment.Background,
+                expected[index],
+                $"{theme} token proportion segment {labels[index]}");
+        }
+    }
+
     private static void CaptureThemeMatrix(
         UsageCoordinator coordinator,
         AppSettingsStore settings,
-        TokensTodayWatcher tokens,
+        TokenOdometerWatcher tokens,
         ResourceDictionary resources,
         string? snapshotDirectory,
         IReadOnlyList<WindowsAppTheme> themes)
@@ -493,7 +664,7 @@ internal static class Program
     private static IReadOnlyDictionary<string, RenderedSnapshot> CaptureTheme(
         UsageCoordinator coordinator,
         AppSettingsStore settings,
-        TokensTodayWatcher tokens,
+        TokenOdometerWatcher tokens,
         string? snapshotDirectory,
         WindowsAppTheme theme)
     {
@@ -539,6 +710,14 @@ internal static class Program
             () => { });
         try
         {
+            if (tokenFlyout.FindName("TokensTabButton") is not
+                RadioButton tokensTab)
+            {
+                throw new InvalidOperationException(
+                    "Tokens tab button could not be found for snapshot.");
+            }
+
+            tokensTab.IsChecked = true;
             snapshots["flyout-token"] = ShowAndLayout(
                 tokenFlyout,
                 snapshotDirectory,

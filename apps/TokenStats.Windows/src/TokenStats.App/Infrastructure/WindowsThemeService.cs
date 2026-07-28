@@ -55,6 +55,10 @@ internal static class WindowsThemeService
         SetBrush(resources, "SelectedItemTextBrush", palette.SelectedItemText);
         SetBrush(resources, "DangerBrush", palette.Danger);
         SetBrush(resources, "WarningBrush", palette.Warning);
+        SetBrush(resources, "TokenInputBrush", palette.TokenInput);
+        SetBrush(resources, "TokenOutputBrush", palette.TokenOutput);
+        SetBrush(resources, "TokenCacheWriteBrush", palette.TokenCacheWrite);
+        SetBrush(resources, "TokenCacheReadBrush", palette.TokenCacheRead);
         SetBrush(resources, "TooltipBackgroundBrush", palette.TooltipBackground);
 
         if (System.Windows.Application.Current is { } application)
@@ -192,6 +196,10 @@ internal static class WindowsThemeService
         Color SelectedItemText,
         Color Danger,
         Color Warning,
+        Color TokenInput,
+        Color TokenOutput,
+        Color TokenCacheWrite,
+        Color TokenCacheRead,
         Color TooltipBackground)
     {
         internal static ThemePalette For(WindowsAppTheme theme) =>
@@ -217,6 +225,10 @@ internal static class WindowsThemeService
                     Rgb(0x45, 0xD0, 0xAD),
                     Rgb(0xFF, 0x7B, 0x72),
                     Rgb(0xF1, 0xC7, 0x5B),
+                    Rgb(0x4A, 0x99, 0xF0),
+                    Rgb(0x38, 0xAD, 0x87),
+                    Rgb(0xD9, 0x9E, 0x38),
+                    Rgb(0x8F, 0x85, 0xBF),
                     Rgb(0x38, 0x3C, 0x42)),
                 WindowsAppTheme.HighContrast => new ThemePalette(
                     SystemColors.WindowColor,
@@ -238,6 +250,10 @@ internal static class WindowsThemeService
                     SystemColors.HighlightTextColor,
                     SystemColors.HotTrackColor,
                     SystemColors.HotTrackColor,
+                    SystemColors.HighlightColor,
+                    SystemColors.HotTrackColor,
+                    SystemColors.WindowTextColor,
+                    SystemColors.GrayTextColor,
                     SystemColors.InfoColor),
                 _ => new ThemePalette(
                     Rgb(0xF9, 0xFA, 0xFB),
@@ -259,6 +275,10 @@ internal static class WindowsThemeService
                     Rgb(0x08, 0x86, 0x6D),
                     Rgb(0xC9, 0x37, 0x37),
                     Rgb(0xA6, 0x68, 0x00),
+                    Rgb(0x21, 0x6B, 0xC7),
+                    Rgb(0x17, 0x78, 0x59),
+                    Rgb(0x9E, 0x6B, 0x0F),
+                    Rgb(0x66, 0x5C, 0x9E),
                     Rgb(0xFF, 0xFF, 0xFF)),
             };
     }

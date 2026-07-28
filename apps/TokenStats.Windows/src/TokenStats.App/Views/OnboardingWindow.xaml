@@ -88,7 +88,7 @@
                                 Margin="0,3,0,0"
                                 MaxWidth="420"
                                 Style="{StaticResource SecondaryText}"
-                                Text="Tokens Today reads local transcript files and uploads none of their content." />
+                                Text="The Token Odometer reads local transcript files and uploads none of their content." />
                         </StackPanel>
                     </Border>
                 </StackPanel>

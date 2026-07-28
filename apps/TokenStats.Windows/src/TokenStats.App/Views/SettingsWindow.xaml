@@ -105,24 +105,24 @@
                         Style="{StaticResource SecondaryText}"
                         Text="Nothing to arrange yet — the primary leads and the only other subscription follows." />
 
-                    <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Today counter" />
+                    <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Tokens summary" />
                     <StackPanel Orientation="Horizontal">
                         <RadioButton
                             x:Name="UsageMetric"
                             Margin="0,0,18,0"
                             Checked="TodayMetric_OnChecked"
-                            Content="Usage"
+                            Content="API equivalent"
                             Tag="Usage" />
                         <RadioButton
                             x:Name="TokenMetric"
                             Checked="TodayMetric_OnChecked"
-                            Content="Token"
+                            Content="Billing tokens"
                             Tag="Token" />
                     </StackPanel>
                     <TextBlock
                         Margin="0,6,0,0"
                         Style="{StaticResource SecondaryText}"
-                        Text="Usage estimates standard API cost by recorded model. Token counts raw input + cache write + output; cache reads are excluded."
+                        Text="API equivalent estimates standard list-price cost by recorded model. Billing tokens count direct input + cache write + output; cache reads stay visible in the Odometer table but are excluded from this summary."
                         TextWrapping="Wrap" />
 
                     <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Display mode" />

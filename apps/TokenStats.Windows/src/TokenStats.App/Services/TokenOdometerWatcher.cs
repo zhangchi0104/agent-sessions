@@ -2,13 +2,14 @@ using TokenStats.Core;
 
 namespace TokenStats.App.Services;
 
-public sealed record AgentTokenSlice(string Label, TokenUsage Usage);
+public sealed record AgentTokenSlice(string Label, TokenUsage? Usage);
 
 /// <summary>
-/// Seeds Tokens Today when the flyout opens, then watches native Windows
-/// transcript roots only for as long as the flyout remains visible.
+/// Owns the Token Odometer's visible-only transcript watch and range scans.
+/// A range change keeps the last completed rows available until the new scan
+/// lands, while a generation guard prevents an abandoned scan from publishing.
 /// </summary>
-public sealed class TokensTodayWatcher : IAsyncDisposable
+public sealed class TokenOdometerWatcher : IAsyncDisposable
 {
     private static readonly TimeSpan DebounceInterval = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan DayCheckInterval = TimeSpan.FromSeconds(30);
@@ -19,16 +20,22 @@ public sealed class TokensTodayWatcher : IAsyncDisposable
     private readonly TimeZoneInfo _localTimeZone;
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private readonly List<FileSystemWatcher> _watchers = [];
-    private CancellationTokenSource? _visibleCancellation;
+    private CancellationTokenSource? _scanCancellation;
     private Timer? _debounceTimer;
     private Timer? _dayTimer;
     private TokenUsage? _usage;
     private IReadOnlyList<AgentTokenSlice> _perAgent = [];
     private DateOnly? _visibleDay;
+    private TokenRange _selectedRange = TokenRange.Today;
+    private TokenRange _displayedRange = TokenRange.Today;
+    private TokenRange? _pendingRange;
     private int _generation;
+    private bool _hasLoaded;
+    private bool _isScanning;
+    private bool _isVisible;
     private bool _disposed;
 
-    public TokensTodayWatcher(
+    public TokenOdometerWatcher(
         TranscriptTokenReader reader,
         IReadOnlyList<(string Label, string Path)>? roots = null,
         Func<DateTimeOffset>? now = null,
@@ -37,7 +44,9 @@ public sealed class TokensTodayWatcher : IAsyncDisposable
         _reader = reader;
         _roots = roots ??
             AgentRegistry.All
-                .Select(definition => (definition.DisplayName, definition.TranscriptRoot))
+                .Select(definition => (
+                    definition.DisplayName,
+                    definition.TranscriptRoot))
                 .ToArray();
         _now = now ?? (() => DateTimeOffset.Now);
         _localTimeZone = localTimeZone ?? TimeZoneInfo.Local;
@@ -63,56 +72,156 @@ public sealed class TokensTodayWatcher : IAsyncDisposable
             lock (_stateGate)
             {
                 return _perAgent
-                    .Select(slice => new AgentTokenSlice(slice.Label, slice.Usage.Clone()))
+                    .Select(slice => new AgentTokenSlice(
+                        slice.Label,
+                        slice.Usage?.Clone()))
                     .ToArray();
             }
         }
     }
 
-    public async Task SetVisibleAsync(bool visible)
+    public TokenRange SelectedRange
+    {
+        get
+        {
+            lock (_stateGate)
+            {
+                return _selectedRange;
+            }
+        }
+    }
+
+    public TokenRange DisplayedRange
+    {
+        get
+        {
+            lock (_stateGate)
+            {
+                return _displayedRange;
+            }
+        }
+    }
+
+    public TokenRange? PendingRange
+    {
+        get
+        {
+            lock (_stateGate)
+            {
+                return _pendingRange;
+            }
+        }
+    }
+
+    public bool HasLoaded
+    {
+        get
+        {
+            lock (_stateGate)
+            {
+                return _hasLoaded;
+            }
+        }
+    }
+
+    public bool IsScanning
+    {
+        get
+        {
+            lock (_stateGate)
+            {
+                return _isScanning;
+            }
+        }
+    }
+
+    public Task SetVisibleAsync(bool visible)
     {
         ThrowIfDisposed();
         if (!visible)
         {
             StopWatching();
-            return;
+            return Task.CompletedTask;
         }
 
-        int generation;
-        CancellationToken token;
-        var clearedForNewDay = false;
+        ScanRequest request;
         lock (_stateGate)
         {
-            if (_visibleCancellation is null)
+            if (_isVisible)
             {
-                _generation++;
-                _visibleCancellation = new CancellationTokenSource();
+                request = BeginScanLocked(_selectedRange);
+            }
+            else
+            {
+                _isVisible = true;
+                _selectedRange = TokenRange.Today;
+                _displayedRange = TokenRange.Today;
+                _pendingRange = TokenRange.Today;
+                _hasLoaded = false;
+                _isScanning = true;
+                _usage = null;
+                _perAgent = [];
                 _visibleDay = CurrentDay();
-                ClearUsageLocked();
-                clearedForNewDay = true;
+
+                // Arm the filesystem watchers before the seed scan so an
+                // append during enumeration cannot be missed.
                 CreateWatchersLocked();
                 _dayTimer = new Timer(
                     _ => CheckForDayChange(),
                     null,
                     DayCheckInterval,
                     DayCheckInterval);
+                request = BeginScanLocked(TokenRange.Today);
             }
-            else if (_visibleDay != CurrentDay())
-            {
-                RotateDayLocked();
-                clearedForNewDay = true;
-            }
-
-            generation = _generation;
-            token = _visibleCancellation.Token;
         }
 
-        if (clearedForNewDay)
+        Changed?.Invoke(this, EventArgs.Empty);
+        return ScanAsync(request);
+    }
+
+    public Task SelectRangeAsync(TokenRange range)
+    {
+        ThrowIfDisposed();
+        if (!Enum.IsDefined(range))
         {
-            Changed?.Invoke(this, EventArgs.Empty);
+            throw new ArgumentOutOfRangeException(nameof(range));
         }
 
-        await RefreshAsync(generation, token).ConfigureAwait(false);
+        ScanRequest? request = null;
+        lock (_stateGate)
+        {
+            _selectedRange = range;
+            if (_isVisible)
+            {
+                request = BeginScanLocked(range);
+            }
+        }
+
+        Changed?.Invoke(this, EventArgs.Empty);
+        return request is { } value
+            ? ScanAsync(value)
+            : Task.CompletedTask;
+    }
+
+    public Task RefreshAsync()
+    {
+        ThrowIfDisposed();
+        ScanRequest? request = null;
+        lock (_stateGate)
+        {
+            if (_isVisible)
+            {
+                request = BeginScanLocked(_selectedRange);
+            }
+        }
+
+        if (request is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        Changed?.Invoke(this, EventArgs.Empty);
+        return ScanAsync(request.Value);
     }
 
     public async ValueTask DisposeAsync()
@@ -127,8 +236,22 @@ public sealed class TokensTodayWatcher : IAsyncDisposable
         await _refreshGate.WaitAsync().ConfigureAwait(false);
         _refreshGate.Release();
         // A FileSystemWatcher callback already queued by Windows can still
-        // observe cancellation after this point. Keeping this one semaphore
-        // alive avoids racing that callback against Dispose.
+        // observe the disposed flag. Keep the semaphore alive so that callback
+        // cannot race a disposed synchronization primitive.
+    }
+
+    private ScanRequest BeginScanLocked(TokenRange range)
+    {
+        _generation++;
+        _scanCancellation?.Cancel();
+        _scanCancellation?.Dispose();
+        _scanCancellation = new CancellationTokenSource();
+        _pendingRange = range;
+        _isScanning = true;
+        return new ScanRequest(
+            _generation,
+            range,
+            _scanCancellation.Token);
     }
 
     private void StopWatching()
@@ -136,9 +259,12 @@ public sealed class TokensTodayWatcher : IAsyncDisposable
         lock (_stateGate)
         {
             _generation++;
-            _visibleCancellation?.Cancel();
-            _visibleCancellation?.Dispose();
-            _visibleCancellation = null;
+            _isVisible = false;
+            _isScanning = false;
+            _pendingRange = null;
+            _scanCancellation?.Cancel();
+            _scanCancellation?.Dispose();
+            _scanCancellation = null;
             _debounceTimer?.Dispose();
             _debounceTimer = null;
             _dayTimer?.Dispose();
@@ -214,30 +340,33 @@ public sealed class TokensTodayWatcher : IAsyncDisposable
     {
         lock (_stateGate)
         {
-            if (_visibleCancellation is null || _disposed)
+            if (!_isVisible || _disposed)
             {
                 return;
             }
 
-            var generation = _generation;
-            var token = _visibleCancellation.Token;
             _debounceTimer?.Dispose();
             _debounceTimer = new Timer(
                 _ =>
                 {
-                    if (rebuildWatchers)
+                    ScanRequest? request = null;
+                    lock (_stateGate)
                     {
-                        lock (_stateGate)
+                        if (!_isVisible || _disposed)
                         {
-                            if (generation == _generation &&
-                                _visibleCancellation is not null)
-                            {
-                                CreateWatchersLocked();
-                            }
+                            return;
                         }
+
+                        if (rebuildWatchers)
+                        {
+                            CreateWatchersLocked();
+                        }
+
+                        request = BeginScanLocked(_selectedRange);
                     }
 
-                    _ = RefreshAsync(generation, token);
+                    Changed?.Invoke(this, EventArgs.Empty);
+                    _ = ScanAsync(request.Value);
                 },
                 null,
                 DebounceInterval,
@@ -247,53 +376,35 @@ public sealed class TokensTodayWatcher : IAsyncDisposable
 
     private void CheckForDayChange()
     {
-        int generation;
-        CancellationToken token;
+        ScanRequest? request = null;
         lock (_stateGate)
         {
-            if (_visibleCancellation is null ||
+            if (!_isVisible ||
                 _disposed ||
                 _visibleDay == CurrentDay())
             {
                 return;
             }
 
-            RotateDayLocked();
-            generation = _generation;
-            token = _visibleCancellation.Token;
+            _visibleDay = CurrentDay();
+            request = BeginScanLocked(_selectedRange);
         }
 
         Changed?.Invoke(this, EventArgs.Empty);
-        _ = RefreshAsync(generation, token);
-    }
-
-    private void RotateDayLocked()
-    {
-        _generation++;
-        _visibleCancellation?.Cancel();
-        _visibleCancellation?.Dispose();
-        _visibleCancellation = new CancellationTokenSource();
-        _visibleDay = CurrentDay();
-        ClearUsageLocked();
-    }
-
-    private void ClearUsageLocked()
-    {
-        _usage = null;
-        _perAgent = [];
+        _ = ScanAsync(request.Value);
     }
 
     private DateOnly CurrentDay() =>
         DateOnly.FromDateTime(
             TimeZoneInfo.ConvertTime(_now(), _localTimeZone).DateTime);
 
-    private async Task RefreshAsync(
-        int generation,
-        CancellationToken cancellationToken)
+    private async Task ScanAsync(ScanRequest request)
     {
         try
         {
-            await _refreshGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await _refreshGate
+                .WaitAsync(request.CancellationToken)
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -302,38 +413,45 @@ public sealed class TokensTodayWatcher : IAsyncDisposable
 
         try
         {
-            var slices = new List<AgentTokenSlice>();
+            var slices = new List<AgentTokenSlice>(_roots.Count);
             var scanTime = _now();
             foreach (var root in _roots)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                request.CancellationToken.ThrowIfCancellationRequested();
                 var usage = await _reader
-                    .TodayUsageAsync(
+                    .RangeUsageAsync(
                         root.Path,
+                        request.Range,
                         scanTime,
-                        cancellationToken)
+                        request.CancellationToken)
                     .ConfigureAwait(false);
-                if (usage is not null)
-                {
-                    slices.Add(new AgentTokenSlice(root.Label, usage));
-                }
+                slices.Add(new AgentTokenSlice(root.Label, usage));
             }
 
             var combined = new TokenUsage();
             foreach (var slice in slices)
             {
-                combined.Add(slice.Usage);
+                if (slice.Usage is { } usage)
+                {
+                    combined.Add(usage);
+                }
             }
 
             lock (_stateGate)
             {
-                if (generation != _generation || _visibleCancellation is null)
+                if (!_isVisible ||
+                    request.Generation != _generation ||
+                    request.Range != _selectedRange)
                 {
                     return;
                 }
 
                 _perAgent = slices;
                 _usage = combined.ResponseCount > 0 ? combined : null;
+                _displayedRange = request.Range;
+                _pendingRange = null;
+                _hasLoaded = true;
+                _isScanning = false;
             }
 
             Changed?.Invoke(this, EventArgs.Empty);
@@ -351,4 +469,9 @@ public sealed class TokensTodayWatcher : IAsyncDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
     }
+
+    private readonly record struct ScanRequest(
+        int Generation,
+        TokenRange Range,
+        CancellationToken CancellationToken);
 }

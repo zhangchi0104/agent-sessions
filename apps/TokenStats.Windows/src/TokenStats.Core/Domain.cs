@@ -21,8 +21,120 @@ public enum GaugeStyle
 
 public enum TodayMetricMode
 {
+    // Names are retained for settings-file compatibility. The user-facing
+    // labels are Billing tokens and API equivalent.
     Token,
     Usage,
+}
+
+/// <summary>
+/// Local-calendar ranges shown by the Token Odometer. Today is inclusive and
+/// the range is deliberately capped at 30 days because Claude Code prunes
+/// transcript history sooner than Codex.
+/// </summary>
+public enum TokenRange
+{
+    Today,
+    SevenDays,
+    ThirtyDays,
+}
+
+public static class TokenRangeExtensions
+{
+    public static int Days(this TokenRange range) =>
+        range switch
+        {
+            TokenRange.Today => 1,
+            TokenRange.SevenDays => 7,
+            TokenRange.ThirtyDays => 30,
+            _ => throw new ArgumentOutOfRangeException(nameof(range), range, null),
+        };
+
+    public static string Label(this TokenRange range) =>
+        range switch
+        {
+            TokenRange.Today => "Today",
+            TokenRange.SevenDays => "7 days",
+            TokenRange.ThirtyDays => "30 days",
+            _ => throw new ArgumentOutOfRangeException(nameof(range), range, null),
+        };
+
+    /// <summary>
+    /// The first local calendar date in the range. Date arithmetic, instead of
+    /// subtracting 86,400-second intervals, keeps daylight-saving boundaries
+    /// on the intended local date.
+    /// </summary>
+    public static DateOnly StartDate(
+        this TokenRange range,
+        DateTimeOffset now,
+        TimeZoneInfo localTimeZone)
+    {
+        ArgumentNullException.ThrowIfNull(localTimeZone);
+        var localNow = TimeZoneInfo.ConvertTime(now, localTimeZone);
+        return DateOnly
+            .FromDateTime(localNow.DateTime)
+            .AddDays(-(range.Days() - 1));
+    }
+}
+
+/// <summary>
+/// The four disjoint columns in the Token Odometer, in display order.
+/// Cache-write TTL detail remains available in TokenBreakdown but is combined
+/// into one Odometer column.
+/// </summary>
+public enum TokenKind
+{
+    DirectInput,
+    Output,
+    CacheWrite,
+    CacheRead,
+}
+
+/// <summary>
+/// A transcript-reported model name. Unattributed is a distinct value rather
+/// than the string "unknown", because an agent can genuinely name a model
+/// "unknown".
+/// </summary>
+public readonly record struct ModelName : IComparable<ModelName>
+{
+    private ModelName(string? value)
+    {
+        Value = value;
+    }
+
+    public string? Value { get; }
+    public bool IsUnattributed => Value is null;
+    public string DisplayName => Value ?? "unknown";
+
+    public static ModelName Unattributed => default;
+
+    public static ModelName Named(string value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        return new ModelName(value.Trim());
+    }
+
+    public static ModelName FromNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? Unattributed
+            : Named(value);
+
+    public int CompareTo(ModelName other)
+    {
+        var displayComparison = StringComparer.Ordinal.Compare(
+            DisplayName,
+            other.DisplayName);
+        if (displayComparison != 0)
+        {
+            return displayComparison;
+        }
+
+        // Keep the two values deterministic even when a real model is named
+        // "unknown" and therefore shares the unattributed display label.
+        return IsUnattributed.CompareTo(other.IsUnattributed);
+    }
+
+    public override string ToString() => DisplayName;
 }
 
 public sealed record GaugeSlot(string Label, bool Emphasized = false);
@@ -167,6 +279,17 @@ public readonly record struct TokenBreakdown(
 
     public long MeteredTokenTotal => TokenMetricTotal + CacheReadTokens;
 
+    public long Amount(TokenKind kind) =>
+        kind switch
+        {
+            TokenKind.DirectInput => RawInputTokens,
+            TokenKind.Output => OutputTokens,
+            TokenKind.CacheWrite =>
+                CacheWriteTokens + CacheWrite1HourTokens,
+            TokenKind.CacheRead => CacheReadTokens,
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+        };
+
     public TokenBreakdown Add(TokenBreakdown other) => new(
         RawInputTokens + other.RawInputTokens,
         OutputTokens + other.OutputTokens,
@@ -189,9 +312,13 @@ public readonly record struct TokenBreakdown(
 
 public sealed record ModelTokenUsage(
     AgentId AgentId,
-    string? Model,
+    ModelName Name,
     TokenBreakdown Breakdown,
-    int ResponseCount);
+    int ResponseCount)
+{
+    /// <summary>Backward-compatible nullable model value for pricing/UI code.</summary>
+    public string? Model => Name.Value;
+}
 
 public sealed class TokenUsage
 {
@@ -223,7 +350,8 @@ public sealed class TokenUsage
     public int ResponseCount { get; set; }
 
     /// <summary>
-    /// The user-facing Token metric: raw input + cache writes + output.
+    /// The user-facing Billing tokens metric:
+    /// direct input + cache writes + output.
     /// Cache reads are deliberately excluded.
     /// </summary>
     public long BillableTokens => Breakdown.TokenMetricTotal;
@@ -233,6 +361,12 @@ public sealed class TokenUsage
 
     public long MeteredTokens => Breakdown.MeteredTokenTotal;
 
+    /// <summary>
+    /// Token Odometer total. Unlike the existing user-facing Token metric, all
+    /// four Odometer columns, including cache reads, contribute.
+    /// </summary>
+    public long OdometerTokens => MeteredTokens;
+
     public TokenBreakdown Breakdown => new(
         InputTokens,
         OutputTokens,
@@ -240,13 +374,16 @@ public sealed class TokenUsage
         CacheWrite1HourTokens,
         CacheReadTokens);
 
+    public long Amount(TokenKind kind) => Breakdown.Amount(kind);
+
     public IReadOnlyList<ModelTokenUsage> ModelUsage =>
         modelUsage
             .OrderBy(item => item.Key.AgentId)
-            .ThenBy(item => item.Key.Model, StringComparer.OrdinalIgnoreCase)
+            .ThenByDescending(item => item.Value.Breakdown.MeteredTokenTotal)
+            .ThenBy(item => item.Key.Name)
             .Select(item => new ModelTokenUsage(
                 item.Key.AgentId,
-                item.Key.Model,
+                item.Key.Name,
                 item.Value.Breakdown,
                 item.Value.ResponseCount))
             .ToArray();
@@ -256,10 +393,32 @@ public sealed class TokenUsage
         string? model,
         TokenUsage response)
     {
+        AddAttributed(agentId, ModelName.FromNullable(model), response);
+    }
+
+    public void AddAttributed(
+        AgentId agentId,
+        ModelName model,
+        TokenUsage response)
+    {
         ArgumentNullException.ThrowIfNull(response);
         AddTotals(response);
 
-        var key = new ModelUsageKey(agentId, NormalizeModel(model));
+        AddAttribution(agentId, model, response);
+    }
+
+    /// <summary>
+    /// Adds only a model bucket, without adding the response to the aggregate
+    /// totals. The transcript reader uses this to settle pending attribution
+    /// after the response has already contributed to its day/file total.
+    /// </summary>
+    internal void AddAttribution(
+        AgentId agentId,
+        ModelName model,
+        TokenUsage response)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        var key = new ModelUsageKey(agentId, model);
         if (!modelUsage.TryGetValue(key, out var accumulator))
         {
             accumulator = new ModelUsageAccumulator();
@@ -313,11 +472,6 @@ public sealed class TokenUsage
         return clone;
     }
 
-    private static string? NormalizeModel(string? model) =>
-        string.IsNullOrWhiteSpace(model)
-            ? null
-            : model.Trim().ToLowerInvariant();
-
     private void AddTotals(TokenUsage other)
     {
         InputTokens += other.InputTokens;
@@ -328,7 +482,7 @@ public sealed class TokenUsage
         ResponseCount += other.ResponseCount;
     }
 
-    private readonly record struct ModelUsageKey(AgentId AgentId, string? Model);
+    private readonly record struct ModelUsageKey(AgentId AgentId, ModelName Name);
 
     private sealed class ModelUsageAccumulator
     {

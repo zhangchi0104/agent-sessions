@@ -33,9 +33,10 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <Grid Grid.Row="0" Margin="0,0,0,12">
+            <Grid Grid.Row="0" Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
@@ -55,38 +56,281 @@
                     Content="&#xE72C;" />
             </Grid>
 
-            <ScrollViewer
-                x:Name="ContentScroll"
+            <Border
                 Grid.Row="1"
-                MaxHeight="650"
-                HorizontalScrollBarVisibility="Disabled"
-                VerticalScrollBarVisibility="Auto">
-                <StackPanel>
-                    <Border
-                        x:Name="TokensTodayPanel"
-                        Margin="0,0,0,14"
-                        Background="Transparent"
-                        ToolTipService.ShowDuration="30000"
-                        Visibility="Collapsed">
-                        <StackPanel>
-                            <TextBlock
-                                x:Name="TokensTodayCount"
-                                FontFamily="Segoe UI Variable Display, Segoe UI"
-                                FontSize="40"
-                                FontWeight="Bold"
-                                Text="0" />
-                            <TextBlock
-                                x:Name="TokensTodayLabel"
-                                Margin="1,-2,0,0"
-                                Style="{StaticResource SecondaryText}"
-                                Text="tokens today" />
-                        </StackPanel>
-                    </Border>
-                    <StackPanel x:Name="AgentsPanel" />
-                </StackPanel>
-            </ScrollViewer>
+                Margin="0,0,0,12"
+                Padding="3"
+                Background="{DynamicResource SubtleBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <RadioButton
+                        x:Name="UsageTabButton"
+                        Grid.Column="0"
+                        Style="{StaticResource TopTabButton}"
+                        GroupName="FlyoutTopTab"
+                        AutomationProperties.Name="Usage tab"
+                        Checked="UsageTabButton_OnChecked"
+                        Content="Usage" />
+                    <RadioButton
+                        x:Name="TokensTabButton"
+                        Grid.Column="1"
+                        Style="{StaticResource TopTabButton}"
+                        GroupName="FlyoutTopTab"
+                        AutomationProperties.Name="Tokens tab"
+                        Checked="TokensTabButton_OnChecked"
+                        Content="Tokens" />
+                </Grid>
+            </Border>
 
-            <Grid Grid.Row="2" Margin="0,12,0,0">
+            <Grid Grid.Row="2">
+                <ScrollViewer
+                    x:Name="UsageContentScroll"
+                    MaxHeight="600"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="AgentsPanel" />
+                </ScrollViewer>
+
+                <ScrollViewer
+                    x:Name="TokensContentScroll"
+                    MaxHeight="600"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto"
+                    Visibility="Collapsed">
+                    <StackPanel>
+                        <Border
+                            Padding="3"
+                            Background="{DynamicResource SubtleBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <RadioButton
+                                    x:Name="ApiMetricButton"
+                                    Grid.Column="0"
+                                    Style="{StaticResource CompactSegmentButton}"
+                                    GroupName="TokenSummaryMetric"
+                                    AutomationProperties.Name="API equivalent summary"
+                                    Checked="ApiMetricButton_OnChecked"
+                                    Content="API equivalent" />
+                                <RadioButton
+                                    x:Name="BillingMetricButton"
+                                    Grid.Column="1"
+                                    Style="{StaticResource CompactSegmentButton}"
+                                    GroupName="TokenSummaryMetric"
+                                    AutomationProperties.Name="Billing tokens summary"
+                                    Checked="BillingMetricButton_OnChecked"
+                                    Content="Billing tokens" />
+                            </Grid>
+                        </Border>
+
+                        <Border
+                            x:Name="TokenSummaryPanel"
+                            Margin="0,12,0,12"
+                            Background="Transparent"
+                            ToolTipService.ShowDuration="30000">
+                            <StackPanel>
+                                <TextBlock
+                                    x:Name="TokenSummaryValue"
+                                    FontFamily="Segoe UI Variable Display, Segoe UI"
+                                    FontSize="38"
+                                    FontWeight="Bold"
+                                    Text="—" />
+                                <TextBlock
+                                    x:Name="TokenSummaryLabel"
+                                    Margin="1,-2,0,0"
+                                    Style="{StaticResource SecondaryText}"
+                                    Text="API-equivalent · Today" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border
+                            Padding="3"
+                            Background="{DynamicResource SubtleBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <RadioButton
+                                    x:Name="TodayRangeButton"
+                                    Grid.Column="0"
+                                    Style="{StaticResource CompactSegmentButton}"
+                                    GroupName="TokenRange"
+                                    Tag="Today"
+                                    AutomationProperties.Name="Today token range"
+                                    Checked="RangeButton_OnChecked"
+                                    Content="Today" />
+                                <RadioButton
+                                    x:Name="SevenDaysRangeButton"
+                                    Grid.Column="1"
+                                    Style="{StaticResource CompactSegmentButton}"
+                                    GroupName="TokenRange"
+                                    Tag="SevenDays"
+                                    AutomationProperties.Name="Seven day token range"
+                                    Checked="RangeButton_OnChecked"
+                                    Content="7 days" />
+                                <RadioButton
+                                    x:Name="ThirtyDaysRangeButton"
+                                    Grid.Column="2"
+                                    Style="{StaticResource CompactSegmentButton}"
+                                    GroupName="TokenRange"
+                                    Tag="ThirtyDays"
+                                    AutomationProperties.Name="Thirty day token range"
+                                    Checked="RangeButton_OnChecked"
+                                    Content="30 days" />
+                            </Grid>
+                        </Border>
+
+                        <Grid Margin="0,14,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock
+                                    FontSize="13"
+                                    FontWeight="SemiBold"
+                                    Text="By agent and model" />
+                                <TextBlock
+                                    x:Name="TokenTableTotal"
+                                    Margin="0,1,0,0"
+                                    FontSize="11.5"
+                                    Foreground="{DynamicResource SecondaryTextBrush}"
+                                    Text="—" />
+                            </StackPanel>
+                            <StackPanel
+                                Grid.Column="1"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center">
+                                <TextBlock
+                                    x:Name="OdometerStatusText"
+                                    HorizontalAlignment="Right"
+                                    FontSize="11.5"
+                                    Foreground="{DynamicResource SecondaryTextBrush}" />
+                                <ProgressBar
+                                    x:Name="OdometerProgress"
+                                    Width="62"
+                                    Height="3"
+                                    Margin="0,4,0,0"
+                                    HorizontalAlignment="Right"
+                                    IsIndeterminate="True"
+                                    Visibility="Collapsed" />
+                            </StackPanel>
+                        </Grid>
+
+                        <StackPanel x:Name="TokenTablePanel">
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110" />
+                                    <ColumnDefinition Width="56" />
+                                    <ColumnDefinition Width="56" />
+                                    <ColumnDefinition Width="56" />
+                                    <ColumnDefinition Width="56" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock
+                                    Grid.Column="0"
+                                    FontSize="10.5"
+                                    FontWeight="SemiBold"
+                                    Foreground="{DynamicResource SecondaryTextBrush}"
+                                    Text="MODEL" />
+                                <StackPanel
+                                    Grid.Column="1"
+                                    HorizontalAlignment="Right"
+                                    Orientation="Horizontal"
+                                    ToolTip="Direct input tokens">
+                                    <Border
+                                        Width="6"
+                                        Height="6"
+                                        Margin="0,0,4,0"
+                                        VerticalAlignment="Center"
+                                        Background="{DynamicResource TokenInputBrush}" />
+                                    <TextBlock
+                                        FontSize="10.5"
+                                        FontWeight="SemiBold"
+                                        Foreground="{DynamicResource TokenInputBrush}"
+                                        Text="IN" />
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Column="2"
+                                    HorizontalAlignment="Right"
+                                    Orientation="Horizontal"
+                                    ToolTip="Output tokens">
+                                    <Border
+                                        Width="6"
+                                        Height="6"
+                                        Margin="0,0,4,0"
+                                        VerticalAlignment="Center"
+                                        Background="{DynamicResource TokenOutputBrush}" />
+                                    <TextBlock
+                                        FontSize="10.5"
+                                        FontWeight="SemiBold"
+                                        Foreground="{DynamicResource TokenOutputBrush}"
+                                        Text="OUT" />
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Column="3"
+                                    HorizontalAlignment="Right"
+                                    Orientation="Horizontal"
+                                    ToolTip="Cache write tokens">
+                                    <Border
+                                        Width="6"
+                                        Height="6"
+                                        Margin="0,0,4,0"
+                                        VerticalAlignment="Center"
+                                        Background="{DynamicResource TokenCacheWriteBrush}" />
+                                    <TextBlock
+                                        FontSize="10.5"
+                                        FontWeight="SemiBold"
+                                        Foreground="{DynamicResource TokenCacheWriteBrush}"
+                                        Text="C·W" />
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Column="4"
+                                    HorizontalAlignment="Right"
+                                    Orientation="Horizontal"
+                                    ToolTip="Cache read tokens">
+                                    <Border
+                                        Width="6"
+                                        Height="6"
+                                        Margin="0,0,4,0"
+                                        VerticalAlignment="Center"
+                                        Background="{DynamicResource TokenCacheReadBrush}" />
+                                    <TextBlock
+                                        FontSize="10.5"
+                                        FontWeight="SemiBold"
+                                        Foreground="{DynamicResource TokenCacheReadBrush}"
+                                        Text="C·R" />
+                                </StackPanel>
+                            </Grid>
+                            <StackPanel x:Name="TokenRowsPanel" />
+                        </StackPanel>
+
+                        <TextBlock
+                            Margin="0,10,0,0"
+                            FontSize="10.5"
+                            Foreground="{DynamicResource SecondaryTextBrush}"
+                            Text="IN direct input · OUT output · C·W cache write · C·R cache read"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <Grid Grid.Row="3" Margin="0,12,0,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="1" />
                     <RowDefinition Height="Auto" />

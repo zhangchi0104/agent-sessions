@@ -1,20 +1,21 @@
 # Tokens Today stays an in-process estimate, not a shared-DB figure
 
-The **Today counter** is computed **in-process inside TokenStats** from local
-transcript files and held in memory. Its Token view is
-`raw input + cache writes + output`; cache reads are disclosed but excluded
-from that total. Its optional Usage view is a derived API-equivalent estimate
-that applies the recorded model's standard list prices to the same categories,
-including cache reads. Unknown models remain unpriced and make the estimate
-partial.
+The **Token Odometer** is computed **in-process inside TokenStats** from local
+transcript files and held in memory. Its shared raw total is the sum of the four
+disjoint Token Kinds: direct input, output, cache write, and cache read.
+
+The Windows client additionally derives two optional summaries from the same
+records: Billing tokens excludes cache read, while API equivalent applies the
+recorded Model's standard list prices to all four Token Kinds. Unknown Models
+remain unpriced and make the estimate partial. These summaries do not redefine
+the Token Odometer.
 
 Neither the parsed token records nor the derived estimate is promoted to the
-shared SQLite database, a watcher daemon, or any IPC surface. The macOS
-popover's Usage tab refreshes its local data by **watching
-`~/.claude/projects` with FSEvents while visible** instead of polling on a
-timer.
+shared SQLite database, a watcher daemon, or any IPC surface. Each native app
+watches its transcript roots only while the Tokens tab is visible (FSEvents on
+macOS and `FileSystemWatcher` on Windows) instead of polling on a timer.
 
-This sits under ADR-0001: the Today counter is the *estimate-grade* local-file
+This sits under ADR-0001: the Token Odometer is the *estimate-grade* local-file
 figure that ADR-0001 rejected as the source of truth for the authoritative
 **Usage Window**. It survives only as a separate informational reading (see
 `CONTEXT.md`), never as a quota measure or an actual bill.
