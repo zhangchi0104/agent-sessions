@@ -1,0 +1,243 @@
+<Window
+    x:Class="TokenStats.App.Views.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:TokenStats.App.Controls"
+    Title="TokenStats Settings"
+    Icon="/TokenStats;component/Assets/TokenStats.ico"
+    Width="760"
+    Height="500"
+    MinWidth="480"
+    MinHeight="320"
+    Background="{DynamicResource WindowBackgroundBrush}"
+    Foreground="{DynamicResource PrimaryTextBrush}"
+    ShowInTaskbar="True"
+    Style="{StaticResource {x:Type Window}}"
+    WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="NavigationColumn" Width="190" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border
+            Grid.Column="0"
+            Padding="14,18"
+            Background="{DynamicResource SubtleBackgroundBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="0,0,1,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="8,2,8,18">
+                    <TextBlock FontSize="20" FontWeight="SemiBold" Text="TokenStats" />
+                    <TextBlock
+                        Margin="0,2,0,0"
+                        Style="{StaticResource SecondaryText}"
+                        Text="Settings" />
+                </StackPanel>
+                <ListBox
+                    x:Name="Navigation"
+                    BorderThickness="0"
+                    Background="Transparent"
+                    SelectionChanged="Navigation_OnSelectionChanged"
+                    SelectedIndex="0">
+                    <ListBox.Resources>
+                        <Style
+                            TargetType="ListBoxItem"
+                            BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                            <Setter Property="Padding" Value="10,8" />
+                            <Setter Property="Margin" Value="0,2" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                    </ListBox.Resources>
+                    <ListBoxItem Content="Accounts" Tag="accounts" />
+                    <ListBoxItem Content="Display" Tag="appearance" />
+                    <ListBoxItem Content="About" Tag="about" />
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Column="1">
+            <ScrollViewer
+                x:Name="AccountsPage"
+                Padding="28,24"
+                VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock FontSize="24" FontWeight="SemiBold" Text="Accounts" />
+                    <TextBlock
+                        Margin="0,4,0,20"
+                        Style="{StaticResource SecondaryText}"
+                        Text="Connect the Coding Agents whose Usage Windows you want to see." />
+                    <StackPanel x:Name="AccountsPanel" />
+                    <TextBlock
+                        Margin="2,16,2,0"
+                        Style="{StaticResource SecondaryText}"
+                        Text="Tokens are stored in Windows Credential Manager and are used only to read usage." />
+                </StackPanel>
+            </ScrollViewer>
+
+            <ScrollViewer
+                x:Name="AppearancePage"
+                Padding="28,24"
+                VerticalScrollBarVisibility="Auto"
+                Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock FontSize="24" FontWeight="SemiBold" Text="Display" />
+
+                    <TextBlock Margin="0,22,0,6" Style="{StaticResource SectionTitle}" Text="Primary subscription" />
+                    <ComboBox
+                        x:Name="PrimaryAgentCombo"
+                        Width="260"
+                        HorizontalAlignment="Left"
+                        DisplayMemberPath="DisplayName"
+                        SelectedValuePath="Id"
+                        SelectionChanged="PrimaryAgentCombo_OnSelectionChanged" />
+                    <TextBlock
+                        Margin="0,6,0,0"
+                        Style="{StaticResource SecondaryText}"
+                        Text="The primary subscription is shown first in the flyout and tray summary." />
+
+                    <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Order" />
+                    <Border Padding="12" Style="{StaticResource CardBorder}">
+                        <StackPanel x:Name="AgentOrderPanel" />
+                    </Border>
+                    <TextBlock
+                        Margin="0,6,0,0"
+                        Style="{StaticResource SecondaryText}"
+                        Text="Nothing to arrange yet — the primary leads and the only other subscription follows." />
+
+                    <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Tokens summary" />
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton
+                            x:Name="UsageMetric"
+                            Margin="0,0,18,0"
+                            Checked="TodayMetric_OnChecked"
+                            Content="API equivalent"
+                            Tag="Usage" />
+                        <RadioButton
+                            x:Name="TokenMetric"
+                            Checked="TodayMetric_OnChecked"
+                            Content="Billing tokens"
+                            Tag="Token" />
+                    </StackPanel>
+                    <TextBlock
+                        Margin="0,6,0,0"
+                        Style="{StaticResource SecondaryText}"
+                        Text="API equivalent estimates standard list-price cost by recorded model and rounds the final total upward to the nearest cent. Billing tokens count direct input + cache write + output; cache reads stay visible in the Odometer table but are excluded from this summary. Token Kind display toggles do not change either summary."
+                        TextWrapping="Wrap" />
+
+                    <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Token values" />
+                    <WrapPanel>
+                        <RadioButton
+                            x:Name="TokenValueMode"
+                            Margin="0,0,18,8"
+                            Checked="TokenValueDisplay_OnChecked"
+                            Content="Value"
+                            Tag="Value" />
+                        <RadioButton
+                            x:Name="TokenPercentageMode"
+                            Margin="0,0,18,8"
+                            Checked="TokenValueDisplay_OnChecked"
+                            Content="Percentage"
+                            Tag="Percentage" />
+                        <RadioButton
+                            x:Name="TokenValuePercentageMode"
+                            Margin="0,0,0,8"
+                            Checked="TokenValueDisplay_OnChecked"
+                            Content="Value (percentage)"
+                            Tag="ValueAndPercentage" />
+                    </WrapPanel>
+                    <TextBlock
+                        Style="{StaticResource SecondaryText}"
+                        Text="Active Token Kinds use this format. Disabled kinds remain as dimmed raw values and are excluded from composition percentages."
+                        TextWrapping="Wrap" />
+
+                    <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Usage Window style" />
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton
+                            x:Name="DialStyle"
+                            Margin="0,0,18,0"
+                            Checked="GaugeStyle_OnChecked"
+                            Content="Dial"
+                            Tag="Dial" />
+                        <RadioButton
+                            x:Name="RingStyle"
+                            Margin="0,0,18,0"
+                            Checked="GaugeStyle_OnChecked"
+                            Content="Ring"
+                            Tag="Ring" />
+                        <RadioButton
+                            x:Name="BarStyle"
+                            Checked="GaugeStyle_OnChecked"
+                            Content="Bar"
+                            Tag="Bar" />
+                    </StackPanel>
+                    <Border
+                        Margin="0,12,0,0"
+                        Padding="14"
+                        Style="{StaticResource CardBorder}">
+                        <StackPanel x:Name="GaugePreviewPanel" />
+                    </Border>
+
+                    <TextBlock Margin="0,22,0,6" Style="{StaticResource SectionTitle}" Text="Windows" />
+                    <CheckBox
+                        x:Name="AlwaysOnTopCheckBox"
+                        Margin="0,0,0,8"
+                        Checked="AlwaysOnTop_OnChanged"
+                        Unchecked="AlwaysOnTop_OnChanged"
+                        Content="Keep the flyout pinned on top" />
+                    <CheckBox
+                        x:Name="StartWithWindowsCheckBox"
+                        Checked="StartWithWindows_OnChanged"
+                        Unchecked="StartWithWindows_OnChanged"
+                        Content="Start TokenStats when I sign in" />
+                </StackPanel>
+            </ScrollViewer>
+
+            <Grid
+                x:Name="AboutPage"
+                Margin="28"
+                Visibility="Collapsed">
+                <StackPanel
+                    Width="380"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                        FontSize="52"
+                        Foreground="{DynamicResource AccentBrush}"
+                        Text="&#xE9D9;" />
+                    <TextBlock
+                        Margin="0,10,0,0"
+                        HorizontalAlignment="Center"
+                        FontSize="25"
+                        FontWeight="SemiBold"
+                        Text="TokenStats" />
+                    <TextBlock
+                        x:Name="VersionText"
+                        Margin="0,5,0,0"
+                        HorizontalAlignment="Center"
+                        Style="{StaticResource SecondaryText}"
+                        Text="Version —" />
+                    <TextBlock
+                        Margin="0,16,0,0"
+                        TextAlignment="Center"
+                        Style="{StaticResource SecondaryText}"
+                        Text="A tray gauge for your Coding Agents — see how much of each Usage Window is left and when it resets." />
+                    <StackPanel
+                        Margin="0,18,0,0"
+                        HorizontalAlignment="Center"
+                        Orientation="Horizontal">
+                        <Button
+                            Margin="0,0,8,0"
+                            Click="ViewOnGitHub_OnClick"
+                            Content="View on GitHub" />
+                        <Button
+                            Click="RunSetupAgain_OnClick"
+                            Content="Run setup again" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

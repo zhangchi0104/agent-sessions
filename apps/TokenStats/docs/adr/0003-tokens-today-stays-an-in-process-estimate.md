@@ -1,8 +1,26 @@
 # Tokens Today stays an in-process estimate, not a shared-DB figure
 
-**Tokens Today** — the raw sum of input/output/cache tokens across every Claude Code transcript touched since local midnight — is computed **in-process inside TokenStats**, from local transcript files, held in memory. It is deliberately **not** promoted to the shared SQLite database, a watcher daemon, or any IPC surface. The popover's Usage tab refreshes it by **watching `~/.claude/projects` with FSEvents while visible** instead of polling on a timer.
+The **Token Odometer** is computed **in-process inside TokenStats** from local
+transcript files and held in memory. Its shared raw total is the sum of the four
+disjoint Token Kinds: direct input, output, cache write, and cache read.
 
-This sits under ADR-0001: Tokens Today is the *estimate-grade* local-file figure that ADR-0001 rejected as the source of truth for the authoritative **Usage Window**. It survives only as a separate informational odometer (see `CONTEXT.md`), never as a quota measure.
+The Windows client additionally derives two optional summaries from the same
+records: Billing tokens excludes cache read, while API equivalent applies the
+recorded Model's standard list prices to all four Token Kinds. Unknown Models
+remain unpriced and make the estimate partial. These summaries do not redefine
+the Token Odometer.
+
+Neither the parsed token records nor the derived estimate is promoted to the
+shared SQLite database, a watcher daemon, or any IPC surface. macOS watches its
+transcript roots only while the Tokens tab is visible. Windows now seeds its
+persisted range at app startup and keeps an event-driven `FileSystemWatcher`
+inside the resident tray process so the tray's objective Token summary remains current
+(see the 2026-07-29 amendment). Neither platform polls on a timer.
+
+This sits under ADR-0001: the Token Odometer is the *estimate-grade* local-file
+figure that ADR-0001 rejected as the source of truth for the authoritative
+**Usage Window**. It survives only as a separate informational reading (see
+`CONTEXT.md`), never as a quota measure or an actual bill.
 
 ## Context
 
@@ -20,7 +38,11 @@ With the sole consumer being a resident app and the menu-bar label driven by the
 
 ## Decision
 
-Keep Tokens Today **in-process and in-memory** in TokenStats. Do not add a token table, a watcher daemon, or an IPC surface.
+Keep the Today counter **in-process and in-memory** in TokenStats. Do not add a
+token table, a watcher daemon, or an IPC surface. The Usage view is a pure
+derivation over the same in-memory transcript records and a versioned list-price
+catalog; adding it does not change this persistence or source-of-truth
+decision.
 
 Replace the Usage tab's 5-second poll with an **FSEvents watch on `~/.claude/projects`, armed only while the Usage tab is visible**. On a coalesced change event, re-run the existing `dailyUsage` walk wholesale (no narrowing by changed path):
 
@@ -48,3 +70,61 @@ The decision above is unchanged: the figure stays **in-process and in-memory**, 
 **What the ranges did *not* change.** A 7- or 30-day range re-reads more files on the first pass, but adds no persistence: the reader's per-file parse state is still the only cache and still in-memory, and states untouched for 48 hours are still dropped — on the next scan, since eviction runs inside the scan and the scan only runs while the tab is visible. A process that never sees the Tokens tab again holds what it has.
 
 **What the ranges did change.** The first-open cost is no longer one figure. Measured on the research corpus with a **warm page cache**: a full 30-day scan across both roots is **~4.1s**, and the whole corpus ~5.0s; once every file's parse state is current, a re-scan is the **6–25ms** it takes to enumerate and stat the tree. A genuinely cold, post-reboot figure was never measured — `purge` needs sudo — so the 4.1s is a floor, not a worst case. The "consequences" note above still holds for Today, which is what a popover opens on; a 30-day range is a deliberate switch, and it is the range that pays.
+
+## Amendment — 2026-07-29
+
+The in-process and in-memory boundary remains unchanged, but the Windows
+watcher's lifetime changes. This amendment supersedes the Windows portion of
+the 2026-07-28 "watch only while visible" statement; macOS behavior is
+unchanged.
+
+### Context
+
+The original visibility gate relied on the fact that nothing consumed the
+Token Odometer while the popover was closed. Windows now places the persisted
+range's objective Billing tokens or API-equivalent summary in the
+notification-area tooltip. That status-area
+consumer remains visible while the WPF flyout is closed, so a watcher stopped
+with the Tokens tab would leave the tooltip stale.
+
+The selected total is a display projection: the sum of the currently enabled
+Token Kinds. Token Kind headings can be toggled, and cells can present a value,
+that kind's share of the row's selected total, or `value (percentage)`. None of
+those choices changes the raw four-kind Token Odometer, the objective
+Billing/API-equivalent summary, or the tray tooltip. A disabled Token Kind
+retains a dimmed raw value, has no composition percentage, and is excluded from
+the percentage denominator. None of these readings is promoted to a quota
+measure.
+
+### Decision
+
+On Windows:
+
+- Seed the persisted Today, 7-day, or 30-day range in the background when the
+  resident tray application starts.
+- Arm recursive `FileSystemWatcher` subscriptions for the native Claude Code
+  and Codex transcript roots for the application's lifetime. Coalesce change
+  bursts before reusing the in-process incremental reader; do not add periodic
+  full-tree polling.
+- Recompute the table projection and objective tray summary separately from the
+  same in-memory result used by the flyout.
+- Persist presentation preferences such as the selected range and pin choice,
+  but do not persist parsed token records or aggregate token readings.
+
+This is still one native application process. It adds no service or watcher
+daemon, no SQLite table, no IPC protocol, and no second source of truth.
+
+### Consequences
+
+- The Windows notification-area summary can stay current without opening the
+  Tokens tab.
+- Windows pays one seed scan on every application launch. A persisted 30-day
+  range can therefore incur the measured warm-cache multi-second scan at
+  startup, so seeding must not block tray creation or UI activation.
+- File-system subscriptions remain armed while the tray process is resident,
+  but idle operation performs no repeated enumeration; work follows transcript
+  events and the existing coalescing policy.
+- The raw Token Odometer remains the sum of all four Token Kinds. A filtered
+  selected total is only a table projection and must be labelled as such in UI,
+  accessibility text, tests, and documentation; it must not alter the objective
+  Billing/API-equivalent summary.

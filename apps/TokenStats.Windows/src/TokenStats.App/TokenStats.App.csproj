@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- This is a WPF process that references WinForms only for NotifyIcon.
+         WPF needs manifest DPI awareness; it does not call WinForms'
+         generated ApplicationConfiguration.Initialize(). -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\TokenStats.ico</ApplicationIcon>
+    <AssemblyName>TokenStats</AssemblyName>
+    <RootNamespace>TokenStats.App</RootNamespace>
+    <Version>0.1.0</Version>
+    <Authors>Alex Zhang</Authors>
+    <Product>TokenStats</Product>
+    <Description>Windows notification-area gauge for Coding Agent usage.</Description>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\TokenStats.Core\TokenStats.Core.csproj" />
+    <Resource Include="Assets\TokenStats.ico" />
+  </ItemGroup>
+</Project>

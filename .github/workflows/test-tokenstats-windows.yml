@@ -1,0 +1,79 @@
+name: Test TokenStats Windows
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "apps/TokenStats.Windows/**"
+      - ".github/workflows/test-tokenstats-windows.yml"
+  pull_request:
+    paths:
+      - "apps/TokenStats.Windows/**"
+      - ".github/workflows/test-tokenstats-windows.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-tokenstats-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/TokenStats.Windows
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build and test
+        shell: pwsh
+        run: ./scripts/build.ps1 -Configuration Release
+
+  publish:
+    needs: test
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [win-x64, win-arm64]
+    defaults:
+      run:
+        working-directory: apps/TokenStats.Windows
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publish self-contained app
+        shell: pwsh
+        run: ./scripts/publish.ps1 -Runtime ${{ matrix.runtime }}
+
+      - name: Validate portable executable
+        shell: pwsh
+        run: |
+          $executable = "artifacts/${{ matrix.runtime }}/TokenStats.exe"
+          if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+            throw "Missing published executable: $executable"
+          }
+          if ((Get-Item -LiteralPath $executable).Length -le 0) {
+            throw "Published executable is empty: $executable"
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TokenStats-${{ matrix.runtime }}-unsigned
+          path: apps/TokenStats.Windows/artifacts/${{ matrix.runtime }}/
+          if-no-files-found: error

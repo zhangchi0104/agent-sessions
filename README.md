@@ -1,17 +1,19 @@
 # TokenStats
 
-A macOS menu-bar app that shows how much of each Coding Agent's **Usage
-Window** you have left and when it resets. Claude Code and Codex are both
-supported.
+Native macOS menu-bar and Windows notification-area apps that show how much of
+each Coding Agent's **Usage Window** you have left and when it resets. Claude
+Code and Codex are both supported.
 
-The popover carries two tabs and nothing else:
+The popover carries two tabs:
 
 - **Usage** — one **Usage Window** set per agent, read from that agent's own
   authoritative usage endpoint over its own OAuth session: percent consumed and
   time to reset, drawn as a dial, an arc, or a bar.
 - **Tokens** — the **Token Odometer**: the raw sum of tokens across the agent
-  transcript files on this Mac over a chosen range of up to 30 days, broken down
-  by Coding Agent, then Model, then Token Kind. An odometer, not a quota.
+  transcript files on this computer over a chosen range of up to 30 days,
+  broken down by Coding Agent, then Model, then Token Kind. An odometer, not a
+  quota. The Windows client can also present the same records as estimated
+  standard API-equivalent usage.
 
 See [`apps/TokenStats/CONTEXT.md`](apps/TokenStats/CONTEXT.md) for the domain
 glossary and [`apps/TokenStats/docs/adr/`](apps/TokenStats/docs/adr/) for the
@@ -19,11 +21,15 @@ design decisions.
 
 ## Install
 
-Download the latest codesigned, notarized `.dmg` from the
+For macOS, download the latest codesigned, notarized `.dmg` from the
 [releases](https://github.com/zhangchi0104/agent-sessions/releases). Tags are
 scoped `tokenstats-v*`; betas are marked pre-release.
 
-## Develop
+The Windows app currently builds from source under
+[`apps/TokenStats.Windows`](apps/TokenStats.Windows/README.md). Authenticode
+signing and installer publication are the remaining release-engineering step.
+
+## Develop on macOS
 
 Requires Xcode 26 (the project is a macOS 26 / Xcode 26 format).
 
@@ -37,11 +43,26 @@ npm run build    # build Release
 The [`Test TokenStats`](.github/workflows/test-tokenstats.yml) workflow runs the
 same `npm test` on every pull request.
 
+## Develop on Windows
+
+Requires Windows 10/11 and the .NET 8 SDK.
+
+```powershell
+cd apps\TokenStats.Windows
+.\scripts\build.ps1
+dotnet run --project src\TokenStats.App\TokenStats.App.csproj
+```
+
+The Windows project is a native WPF tray app with no third-party runtime
+packages. See its [README](apps/TokenStats.Windows/README.md) for build,
+security, and platform behavior details.
+
 ## Layout
 
 ```txt
 .
-├── apps/TokenStats/     # the app (Swift/SwiftUI) — its own CONTEXT.md and ADRs
+├── apps/TokenStats/             # macOS app (Swift/SwiftUI)
+├── apps/TokenStats.Windows/     # Windows app (C#/WPF)
 └── docs/
     ├── adr/             # superseded decisions from the removed session-tracking tools
     └── specs/           # working specs
