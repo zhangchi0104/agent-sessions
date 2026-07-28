@@ -32,12 +32,24 @@ final class TokenOdometerModel {
         let usage: TokenUsage
     }
 
-    /// Today's combined totals (all agents), or nil when nothing was consumed
-    /// today or the source directories are unreadable.
+    /// Combined totals across every Coding Agent for the displayed range, or
+    /// nil when nothing was consumed in it.
     private(set) var usage: TokenUsage?
-    /// Per-agent slices of today's totals, in `roots` order; agents with no
-    /// usage today are omitted.
+    /// Per-agent slices in `roots` order. An agent with no usage in range is
+    /// listed with an empty breakdown rather than omitted — a quiet day is an
+    /// ordinary state, and the tab says so in words instead of dropping a row.
     private(set) var perAgent: [AgentTokens] = []
+
+    /// The range the user has asked for. Deliberately not persisted: a
+    /// remembered 30-day selection would be read as today's figure on the next
+    /// opening.
+    private(set) var selectedRange: TokenRange = .today
+    /// The range the rows on screen were computed for. It trails `selectedRange`
+    /// while a longer scan runs, so the heading and the per-agent subtotals
+    /// never label one range's numbers with another range's name.
+    private(set) var displayedRange: TokenRange = .today
+    /// The range being scanned right now, if the displayed rows are stale.
+    var pendingRange: TokenRange? { selectedRange == displayedRange ? nil : selectedRange }
 
     private let reader: TranscriptTokenReader
     /// The file roots to scan, one per Coding Agent. The app passes
@@ -55,13 +67,22 @@ final class TokenOdometerModel {
         self.changeSource = changeSource ?? FSEventsTranscriptChangeSource(paths: roots.map(\.path))
     }
 
+    /// Ask for a different range. The rows on screen stay — dimmed by the
+    /// view — until the scan lands, so switching never empties the tab.
+    func select(_ range: TokenRange) {
+        guard range != selectedRange else { return }
+        selectedRange = range
+        Task { await refresh() }
+    }
+
     func refresh() async {
+        let range = selectedRange
         // One scan per agent root; assigning after all awaits keeps the
-        // published values consistent with each other.
+        // published values consistent with each other, and keeps the rows and
+        // the range they describe from ever disagreeing.
         var slices: [AgentTokens] = []
         for root in roots {
-            let byModel = await reader.todayBreakdown(underProjectsRoot: root.path)
-            guard byModel.isEmpty == false else { continue }
+            let byModel = await reader.breakdown(underProjectsRoot: root.path, range: range)
             var total = TokenUsage()
             for usage in byModel.values { total.add(usage) }
             let rows = byModel
@@ -69,12 +90,13 @@ final class TokenOdometerModel {
                 .sorted { ($0.usage.totalTokens, $1.model) > ($1.usage.totalTokens, $0.model) }
             slices.append(AgentTokens(label: root.label, usage: total, byModel: rows))
         }
+        displayedRange = range
         perAgent = slices
-        usage = slices.reduce(into: nil as TokenUsage?) { combined, slice in
-            var sum = combined ?? TokenUsage()
-            sum.add(slice.usage)
-            combined = sum
-        }
+        var combined = TokenUsage()
+        for slice in slices { combined.add(slice.usage) }
+        // Nil means "nothing in this range", which the tab words rather than
+        // rendering as a table of zeroes.
+        usage = combined.responseCount > 0 ? combined : nil
     }
 
     /// Seed today's totals, then re-read whenever the watched transcript files

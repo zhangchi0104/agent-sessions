@@ -137,24 +137,29 @@ actor TranscriptTokenReader {
         isoTimestampFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     }
 
-    /// Token usage recorded *today* (local time), per Model, across every
-    /// agent .jsonl under `root` (a Claude projects directory or a Codex
-    /// sessions directory). Files not modified today can't contain today's
-    /// entries, so only today's files are read; per-entry timestamps then
-    /// exclude any older entries those files still contain. Empty when nothing
-    /// was consumed today.
-    func todayBreakdown(underProjectsRoot root: String) -> [String: TokenUsage] {
+    /// Token usage recorded within `range` (local time), per Model, across
+    /// every agent .jsonl under `root` (a Claude projects directory or a Codex
+    /// sessions directory). Transcripts are append-only, so a file last
+    /// modified before the window opened cannot hold an entry inside it — the
+    /// mtime filter is sound, and per-entry timestamps then exclude any older
+    /// entries the surviving files still contain. Empty when nothing was
+    /// consumed in the window.
+    func breakdown(underProjectsRoot root: String, range: TokenRange) -> [String: TokenUsage] {
         // Calendar.current is right for the *boundary* (local midnight); the
         // resulting Date is then keyed through dayKeyFormatter, whose pinned
         // Gregorian calendar shares the local time zone, so the boundary and
         // the entries inside it always map to the same "yyyy-MM-dd" key.
-        let startOfToday = Calendar.current.startOfDay(for: Date())
+        let startOfToday = range.start()
         guard let enumerator = FileManager.default.enumerator(
             at: URL(fileURLWithPath: root),
             includingPropertiesForKeys: [.contentModificationDateKey]
         ) else { return [:] }
 
-        let todayKey = dayKeyFormatter.string(from: startOfToday)
+        // Every day key inside the window, so a range is a sum over its days.
+        let windowKeys = Set((0..<range.days).compactMap { offset in
+            Calendar.current.date(byAdding: .day, value: offset, to: startOfToday)
+                .map { dayKeyFormatter.string(from: $0) }
+        })
         var today: [String: TokenUsage] = [:]
         for case let url as URL in enumerator {
             guard url.pathExtension == "jsonl",
@@ -163,11 +168,11 @@ actor TranscriptTokenReader {
             else { continue }
             _ = usage(forTranscriptAt: url.path)
             guard let state = states[url.path] else { continue }
-            for (key, usage) in state.perDay where key.day == todayKey {
+            for (key, usage) in state.perDay where windowKeys.contains(key.day) {
                 today[key.model, default: TokenUsage()].add(usage)
             }
             // Usage the file never attributed — no line in it named a Model.
-            if let pending = state.pendingByDay[todayKey] {
+            for (day, pending) in state.pendingByDay where windowKeys.contains(day) {
                 today[Self.unknownModel, default: TokenUsage()].add(pending)
             }
         }

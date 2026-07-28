@@ -57,16 +57,10 @@ struct PopoverView: View {
         }
     }
 
-    /// The Tokens tab. The breakdown table lands here next; for now the tab
-    /// exists so the bar has somewhere to switch to.
-    @ViewBuilder private var tokens: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            EmptyView()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        // Watches transcripts only while the Tokens tab is showing them;
-        // SwiftUI cancels this when the tab (or the popover) goes away.
-        .task { await odometer.observeWhileVisible() }
+    /// The Tokens tab: the Token Odometer for the selected range, broken down
+    /// by Coding Agent, Model and Token Kind.
+    private var tokens: some View {
+        TokensTabView(odometer: odometer)
     }
 
     /// Footer menu: open the dedicated Settings page (account management) or quit.

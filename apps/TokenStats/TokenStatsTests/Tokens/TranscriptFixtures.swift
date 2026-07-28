@@ -35,8 +35,11 @@ struct TempTranscripts {
     }
 }
 
-/// Timestamped now, so every fixture line lands in today's bucket.
-private var nowStamp: String { ISO8601DateFormatter().string(from: Date()) }
+/// Fixture lines land in today's bucket unless aged deliberately.
+private func stamp(daysAgo: Int = 0) -> String {
+    let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: Date()) ?? Date()
+    return ISO8601DateFormatter().string(from: date)
+}
 
 /// One Claude assistant transcript line carrying a usage block. `model` is the
 /// value Claude reports on the same line as the usage.
@@ -46,10 +49,11 @@ func claudeUsageLine(
     input: Int = 0,
     output: Int = 0,
     cacheWrite: Int = 0,
-    cacheRead: Int = 0
+    cacheRead: Int = 0,
+    daysAgo: Int = 0
 ) -> String {
     """
-    {"timestamp":"\(nowStamp)","message":{"id":"\(id)","model":"\(model)",\
+    {"timestamp":"\(stamp(daysAgo: daysAgo))","message":{"id":"\(id)","model":"\(model)",\
     "usage":{"input_tokens":\(input),"output_tokens":\(output),\
     "cache_creation_input_tokens":\(cacheWrite),"cache_read_input_tokens":\(cacheRead)}}}
     """
@@ -65,10 +69,11 @@ func codexTokenCountLine(
     totalOutput: Int = 0,
     lastInput: Int = 0,
     lastCached: Int = 0,
-    lastOutput: Int = 0
+    lastOutput: Int = 0,
+    daysAgo: Int = 0
 ) -> String {
     """
-    {"timestamp":"\(nowStamp)","type":"event_msg","payload":{"type":"token_count",\
+    {"timestamp":"\(stamp(daysAgo: daysAgo))","type":"event_msg","payload":{"type":"token_count",\
     "info":{"total_token_usage":{"input_tokens":\(totalInput),"cached_input_tokens":\(totalCached),\
     "output_tokens":\(totalOutput),"reasoning_output_tokens":0,\
     "total_tokens":\(totalInput + totalOutput)},\
@@ -81,7 +86,7 @@ func codexTokenCountLine(
 /// One Codex `turn_context` line — the only place a rollout names its Model.
 func codexTurnContextLine(model: String) -> String {
     """
-    {"timestamp":"\(nowStamp)","type":"turn_context",\
+    {"timestamp":"\(stamp())","type":"turn_context",\
     "payload":{"turn_id":"\(UUID().uuidString)","model":"\(model)","cwd":"/tmp"}}
     """
 }
