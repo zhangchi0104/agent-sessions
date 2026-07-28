@@ -28,7 +28,7 @@ struct CodexCountingTests {
         ])
 
         let model = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                     roots: [(label: "Codex", path: root.path)])
+                                     roots: [TranscriptRoot(id: .claudeCode, label: "Codex", path: root.path)])
         let task = Task { await model.observeWhileVisible() }
         defer { task.cancel() }
 
@@ -48,7 +48,7 @@ struct CodexCountingTests {
         ])
 
         let model = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                     roots: [(label: "Codex", path: root.path)])
+                                     roots: [TranscriptRoot(id: .claudeCode, label: "Codex", path: root.path)])
         let task = Task { await model.observeWhileVisible() }
         defer { task.cancel() }
 
@@ -65,7 +65,7 @@ struct CodexCountingTests {
         ])
 
         let model = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                     roots: [(label: "Codex", path: root.path)])
+                                     roots: [TranscriptRoot(id: .claudeCode, label: "Codex", path: root.path)])
         let task = Task { await model.observeWhileVisible() }
         defer { task.cancel() }
 
@@ -88,7 +88,7 @@ struct CodexCountingTests {
 
         let source = EmittingTicks()
         let model = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                     roots: [(label: "Codex", path: root.path)],
+                                     roots: [TranscriptRoot(id: .claudeCode, label: "Codex", path: root.path)],
                                      changeSource: source)
         let task = Task { await model.observeWhileVisible() }
         defer { task.cancel() }

@@ -32,6 +32,7 @@ struct PopoverView: View {
                 usage
             case .tokens:
                 TokensTabView(odometer: odometer)
+                    .onAppear { odometer.displayOrder = model.appearance.displayOrder }
             }
 
             Divider()

@@ -21,7 +21,7 @@ struct TokenOdometerWatchTests {
 
         let model = TokenOdometerModel(
             reader: TranscriptTokenReader(),
-            roots: [(label: "Test", path: projects.path)]
+            roots: [TranscriptRoot(id: .claudeCode, label: "Test", path: projects.path)]
         )
         let task = Task { await model.observeWhileVisible() }
         defer { task.cancel() }
@@ -36,7 +36,7 @@ struct TokenOdometerWatchTests {
         let source = EmittingTicks()
         let model = TokenOdometerModel(
             reader: TranscriptTokenReader(),
-            roots: [(label: "Test", path: projects.path)],
+            roots: [TranscriptRoot(id: .claudeCode, label: "Test", path: projects.path)],
             changeSource: source
         )
         let task = Task { await model.observeWhileVisible() }
@@ -57,7 +57,7 @@ struct TokenOdometerWatchTests {
         let source = EmittingTicks()
         let model = TokenOdometerModel(
             reader: TranscriptTokenReader(),
-            roots: [(label: "Test", path: projects.path)],
+            roots: [TranscriptRoot(id: .claudeCode, label: "Test", path: projects.path)],
             changeSource: source
         )
         let task = Task { await model.observeWhileVisible() }

@@ -38,6 +38,20 @@ struct ModelAttributionTests {
         #expect(byModel["gpt-5.6-sol"]?.totalTokens == 1_100)
     }
 
+    /// `thread_settings_applied` is the other carrier, and nests the Model one
+    /// level deeper. A rollout that only ever uses it must still attribute.
+    @Test func threadSettingsAlsoNamesTheModel() async throws {
+        let root = try TempTranscripts("codex")
+        try root.write("rollout.jsonl", [
+            codexThreadSettingsLine(model: "codex-auto-review"),
+            codexTokenCountLine(totalInput: 1_000, totalCached: 400, totalOutput: 100),
+        ])
+
+        let byModel = try await breakdown(of: root)
+        #expect(byModel["codex-auto-review"]?.totalTokens == 1_100)
+        #expect(byModel["unknown"] == nil)
+    }
+
     /// A sub-agent rollout streams usage before it declares its model. The file
     /// uses exactly one model, so that prefix belongs to it — not to `unknown`.
     @Test func usageBeforeTheFirstModelIsBackfilled() async throws {
@@ -90,7 +104,8 @@ struct ModelAttributionTests {
 
         let model = TokenOdometerModel(
             reader: TranscriptTokenReader(),
-            roots: [(label: "Claude Code", path: claude.path), (label: "Codex", path: codex.path)]
+            roots: [TranscriptRoot(id: .claudeCode, label: "Claude Code", path: claude.path),
+                    TranscriptRoot(id: .codex, label: "Codex", path: codex.path)]
         )
         let task = Task { await model.observeWhileVisible() }
         defer { task.cancel() }
@@ -107,7 +122,7 @@ struct ModelAttributionTests {
     /// Drives the model over a single root and returns its per-Model slice.
     private func breakdown(of root: TempTranscripts) async throws -> [String: TokenUsage] {
         let model = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                     roots: [(label: "Agent", path: root.path)])
+                                     roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)])
         let task = Task { await model.observeWhileVisible() }
         defer { task.cancel() }
         _ = await waitUntil { model.perAgent.isEmpty == false }

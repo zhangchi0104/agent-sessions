@@ -18,13 +18,15 @@ import SwiftUI
 struct TokensTabView: View {
     let odometer: TokenOdometerModel
 
-    /// Dimmed while a longer range is still scanning, so the tab keeps showing
-    /// numbers instead of emptying for several seconds.
-    private var isScanning: Bool { odometer.pendingRange != nil }
+    /// Dimmed while a scan is in flight — either the first of this appearance,
+    /// or a longer range the user switched to — so the tab shows a cue rather
+    /// than a bare column header or a table that empties for several seconds.
+    private var isScanning: Bool { odometer.pendingRange != nil || odometer.hasLoaded == false }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             rangePicker
+            heading
             table
                 .opacity(isScanning ? 0.45 : 1)
                 .overlay(alignment: .top) { if isScanning { scanning } }
@@ -48,12 +50,22 @@ struct TokensTabView: View {
         .labelsHidden()
     }
 
+    /// Names the range the rows below actually describe — never the pending
+    /// one. Switching to 30 days must not relabel today's numbers while the
+    /// scan is still running.
+    private var heading: some View {
+        Text(odometer.displayedRange.label)
+            .font(.system(size: 11, weight: .semibold))
+            .kerning(0.4)
+            .foregroundStyle(.secondary)
+    }
+
+    /// The cue names what is being *read*, which is the pending range — the
+    /// one thing on screen that may legitimately run ahead of the data.
     private var scanning: some View {
         HStack(spacing: 6) {
             ProgressView().controlSize(.small)
-            // The heading still describes the rows on screen, not the pending
-            // selection — the numbers below are the old range until it lands.
-            Text("Reading \(odometer.selectedRange.label.lowercased())…")
+            Text("Reading \((odometer.pendingRange ?? odometer.selectedRange).label.lowercased())…")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

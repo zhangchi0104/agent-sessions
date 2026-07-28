@@ -8,6 +8,13 @@
 
 import Foundation
 
+/// One Coding Agent's scan root, carrying the id its display order is keyed by.
+struct TranscriptRoot: Equatable {
+    let id: CodingAgentID
+    let label: String
+    let path: String
+}
+
 enum CodingAgentRegistry {
     /// One entry per Coding Agent, in the order they lead the popover before
     /// the user's Appearance preferences reorder them. `CodingAgentRegistryTests`
@@ -29,7 +36,9 @@ enum CodingAgentRegistry {
     }
 
     /// The Token Odometer scan roots, one per Coding Agent, in registry order.
-    static var transcriptRoots: [(label: String, path: String)] {
-        all.map { (label: $0.displayName, path: $0.transcriptRoot) }
+    /// The id travels with each root so a consumer can re-order them into the
+    /// user's Appearance display order, which is what the popover shows.
+    static var transcriptRoots: [TranscriptRoot] {
+        all.map { TranscriptRoot(id: $0.id, label: $0.displayName, path: $0.transcriptRoot) }
     }
 }

@@ -21,6 +21,7 @@ final class TokenOdometerModel {
     /// One Coding Agent's slice of the Token Odometer: its total, and the
     /// per-Model rows beneath it, ordered by total descending.
     struct AgentTokens: Equatable {
+        let id: CodingAgentID
         let label: String
         let usage: TokenUsage
         let byModel: [ModelTokens]
@@ -56,17 +57,28 @@ final class TokenOdometerModel {
     private(set) var displayedRange: TokenRange = .today
     /// The range being scanned right now, if the displayed rows are stale.
     var pendingRange: TokenRange? { selectedRange == displayedRange ? nil : selectedRange }
+    /// False until the first scan of this appearance lands, so the very first
+    /// render shows a progress cue rather than a bare column header.
+    private(set) var hasLoaded = false
 
     private let reader: TranscriptTokenReader
     /// The file roots to scan, one per Coding Agent. The app passes
     /// `CodingAgentRegistry.transcriptRoots`, so adding an agent adds a root
     /// (all this model needs beyond that is reader support for its format).
-    private let roots: [(label: String, path: String)]
+    private let roots: [TranscriptRoot]
     /// Ticks when a watched transcript changes, driving a re-read (ADR-0003).
     private let changeSource: TranscriptChangeSource
 
+    /// Re-orders the published slices into the user's Appearance order. Set by
+    /// the view that knows it; registry order until then.
+    var displayOrder: [CodingAgentID] = []
+    /// The scan started by a range change, tracked so it can be cancelled when
+    /// the tab goes away — an unstructured task would keep walking the
+    /// filesystem after the popover closed, which ADR-0003 exists to prevent.
+    private var rangeScan: Task<Void, Never>?
+
     init(reader: TranscriptTokenReader,
-         roots: [(label: String, path: String)],
+         roots: [TranscriptRoot],
          changeSource: TranscriptChangeSource? = nil) {
         self.reader = reader
         self.roots = roots
@@ -78,7 +90,8 @@ final class TokenOdometerModel {
     func select(_ range: TokenRange) {
         guard range != selectedRange else { return }
         selectedRange = range
-        Task { await refresh() }
+        rangeScan?.cancel()
+        rangeScan = Task { await refresh() }
     }
 
     func refresh() async {
@@ -94,7 +107,7 @@ final class TokenOdometerModel {
             let rows = byModel
                 .map { ModelTokens(model: $0.key, usage: $0.value) }
                 .sorted { ($0.usage.totalTokens, $1.model) > ($1.usage.totalTokens, $0.model) }
-            slices.append(AgentTokens(label: root.label, usage: total, byModel: rows))
+            slices.append(AgentTokens(id: root.id, label: root.label, usage: total, byModel: rows))
         }
         // A slower scan for a range the user has since moved off must not
         // land: it would overwrite fresher rows and, worse, park displayedRange
@@ -102,13 +115,25 @@ final class TokenOdometerModel {
         // never resolves.
         guard range == selectedRange else { return }
         displayedRange = range
-        perAgent = slices
+        hasLoaded = true
+        // Registry order is the scan order; the popover shows the user's.
+        let rank = Dictionary(uniqueKeysWithValues: displayOrder.enumerated().map { ($1, $0) })
+        perAgent = slices.enumerated()
+            .sorted { rank[$0.element.id] ?? $0.offset < rank[$1.element.id] ?? $1.offset }
+            .map(\.element)
     }
 
     /// Seed today's totals, then re-read whenever the watched transcript files
     /// change. Drive from a SwiftUI `.task`, which cancels this when the
     /// popover closes (ADR-0003: watch only while visible).
     func observeWhileVisible() async {
+        // Each appearance starts on Today. The model outlives the popover, so
+        // without this a 30-day selection would be waiting on the next opening
+        // and its figure read as today's.
+        selectedRange = .today
+        displayedRange = .today
+        hasLoaded = false
+        defer { rangeScan?.cancel() }
         await refresh()
         for await _ in changeSource.ticks() {
             await refresh()

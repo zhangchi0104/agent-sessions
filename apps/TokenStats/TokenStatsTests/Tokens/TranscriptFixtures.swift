@@ -83,7 +83,17 @@ func codexTokenCountLine(
     """
 }
 
-/// One Codex `turn_context` line — the only place a rollout names its Model.
+/// One Codex `thread_settings_applied` event — the other line that names a
+/// Model, nesting it a level deeper than `turn_context` does.
+func codexThreadSettingsLine(model: String) -> String {
+    """
+    {"timestamp":"\(stamp())","type":"event_msg",\
+    "payload":{"type":"thread_settings_applied",\
+    "thread_settings":{"model":"\(model)","model_provider_id":"openai"}}}
+    """
+}
+
+/// One Codex `turn_context` line — the more common of the two carriers.
 func codexTurnContextLine(model: String) -> String {
     """
     {"timestamp":"\(stamp())","type":"turn_context",\

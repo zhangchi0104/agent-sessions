@@ -20,24 +20,35 @@ struct TokenRangeTests {
         try root.write("a.jsonl", [claudeUsageLine(id: "m1", input: 100, output: 50)])
 
         let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                          roots: [(label: "Agent", path: root.path)])
+                                          roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)])
         #expect(odometer.selectedRange == .today)
     }
 
-    /// A fresh observation cycle starts from Today — the range is deliberately
-    /// not remembered, so a 30-day figure can never be read as today's.
-    @Test func theRangeIsNotRememberedAcrossObservation() async throws {
+    /// The model outlives the popover — it is a `let` on the app delegate — so
+    /// "not persisted" has to mean the *same* model reverts to Today when the
+    /// tab is shown again. Constructing a second model and checking its default
+    /// would pass no matter what the app does.
+    @Test func theSameModelRevertsToTodayOnTheNextAppearance() async throws {
         let root = try TempTranscripts("claude")
         try root.write("a.jsonl", [claudeUsageLine(id: "m1", input: 100, output: 50)])
 
         let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                          roots: [(label: "Agent", path: root.path)])
+                                          roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)])
+        let first = Task { await odometer.observeWhileVisible() }
+        #expect(await waitUntil { odometer.hasLoaded })
         odometer.select(.thirtyDays)
-        #expect(odometer.selectedRange == .thirtyDays)
+        #expect(await waitUntil { odometer.displayedRange == .thirtyDays })
 
-        let fresh = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                       roots: [(label: "Agent", path: root.path)])
-        #expect(fresh.selectedRange == .today)
+        // The tab goes away…
+        first.cancel()
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(odometer.selectedRange == .thirtyDays) // the model kept it
+
+        // …and comes back: this is the appearance that must start on Today.
+        let second = Task { await odometer.observeWhileVisible() }
+        defer { second.cancel() }
+        #expect(await waitUntil { odometer.selectedRange == .today && odometer.hasLoaded })
+        #expect(odometer.displayedRange == .today)
     }
 
     /// The rows on screen carry the range they were computed for, which is what
@@ -48,10 +59,10 @@ struct TokenRangeTests {
         try root.write("a.jsonl", [claudeUsageLine(id: "m1", input: 100, output: 50)])
 
         let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                          roots: [(label: "Agent", path: root.path)])
+                                          roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)])
         let task = Task { await odometer.observeWhileVisible() }
         defer { task.cancel() }
-        #expect(await waitUntil { odometer.displayedRange == .today })
+        #expect(await waitUntil { odometer.hasLoaded && odometer.displayedRange == .today })
 
         odometer.select(.thirtyDays)
         #expect(odometer.selectedRange == .thirtyDays)
@@ -69,11 +80,11 @@ struct TokenRangeTests {
         ])
 
         let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                          roots: [(label: "Agent", path: root.path)])
+                                          roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)])
         let task = Task { await odometer.observeWhileVisible() }
         defer { task.cancel() }
 
-        #expect(await waitUntil { odometer.usage?.totalTokens == 150 })
+        #expect(await waitUntil { odometer.hasLoaded && odometer.usage?.totalTokens == 150 })
 
         odometer.select(.thirtyDays)
         #expect(await waitUntil { odometer.usage?.totalTokens == 150 + 1_998 })
@@ -90,7 +101,11 @@ struct TokenRangeTests {
         ])
 
         let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                          roots: [(label: "Agent", path: root.path)])
+                                          roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)])
+        let task = Task { await odometer.observeWhileVisible() }
+        defer { task.cancel() }
+        #expect(await waitUntil { odometer.hasLoaded })
+
         odometer.select(.thirtyDays)
         // A refresh captured while Today was selected completes late.
         odometer.select(.today)
@@ -110,7 +125,8 @@ struct TokenRangeTests {
 
         let odometer = TokenOdometerModel(
             reader: TranscriptTokenReader(),
-            roots: [(label: "Claude Code", path: busy.path), (label: "Codex", path: idle.path)]
+            roots: [TranscriptRoot(id: .claudeCode, label: "Claude Code", path: busy.path),
+                    TranscriptRoot(id: .codex, label: "Codex", path: idle.path)]
         )
         let task = Task { await odometer.observeWhileVisible() }
         defer { task.cancel() }
