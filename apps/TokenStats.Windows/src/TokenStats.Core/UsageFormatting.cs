@@ -227,7 +227,7 @@ public static class UsageFormatting
             2,
             MidpointRounding.ToPositiveInfinity);
         var value = rounded.ToString("0.00", CultureInfo.InvariantCulture);
-        return $"${value}{(estimate.IsPartial ? "+" : string.Empty)}";
+        return $"${value}";
     }
 
     public static string TokenBreakdown(TokenUsage usage)
