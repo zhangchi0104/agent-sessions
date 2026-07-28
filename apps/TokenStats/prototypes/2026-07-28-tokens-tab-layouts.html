@@ -212,13 +212,14 @@
 
 <div class="wrap">
   <p class="eyebrow">Wayfinder #27 · throwaway prototype · round 5</p>
-  <h1>Settled: D3d — swatch in the header, no legend</h1>
+  <h1>Settled: D3g — swatch and coloured label in the header</h1>
   <p class="lede">
-    <strong>D3d is the answer.</strong> The legend block is gone and its swatch moves up into the column
-    header beside the label it names, with the label left neutral grey. Gaps were opened after review:
-    the swatch sits <strong>5pt</strong> from its label rather than 3, and each row's bar takes 1pt of air
-    beneath the figures instead of sitting flush — which costs 11pt at 30 days and lands the layout at
-    <strong>539pt</strong>. D3c and D3g remain below as the alternatives that were rejected.</p>
+    <strong>D3g is the answer.</strong> The legend block is gone and its swatch moves up into the column
+    header, where the label is set in the same colour as its swatch — both marks, in place. Gaps were
+    opened after review: the swatch sits <strong>5pt</strong> from its label rather than 3, and each
+    row's bar takes 1pt of air beneath the figures instead of sitting flush, which costs 11pt at 30 days
+    and lands the layout at <strong>539pt</strong>. D3c and D3d remain below as the alternatives that
+    were rejected.</p>
 
   <dl class="facts">
     <div class="fact">
@@ -263,7 +264,7 @@
     </section>
 
     <section class="deck">
-      <h2>D3d <span>· CHOSEN</span></h2>
+      <h2>D3d <span>· swatch only, not chosen</span></h2>
       <p class="why">The legend's swatch moves into the header beside its label; the text stays grey.
         The mark is a shape, so it reads as a key rather than as styled type.</p>
       <div class="pop" id="popD3d"></div>
@@ -271,7 +272,7 @@
     </section>
 
     <section class="deck">
-      <h2>D3g <span>· swatch + colour, not chosen</span></h2>
+      <h2>D3g <span>· CHOSEN</span></h2>
       <p class="why">Both marks in the header: the swatch and the label in the same colour.
         The loudest of the three, and the hardest to miss.</p>
       <div class="pop" id="popD3g"></div>
@@ -488,7 +489,7 @@
   const NOTES = [
     ["Moving the swatch into the header is free, and it removes a real fragility.", "All three variants measure <b>328 / 418 / 528pt</b> at today / 7 days / 30 days — identical. The header row already exists, so the mark rides along at no cost. More useful than the 25pt saved: round 4's single-line legend fitted in <b>298pt of 298pt available</b>, which made the wording of four labels a layout constraint. With no legend there is nothing to wrap, and that constraint disappears."],
     ["The swatch names the colour. It does not spell out the word.", "<code>C·W</code> is still an abbreviation — a reader who does not know it means cache write learns the colour, not the term. If the words need to be on screen, the header is not where that happens; a tooltip on the header cell, or the glossary, would have to carry it."],
-    ["Swatch versus coloured label is a legibility question, not a cost one.", "D3c tints the label itself, D3d puts a neutral label after a coloured swatch, D3g does both. A 6pt shape is a stronger, more conventional key than 9.5pt uppercase type in colour — and coloured type at that size is the first thing to suffer against a real vibrancy background."],
+    ["Swatch versus coloured label was a legibility question, not a cost one.", "D3c tints the label itself, D3d puts a neutral label after a coloured swatch, D3g does both — all identical in height. <b>D3g was chosen.</b> The reservation on record: 9.5pt uppercase type in colour is the first thing to suffer against a real vibrancy background, where these flat mocks cannot predict the result. The swatch survives that test on its own, so if the coloured type fails in a SwiftUI build, dropping back to D3d costs nothing and loses nothing structural."],
     ["The bar still carries the finding the merge exists for.", "A Codex row prints <code>–</code> under Cache&nbsp;W <em>and</em> shows a missing amber segment. With the swatch in the header, the amber is named where the dash is, so the absence is legible without prior knowledge."],
     ["These pixel figures are indicative, not authoritative.", "The same published page measured 443pt in one browser and 484pt in another for the same 7-day view — about 40pt of difference from font metrics alone. The <em>deltas</em> between variants held exactly. Only a SwiftUI build settles the absolute numbers against the 600pt line."]
   ];
