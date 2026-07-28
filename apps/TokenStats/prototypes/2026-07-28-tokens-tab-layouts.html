@@ -135,6 +135,12 @@
   table.t tr.sub td { color: var(--pop-ink-2); }
   table.t td.name { max-width: 104px; }
 
+  /* D3b — the bar tucked flush under the figures as the row's rule */
+  table.d3b tr.sub td { padding: 2px 0 0; }
+  table.d3b tr.barrow td { padding: 0 0 3px; }
+  .rule-bar { display: flex; height: 3px; overflow: hidden; background: var(--pop-fill); }
+  .rule-bar i { display: block; height: 100%; }
+
   /* D1 — the proportion painted behind the row */
   table.d1 tr.sub td { padding-top: 4px; padding-bottom: 4px; position: relative; }
   table.d1 tr.sub td:first-child { border-radius: 3px 0 0 3px; padding-left: 4px; }
@@ -178,35 +184,35 @@
 
 <div class="wrap">
   <p class="eyebrow">Wayfinder #27 · throwaway prototype · round 3</p>
-  <h1>D3 picked — now paying down its 92pt</h1>
+  <h1>D3 picked — and the 92pt is paid off</h1>
   <p class="lede">
     <strong>D3</strong> was chosen: every figure kept, plus an explicit bar under each row. It came in at
-    <strong>648pt</strong> at 30 days, 92pt over the plain table and well past the 600pt comfort line.
-    These two tightenings try to pay that back without giving up anything D3 was chosen for. The key move:
-    the bar's segments run <strong>in the same order as the columns above them</strong> — in, out, cache write,
-    cache read — so the table header already <em>is</em> the legend, and the legend can go.
-  </p>
+    648pt at 30 days, 92pt over a plain table and well past the 600pt comfort line. Two moves paid that
+    back. <strong>Dropping the hero</strong> — the big total that used to sit at the top of this tab — is
+    worth 51pt on its own, and D3 clears the line without further help. Then the legend goes, because the
+    bar's segments run <strong>in the same order as the columns above them</strong>: in, out, cache write,
+    cache read. The header row already <em>is</em> the legend.</p>
 
   <dl class="facts">
     <div class="fact">
-      <dt>D3 as picked, at 30 days</dt>
-      <dd>648pt</dd>
-      <p>92pt over the plain table, 48pt over the comfort line. This is the debt.</p>
+      <dt>Dropping the hero</dt>
+      <dd>−51pt</dd>
+      <p>The grand total is gone from the top of the tab. Per-agent totals stay on the group headers.</p>
     </div>
     <div class="fact">
-      <dt>What the legend costs</dt>
-      <dd>~28pt</dd>
-      <p>Paid once, not per row — and avoidable, because the header row already orders the four kinds.</p>
+      <dt>Header doubles as legend</dt>
+      <dd>−25pt</dd>
+      <p>Segment order matches column order, so the colour key is already on screen.</p>
     </div>
     <div class="fact">
-      <dt>What a bar row costs</dt>
-      <dd>~6pt each</dd>
-      <p>Multiplied by eleven rows at 30 days. Padding, not the 5pt bar itself, is most of it.</p>
+      <dt>D3b over a bar-less table</dt>
+      <dd>+22pt</dd>
+      <p>Two points per row — the bar replaces the separator a dense table needs anyway.</p>
     </div>
     <div class="fact">
-      <dt>Target</dt>
+      <dt>All three now clear</dt>
       <dd>&lt; 600pt</dd>
-      <p>The comfort line for a menu-bar popover. Argue with the line, not the measurements.</p>
+      <p>At 30 days, 11 model rows: 597 / 572 / 528pt.</p>
     </div>
   </dl>
 
@@ -222,9 +228,9 @@
 
   <div class="decks">
     <section class="deck base">
-      <h2>B <span>· plain table, for scale</span></h2>
-      <p class="why">No bar, no legend. Not a candidate any more — it is here only so the cost of
-        composition stays visible as a number.</p>
+      <h2>B <span>· no composition, for scale</span></h2>
+      <p class="why">Four numbers, no bar, no legend. Not a candidate — it is here only so the price of
+        showing composition at all stays visible as a number.</p>
       <div class="pop" id="popB"></div>
       <p class="metric" id="mB"></p>
     </section>
@@ -362,13 +368,8 @@
     tabs.appendChild(el("div", "on", "Tokens"));
     host.appendChild(tabs);
 
-    const grand = rows(range).reduce((t, g) => t + g.total, 0);
-    const hero = el("div", "hero");
-    const n = el("div", "hero-n", grouped(grand));
-    hero.appendChild(n);
-    hero.appendChild(el("div", "hero-l", "tokens · " + ({ today: "today", "7d": "last 7 days", "30d": "last 30 days" })[range]));
-    host.appendChild(hero);
-
+    // No hero figure: the grand total is deliberately absent from the top of this
+    // tab. Per-agent totals still sit on each group header.
     const seg = el("div", "rangeseg");
     ["Today", "7 days", "30 days"].forEach((l, i) => {
       seg.appendChild(el("div", ["today", "7d", "30d"][i] === range ? "on" : null, l));
@@ -378,13 +379,6 @@
     const body = el("div"); host.appendChild(body);
     fill(body, range);
     host.appendChild(el("div", "foot", "⚙"));
-
-    // Mirrors SwiftUI's .minimumScaleFactor(0.5) on a single line.
-    requestAnimationFrame(() => {
-      let size = 42; n.style.fontSize = size + "px";
-      const max = host.clientWidth - 32;
-      while (n.scrollWidth > max && size > 21) { size -= 1; n.style.fontSize = size + "px"; }
-    });
   }
 
   function agentHead(g) {
@@ -427,53 +421,14 @@
     t.appendChild(tb); body.appendChild(t);
   }
 
-  function fillD1(body, range) {
-    const t = el("table", "t d1"), thead = el("thead"), tr = el("tr");
-    ["Model", "In", "Out", "C·W", "C·R"].forEach(h => tr.appendChild(el("th", null, h)));
-    thead.appendChild(tr); t.appendChild(thead);
-    const tb = el("tbody");
-    rows(range).forEach(g => {
-      groupRow(tb, g, 5);
-      g.list.forEach(([m, v]) => {
-        const r = el("tr", "sub");
-        r.style.background = tintGradient(v);
-        r.title = tip(v);
-        const c0 = el("td", "name", m); r.appendChild(c0);
-        v.forEach(x => r.appendChild(el("td", null, x ? compact(x) : "–")));
-        tb.appendChild(r);
-      });
-    });
-    t.appendChild(tb); body.appendChild(t);
-    legend(body);
-  }
+  // D3 with the legend deleted: the bar's segment order already matches the
+  // column order above it, so the header row carries the mapping.
+  function fillD3a(body, range) { d3table(body, range, "d3", false, "row-bar"); }
+  // ...and with the bar tucked flush under the figures as the row's own rule.
+  function fillD3b(body, range) { d3table(body, range, "d3b", false, "rule-bar"); }
 
-  function fillD2(body, range) {
-    const t = el("table", "t d2"), thead = el("thead"), tr = el("tr");
-    ["Model", "Total", "Composition"].forEach((h, i) => {
-      const th = el("th", null, h);
-      if (i === 2) th.style.textAlign = "left", th.style.paddingLeft = "8px";
-      tr.appendChild(th);
-    });
-    thead.appendChild(tr); t.appendChild(thead);
-    const tb = el("tbody");
-    rows(range).forEach(g => {
-      groupRow(tb, g, 3);
-      g.list.forEach(([m, v]) => {
-        const r = el("tr", "sub"); r.title = tip(v);
-        const c0 = el("td", "name", m); r.appendChild(c0);
-        r.appendChild(el("td", null, compact(sum(v))));
-        const cb = el("td", "barcell");
-        segments(v, cb, "cell-bar");
-        r.appendChild(cb);
-        tb.appendChild(r);
-      });
-    });
-    t.appendChild(tb); body.appendChild(t);
-    legend(body);
-  }
-
-  function fillD3(body, range) {
-    const t = el("table", "t d3"), thead = el("thead"), tr = el("tr");
+  function d3table(body, range, cls, withLegend, barClass) {
+    const t = el("table", "t " + cls), thead = el("thead"), tr = el("tr");
     ["Model", "In", "Out", "C·W", "C·R"].forEach(h => tr.appendChild(el("th", null, h)));
     thead.appendChild(tr); t.appendChild(thead);
     const tb = el("tbody");
@@ -485,44 +440,45 @@
         v.forEach(x => r.appendChild(el("td", null, x ? compact(x) : "–")));
         tb.appendChild(r);
         const br = el("tr", "barrow"); const bc = el("td"); bc.colSpan = 5;
-        segments(v, bc, "row-bar"); br.appendChild(bc); tb.appendChild(br);
+        segments(v, bc, barClass); br.appendChild(bc); tb.appendChild(br);
       });
     });
     t.appendChild(tb); body.appendChild(t);
-    legend(body);
+    if (withLegend) legend(body);
   }
 
+  function fillD3(body, range) { d3table(body, range, "d3", true, "row-bar"); }
+
   const NOTES = [
-    ["Every merge costs height, and the legend is why.", "All three are <b>taller than B at every range</b> — at 30 days D2 is +26pt, D1 +48pt, D3 +92pt. Encoding four kinds in colour forces a legend that B never needed; that is ~20pt paid once, before any per-row cost. <b>D2 is the cheapest merge and the only one still under the 600pt comfort line at 30 days</b> (582pt); D1 (604pt) and D3 (648pt) both cross it."],
-    ["D2 buys width, but not enough to fix truncation.", "Trading four numeric columns for one bar column widens the model column from <b>129pt to 155pt</b> — and <code>claude-haiku-4-5-20251001</code> needs <b>172pt</b>. It still truncates, just later. Column trading cannot solve the name problem at 332pt; that needs a shorter label, a second line, or accepting the ellipsis. D2's real price is different: no exact figure is on screen at all, and a popover that dismisses on focus loss and cannot be hovered from the keyboard is a bad place to hide numbers behind a tooltip."],
-    ["D1 is free per row, which is what makes it suspicious.", "Painting the proportion behind the row adds nothing per row — its whole +48pt is the legend and the slightly taller rows the tint needs to read. Codex rows do look visibly different from Claude ones. But composition becomes decoration <em>behind</em> data rather than something measurable, and a tinted row is the variant most likely to fall apart against real Liquid Glass rather than a flat mock."],
-    ["D3 is the honest one and it costs the most.", "All four numbers plus an explicit 5pt bar, with row padding cut to 2pt to pay for it — and it still lands at 648pt, the worst of the four. That difference against B's 556pt is the true price of showing composition explicitly while keeping every figure on screen."],
-    ["The Codex dash disappears in all three.", "In B a Codex row prints <code>–</code> under Cache&nbsp;W and you have to already know why. In every merge the absence is visible as a missing segment, which is the round-1 finding this merge exists to keep."]
+    ["Removing the hero paid most of the debt.", "The grand total at the top of the tab was worth <b>51pt</b> — D3 fell from 648pt to <b>597pt</b> and cleared the 600pt line with no other change. Per-agent totals still sit on each group header, so the tab has not lost the ability to answer \"how much, per agent\"; it has lost only the single combined figure, which was the number least specific to this tab."],
+    ["The header row is the legend.", "The bar's segments run in the same order as the columns above them — in, out, cache write, cache read — so the colour key is already on screen and the legend block is redundant. Worth <b>25pt</b>, paid once. The mapping is order-preserving, not width-preserving: cache read is a narrow column and most of the bar, which is exactly the asymmetry the bar exists to show."],
+    ["D3b costs 22pt more than showing no composition at all.", "Tucking the bar flush under the figures as a 3pt rule with no padding of its own lands at <b>528pt</b> against the bar-less table's 506pt — two points per row, because the bar replaces the separator a dense table would need anyway. It is the cheapest way to keep every figure <em>and</em> the composition."],
+    ["The Codex dash becomes a visible absence.", "A Codex row prints <code>–</code> under Cache&nbsp;W and, without a bar, you have to already know that Codex reports no cache writes. With the bar, the missing amber segment says it. That is the round-1 finding this whole merge exists to preserve."],
+    ["Model names still truncate, and no layout here fixes it.", "<code>claude-haiku-4-5-20251001</code> needs 172pt of column and none of these give it more than 129pt. Keeping four numeric columns means the name column cannot grow. That is now a known, accepted cost of D3 rather than an open question — unless a shorter display name is worth its own decision."]
   ];
 
   function render(range) {
     shell(document.getElementById("popB"), range, fillB);
-    shell(document.getElementById("popD1"), range, fillD1);
-    shell(document.getElementById("popD2"), range, fillD2);
     shell(document.getElementById("popD3"), range, fillD3);
+    shell(document.getElementById("popD3a"), range, fillD3a);
+    shell(document.getElementById("popD3b"), range, fillD3b);
     const gs = rows(range);
     const models = gs.reduce((t, g) => t + g.list.length, 0);
     document.getElementById("load").textContent =
       `${models} model row${models === 1 ? "" : "s"} · ${gs.length} agent groups · ${COST[range]}`;
     requestAnimationFrame(() => {
-      const base = document.getElementById("popB").offsetHeight;
-      [["mB", "popB"], ["mD1", "popD1"], ["mD2", "popD2"], ["mD3", "popD3"]].forEach(([m, p]) => {
+      const base = document.getElementById("popD3").offsetHeight;
+      [["mB", "popB"], ["mD3", "popD3"], ["mD3a", "popD3a"], ["mD3b", "popD3b"]].forEach(([m, p]) => {
         const h = document.getElementById(p).offsetHeight;
-        const d = h - base;
         const over = h > 600;
         let delta = "";
-        if (p !== "popB") {
-          const cls = d > 0 ? "warn" : d < 0 ? "ok" : "";
-          delta = ` · <b>vs B</b> <span class="${cls}">${d > 0 ? "+" : ""}${d}pt</span>`;
+        if (p !== "popD3") {
+          const d = h - base;
+          delta = ` · <b>vs D3</b> <span class="${d > 0 ? "warn" : d < 0 ? "ok" : ""}">${d > 0 ? "+" : ""}${d}pt</span>`;
         }
         document.getElementById(m).innerHTML =
-          `<b>height</b> <span class="${over ? "warn" : ""}">${h}pt</span>${delta}` +
-          (over ? ` <span class="warn">— over the 600pt comfort line</span>` : "");
+          `<b>height</b> <span class="${over ? "warn" : "ok"}">${h}pt</span>${delta}` +
+          (over ? ` <span class="warn">— over 600pt</span>` : "");
       });
     });
   }
