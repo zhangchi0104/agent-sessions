@@ -13,13 +13,21 @@ public sealed record AppearancePreferences(
     AgentId PrimaryAgent,
     IReadOnlyList<AgentId> Order,
     GaugeStyle GaugeStyle,
-    TodayMetricMode TodayMetric = TodayMetricMode.Token)
+    TodayMetricMode TodayMetric = TodayMetricMode.Token,
+    TokenKindSelection SelectedTokenKinds = TokenKindSelection.All,
+    TokenValueDisplayMode TokenValueDisplay = TokenValueDisplayMode.Value,
+    TokenRange SelectedTokenRange = TokenRange.Today,
+    bool AlwaysOnTop = false)
 {
     public static AppearancePreferences Default { get; } = new(
         AgentId.ClaudeCode,
         AgentRegistry.All.Select(agent => agent.Id).ToArray(),
         GaugeStyle.Dial,
-        TodayMetricMode.Token);
+        TodayMetricMode.Token,
+        TokenKindSelection.All,
+        TokenValueDisplayMode.Value,
+        TokenRange.Today,
+        false);
 
     public IReadOnlyList<AgentId> DisplayOrder()
     {
@@ -47,7 +55,7 @@ public sealed record AppSettings(
     OnboardingPreferences Onboarding,
     IReadOnlyDictionary<AgentId, UsageSnapshot> LastSnapshots)
 {
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 
     public static AppSettings Default { get; } = new(
         CurrentVersion,
@@ -373,11 +381,25 @@ public sealed class AppSettingsStore
         var todayMetric = Enum.IsDefined(appearance.TodayMetric)
             ? appearance.TodayMetric
             : AppearancePreferences.Default.TodayMetric;
+        var selectedTokenKinds =
+            appearance.SelectedTokenKinds.IsValid(allowNone: false)
+                ? appearance.SelectedTokenKinds
+                : AppearancePreferences.Default.SelectedTokenKinds;
+        var tokenValueDisplay = Enum.IsDefined(appearance.TokenValueDisplay)
+            ? appearance.TokenValueDisplay
+            : AppearancePreferences.Default.TokenValueDisplay;
+        var selectedTokenRange = Enum.IsDefined(appearance.SelectedTokenRange)
+            ? appearance.SelectedTokenRange
+            : AppearancePreferences.Default.SelectedTokenRange;
         return new AppearancePreferences(
             primary,
             order,
             gaugeStyle,
-            todayMetric);
+            todayMetric,
+            selectedTokenKinds,
+            tokenValueDisplay,
+            selectedTokenRange,
+            appearance.AlwaysOnTop);
     }
 
     private static AppSettings Clone(AppSettings settings) => new(
@@ -386,7 +408,11 @@ public sealed class AppSettingsStore
             settings.Appearance.PrimaryAgent,
             settings.Appearance.Order.ToArray(),
             settings.Appearance.GaugeStyle,
-            settings.Appearance.TodayMetric),
+            settings.Appearance.TodayMetric,
+            settings.Appearance.SelectedTokenKinds,
+            settings.Appearance.TokenValueDisplay,
+            settings.Appearance.SelectedTokenRange,
+            settings.Appearance.AlwaysOnTop),
         new OnboardingPreferences(settings.Onboarding.Completed),
         AsReadOnly(settings.LastSnapshots.ToDictionary(
             pair => pair.Key,

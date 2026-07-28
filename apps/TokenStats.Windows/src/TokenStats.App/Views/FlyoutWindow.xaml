@@ -3,15 +3,15 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="TokenStats"
-    Width="392"
+    Width="424"
     MaxHeight="760"
     AllowsTransparency="True"
     Background="Transparent"
     ResizeMode="NoResize"
     ShowInTaskbar="False"
     SizeToContent="Height"
+    SizeChanged="FlyoutWindow_OnSizeChanged"
     Style="{StaticResource {x:Type Window}}"
-    Topmost="True"
     WindowStyle="None">
     <Border
         Margin="12"
@@ -32,7 +32,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
@@ -40,15 +40,25 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBlock
                     VerticalAlignment="Center"
                     FontSize="16"
                     FontWeight="SemiBold"
                     Text="TokenStats" />
+                <ToggleButton
+                    x:Name="PinButton"
+                    Grid.Column="1"
+                    Style="{StaticResource IconToggleButton}"
+                    ToolTip="Keep flyout on top"
+                    AutomationProperties.Name="Keep flyout on top"
+                    Checked="PinButton_OnChanged"
+                    Unchecked="PinButton_OnChanged"
+                    Content="&#xE718;" />
                 <Button
                     x:Name="RefreshButton"
-                    Grid.Column="1"
+                    Grid.Column="2"
                     Style="{StaticResource IconButton}"
                     ToolTip="Refresh all (Ctrl+R)"
                     AutomationProperties.Name="Refresh all"
@@ -237,10 +247,10 @@
                             <Grid Margin="0,0,0,4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="110" />
-                                    <ColumnDefinition Width="56" />
-                                    <ColumnDefinition Width="56" />
-                                    <ColumnDefinition Width="56" />
-                                    <ColumnDefinition Width="56" />
+                                    <ColumnDefinition Width="64" />
+                                    <ColumnDefinition Width="64" />
+                                    <ColumnDefinition Width="64" />
+                                    <ColumnDefinition Width="64" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock
                                     Grid.Column="0"
@@ -248,74 +258,98 @@
                                     FontWeight="SemiBold"
                                     Foreground="{DynamicResource SecondaryTextBrush}"
                                     Text="MODEL" />
-                                <StackPanel
+                                <ToggleButton
+                                    x:Name="DirectInputKindButton"
                                     Grid.Column="1"
-                                    HorizontalAlignment="Right"
-                                    Orientation="Horizontal"
-                                    ToolTip="Direct input tokens">
-                                    <Border
-                                        Width="6"
-                                        Height="6"
-                                        Margin="0,0,4,0"
-                                        VerticalAlignment="Center"
-                                        Background="{DynamicResource TokenInputBrush}" />
-                                    <TextBlock
-                                        FontSize="10.5"
-                                        FontWeight="SemiBold"
-                                        Foreground="{DynamicResource TokenInputBrush}"
-                                        Text="IN" />
-                                </StackPanel>
-                                <StackPanel
+                                    Style="{StaticResource TokenKindToggleButton}"
+                                    Tag="DirectInput"
+                                    ToolTip="Include direct input in the selected total"
+                                    AutomationProperties.Name="Include direct input tokens"
+                                    Checked="TokenKindButton_OnChanged"
+                                    Unchecked="TokenKindButton_OnChanged">
+                                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                                        <Border
+                                            Width="6"
+                                            Height="6"
+                                            Margin="0,0,4,0"
+                                            VerticalAlignment="Center"
+                                            Background="{DynamicResource TokenInputBrush}" />
+                                        <TextBlock
+                                            FontSize="10.5"
+                                            FontWeight="SemiBold"
+                                            Foreground="{DynamicResource TokenInputBrush}"
+                                            Text="IN" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    x:Name="OutputKindButton"
                                     Grid.Column="2"
-                                    HorizontalAlignment="Right"
-                                    Orientation="Horizontal"
-                                    ToolTip="Output tokens">
-                                    <Border
-                                        Width="6"
-                                        Height="6"
-                                        Margin="0,0,4,0"
-                                        VerticalAlignment="Center"
-                                        Background="{DynamicResource TokenOutputBrush}" />
-                                    <TextBlock
-                                        FontSize="10.5"
-                                        FontWeight="SemiBold"
-                                        Foreground="{DynamicResource TokenOutputBrush}"
-                                        Text="OUT" />
-                                </StackPanel>
-                                <StackPanel
+                                    Style="{StaticResource TokenKindToggleButton}"
+                                    Tag="Output"
+                                    ToolTip="Include output in the selected total"
+                                    AutomationProperties.Name="Include output tokens"
+                                    Checked="TokenKindButton_OnChanged"
+                                    Unchecked="TokenKindButton_OnChanged">
+                                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                                        <Border
+                                            Width="6"
+                                            Height="6"
+                                            Margin="0,0,4,0"
+                                            VerticalAlignment="Center"
+                                            Background="{DynamicResource TokenOutputBrush}" />
+                                        <TextBlock
+                                            FontSize="10.5"
+                                            FontWeight="SemiBold"
+                                            Foreground="{DynamicResource TokenOutputBrush}"
+                                            Text="OUT" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    x:Name="CacheWriteKindButton"
                                     Grid.Column="3"
-                                    HorizontalAlignment="Right"
-                                    Orientation="Horizontal"
-                                    ToolTip="Cache write tokens">
-                                    <Border
-                                        Width="6"
-                                        Height="6"
-                                        Margin="0,0,4,0"
-                                        VerticalAlignment="Center"
-                                        Background="{DynamicResource TokenCacheWriteBrush}" />
-                                    <TextBlock
-                                        FontSize="10.5"
-                                        FontWeight="SemiBold"
-                                        Foreground="{DynamicResource TokenCacheWriteBrush}"
-                                        Text="C·W" />
-                                </StackPanel>
-                                <StackPanel
+                                    Style="{StaticResource TokenKindToggleButton}"
+                                    Tag="CacheWrite"
+                                    ToolTip="Include cache write in the selected total"
+                                    AutomationProperties.Name="Include cache write tokens"
+                                    Checked="TokenKindButton_OnChanged"
+                                    Unchecked="TokenKindButton_OnChanged">
+                                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                                        <Border
+                                            Width="6"
+                                            Height="6"
+                                            Margin="0,0,4,0"
+                                            VerticalAlignment="Center"
+                                            Background="{DynamicResource TokenCacheWriteBrush}" />
+                                        <TextBlock
+                                            FontSize="10.5"
+                                            FontWeight="SemiBold"
+                                            Foreground="{DynamicResource TokenCacheWriteBrush}"
+                                            Text="C·W" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton
+                                    x:Name="CacheReadKindButton"
                                     Grid.Column="4"
-                                    HorizontalAlignment="Right"
-                                    Orientation="Horizontal"
-                                    ToolTip="Cache read tokens">
-                                    <Border
-                                        Width="6"
-                                        Height="6"
-                                        Margin="0,0,4,0"
-                                        VerticalAlignment="Center"
-                                        Background="{DynamicResource TokenCacheReadBrush}" />
-                                    <TextBlock
-                                        FontSize="10.5"
-                                        FontWeight="SemiBold"
-                                        Foreground="{DynamicResource TokenCacheReadBrush}"
-                                        Text="C·R" />
-                                </StackPanel>
+                                    Style="{StaticResource TokenKindToggleButton}"
+                                    Tag="CacheRead"
+                                    ToolTip="Include cache read in the selected total"
+                                    AutomationProperties.Name="Include cache read tokens"
+                                    Checked="TokenKindButton_OnChanged"
+                                    Unchecked="TokenKindButton_OnChanged">
+                                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                                        <Border
+                                            Width="6"
+                                            Height="6"
+                                            Margin="0,0,4,0"
+                                            VerticalAlignment="Center"
+                                            Background="{DynamicResource TokenCacheReadBrush}" />
+                                        <TextBlock
+                                            FontSize="10.5"
+                                            FontWeight="SemiBold"
+                                            Foreground="{DynamicResource TokenCacheReadBrush}"
+                                            Text="C·R" />
+                                    </StackPanel>
+                                </ToggleButton>
                             </Grid>
                             <StackPanel x:Name="TokenRowsPanel" />
                         </StackPanel>

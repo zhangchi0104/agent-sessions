@@ -41,6 +41,11 @@ Add a separate native Windows application under `apps/TokenStats.Windows`:
 - The Windows Tokens tab implements the shared Token Odometer over Today,
   7 days, or 30 days, grouped by Coding Agent, Model, and the four disjoint
   Token Kinds.
+- Each Windows Token Kind heading is an independent filter. Enabled headings
+  produce a **selected total** for the flyout and tray tooltip while the raw
+  four-kind Token Odometer remains unchanged. Token cells can show value,
+  percentage composition, or `value (percentage)` according to the
+  **Display** preference.
 - Windows retains two summary presentations inside that tab. Billing tokens
   count direct input, cache writes, and output while excluding cache reads;
   API equivalent derives a list-price estimate from transcript model
@@ -52,14 +57,26 @@ Add a separate native Windows application under `apps/TokenStats.Windows`:
 - Windows follows the system app theme at startup and at runtime. Its WPF
   surfaces, native title bars, controls, and notification-area menu share
   light, dark, and High Contrast-aware theme resources.
+- Windows persists the Token Odometer range and the flyout pin choice across
+  restarts. A pinned flyout remains visible and always on top; an unpinned
+  flyout keeps notification-area auto-dismiss behavior.
+- Any operation that changes flyout layout repositions and constrains it to the
+  notification area's monitor work area. This includes range and Token Kind
+  changes, Display preference changes, tab changes, scan results, and expanded
+  diagnostics.
+- Because the tray tooltip consumes the selected total while the flyout is
+  closed, Windows seeds the persisted range at startup and keeps debounced
+  `FileSystemWatcher` subscriptions active for the resident app's lifetime.
+  The watcher remains in-process and event-driven; it is not a daemon, database
+  cache, IPC service, or polling loop.
 - The existing Swift/macOS project remains native and independent. The two apps
   share target behavior specifications, endpoint documentation, terminology,
   and visual assets—not a runtime or build graph.
 
 Windows notification-area icons cannot reserve adjacent dynamic text as a
-macOS menu-bar item can. The compact reading (`76%` or
-`C: 76% X: 88%`) therefore lives in the tray tooltip, with full readings in the
-flyout.
+macOS menu-bar item can. The compact status-area reading therefore lives in the
+tray tooltip, including the persisted Token Odometer range's selected total,
+with full per-Agent, per-Model, and per-Kind readings in the flyout.
 
 Opening the Windows flyout intentionally triggers a Usage Window refresh. The
 macOS refresh policy already names a `popoverOpen` trigger but does not
@@ -87,7 +104,26 @@ daemon. C# is introduced only for the Windows client.
   C#, so parser fixtures and acceptance tests must guard against drift. The
   Windows-only pricing summary must remain clearly separated from the shared
   raw Token Odometer semantics.
+- **Negative:** Windows keeps two recursive file-system subscriptions armed
+  while the tray process is resident and performs a background seed scan at
+  every launch. Persisting 30 days can make that initial scan materially more
+  expensive than Today, although idle operation performs no polling.
 - **Negative:** Windows packaging, Authenticode signing, SmartScreen reputation,
   and release assets require their own pipeline and credentials.
 - **Risk:** the Claude and Codex endpoints are unofficial. Codex login and usage
   still require live end-to-end confirmation before a production release.
+
+## Amendment — 2026-07-29
+
+Windows' status-area surface now includes the Token Odometer selected total, so
+three implementation details become durable product behavior:
+
+1. Token Kind filters and their value/percentage presentation belong to
+   **Display**, while selected total remains explicitly distinct from the raw
+   four-kind Odometer.
+2. The chosen Token Odometer range and flyout pin preference survive process
+   restarts, and every size-changing operation repositions the flyout inside
+   the current work area.
+3. The Windows watcher is application-resident rather than Tokens-tab-visible.
+   This revises only the watcher lifetime from ADR-0003; the no-daemon,
+   no-database, and no-IPC architecture remains accepted.

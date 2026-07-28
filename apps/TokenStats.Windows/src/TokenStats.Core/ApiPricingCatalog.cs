@@ -92,9 +92,18 @@ public static class ApiPricingCatalog
 
     public static ApiCostEstimate Estimate(
         TokenUsage usage,
-        DateOnly? pricingDate = null)
+        DateOnly? pricingDate = null,
+        TokenKindSelection selection = TokenKindSelection.All)
     {
         ArgumentNullException.ThrowIfNull(usage);
+        if (!selection.IsValid())
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(selection),
+                selection,
+                "The selection contains an unknown Token Kind.");
+        }
+
         var date = pricingDate ?? DateOnly.FromDateTime(DateTime.Today);
         var cost = 0m;
         long pricedTokens = 0;
@@ -105,24 +114,31 @@ public static class ApiPricingCatalog
         foreach (var item in usage.ModelUsage)
         {
             attributed = attributed.Add(item.Breakdown);
-            if (item.Model is not null &&
-                TryResolve(item.AgentId, item.Model, date, out var rates))
+            var selectedTokens = item.Breakdown.SelectedTotal(selection);
+            if (selectedTokens == 0)
             {
-                cost += Cost(item.Breakdown, rates);
-                pricedTokens += item.Breakdown.MeteredTokenTotal;
                 continue;
             }
 
-            unpricedTokens += item.Breakdown.MeteredTokenTotal;
+            if (item.Model is not null &&
+                TryResolve(item.AgentId, item.Model, date, out var rates))
+            {
+                cost += Cost(item.Breakdown, rates, selection);
+                pricedTokens += selectedTokens;
+                continue;
+            }
+
+            unpricedTokens += selectedTokens;
             unpricedModels.Add(
                 $"{AgentRegistry.Get(item.AgentId).DisplayName}: " +
                 (item.Model ?? "unknown model"));
         }
 
         var unattributed = SubtractNonNegative(usage.Breakdown, attributed);
-        if (unattributed.MeteredTokenTotal > 0)
+        var selectedUnattributed = unattributed.SelectedTotal(selection);
+        if (selectedUnattributed > 0)
         {
-            unpricedTokens += unattributed.MeteredTokenTotal;
+            unpricedTokens += selectedUnattributed;
             unpricedModels.Add("unknown transcript model");
         }
 
@@ -189,12 +205,35 @@ public static class ApiPricingCatalog
                    char.IsAsciiDigit(character) || character == '-');
     }
 
-    private static decimal Cost(TokenBreakdown usage, ApiTokenRates rates) =>
-        (usage.RawInputTokens * rates.RawInput +
-         usage.CacheWriteTokens * rates.CacheWrite +
-         usage.CacheWrite1HourTokens * rates.CacheWrite1Hour +
-         usage.CacheReadTokens * rates.CacheRead +
-         usage.OutputTokens * rates.Output) / 1_000_000m;
+    private static decimal Cost(
+        TokenBreakdown usage,
+        ApiTokenRates rates,
+        TokenKindSelection selection)
+    {
+        var cost = 0m;
+        if (selection.Includes(TokenKind.DirectInput))
+        {
+            cost += usage.RawInputTokens * rates.RawInput;
+        }
+
+        if (selection.Includes(TokenKind.Output))
+        {
+            cost += usage.OutputTokens * rates.Output;
+        }
+
+        if (selection.Includes(TokenKind.CacheWrite))
+        {
+            cost += usage.CacheWriteTokens * rates.CacheWrite;
+            cost += usage.CacheWrite1HourTokens * rates.CacheWrite1Hour;
+        }
+
+        if (selection.Includes(TokenKind.CacheRead))
+        {
+            cost += usage.CacheReadTokens * rates.CacheRead;
+        }
+
+        return cost / 1_000_000m;
+    }
 
     private static TokenBreakdown SubtractNonNegative(
         TokenBreakdown total,

@@ -1,5 +1,7 @@
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -43,13 +45,29 @@ internal static class Program
                 {
                     GaugeStyle = GaugeStyle.Ring,
                     TodayMetric = TodayMetricMode.Usage,
+                    SelectedTokenKinds =
+                        TokenKindSelection.DirectInput |
+                        TokenKindSelection.CacheRead,
+                    TokenValueDisplay =
+                        TokenValueDisplayMode.ValueAndPercentage,
+                    SelectedTokenRange = TokenRange.ThirtyDays,
+                    AlwaysOnTop = true,
                 });
             var reloadedSettings = new AppSettingsStore(settings.SettingsPath);
             if (reloadedSettings.Appearance.GaugeStyle != GaugeStyle.Ring ||
-                reloadedSettings.Appearance.TodayMetric != TodayMetricMode.Usage)
+                reloadedSettings.Appearance.TodayMetric != TodayMetricMode.Usage ||
+                reloadedSettings.Appearance.SelectedTokenKinds !=
+                    (TokenKindSelection.DirectInput |
+                     TokenKindSelection.CacheRead) ||
+                reloadedSettings.Appearance.TokenValueDisplay !=
+                    TokenValueDisplayMode.ValueAndPercentage ||
+                reloadedSettings.Appearance.SelectedTokenRange !=
+                    TokenRange.ThirtyDays ||
+                !reloadedSettings.Appearance.AlwaysOnTop ||
+                reloadedSettings.Current.Version != AppSettings.CurrentVersion)
             {
                 throw new InvalidOperationException(
-                    "Windows settings did not survive an ISO-JSON round trip.");
+                    "Windows v3 display settings did not survive an ISO-JSON round trip.");
             }
 
             var malformedSettingsPath = Path.Combine(
@@ -59,7 +77,7 @@ internal static class Program
                 malformedSettingsPath,
                 JsonSerializer.Serialize(new
                 {
-                    version = 1,
+                    version = 2,
                     appearance = new
                     {
                         primaryAgent = "claudeCode",
@@ -87,9 +105,21 @@ internal static class Program
                 throw new InvalidOperationException(
                     "Legacy settings did not migrate to the Token counter.");
             }
+            if (sanitizedSettings.Current.Version != AppSettings.CurrentVersion ||
+                sanitizedSettings.Appearance.SelectedTokenKinds !=
+                    TokenKindSelection.All ||
+                sanitizedSettings.Appearance.TokenValueDisplay !=
+                    TokenValueDisplayMode.Value ||
+                sanitizedSettings.Appearance.SelectedTokenRange !=
+                    TokenRange.Today ||
+                sanitizedSettings.Appearance.AlwaysOnTop)
+            {
+                throw new InvalidOperationException(
+                    "Legacy settings did not receive safe v3 display defaults.");
+            }
 
             settings.SaveAppearance(
-                settings.Appearance with { GaugeStyle = GaugeStyle.Dial });
+                AppearancePreferences.Default with { GaugeStyle = GaugeStyle.Dial });
             var callback = LoopbackAuthListener.ParseRequest(
                 "GET /auth/callback?code=abc123&state=state-123 HTTP/1.1\r\n" +
                 "Host: localhost:1455\r\n\r\n");
@@ -108,6 +138,8 @@ internal static class Program
             }
 
             VerifySmallWorkAreaConstraints();
+            VerifyFlyoutPlacement();
+            VerifyMissingTranscriptRootRecovery(temporary);
             VerifySignOutWinsInFlightRefresh(temporary);
 
             var auth = AgentRegistry.All.ToDictionary(
@@ -176,7 +208,7 @@ internal static class Program
             if (tokens.Usage?.TotalTokens != 150)
             {
                 throw new InvalidOperationException(
-                    "The visible-only transcript watcher did not seed the Token Odometer.");
+                    "The transcript watcher did not seed the Token Odometer.");
             }
             if (!tokens.HasLoaded ||
                 tokens.IsScanning ||
@@ -204,17 +236,21 @@ internal static class Program
 
             tokens.SetVisibleAsync(false).GetAwaiter().GetResult();
             tokens.SetVisibleAsync(true).GetAwaiter().GetResult();
-            if (tokens.SelectedRange != TokenRange.Today ||
-                tokens.DisplayedRange != TokenRange.Today ||
-                tokens.Usage?.OdometerTokens != 150)
+            if (tokens.SelectedRange != TokenRange.SevenDays ||
+                tokens.DisplayedRange != TokenRange.SevenDays ||
+                tokens.Usage?.OdometerTokens != 350)
             {
                 throw new InvalidOperationException(
-                    "A new Tokens-tab appearance did not reset the range to Today.");
+                    "The Token Odometer did not preserve its range after hide/show.");
             }
 
+            tokens.SelectRangeAsync(TokenRange.Today)
+                .GetAwaiter()
+                .GetResult();
             watcherNow = watcherNow.AddDays(1);
             tokens.SetVisibleAsync(true).GetAwaiter().GetResult();
-            if (tokens.Usage is not null)
+            if (tokens.SelectedRange != TokenRange.Today ||
+                tokens.Usage is not null)
             {
                 throw new InvalidOperationException(
                     "The Token Odometer retained the previous local day after midnight.");
@@ -222,10 +258,11 @@ internal static class Program
 
             watcherNow = watcherNow.AddDays(-1);
             tokens.SetVisibleAsync(true).GetAwaiter().GetResult();
-            tokens.SetVisibleAsync(false).GetAwaiter().GetResult();
+            VerifyFlyoutDisplayInteractions(coordinator, settings, tokens);
 
             VerifyRuntimeThemeSwitch(
                 coordinator,
+                settings,
                 tokens,
                 application.Resources);
             CaptureThemeMatrix(
@@ -412,8 +449,210 @@ internal static class Program
         }
     }
 
+    private static void VerifyFlyoutDisplayInteractions(
+        UsageCoordinator coordinator,
+        AppSettingsStore settings,
+        TokenOdometerWatcher tokens)
+    {
+        settings.SaveAppearance(
+            settings.Appearance with
+            {
+                TodayMetric = TodayMetricMode.Token,
+                SelectedTokenKinds = TokenKindSelection.All,
+                TokenValueDisplay = TokenValueDisplayMode.Value,
+                SelectedTokenRange = TokenRange.Today,
+                AlwaysOnTop = false,
+            });
+        tokens.SelectRangeAsync(TokenRange.Today).GetAwaiter().GetResult();
+        tokens.SetVisibleAsync(true).GetAwaiter().GetResult();
+
+        var flyout = new FlyoutWindow(
+            coordinator,
+            settings,
+            tokens,
+            () => { },
+            () => { })
+        {
+            ShowActivated = false,
+        };
+        try
+        {
+            ShowAndCompleteLayout(flyout);
+            var tokensTab = FindNamed<RadioButton>(flyout, "TokensTabButton");
+            var apiMetric = FindNamed<RadioButton>(flyout, "ApiMetricButton");
+            var billingMetric =
+                FindNamed<RadioButton>(flyout, "BillingMetricButton");
+            var sevenDays =
+                FindNamed<RadioButton>(flyout, "SevenDaysRangeButton");
+            var pin = FindNamed<ToggleButton>(flyout, "PinButton");
+            var summaryValue =
+                FindNamed<TextBlock>(flyout, "TokenSummaryValue");
+            var tableTotal =
+                FindNamed<TextBlock>(flyout, "TokenTableTotal");
+            var kindButtons = new[]
+            {
+                FindNamed<ToggleButton>(flyout, "DirectInputKindButton"),
+                FindNamed<ToggleButton>(flyout, "OutputKindButton"),
+                FindNamed<ToggleButton>(flyout, "CacheWriteKindButton"),
+                FindNamed<ToggleButton>(flyout, "CacheReadKindButton"),
+            };
+
+            tokensTab.IsChecked = true;
+            PumpDispatcher(flyout.Dispatcher);
+            if (kindButtons.Any(button =>
+                    button.IsChecked != true ||
+                    !button.Focusable ||
+                    string.IsNullOrWhiteSpace(
+                        AutomationProperties.GetName(button))))
+            {
+                throw new InvalidOperationException(
+                    "Token Kind filters must start selected and expose keyboard/UIA controls.");
+            }
+
+            if (FindTokenCell(flyout, "Direct input").Text != "100" ||
+                FindTokenCell(flyout, "Output").Text != "50" ||
+                FindTokenCell(flyout, "Cache write").Text != "–" ||
+                FindTokenCell(flyout, "Cache read").Text != "–")
+            {
+                throw new InvalidOperationException(
+                    "Value mode did not render the four Token Kind cells.");
+            }
+
+            kindButtons[1].IsChecked = false;
+            PumpDispatcher(flyout.Dispatcher);
+            if (settings.Appearance.SelectedTokenKinds !=
+                    (TokenKindSelection.All & ~TokenKindSelection.Output) ||
+                kindButtons[1].IsChecked != false ||
+                summaryValue.Text != "100" ||
+                !tableTotal.Text.Contains("3 selected kinds", StringComparison.Ordinal) ||
+                tokens.Usage?.OdometerTokens != 150)
+            {
+                throw new InvalidOperationException(
+                    "A Token Kind filter did not update the selected total " +
+                    "without changing the raw Token Odometer.");
+            }
+
+            kindButtons[1].IsChecked = true;
+            PumpDispatcher(flyout.Dispatcher);
+            settings.SaveAppearance(
+                settings.Appearance with
+                {
+                    TokenValueDisplay = TokenValueDisplayMode.Percentage,
+                });
+            PumpDispatcher(flyout.Dispatcher);
+            if (FindTokenCell(flyout, "Direct input").Text != "66.7%" ||
+                FindTokenCell(flyout, "Output").Text != "33.3%")
+            {
+                throw new InvalidOperationException(
+                    "Percentage mode did not use the selected-kinds row total.");
+            }
+
+            settings.SaveAppearance(
+                settings.Appearance with
+                {
+                    TokenValueDisplay =
+                        TokenValueDisplayMode.ValueAndPercentage,
+                });
+            PumpDispatcher(flyout.Dispatcher);
+            if (FindTokenCell(flyout, "Direct input").Text !=
+                    "100\n(66.7%)" ||
+                FindTokenCell(flyout, "Output").Text != "50\n(33.3%)")
+            {
+                throw new InvalidOperationException(
+                    "Value-and-percentage mode did not render both figures.");
+            }
+
+            settings.SaveAppearance(
+                settings.Appearance with
+                {
+                    TokenValueDisplay = TokenValueDisplayMode.Value,
+                });
+            PumpDispatcher(flyout.Dispatcher);
+
+            apiMetric.IsChecked = true;
+            PumpDispatcher(flyout.Dispatcher);
+            if (settings.Appearance.TodayMetric != TodayMetricMode.Usage ||
+                !summaryValue.Text.StartsWith("$", StringComparison.Ordinal) ||
+                new AppSettingsStore(settings.SettingsPath)
+                    .Appearance.TodayMetric != TodayMetricMode.Usage)
+            {
+                throw new InvalidOperationException(
+                    "The API-equivalent flyout choice was not rendered and persisted.");
+            }
+
+            billingMetric.IsChecked = true;
+            PumpDispatcher(flyout.Dispatcher);
+            if (settings.Appearance.TodayMetric != TodayMetricMode.Token ||
+                summaryValue.Text != "150" ||
+                new AppSettingsStore(settings.SettingsPath)
+                    .Appearance.TodayMetric != TodayMetricMode.Token)
+            {
+                throw new InvalidOperationException(
+                    "The Billing tokens flyout choice was not rendered and persisted.");
+            }
+
+            if (flyout.Topmost || pin.IsChecked == true || !pin.Focusable)
+            {
+                throw new InvalidOperationException(
+                    "The flyout did not start in an accessible, unpinned state.");
+            }
+
+            pin.IsChecked = true;
+            PumpDispatcher(flyout.Dispatcher);
+            if (!flyout.Topmost ||
+                !settings.Appearance.AlwaysOnTop ||
+                AutomationProperties.GetName(pin) != "Unpin flyout" ||
+                !new AppSettingsStore(settings.SettingsPath)
+                    .Appearance.AlwaysOnTop)
+            {
+                throw new InvalidOperationException(
+                    "Pinning did not enable and persist always-on-top behavior.");
+            }
+
+            pin.IsChecked = false;
+            PumpDispatcher(flyout.Dispatcher);
+            if (flyout.Topmost || settings.Appearance.AlwaysOnTop)
+            {
+                throw new InvalidOperationException(
+                    "Unpinning did not restore notification-area flyout behavior.");
+            }
+
+            sevenDays.IsChecked = true;
+            WaitForUi(
+                flyout.Dispatcher,
+                () =>
+                    tokens.SelectedRange == TokenRange.SevenDays &&
+                    tokens.DisplayedRange == TokenRange.SevenDays &&
+                    tokens.PendingRange is null,
+                "The seven-day flyout range did not finish scanning.");
+            if (settings.Appearance.SelectedTokenRange != TokenRange.SevenDays ||
+                new AppSettingsStore(settings.SettingsPath)
+                    .Appearance.SelectedTokenRange != TokenRange.SevenDays)
+            {
+                throw new InvalidOperationException(
+                    "The flyout range choice was not persisted.");
+            }
+        }
+        finally
+        {
+            settings.SaveAppearance(
+                settings.Appearance with
+                {
+                    TodayMetric = TodayMetricMode.Token,
+                    SelectedTokenKinds = TokenKindSelection.All,
+                    TokenValueDisplay = TokenValueDisplayMode.Value,
+                    SelectedTokenRange = TokenRange.Today,
+                    AlwaysOnTop = false,
+                });
+            tokens.SelectRangeAsync(TokenRange.Today).GetAwaiter().GetResult();
+            flyout.AllowClose();
+            flyout.Close();
+        }
+    }
+
     private static void VerifyRuntimeThemeSwitch(
         UsageCoordinator coordinator,
+        AppSettingsStore settings,
         TokenOdometerWatcher tokens,
         ResourceDictionary resources)
     {
@@ -421,6 +660,7 @@ internal static class Program
         tokens.SetVisibleAsync(true).GetAwaiter().GetResult();
         var flyout = new FlyoutWindow(
             coordinator,
+            settings,
             tokens,
             () => { },
             () => { })
@@ -681,6 +921,7 @@ internal static class Program
             });
         var flyout = new FlyoutWindow(
             coordinator,
+            settings,
             tokens,
             () => { },
             () => { });
@@ -705,6 +946,7 @@ internal static class Program
             });
         var tokenFlyout = new FlyoutWindow(
             coordinator,
+            settings,
             tokens,
             () => { },
             () => { });
@@ -753,12 +995,29 @@ internal static class Program
             }
 
             navigation.SelectedIndex = 1;
-            snapshots["settings-appearance"] = ShowAndLayout(
+            snapshots["settings-display"] = ShowAndLayout(
                 settingsWindow,
                 snapshotDirectory,
                 background,
-                SnapshotNames("settings-appearance", suffix, theme));
+                SnapshotNames("settings-display", suffix, theme));
+            VerifyDisplaySettingsPresentation(
+                settingsWindow,
+                settings,
+                navigation);
             VerifyPrimaryAgentComboPresentation(settingsWindow);
+            if (settingsWindow.FindName("AppearancePage") is not
+                ScrollViewer displayPage)
+            {
+                throw new InvalidOperationException(
+                    "The Display page scroll viewer could not be found.");
+            }
+
+            displayPage.ScrollToEnd();
+            snapshots["settings-display-options"] = ShowAndLayout(
+                settingsWindow,
+                snapshotDirectory,
+                background,
+                SnapshotNames("settings-display-options", suffix, theme));
         }
         finally
         {
@@ -805,6 +1064,126 @@ internal static class Program
         {
             throw new InvalidOperationException(
                 "High-DPI work-area constraints can produce an invalid WPF size.");
+        }
+    }
+
+    private static void VerifyFlyoutPlacement()
+    {
+        var screen = new System.Drawing.Rectangle(0, 0, 1920, 1080);
+        var window = new System.Drawing.Size(400, 500);
+        const int margin = 8;
+        var cases = new[]
+        {
+            (
+                Name: "bottom taskbar",
+                WorkArea: new System.Drawing.Rectangle(0, 0, 1920, 1040),
+                Anchor: new System.Drawing.Point(1900, 1060),
+                Anchored: (Func<System.Drawing.Rectangle, bool>)(placement =>
+                    placement.Bottom == 1040 - margin)),
+            (
+                Name: "top taskbar",
+                WorkArea: new System.Drawing.Rectangle(0, 40, 1920, 1040),
+                Anchor: new System.Drawing.Point(1900, 20),
+                Anchored: (Func<System.Drawing.Rectangle, bool>)(placement =>
+                    placement.Top == 40 + margin)),
+            (
+                Name: "left taskbar",
+                WorkArea: new System.Drawing.Rectangle(40, 0, 1880, 1080),
+                Anchor: new System.Drawing.Point(20, 1040),
+                Anchored: (Func<System.Drawing.Rectangle, bool>)(placement =>
+                    placement.Left == 40 + margin)),
+            (
+                Name: "right taskbar",
+                WorkArea: new System.Drawing.Rectangle(0, 0, 1880, 1080),
+                Anchor: new System.Drawing.Point(1900, 1040),
+                Anchored: (Func<System.Drawing.Rectangle, bool>)(placement =>
+                    placement.Right == 1880 - margin)),
+        };
+
+        foreach (var testCase in cases)
+        {
+            var placement = WindowSizing.CalculateFlyoutPlacement(
+                testCase.WorkArea,
+                screen,
+                testCase.Anchor,
+                window,
+                margin);
+            if (!testCase.Anchored(placement) ||
+                placement.Left < testCase.WorkArea.Left + margin ||
+                placement.Top < testCase.WorkArea.Top + margin ||
+                placement.Right > testCase.WorkArea.Right - margin ||
+                placement.Bottom > testCase.WorkArea.Bottom - margin)
+            {
+                throw new InvalidOperationException(
+                    $"Flyout placement escaped or detached from the " +
+                    $"{testCase.Name} work area: {placement}.");
+            }
+        }
+
+        var clamped = WindowSizing.CalculateFlyoutPlacement(
+            new System.Drawing.Rectangle(100, 100, 300, 200),
+            new System.Drawing.Rectangle(100, 80, 300, 220),
+            new System.Drawing.Point(-10_000, 10_000),
+            new System.Drawing.Size(1_000, 1_000),
+            margin: 16);
+        if (clamped != new System.Drawing.Rectangle(116, 116, 268, 168))
+        {
+            throw new InvalidOperationException(
+                $"Oversized flyout placement was not clamped: {clamped}.");
+        }
+    }
+
+    private static void VerifyMissingTranscriptRootRecovery(string temporary)
+    {
+        var now = DateTimeOffset.Now;
+        var root = Path.Combine(
+            temporary,
+            "late-transcripts",
+            "sessions");
+        var watcher = new TokenOdometerWatcher(
+            new TranscriptTokenReader(),
+            [("Late root", root)],
+            () => now);
+        try
+        {
+            watcher.SetVisibleAsync(true).GetAwaiter().GetResult();
+            if (!watcher.HasLoaded || watcher.Usage is not null)
+            {
+                throw new InvalidOperationException(
+                    "The missing-root seed scan did not publish an empty state.");
+            }
+
+            Directory.CreateDirectory(root);
+            File.WriteAllText(
+                Path.Combine(root, "late.jsonl"),
+                JsonSerializer.Serialize(new
+                {
+                    timestamp = now.ToString("O"),
+                    message = new
+                    {
+                        id = "late-root",
+                        model = "claude-sonnet-4-6",
+                        usage = new
+                        {
+                            input_tokens = 7,
+                            output_tokens = 3,
+                            cache_creation_input_tokens = 0,
+                            cache_read_input_tokens = 0,
+                        },
+                    },
+                }) + Environment.NewLine);
+
+            if (!SpinWait.SpinUntil(
+                    () => watcher.Usage?.OdometerTokens == 10,
+                    TimeSpan.FromSeconds(5)))
+            {
+                throw new TimeoutException(
+                    "A transcript root created after startup was not discovered.");
+            }
+        }
+        finally
+        {
+            watcher.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
     }
 
@@ -899,6 +1278,50 @@ internal static class Program
         window.UpdateLayout();
     }
 
+    private static T FindNamed<T>(FrameworkElement root, string name)
+        where T : FrameworkElement =>
+        root.FindName(name) as T ??
+        throw new InvalidOperationException(
+            $"{typeof(T).Name} '{name}' could not be found.");
+
+    private static TextBlock FindTokenCell(
+        DependencyObject root,
+        string kindName) =>
+        FindVisualDescendant<TextBlock>(
+            root,
+            text =>
+                text.ToolTip is string tooltip &&
+                tooltip.StartsWith($"{kindName}:", StringComparison.Ordinal));
+
+    private static void PumpDispatcher(Dispatcher dispatcher)
+    {
+        var frame = new DispatcherFrame();
+        dispatcher.BeginInvoke(
+            DispatcherPriority.Background,
+            new Action(() => frame.Continue = false));
+        Dispatcher.PushFrame(frame);
+    }
+
+    private static void WaitForUi(
+        Dispatcher dispatcher,
+        Func<bool> condition,
+        string timeoutMessage)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (DateTime.UtcNow < deadline)
+        {
+            PumpDispatcher(dispatcher);
+            if (condition())
+            {
+                return;
+            }
+
+            Thread.Sleep(10);
+        }
+
+        throw new TimeoutException(timeoutMessage);
+    }
+
     private static void FlushThemeChange(Window window)
     {
         window.Dispatcher.Invoke(
@@ -932,6 +1355,87 @@ internal static class Program
 
         throw new InvalidOperationException(
             $"A matching {typeof(T).Name} could not be found.");
+    }
+
+    private static void VerifyDisplaySettingsPresentation(
+        SettingsWindow settingsWindow,
+        AppSettingsStore settings,
+        ListBox navigation)
+    {
+        if (navigation.Items.Count < 2 ||
+            navigation.Items[1] is not ListBoxItem
+            {
+                Content: string displayLabel,
+            } ||
+            displayLabel != "Display" ||
+            !EnumerateVisualDescendants<TextBlock>(settingsWindow)
+                .Any(text => text.Text == "Display") ||
+            EnumerateVisualDescendants<TextBlock>(settingsWindow)
+                .Any(text => text.Text == "Appearance"))
+        {
+            throw new InvalidOperationException(
+                "The user-facing Settings pane was not renamed to Display.");
+        }
+
+        var value =
+            FindNamed<RadioButton>(settingsWindow, "TokenValueMode");
+        var percentage =
+            FindNamed<RadioButton>(settingsWindow, "TokenPercentageMode");
+        var valueAndPercentage =
+            FindNamed<RadioButton>(
+                settingsWindow,
+                "TokenValuePercentageMode");
+        var alwaysOnTop =
+            FindNamed<CheckBox>(settingsWindow, "AlwaysOnTopCheckBox");
+        if (!value.Focusable ||
+            !percentage.Focusable ||
+            !valueAndPercentage.Focusable ||
+            !alwaysOnTop.Focusable ||
+            value.Content as string != "Value" ||
+            percentage.Content as string != "Percentage" ||
+            valueAndPercentage.Content as string != "Value (percentage)" ||
+            alwaysOnTop.Content as string != "Keep the flyout pinned on top")
+        {
+            throw new InvalidOperationException(
+                "The Display pane's new controls are not keyboard-readable.");
+        }
+
+        percentage.IsChecked = true;
+        PumpDispatcher(settingsWindow.Dispatcher);
+        if (settings.Appearance.TokenValueDisplay !=
+            TokenValueDisplayMode.Percentage)
+        {
+            throw new InvalidOperationException(
+                "The Percentage Display choice was not saved.");
+        }
+
+        valueAndPercentage.IsChecked = true;
+        PumpDispatcher(settingsWindow.Dispatcher);
+        if (settings.Appearance.TokenValueDisplay !=
+            TokenValueDisplayMode.ValueAndPercentage)
+        {
+            throw new InvalidOperationException(
+                "The Value (percentage) Display choice was not saved.");
+        }
+
+        value.IsChecked = true;
+        alwaysOnTop.IsChecked = true;
+        PumpDispatcher(settingsWindow.Dispatcher);
+        if (settings.Appearance.TokenValueDisplay !=
+                TokenValueDisplayMode.Value ||
+            !settings.Appearance.AlwaysOnTop)
+        {
+            throw new InvalidOperationException(
+                "The Display pane did not save Value and pin preferences.");
+        }
+
+        alwaysOnTop.IsChecked = false;
+        PumpDispatcher(settingsWindow.Dispatcher);
+        if (settings.Appearance.AlwaysOnTop)
+        {
+            throw new InvalidOperationException(
+                "The Display pane did not save the unpinned preference.");
+        }
     }
 
     private static void VerifyPrimaryAgentComboPresentation(

@@ -24,7 +24,9 @@ internal static class Program
             new(nameof(FormattingPreservesRemainingSemantics), Sync(FormattingPreservesRemainingSemantics)),
             new(nameof(TokenMetricExcludesCacheReads), Sync(TokenMetricExcludesCacheReads)),
             new(nameof(TokenOdometerKindsIncludeCacheReads), Sync(TokenOdometerKindsIncludeCacheReads)),
+            new(nameof(TokenSelectionsDriveTotalsAndFormatting), Sync(TokenSelectionsDriveTotalsAndFormatting)),
             new(nameof(ApiPricingCatalogPricesKnownModelsAndDisclosesUnknown), Sync(ApiPricingCatalogPricesKnownModelsAndDisclosesUnknown)),
+            new(nameof(ApiPricingCatalogFiltersSelectedKinds), Sync(ApiPricingCatalogFiltersSelectedKinds)),
             new(nameof(RefreshPolicyAppliesCadenceAndBackoff), Sync(RefreshPolicyAppliesCadenceAndBackoff)),
             new(nameof(StateReducerDisclosesStaleData), Sync(StateReducerDisclosesStaleData)),
             new(nameof(TokenCacheSignOutWinsInFlightRefresh), TokenCacheSignOutWinsInFlightRefresh),
@@ -433,6 +435,97 @@ internal static class Program
         Check.False(namedUnknown == ModelName.Unattributed);
     }
 
+    private static void TokenSelectionsDriveTotalsAndFormatting()
+    {
+        var usage = new TokenUsage
+        {
+            InputTokens = 11,
+            OutputTokens = 22,
+            CacheWriteTokens = 13,
+            CacheWrite1HourTokens = 20,
+            CacheReadTokens = 44,
+        };
+        var inputAndCacheWrite =
+            TokenKindSelection.DirectInput | TokenKindSelection.CacheWrite;
+
+        Check.Equal(110L, usage.SelectedTotal(TokenKindSelection.All));
+        Check.Equal(44L, usage.SelectedTotal(inputAndCacheWrite));
+        Check.Equal(0L, usage.SelectedTotal(TokenKindSelection.None));
+        Check.Equal(44L, usage.Breakdown.SelectedTotal(inputAndCacheWrite));
+        Check.True(inputAndCacheWrite.Includes(TokenKind.DirectInput));
+        Check.True(inputAndCacheWrite.Includes(TokenKind.CacheWrite));
+        Check.False(inputAndCacheWrite.Includes(TokenKind.Output));
+        Check.Equal(
+            "IN + C·W",
+            UsageFormatting.TokenKindSelectionLabel(inputAndCacheWrite));
+        Check.Equal(
+            "All",
+            UsageFormatting.TokenKindSelectionLabel(TokenKindSelection.All));
+
+        Check.Equal(
+            "25",
+            UsageFormatting.TokenCell(
+                25,
+                100,
+                TokenValueDisplayMode.Value));
+        Check.Equal(
+            "25%",
+            UsageFormatting.TokenCell(
+                25,
+                100,
+                TokenValueDisplayMode.Percentage));
+        Check.Equal(
+            "25\n(25%)",
+            UsageFormatting.TokenCell(
+                25,
+                100,
+                TokenValueDisplayMode.ValueAndPercentage));
+        Check.Equal(
+            "12.5%",
+            UsageFormatting.TokenCell(
+                1,
+                8,
+                TokenValueDisplayMode.Percentage));
+        foreach (var mode in Enum.GetValues<TokenValueDisplayMode>())
+        {
+            Check.Equal("–", UsageFormatting.TokenCell(0, 100, mode));
+        }
+
+        Check.Equal(
+            "T: 44 · 7 days",
+            UsageFormatting.TokenStatusSummary(
+                usage,
+                TokenRange.SevenDays,
+                TodayMetricMode.Token,
+                inputAndCacheWrite));
+        Check.Equal(
+            "T: 0 · Today",
+            UsageFormatting.TokenStatusSummary(
+                usage,
+                TokenRange.Today,
+                TodayMetricMode.Token,
+                TokenKindSelection.CacheRead));
+
+        var attributed = new TokenUsage();
+        attributed.AddAttributed(
+            AgentId.Codex,
+            "gpt-5.6-sol",
+            new TokenUsage
+            {
+                InputTokens = 1_000_000,
+                OutputTokens = 1_000_000,
+                ResponseCount = 1,
+            });
+        Check.Equal(
+            "API: $5.00 · 30 days",
+            UsageFormatting.TokenStatusSummary(
+                attributed,
+                TokenRange.ThirtyDays,
+                TodayMetricMode.Usage,
+                TokenKindSelection.DirectInput,
+                new DateOnly(2026, 7, 27)));
+    }
+
     private static void ApiPricingCatalogPricesKnownModelsAndDisclosesUnknown()
     {
         const long million = 1_000_000;
@@ -503,6 +596,85 @@ internal static class Program
             "gpt-5.6-sol-future-tier",
             new DateOnly(2026, 7, 27),
             out _));
+    }
+
+    private static void ApiPricingCatalogFiltersSelectedKinds()
+    {
+        const long million = 1_000_000;
+        var oneMillionOfEachCategory = new TokenUsage
+        {
+            InputTokens = million,
+            OutputTokens = million,
+            CacheWriteTokens = million,
+            CacheWrite1HourTokens = million,
+            CacheReadTokens = million,
+            ResponseCount = 1,
+        };
+        var usage = new TokenUsage();
+        usage.AddAttributed(
+            AgentId.Codex,
+            "gpt-5.6-sol",
+            oneMillionOfEachCategory);
+        usage.AddAttributed(
+            AgentId.ClaudeCode,
+            "claude-sonnet-5",
+            oneMillionOfEachCategory);
+        usage.AddAttributed(
+            AgentId.Codex,
+            "future-unknown-model",
+            new TokenUsage
+            {
+                InputTokens = 10,
+                OutputTokens = 5,
+                CacheReadTokens = 2,
+                ResponseCount = 1,
+            });
+        var pricingDate = new DateOnly(2026, 8, 31);
+
+        var directInput = ApiPricingCatalog.Estimate(
+            usage,
+            pricingDate,
+            TokenKindSelection.DirectInput);
+        Check.Equal(7m, directInput.CostUsd);
+        Check.Equal(2 * million, directInput.PricedTokens);
+        Check.Equal(10L, directInput.UnpricedTokens);
+        Check.True(directInput.IsPartial);
+
+        var cacheWrite = ApiPricingCatalog.Estimate(
+            usage,
+            pricingDate,
+            TokenKindSelection.CacheWrite);
+        Check.Equal(19m, cacheWrite.CostUsd);
+        Check.Equal(4 * million, cacheWrite.PricedTokens);
+        Check.Equal(0L, cacheWrite.UnpricedTokens);
+        Check.False(cacheWrite.IsPartial);
+        Check.Equal(0, cacheWrite.UnpricedModels.Count);
+
+        var cacheRead = ApiPricingCatalog.Estimate(
+            usage,
+            pricingDate,
+            TokenKindSelection.CacheRead);
+        Check.Equal(0.70m, cacheRead.CostUsd);
+        Check.Equal(2 * million, cacheRead.PricedTokens);
+        Check.Equal(2L, cacheRead.UnpricedTokens);
+
+        var inputAndOutput = ApiPricingCatalog.Estimate(
+            usage,
+            pricingDate,
+            TokenKindSelection.DirectInput | TokenKindSelection.Output);
+        Check.Equal(47m, inputAndOutput.CostUsd);
+        Check.Equal(4 * million, inputAndOutput.PricedTokens);
+        Check.Equal(15L, inputAndOutput.UnpricedTokens);
+
+        var none = ApiPricingCatalog.Estimate(
+            usage,
+            pricingDate,
+            TokenKindSelection.None);
+        Check.Equal(0m, none.CostUsd);
+        Check.Equal(0L, none.PricedTokens);
+        Check.Equal(0L, none.UnpricedTokens);
+        Check.False(none.IsAvailable);
+        Check.Equal(0, none.UnpricedModels.Count);
     }
 
     private static void RefreshPolicyAppliesCadenceAndBackoff()

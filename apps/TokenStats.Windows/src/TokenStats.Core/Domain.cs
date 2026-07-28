@@ -90,6 +90,56 @@ public enum TokenKind
     CacheRead,
 }
 
+[Flags]
+public enum TokenKindSelection
+{
+    None = 0,
+    DirectInput = 1 << 0,
+    Output = 1 << 1,
+    CacheWrite = 1 << 2,
+    CacheRead = 1 << 3,
+    All = DirectInput | Output | CacheWrite | CacheRead,
+}
+
+public enum TokenValueDisplayMode
+{
+    Value,
+    Percentage,
+    ValueAndPercentage,
+}
+
+public static class TokenKindSelectionExtensions
+{
+    public static bool IsValid(
+        this TokenKindSelection selection,
+        bool allowNone = true) =>
+        (selection & ~TokenKindSelection.All) == 0 &&
+        (allowNone || selection != TokenKindSelection.None);
+
+    public static bool Includes(
+        this TokenKindSelection selection,
+        TokenKind kind)
+    {
+        if (!selection.IsValid())
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(selection),
+                selection,
+                "The selection contains an unknown Token Kind.");
+        }
+
+        var flag = kind switch
+        {
+            TokenKind.DirectInput => TokenKindSelection.DirectInput,
+            TokenKind.Output => TokenKindSelection.Output,
+            TokenKind.CacheWrite => TokenKindSelection.CacheWrite,
+            TokenKind.CacheRead => TokenKindSelection.CacheRead,
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+        };
+        return (selection & flag) != 0;
+    }
+}
+
 /// <summary>
 /// A transcript-reported model name. Unattributed is a distinct value rather
 /// than the string "unknown", because an agent can genuinely name a model
@@ -290,6 +340,40 @@ public readonly record struct TokenBreakdown(
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
         };
 
+    public long SelectedTotal(TokenKindSelection selection)
+    {
+        if (!selection.IsValid())
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(selection),
+                selection,
+                "The selection contains an unknown Token Kind.");
+        }
+
+        var total = 0L;
+        if (selection.Includes(TokenKind.DirectInput))
+        {
+            total += RawInputTokens;
+        }
+
+        if (selection.Includes(TokenKind.Output))
+        {
+            total += OutputTokens;
+        }
+
+        if (selection.Includes(TokenKind.CacheWrite))
+        {
+            total += CacheWriteTokens + CacheWrite1HourTokens;
+        }
+
+        if (selection.Includes(TokenKind.CacheRead))
+        {
+            total += CacheReadTokens;
+        }
+
+        return total;
+    }
+
     public TokenBreakdown Add(TokenBreakdown other) => new(
         RawInputTokens + other.RawInputTokens,
         OutputTokens + other.OutputTokens,
@@ -375,6 +459,9 @@ public sealed class TokenUsage
         CacheReadTokens);
 
     public long Amount(TokenKind kind) => Breakdown.Amount(kind);
+
+    public long SelectedTotal(TokenKindSelection selection) =>
+        Breakdown.SelectedTotal(selection);
 
     public IReadOnlyList<ModelTokenUsage> ModelUsage =>
         modelUsage

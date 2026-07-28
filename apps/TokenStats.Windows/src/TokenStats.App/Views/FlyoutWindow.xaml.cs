@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -17,28 +18,34 @@ namespace TokenStats.App.Views;
 public partial class FlyoutWindow : Window
 {
     private readonly UsageCoordinator _coordinator;
+    private readonly AppSettingsStore _settings;
     private readonly TokenOdometerWatcher _tokenOdometer;
     private readonly Action _showSettings;
     private readonly Action _quit;
     private readonly HashSet<AgentId> _expandedDiagnostics = [];
     private readonly DispatcherTimer _ageTimer;
     private FlyoutTab _selectedTab = FlyoutTab.Usage;
-    private TodayMetricMode _tokenSummaryMetric;
+    private System.Drawing.Point _notificationAreaAnchor;
+    private DispatcherOperation? _repositionOperation;
     private bool _allowClose;
     private bool _refreshInFlight;
+    private bool _hasNotificationAreaAnchor;
+    private bool _isPinned;
+    private bool _isPositioning;
     private bool _updatingControls;
 
     public FlyoutWindow(
         UsageCoordinator coordinator,
+        AppSettingsStore settings,
         TokenOdometerWatcher tokenOdometer,
         Action showSettings,
         Action quit)
     {
         _coordinator = coordinator;
+        _settings = settings;
         _tokenOdometer = tokenOdometer;
         _showSettings = showSettings;
         _quit = quit;
-        _tokenSummaryMetric = _coordinator.Appearance.TodayMetric;
         InitializeComponent();
         WindowsThemeService.Attach(this);
 
@@ -53,7 +60,11 @@ public partial class FlyoutWindow : Window
         var openSettings = new MenuItem { Header = "Settings…" };
         openSettings.Click += (_, _) =>
         {
-            HideFlyout();
+            if (!_isPinned)
+            {
+                HideFlyout();
+            }
+
             _showSettings();
         };
         var quitItem = new MenuItem { Header = "Quit TokenStats" };
@@ -63,7 +74,7 @@ public partial class FlyoutWindow : Window
         settingsMenu.Items.Add(quitItem);
         settingsMenu.Closed += (_, _) =>
         {
-            if (IsVisible && !IsActive)
+            if (IsVisible && !IsActive && !_isPinned)
             {
                 HideFlyout();
             }
@@ -72,22 +83,14 @@ public partial class FlyoutWindow : Window
         _ageTimer = new DispatcherTimer(TimeSpan.FromSeconds(30), DispatcherPriority.Background, (_, _) => Render(), Dispatcher);
         _updatingControls = true;
         UsageTabButton.IsChecked = true;
-        ApiMetricButton.IsChecked =
-            _tokenSummaryMetric == TodayMetricMode.Usage;
-        BillingMetricButton.IsChecked =
-            _tokenSummaryMetric == TodayMetricMode.Token;
-        TodayRangeButton.IsChecked = true;
         _updatingControls = false;
         Render();
     }
 
     public void ShowFlyout()
     {
-        if (_selectedTab == FlyoutTab.Tokens)
-        {
-            _ = _tokenOdometer.SetVisibleAsync(true);
-        }
-
+        _notificationAreaAnchor = Forms.Cursor.Position;
+        _hasNotificationAreaAnchor = true;
         Render();
         Show();
         UpdateLayout();
@@ -107,12 +110,13 @@ public partial class FlyoutWindow : Window
 
         Hide();
         _ageTimer.Stop();
-        _ = _tokenOdometer.SetVisibleAsync(false);
+        _repositionOperation?.Abort();
+        _repositionOperation = null;
     }
 
     public void AllowClose() => _allowClose = true;
 
-    private async void UsageTabButton_OnChecked(
+    private void UsageTabButton_OnChecked(
         object sender,
         RoutedEventArgs eventArgs)
     {
@@ -123,10 +127,9 @@ public partial class FlyoutWindow : Window
 
         _selectedTab = FlyoutTab.Usage;
         RenderTabVisibility();
-        await _tokenOdometer.SetVisibleAsync(false).ConfigureAwait(true);
     }
 
-    private async void TokensTabButton_OnChecked(
+    private void TokensTabButton_OnChecked(
         object sender,
         RoutedEventArgs eventArgs)
     {
@@ -137,11 +140,6 @@ public partial class FlyoutWindow : Window
 
         _selectedTab = FlyoutTab.Tokens;
         RenderTabVisibility();
-        if (IsVisible)
-        {
-            await _tokenOdometer.SetVisibleAsync(true).ConfigureAwait(true);
-        }
-
         RenderTokenOdometer();
     }
 
@@ -154,8 +152,8 @@ public partial class FlyoutWindow : Window
             return;
         }
 
-        _tokenSummaryMetric = TodayMetricMode.Usage;
-        RenderTokenOdometer();
+        TrySaveDisplayPreferences(
+            _settings.Appearance with { TodayMetric = TodayMetricMode.Usage });
     }
 
     private void BillingMetricButton_OnChecked(
@@ -167,8 +165,8 @@ public partial class FlyoutWindow : Window
             return;
         }
 
-        _tokenSummaryMetric = TodayMetricMode.Token;
-        RenderTokenOdometer();
+        TrySaveDisplayPreferences(
+            _settings.Appearance with { TodayMetric = TodayMetricMode.Token });
     }
 
     private async void RangeButton_OnChecked(
@@ -183,7 +181,64 @@ public partial class FlyoutWindow : Window
             return;
         }
 
-        await _tokenOdometer.SelectRangeAsync(range).ConfigureAwait(true);
+        if (TrySaveDisplayPreferences(
+                _settings.Appearance with { SelectedTokenRange = range }))
+        {
+            await _tokenOdometer.SelectRangeAsync(range).ConfigureAwait(true);
+        }
+    }
+
+    private void PinButton_OnChanged(
+        object sender,
+        RoutedEventArgs eventArgs)
+    {
+        if (_updatingControls || !IsInitialized)
+        {
+            return;
+        }
+
+        TrySaveDisplayPreferences(
+            _settings.Appearance with
+            {
+                AlwaysOnTop = PinButton.IsChecked == true,
+            });
+    }
+
+    private void TokenKindButton_OnChanged(
+        object sender,
+        RoutedEventArgs eventArgs)
+    {
+        if (_updatingControls ||
+            !IsInitialized ||
+            sender is not ToggleButton { Tag: string kindName } button ||
+            !Enum.TryParse<TokenKind>(kindName, out var kind))
+        {
+            return;
+        }
+
+        var current = _settings.Appearance.SelectedTokenKinds;
+        var flag = kind switch
+        {
+            TokenKind.DirectInput => TokenKindSelection.DirectInput,
+            TokenKind.Output => TokenKindSelection.Output,
+            TokenKind.CacheWrite => TokenKindSelection.CacheWrite,
+            TokenKind.CacheRead => TokenKindSelection.CacheRead,
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+        };
+        var next = button.IsChecked == true
+            ? current | flag
+            : current & ~flag;
+        if (next == TokenKindSelection.None)
+        {
+            _updatingControls = true;
+            button.IsChecked = true;
+            _updatingControls = false;
+            System.Media.SystemSounds.Beep.Play();
+            return;
+        }
+
+        TrySaveDisplayPreferences(
+            _settings.Appearance with { SelectedTokenKinds = next });
     }
 
     private async void RefreshButton_OnClick(object sender, RoutedEventArgs eventArgs)
@@ -197,19 +252,10 @@ public partial class FlyoutWindow : Window
         RefreshButton.IsEnabled = false;
         try
         {
-            var usageRefresh =
-                _coordinator.RefreshAllAsync(RefreshTrigger.Manual);
-            if (_selectedTab == FlyoutTab.Tokens)
-            {
-                await Task.WhenAll(
-                        usageRefresh,
-                        _tokenOdometer.RefreshAsync())
-                    .ConfigureAwait(true);
-            }
-            else
-            {
-                await usageRefresh.ConfigureAwait(true);
-            }
+            await Task.WhenAll(
+                    _coordinator.RefreshAllAsync(RefreshTrigger.Manual),
+                    _tokenOdometer.RefreshAsync())
+                .ConfigureAwait(true);
         }
         finally
         {
@@ -278,36 +324,68 @@ public partial class FlyoutWindow : Window
             return;
         }
 
+        var preferences = _settings.Appearance;
+        var selection = preferences.SelectedTokenKinds;
         var selectedRange = _tokenOdometer.SelectedRange;
         _updatingControls = true;
+        ApiMetricButton.IsChecked =
+            preferences.TodayMetric == TodayMetricMode.Usage;
+        BillingMetricButton.IsChecked =
+            preferences.TodayMetric == TodayMetricMode.Token;
         TodayRangeButton.IsChecked = selectedRange == TokenRange.Today;
         SevenDaysRangeButton.IsChecked = selectedRange == TokenRange.SevenDays;
         ThirtyDaysRangeButton.IsChecked =
             selectedRange == TokenRange.ThirtyDays;
+        DirectInputKindButton.IsChecked =
+            selection.Includes(TokenKind.DirectInput);
+        OutputKindButton.IsChecked =
+            selection.Includes(TokenKind.Output);
+        CacheWriteKindButton.IsChecked =
+            selection.Includes(TokenKind.CacheWrite);
+        CacheReadKindButton.IsChecked =
+            selection.Includes(TokenKind.CacheRead);
+        PinButton.IsChecked = preferences.AlwaysOnTop;
         _updatingControls = false;
+        ApplyPinnedState(preferences.AlwaysOnTop);
 
         var usage = _tokenOdometer.Usage;
         var displayedRange = _tokenOdometer.DisplayedRange;
         var hasLoaded = _tokenOdometer.HasLoaded;
         var pendingRange = _tokenOdometer.PendingRange;
+        var scanError = _tokenOdometer.LastError;
         if (!hasLoaded)
         {
             var readingRange = pendingRange ?? selectedRange;
-            TokenSummaryValue.Text = "—";
-            TokenSummaryLabel.Text = $"Reading {readingRange.Label()}…";
-            TokenSummaryPanel.ToolTip =
-                $"Reading token usage for {readingRange.Label()}.";
-            AutomationProperties.SetName(
-                TokenSummaryPanel,
-                $"Reading token usage for {readingRange.Label()}");
+            if (!_tokenOdometer.IsScanning &&
+                !string.IsNullOrWhiteSpace(scanError))
+            {
+                TokenSummaryValue.Text = "—";
+                TokenSummaryLabel.Text =
+                    $"Couldn't read {readingRange.Label()}";
+                TokenSummaryPanel.ToolTip =
+                    $"Token usage could not be read: {scanError}";
+                AutomationProperties.SetName(
+                    TokenSummaryPanel,
+                    $"Token usage could not be read for {readingRange.Label()}");
+            }
+            else
+            {
+                TokenSummaryValue.Text = "—";
+                TokenSummaryLabel.Text = $"Reading {readingRange.Label()}…";
+                TokenSummaryPanel.ToolTip =
+                    $"Reading token usage for {readingRange.Label()}.";
+                AutomationProperties.SetName(
+                    TokenSummaryPanel,
+                    $"Reading token usage for {readingRange.Label()}");
+            }
         }
-        else if (_tokenSummaryMetric == TodayMetricMode.Usage)
+        else if (preferences.TodayMetric == TodayMetricMode.Usage)
         {
-            RenderApiEquivalent(usage, displayedRange);
+            RenderApiEquivalent(usage, displayedRange, selection);
         }
         else
         {
-            RenderBillingTokens(usage, displayedRange);
+            RenderBillingTokens(usage, displayedRange, selection);
         }
 
         OdometerProgress.Visibility = _tokenOdometer.IsScanning
@@ -316,17 +394,23 @@ public partial class FlyoutWindow : Window
         OdometerStatusText.Text =
             _tokenOdometer.IsScanning
                 ? $"Reading {(pendingRange ?? selectedRange).Label()}…"
-                : hasLoaded
-                    ? displayedRange.Label()
-                    : $"Reading {selectedRange.Label()}…";
+                : !string.IsNullOrWhiteSpace(scanError)
+                    ? "Couldn't read tokens"
+                    : hasLoaded
+                        ? displayedRange.Label()
+                        : $"Reading {selectedRange.Label()}…";
+        OdometerStatusText.ToolTip = scanError;
         TokenTablePanel.Visibility =
             hasLoaded ? Visibility.Visible : Visibility.Collapsed;
         TokenTablePanel.Opacity =
             _tokenOdometer.IsScanning && hasLoaded
                 ? 0.58
                 : 1;
+        var selectedCount = Enum.GetValues<TokenKind>()
+            .Count(kind => selection.Includes(kind));
         TokenTableTotal.Text =
-            $"{displayedRange.Label()} · four token kinds";
+            $"{displayedRange.Label()} · {selectedCount} selected " +
+            $"{(selectedCount == 1 ? "kind" : "kinds")}";
 
         TokenRowsPanel.Children.Clear();
         if (!hasLoaded)
@@ -355,33 +439,46 @@ public partial class FlyoutWindow : Window
                     definition.DisplayName,
                     StringComparison.OrdinalIgnoreCase));
             TokenRowsPanel.Children.Add(
-                BuildTokenAgentSection(definition.DisplayName, slice?.Usage));
+                BuildTokenAgentSection(
+                    definition.DisplayName,
+                    slice?.Usage,
+                    selection,
+                    preferences.TokenValueDisplay));
         }
     }
 
     private void RenderBillingTokens(
         TokenUsage? usage,
-        TokenRange displayedRange)
+        TokenRange displayedRange,
+        TokenKindSelection selection)
     {
-        TokenSummaryValue.Text = usage?.BillableTokens.ToString("N0") ?? "—";
+        const TokenKindSelection billableKinds =
+            TokenKindSelection.DirectInput |
+            TokenKindSelection.Output |
+            TokenKindSelection.CacheWrite;
+        var selectedBillableKinds = selection & billableKinds;
+        var selectedTotal = usage?.SelectedTotal(selectedBillableKinds);
+        TokenSummaryValue.Text = selectedTotal?.ToString("N0") ?? "—";
         TokenSummaryLabel.Text =
             $"billing tokens · {displayedRange.Label()}";
         TokenSummaryPanel.ToolTip = usage is null
             ? $"No billing token usage for {displayedRange.Label()}."
             : $"{UsageFormatting.TokenBreakdown(usage)}. " +
+              $"Selected kinds: {UsageFormatting.TokenKindSelectionLabel(selection)}. " +
               "Billing tokens include direct input, cache writes, and output; " +
               "cache reads remain visible in the table but are excluded from this total.";
         AutomationProperties.SetName(
             TokenSummaryPanel,
             usage is null
                 ? $"No billing token usage for {displayedRange.Label()}"
-                : $"{usage.BillableTokens:N0} billing tokens for " +
+                : $"{selectedTotal:N0} selected billing tokens for " +
                   $"{displayedRange.Label()}; cache reads excluded");
     }
 
     private void RenderApiEquivalent(
         TokenUsage? usage,
-        TokenRange displayedRange)
+        TokenRange displayedRange,
+        TokenKindSelection selection)
     {
         if (usage is null)
         {
@@ -397,7 +494,10 @@ public partial class FlyoutWindow : Window
         }
 
         var pricingDate = DateOnly.FromDateTime(DateTime.Today);
-        var estimate = ApiPricingCatalog.Estimate(usage, pricingDate);
+        var estimate = ApiPricingCatalog.Estimate(
+            usage,
+            pricingDate,
+            selection);
         TokenSummaryValue.Text = UsageFormatting.ApiEquivalentCost(estimate);
         TokenSummaryLabel.Text =
             $"API-equivalent · {displayedRange.Label()}";
@@ -412,7 +512,8 @@ public partial class FlyoutWindow : Window
                 .Distinct(StringComparer.OrdinalIgnoreCase));
         TokenSummaryPanel.ToolTip =
             "Standard API-equivalent estimate by recorded model; includes " +
-            "direct input, cache writes, cache reads, and output at list rates. " +
+            "the selected Token Kinds at list rates. " +
+            $"Selected kinds: {UsageFormatting.TokenKindSelectionLabel(selection)}. " +
             "Claude cache writes without TTL detail use the default 5-minute rate. " +
             $"Models: {(models.Length > 0 ? models : "unknown")}. " +
             $"Prices reviewed {ApiPricingCatalog.LastReviewed:yyyy-MM-dd}." +
@@ -428,7 +529,9 @@ public partial class FlyoutWindow : Window
 
     private FrameworkElement BuildTokenAgentSection(
         string label,
-        TokenUsage? usage)
+        TokenUsage? usage,
+        TokenKindSelection selection,
+        TokenValueDisplayMode displayMode)
     {
         var section = new StackPanel();
         var header = new Grid();
@@ -447,14 +550,16 @@ public partial class FlyoutWindow : Window
         {
             Text = usage is null
                 ? "—"
-                : UsageFormatting.CompactTokenCount(usage.OdometerTokens),
+                : UsageFormatting.CompactTokenCount(
+                    usage.SelectedTotal(selection)),
             FontFamily = new FontFamily("Cascadia Mono, Consolas"),
             FontSize = 11.5,
             Foreground = FindBrush("SecondaryTextBrush"),
             HorizontalAlignment = HorizontalAlignment.Right,
             ToolTip = usage is null
                 ? "No token usage in this range."
-                : $"{usage.OdometerTokens:N0} tokens",
+                : $"{usage.SelectedTotal(selection):N0} selected tokens " +
+                  $"of {usage.OdometerTokens:N0} across all four kinds",
         };
         Grid.SetColumn(total, 1);
         header.Children.Add(total);
@@ -462,11 +567,11 @@ public partial class FlyoutWindow : Window
             header,
             usage is null
                 ? $"{label}, no token usage in this range"
-                : $"{label}, {usage.OdometerTokens:N0} tokens");
+                : $"{label}, {usage.SelectedTotal(selection):N0} selected tokens");
         section.Children.Add(header);
 
         var models = usage?.ModelUsage
-            .OrderByDescending(item => item.Breakdown.MeteredTokenTotal)
+            .OrderByDescending(item => item.Breakdown.SelectedTotal(selection))
             .ThenBy(item => item.Model, StringComparer.OrdinalIgnoreCase)
             .ToArray() ?? [];
         if (models.Length == 0)
@@ -483,13 +588,17 @@ public partial class FlyoutWindow : Window
 
         foreach (var model in models)
         {
-            section.Children.Add(BuildTokenModelRow(model));
+            section.Children.Add(
+                BuildTokenModelRow(model, selection, displayMode));
         }
 
         return section;
     }
 
-    private FrameworkElement BuildTokenModelRow(ModelTokenUsage model)
+    private FrameworkElement BuildTokenModelRow(
+        ModelTokenUsage model,
+        TokenKindSelection selection,
+        TokenValueDisplayMode displayMode)
     {
         var breakdown = model.Breakdown;
         var row = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
@@ -503,6 +612,7 @@ public partial class FlyoutWindow : Window
         var modelName = string.IsNullOrWhiteSpace(model.Model)
             ? "unknown"
             : model.Model;
+        var selectedTotal = breakdown.SelectedTotal(selection);
 
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition
@@ -513,7 +623,7 @@ public partial class FlyoutWindow : Window
         {
             grid.ColumnDefinitions.Add(new ColumnDefinition
             {
-                Width = new GridLength(56),
+                Width = new GridLength(64),
             });
         }
 
@@ -527,14 +637,33 @@ public partial class FlyoutWindow : Window
         });
         for (var index = 0; index < values.Length; index++)
         {
+            var kind = TokenKindAt(index);
+            var included = selection.Includes(kind);
+            var percentage = selectedTotal > 0
+                ? (decimal)values[index] / selectedTotal * 100m
+                : 0m;
             var value = new TextBlock
             {
-                Text = FormatTokenCell(values[index]),
+                Text = included
+                    ? UsageFormatting.TokenCell(
+                        values[index],
+                        selectedTotal,
+                        displayMode)
+                    : "–",
                 FontFamily = new FontFamily("Cascadia Mono, Consolas"),
-                FontSize = 10.5,
+                FontSize = displayMode ==
+                           TokenValueDisplayMode.ValueAndPercentage
+                    ? 9.5
+                    : 10.5,
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center,
-                ToolTip = $"{TokenKindName(index)}: {values[index]:N0}",
+                TextAlignment = TextAlignment.Right,
+                LineHeight = 12,
+                Opacity = included ? 1 : 0.32,
+                ToolTip = included
+                    ? $"{TokenKindName(index)}: {values[index]:N0} " +
+                      $"({percentage:0.#}% of selected kinds)"
+                    : $"{TokenKindName(index)}: excluded from the selected total",
             };
             Grid.SetColumn(value, index + 1);
             grid.Children.Add(value);
@@ -545,13 +674,17 @@ public partial class FlyoutWindow : Window
             $"{modelName}; direct input {values[0]:N0}; output {values[1]:N0}; " +
             $"cache write {values[2]:N0}; cache read {values[3]:N0}");
         row.Children.Add(grid);
-        row.Children.Add(BuildTokenProportionBar(values));
+        row.Children.Add(BuildTokenProportionBar(values, selection));
         return row;
     }
 
-    private static FrameworkElement BuildTokenProportionBar(long[] values)
+    private static FrameworkElement BuildTokenProportionBar(
+        long[] values,
+        TokenKindSelection selection)
     {
-        var total = values.Sum();
+        var total = values
+            .Where((_, index) => selection.Includes(TokenKindAt(index)))
+            .Sum();
         var bar = new Grid
         {
             Height = 4,
@@ -569,18 +702,19 @@ public partial class FlyoutWindow : Window
             $"cache write {values[2]:N0}, cache read {values[3]:N0}");
         for (var index = 0; index < values.Length; index++)
         {
-            var weight = total == 0
+            var included = selection.Includes(TokenKindAt(index));
+            var weight = total == 0 || !included
                 ? 0
                 : (double)values[index] / total;
             bar.ColumnDefinitions.Add(new ColumnDefinition
             {
                 Width = new GridLength(weight, GridUnitType.Star),
-                MinWidth = values[index] > 0 ? 1.5 : 0,
+                MinWidth = included && values[index] > 0 ? 1.5 : 0,
             });
             var segment = new Border
             {
                 Background = TokenKindBrush(index),
-                Opacity = 0.9,
+                Opacity = included ? 0.9 : 0,
             };
             Grid.SetColumn(segment, index);
             bar.Children.Add(segment);
@@ -588,9 +722,6 @@ public partial class FlyoutWindow : Window
 
         return bar;
     }
-
-    private static string FormatTokenCell(long value) =>
-        value == 0 ? "–" : UsageFormatting.CompactTokenCount(value);
 
     private static Brush TokenKindBrush(int index) =>
         FindBrush(
@@ -609,6 +740,16 @@ public partial class FlyoutWindow : Window
             1 => "Output",
             2 => "Cache write",
             _ => "Cache read",
+        };
+
+    private static TokenKind TokenKindAt(int index) =>
+        index switch
+        {
+            0 => TokenKind.DirectInput,
+            1 => TokenKind.Output,
+            2 => TokenKind.CacheWrite,
+            3 => TokenKind.CacheRead,
+            _ => throw new ArgumentOutOfRangeException(nameof(index), index, null),
         };
 
     private FrameworkElement BuildAgentSection(AgentPresentation agent)
@@ -895,6 +1036,61 @@ public partial class FlyoutWindow : Window
             Foreground = FindBrush("SecondaryTextBrush"),
         };
 
+    private bool TrySaveDisplayPreferences(AppearancePreferences preferences)
+    {
+        try
+        {
+            _settings.SaveAppearance(preferences);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(
+                this,
+                $"Could not save TokenStats display settings.\n\n{exception.Message}",
+                "TokenStats",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            Render();
+            return false;
+        }
+    }
+
+    private void ApplyPinnedState(bool pinned)
+    {
+        var wasPinned = _isPinned;
+        _isPinned = pinned;
+        Topmost = pinned;
+        PinButton.ToolTip = pinned
+            ? "Unpin flyout"
+            : "Keep flyout on top";
+        AutomationProperties.SetName(
+            PinButton,
+            pinned ? "Unpin flyout" : "Keep flyout on top");
+        AutomationProperties.SetHelpText(
+            PinButton,
+            pinned
+                ? "The flyout remains visible and above other windows."
+                : "Pin the flyout so it remains visible and above other windows.");
+
+        if (wasPinned && !pinned && IsVisible && !IsActive)
+        {
+            Dispatcher.BeginInvoke(
+                () =>
+                {
+                    if (IsVisible &&
+                        !_isPinned &&
+                        !IsActive &&
+                        !IsKeyboardFocusWithin &&
+                        SettingsButton.ContextMenu?.IsOpen != true)
+                    {
+                        HideFlyout();
+                    }
+                },
+                DispatcherPriority.Background);
+        }
+    }
+
     private static Brush FindBrush(string key) =>
         System.Windows.Application.Current.TryFindResource(key) as Brush ??
         Brushes.Gray;
@@ -904,6 +1100,7 @@ public partial class FlyoutWindow : Window
             () =>
             {
                 if (IsVisible &&
+                    !_isPinned &&
                     !IsKeyboardFocusWithin &&
                     SettingsButton.ContextMenu?.IsOpen != true)
                 {
@@ -974,74 +1171,106 @@ public partial class FlyoutWindow : Window
         }
     }
 
+    private void FlyoutWindow_OnSizeChanged(
+        object sender,
+        SizeChangedEventArgs eventArgs)
+    {
+        if (!_isPositioning && IsVisible)
+        {
+            QueueReposition();
+        }
+    }
+
+    private void QueueReposition()
+    {
+        if (_isPositioning ||
+            !IsVisible ||
+            _repositionOperation is
+            {
+                Status: DispatcherOperationStatus.Pending,
+            })
+        {
+            return;
+        }
+
+        _repositionOperation = Dispatcher.BeginInvoke(
+            () =>
+            {
+                _repositionOperation = null;
+                if (IsVisible)
+                {
+                    PositionNearNotificationArea(settleDpi: false);
+                }
+            },
+            DispatcherPriority.Loaded);
+    }
+
     private void PositionNearNotificationArea(bool settleDpi)
     {
-        var helper = new WindowInteropHelper(this);
-        var handle = helper.Handle;
-        var cursor = Forms.Cursor.Position;
-        var screen = Forms.Screen.FromPoint(cursor);
-        var working = screen.WorkingArea;
-        var bounds = screen.Bounds;
-        var dpi = GetDpiForWindow(handle);
-        var scale = dpi / 96d;
-        var availableHeight = Math.Max(
-            280,
-            (working.Height - 16) / scale);
-        MaxHeight = availableHeight;
-        var contentHeight = Math.Max(170, availableHeight - 164);
-        UsageContentScroll.MaxHeight = contentHeight;
-        TokensContentScroll.MaxHeight = contentHeight;
-        UpdateLayout();
-        var width = Math.Max(1, (int)Math.Ceiling(ActualWidth * scale));
-        var height = Math.Max(1, (int)Math.Ceiling(ActualHeight * scale));
-        const int margin = 8;
-
-        var x = Math.Clamp(
-            cursor.X - width + 24,
-            working.Left + margin,
-            Math.Max(working.Left + margin, working.Right - width - margin));
-        int y;
-        if (working.Top > bounds.Top)
+        if (_isPositioning || !IsVisible)
         {
-            y = working.Top + margin;
-        }
-        else if (working.Left > bounds.Left)
-        {
-            x = working.Left + margin;
-            y = Math.Clamp(
-                cursor.Y - height / 2,
-                working.Top + margin,
-                Math.Max(working.Top + margin, working.Bottom - height - margin));
-        }
-        else if (working.Right < bounds.Right)
-        {
-            x = working.Right - width - margin;
-            y = Math.Clamp(
-                cursor.Y - height / 2,
-                working.Top + margin,
-                Math.Max(working.Top + margin, working.Bottom - height - margin));
-        }
-        else
-        {
-            y = working.Bottom - height - margin;
+            return;
         }
 
-        SetWindowPos(
-            handle,
-            IntPtr.Zero,
-            x,
-            y,
-            width,
-            height,
-            SetWindowPosFlags.NoZOrder | SetWindowPosFlags.NoOwnerZOrder);
-
-        if (settleDpi)
+        _isPositioning = true;
+        try
         {
-            // The first Show can be created at the primary monitor's DPI.
-            // Re-run once after Windows has moved it to the tray monitor.
-            Dispatcher.BeginInvoke(
-                () => PositionNearNotificationArea(settleDpi: false),
-                DispatcherPriority.Loaded);
+            var helper = new WindowInteropHelper(this);
+            var handle = helper.Handle;
+            if (handle == IntPtr.Zero)
+            {
+                return;
+            }
+
+            if (!_hasNotificationAreaAnchor)
+            {
+                _notificationAreaAnchor = Forms.Cursor.Position;
+                _hasNotificationAreaAnchor = true;
+            }
+
+            var screen = Forms.Screen.FromPoint(_notificationAreaAnchor);
+            var working = screen.WorkingArea;
+            var bounds = screen.Bounds;
+            var dpi = GetDpiForWindow(handle);
+            var scale = dpi > 0 ? dpi / 96d : 1d;
+            var availableHeight = Math.Max(1, (working.Height - 16) / scale);
+            var availableWidth = Math.Max(1, (working.Width - 16) / scale);
+            MaxWidth = availableWidth;
+            MaxHeight = Math.Min(760, availableHeight);
+            UpdateLayout();
+            var width = Math.Max(1, (int)Math.Ceiling(ActualWidth * scale));
+            var height = Math.Max(1, (int)Math.Ceiling(ActualHeight * scale));
+            const int margin = 8;
+            var placement = WindowSizing.CalculateFlyoutPlacement(
+                working,
+                bounds,
+                _notificationAreaAnchor,
+                new System.Drawing.Size(width, height),
+                margin);
+
+            SetWindowPos(
+                handle,
+                IntPtr.Zero,
+                placement.X,
+                placement.Y,
+                placement.Width,
+                placement.Height,
+                SetWindowPosFlags.NoZOrder |
+                SetWindowPosFlags.NoOwnerZOrder |
+                SetWindowPosFlags.NoActivate);
+
+            if (settleDpi)
+            {
+                // The first Show can be created at the primary monitor's DPI.
+                // Re-run once after Windows has moved it to the tray monitor.
+                Dispatcher.BeginInvoke(
+                    () => PositionNearNotificationArea(settleDpi: false),
+                    DispatcherPriority.Loaded);
+            }
+        }
+        finally
+        {
+            _isPositioning = false;
         }
     }
 
@@ -1049,6 +1278,7 @@ public partial class FlyoutWindow : Window
     private enum SetWindowPosFlags : uint
     {
         NoZOrder = 0x0004,
+        NoActivate = 0x0010,
         NoOwnerZOrder = 0x0200,
     }
 

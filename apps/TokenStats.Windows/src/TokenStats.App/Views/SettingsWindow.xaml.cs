@@ -66,6 +66,14 @@ public partial class SettingsWindow : Window
                 appearance.TodayMetric == TodayMetricMode.Usage;
             TokenMetric.IsChecked =
                 appearance.TodayMetric == TodayMetricMode.Token;
+            TokenValueMode.IsChecked =
+                appearance.TokenValueDisplay == TokenValueDisplayMode.Value;
+            TokenPercentageMode.IsChecked =
+                appearance.TokenValueDisplay == TokenValueDisplayMode.Percentage;
+            TokenValuePercentageMode.IsChecked =
+                appearance.TokenValueDisplay ==
+                TokenValueDisplayMode.ValueAndPercentage;
+            AlwaysOnTopCheckBox.IsChecked = appearance.AlwaysOnTop;
             RenderAgentOrder(appearance);
             try
             {
@@ -361,7 +369,7 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        TrySaveAppearance(
+        TrySaveDisplayPreferences(
             _settings.Appearance with { PrimaryAgent = id });
     }
 
@@ -374,7 +382,7 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        TrySaveAppearance(
+        TrySaveDisplayPreferences(
             _settings.Appearance with { GaugeStyle = style });
     }
 
@@ -387,25 +395,58 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        TrySaveAppearance(
+        TrySaveDisplayPreferences(
             _settings.Appearance with { TodayMetric = metric });
     }
 
-    private void TrySaveAppearance(AppearancePreferences appearance)
+    private void TokenValueDisplay_OnChecked(
+        object sender,
+        RoutedEventArgs eventArgs)
+    {
+        if (_isRendering ||
+            sender is not RadioButton { Tag: string value } ||
+            !Enum.TryParse<TokenValueDisplayMode>(value, out var displayMode))
+        {
+            return;
+        }
+
+        TrySaveDisplayPreferences(
+            _settings.Appearance with { TokenValueDisplay = displayMode });
+    }
+
+    private void AlwaysOnTop_OnChanged(
+        object sender,
+        RoutedEventArgs eventArgs)
+    {
+        if (_isRendering)
+        {
+            return;
+        }
+
+        TrySaveDisplayPreferences(
+            _settings.Appearance with
+            {
+                AlwaysOnTop = AlwaysOnTopCheckBox.IsChecked == true,
+            });
+    }
+
+    private bool TrySaveDisplayPreferences(AppearancePreferences appearance)
     {
         try
         {
             _settings.SaveAppearance(appearance);
+            return true;
         }
         catch (Exception exception)
         {
             MessageBox.Show(
                 this,
-                $"Could not save TokenStats appearance settings.\n\n{exception.Message}",
+                $"Could not save TokenStats display settings.\n\n{exception.Message}",
                 "TokenStats",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
             Render();
+            return false;
         }
     }
 

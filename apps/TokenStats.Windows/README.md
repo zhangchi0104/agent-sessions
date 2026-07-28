@@ -7,11 +7,15 @@ A native Windows notification-area app for TokenStats' two-tab flyout:
   session.
 - **Tokens** shows a local Token Odometer derived from native Windows transcript
   directories for Today, 7 days, or 30 days. It groups four disjoint Token
-  Kinds by Coding Agent and Model.
+  Kinds by Coding Agent and Model. Each Token Kind heading is also a filter;
+  the enabled headings form a Windows-only **selected total** without changing
+  the underlying four-kind Odometer.
 
-The tray tooltip carries the compact reading (`76%` or
-`C: 76% X: 88%`). Click the tray gauge for the full flyout; right-click it for
-Refresh, Settings, and Quit.
+The tray tooltip carries a compact status summary, including the selected total
+for the persisted Token Odometer range. Changing a Token Kind filter updates
+that reading. Click the tray gauge for the full flyout; right-click it for
+Refresh, Settings, and Quit. **Refresh all** updates both subscription Usage
+Windows and local transcript tokens.
 
 ## Tokens and API-equivalent estimates
 
@@ -38,6 +42,17 @@ therefore applies standard API list prices only.
 The Odometer table itself always uses the cross-platform raw definition:
 `direct input + output + cache write + cache read`. The four columns are
 `IN`, `OUT`, `C·W`, and `C·R`; no category is counted twice.
+
+On Windows, the four column headings can be toggled independently. The
+**selected total** is the sum of the enabled Token Kinds over the selected
+range; it is the filtered figure shown in the flyout and tray tooltip. It does
+not rewrite transcript records or redefine the raw four-kind Token Odometer
+total.
+
+The **Display** Settings page controls whether each enabled Token Kind is shown
+as a numeric value, its percentage of that row's selected total, or both as
+`value (percentage)`. These percentages describe token composition only. They
+are not quota consumption, a Limit, or a Usage Window percentage.
 
 Pricing sources, last checked **2026-07-27**:
 
@@ -93,11 +108,26 @@ SmartScreen.
 - The flyout, Settings, onboarding, native title bars, controls, and tray menu
   follow the Windows app theme at startup and while the app is running. Windows
   High Contrast colors take precedence over the light and dark palettes.
-- Opening the flyout refreshes Usage Windows. The recursive transcript watcher
-  runs only while the Tokens tab is visible; switching back to Usage or hiding
-  the flyout disposes it.
-- Each Tokens-tab appearance starts on Today. Range changes keep the last
-  completed table dimmed until the Today/7-day/30-day scan lands atomically.
+- Presentation preferences live under **Display**, not Appearance; theme
+  selection remains automatic and separate.
+- Opening the flyout refreshes Usage Windows. The Windows transcript reader
+  seeds the persisted Token Odometer range when the app starts, then keeps
+  debounced `FileSystemWatcher` subscriptions active for the lifetime of the
+  resident tray process. This keeps the tray's selected total current without
+  polling and without a daemon, database, or IPC surface. If a transcript root
+  does not exist yet, a lightweight parent-directory watch adopts it when the
+  Coding Agent creates it.
+- The Today/7-day/30-day range is restored across app restarts. Range changes
+  keep the last completed table dimmed until the new scan lands atomically.
+- Token Kind filters update the selected total while the raw four-kind Odometer
+  remains unchanged. Token cells can show value, percentage, or
+  value-and-percentage according to the Display preference.
+- The flyout can be pinned so it remains visible and always on top. The pin
+  choice is restored across app restarts; Escape and explicit tray actions
+  still dismiss it.
+- Every layout-affecting change—including a range, filter, display mode, tab,
+  scan result, or expanded diagnostic—repositions and constrains the flyout to
+  the notification area's current monitor work area.
 - Codex `token_count` events are cumulative, so Windows counts only advances in
   `total_token_usage`, adopts a new baseline after a counter reset, and uses
   `last_token_usage` only to exclude an inherited rollout head. Model

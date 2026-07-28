@@ -63,24 +63,29 @@ public partial class App : System.Windows.Application
         };
 
         _coordinator = new UsageCoordinator(_settings, auth, providers);
-        _tokenOdometer = new TokenOdometerWatcher(new TranscriptTokenReader());
+        _tokenOdometer = new TokenOdometerWatcher(
+            new TranscriptTokenReader(),
+            initialRange: _settings.Appearance.SelectedTokenRange);
         _flyout = new FlyoutWindow(
             _coordinator,
+            _settings,
             _tokenOdometer,
             ShowSettings,
             Quit);
         _tray = new TrayIconService(
             ToggleFlyout,
-            () => _coordinator.RefreshAllAsync(RefreshTrigger.Manual),
+            RefreshAllAsync,
             ShowSettings,
             Quit);
         _coordinator.Changed += Coordinator_OnChanged;
+        _tokenOdometer.Changed += TokenOdometer_OnChanged;
 
         _singleInstance.ActivationRequested += (_, _) =>
             Dispatcher.BeginInvoke(ActivatePrimaryInstance);
         _singleInstance.StartListening();
 
         _ = _coordinator.StartAsync();
+        _ = _tokenOdometer.SetVisibleAsync(true);
         UpdateTray();
 
         var startsInBackground = eventArgs.Args.Any(
@@ -119,6 +124,21 @@ public partial class App : System.Windows.Application
         {
             _flyout.ShowFlyout();
         }
+    }
+
+    private Task RefreshAllAsync() =>
+        RefreshAllAsync(RefreshTrigger.Manual);
+
+    private Task RefreshAllAsync(RefreshTrigger trigger)
+    {
+        if (_coordinator is null || _tokenOdometer is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        return Task.WhenAll(
+            _coordinator.RefreshAllAsync(trigger),
+            _tokenOdometer.RefreshAsync());
     }
 
     private void ActivatePrimaryInstance()
@@ -215,6 +235,7 @@ public partial class App : System.Windows.Application
         _onboardingWindow?.Close();
         if (_tokenOdometer is not null)
         {
+            _tokenOdometer.Changed -= TokenOdometer_OnChanged;
             await _tokenOdometer.DisposeAsync().ConfigureAwait(true);
         }
 
@@ -230,21 +251,42 @@ public partial class App : System.Windows.Application
     private void Coordinator_OnChanged(object? sender, EventArgs eventArgs) =>
         Dispatcher.BeginInvoke(UpdateTray);
 
+    private void TokenOdometer_OnChanged(object? sender, EventArgs eventArgs) =>
+        Dispatcher.BeginInvoke(UpdateTray);
+
     private void UpdateTray()
     {
-        if (_coordinator is not null)
+        if (_coordinator is null)
         {
-            _tray?.UpdateSummary(_coordinator.TraySummary);
+            return;
         }
+
+        var summaries = new List<string> { _coordinator.TraySummary };
+        if (_tokenOdometer is
+            {
+                HasLoaded: true,
+                Usage: { } tokenUsage,
+            })
+        {
+            var preferences = _coordinator.Appearance;
+            summaries.Add(
+                UsageFormatting.TokenStatusSummary(
+                    tokenUsage,
+                    _tokenOdometer.DisplayedRange,
+                    preferences.TodayMetric,
+                    preferences.SelectedTokenKinds));
+        }
+
+        _tray?.UpdateSummary(string.Join(" · ", summaries));
     }
 
     private void SystemEvents_OnPowerModeChanged(
         object sender,
         PowerModeChangedEventArgs eventArgs)
     {
-        if (eventArgs.Mode == PowerModes.Resume && _coordinator is not null)
+        if (eventArgs.Mode == PowerModes.Resume)
         {
-            _ = _coordinator.RefreshAllAsync(RefreshTrigger.Wake);
+            _ = RefreshAllAsync(RefreshTrigger.Wake);
         }
     }
 

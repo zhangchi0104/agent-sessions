@@ -50,7 +50,7 @@
                         </Style>
                     </ListBox.Resources>
                     <ListBoxItem Content="Accounts" Tag="accounts" />
-                    <ListBoxItem Content="Appearance" Tag="appearance" />
+                    <ListBoxItem Content="Display" Tag="appearance" />
                     <ListBoxItem Content="About" Tag="about" />
                 </ListBox>
             </DockPanel>
@@ -81,7 +81,7 @@
                 VerticalScrollBarVisibility="Auto"
                 Visibility="Collapsed">
                 <StackPanel>
-                    <TextBlock FontSize="24" FontWeight="SemiBold" Text="Appearance" />
+                    <TextBlock FontSize="24" FontWeight="SemiBold" Text="Display" />
 
                     <TextBlock Margin="0,22,0,6" Style="{StaticResource SectionTitle}" Text="Primary subscription" />
                     <ComboBox
@@ -125,7 +125,33 @@
                         Text="API equivalent estimates standard list-price cost by recorded model. Billing tokens count direct input + cache write + output; cache reads stay visible in the Odometer table but are excluded from this summary."
                         TextWrapping="Wrap" />
 
-                    <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Display mode" />
+                    <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Token values" />
+                    <WrapPanel>
+                        <RadioButton
+                            x:Name="TokenValueMode"
+                            Margin="0,0,18,8"
+                            Checked="TokenValueDisplay_OnChecked"
+                            Content="Value"
+                            Tag="Value" />
+                        <RadioButton
+                            x:Name="TokenPercentageMode"
+                            Margin="0,0,18,8"
+                            Checked="TokenValueDisplay_OnChecked"
+                            Content="Percentage"
+                            Tag="Percentage" />
+                        <RadioButton
+                            x:Name="TokenValuePercentageMode"
+                            Margin="0,0,0,8"
+                            Checked="TokenValueDisplay_OnChecked"
+                            Content="Value (percentage)"
+                            Tag="ValueAndPercentage" />
+                    </WrapPanel>
+                    <TextBlock
+                        Style="{StaticResource SecondaryText}"
+                        Text="Choose how each selected Token Kind is shown. Percentages are the share of the selected kinds in that Model row."
+                        TextWrapping="Wrap" />
+
+                    <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Usage Window style" />
                     <StackPanel Orientation="Horizontal">
                         <RadioButton
                             x:Name="DialStyle"
@@ -153,6 +179,12 @@
                     </Border>
 
                     <TextBlock Margin="0,22,0,6" Style="{StaticResource SectionTitle}" Text="Windows" />
+                    <CheckBox
+                        x:Name="AlwaysOnTopCheckBox"
+                        Margin="0,0,0,8"
+                        Checked="AlwaysOnTop_OnChanged"
+                        Unchecked="AlwaysOnTop_OnChanged"
+                        Content="Keep the flyout pinned on top" />
                     <CheckBox
                         x:Name="StartWithWindowsCheckBox"
                         Checked="StartWithWindows_OnChanged"

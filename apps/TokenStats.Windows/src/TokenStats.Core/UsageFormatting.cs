@@ -119,6 +119,107 @@ public static class UsageFormatting
         return count.ToString(CultureInfo.InvariantCulture);
     }
 
+    public static string TokenCell(
+        long value,
+        long selectedKindsTotal,
+        TokenValueDisplayMode displayMode)
+    {
+        if (value == 0)
+        {
+            return "–";
+        }
+
+        var valueText = CompactTokenCount(value);
+        var percentageText = selectedKindsTotal > 0
+            ? $"{((decimal)value / selectedKindsTotal * 100m).ToString("0.#", CultureInfo.InvariantCulture)}%"
+            : "–";
+        return displayMode switch
+        {
+            TokenValueDisplayMode.Value => valueText,
+            TokenValueDisplayMode.Percentage => percentageText,
+            TokenValueDisplayMode.ValueAndPercentage =>
+                $"{valueText}\n({percentageText})",
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(displayMode),
+                displayMode,
+                null),
+        };
+    }
+
+    public static string TokenKindShortLabel(TokenKind kind) =>
+        kind switch
+        {
+            TokenKind.DirectInput => "IN",
+            TokenKind.Output => "OUT",
+            TokenKind.CacheWrite => "C·W",
+            TokenKind.CacheRead => "C·R",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+        };
+
+    public static string TokenKindSelectionLabel(TokenKindSelection selection)
+    {
+        if (!selection.IsValid())
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(selection),
+                selection,
+                "The selection contains an unknown Token Kind.");
+        }
+
+        if (selection == TokenKindSelection.None)
+        {
+            return "None";
+        }
+
+        if (selection == TokenKindSelection.All)
+        {
+            return "All";
+        }
+
+        return string.Join(
+            " + ",
+            Enum.GetValues<TokenKind>()
+                .Where(kind => selection.Includes(kind))
+                .Select(TokenKindShortLabel));
+    }
+
+    public static string TokenStatusSummary(
+        TokenUsage usage,
+        TokenRange range,
+        TodayMetricMode metric,
+        TokenKindSelection selection,
+        DateOnly? pricingDate = null)
+    {
+        ArgumentNullException.ThrowIfNull(usage);
+        if (!selection.IsValid(allowNone: false))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(selection),
+                selection,
+                "At least one known Token Kind must be selected.");
+        }
+
+        var value = metric switch
+        {
+            TodayMetricMode.Token => $"T: {CompactTokenCount(
+                usage.SelectedTotal(
+                    selection &
+                    (TokenKindSelection.DirectInput |
+                     TokenKindSelection.Output |
+                     TokenKindSelection.CacheWrite)))}",
+            TodayMetricMode.Usage => $"API: {ApiEquivalentCost(
+                ApiPricingCatalog.Estimate(
+                    usage,
+                    pricingDate,
+                    selection))}",
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(metric),
+                metric,
+                null),
+        };
+        return $"{value} · {range.Label()}";
+    }
+
     public static string ApiEquivalentCost(ApiCostEstimate estimate)
     {
         if (!estimate.IsAvailable)

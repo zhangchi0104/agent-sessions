@@ -5,9 +5,11 @@ namespace TokenStats.App.Services;
 public sealed record AgentTokenSlice(string Label, TokenUsage? Usage);
 
 /// <summary>
-/// Owns the Token Odometer's visible-only transcript watch and range scans.
-/// A range change keeps the last completed rows available until the new scan
-/// lands, while a generation guard prevents an abandoned scan from publishing.
+/// Owns the Token Odometer's event-driven transcript watch and range scans.
+/// The Windows app keeps this watcher active for its process lifetime so the
+/// tray summary stays current. A range change keeps the last completed rows
+/// available until the new scan lands, while a generation guard prevents an
+/// abandoned scan from publishing.
 /// </summary>
 public sealed class TokenOdometerWatcher : IAsyncDisposable
 {
@@ -26,9 +28,10 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
     private TokenUsage? _usage;
     private IReadOnlyList<AgentTokenSlice> _perAgent = [];
     private DateOnly? _visibleDay;
-    private TokenRange _selectedRange = TokenRange.Today;
-    private TokenRange _displayedRange = TokenRange.Today;
+    private TokenRange _selectedRange;
+    private TokenRange _displayedRange;
     private TokenRange? _pendingRange;
+    private string? _lastError;
     private int _generation;
     private bool _hasLoaded;
     private bool _isScanning;
@@ -39,8 +42,17 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
         TranscriptTokenReader reader,
         IReadOnlyList<(string Label, string Path)>? roots = null,
         Func<DateTimeOffset>? now = null,
-        TimeZoneInfo? localTimeZone = null)
+        TimeZoneInfo? localTimeZone = null,
+        TokenRange initialRange = TokenRange.Today)
     {
+        if (!Enum.IsDefined(initialRange))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(initialRange),
+                initialRange,
+                "The initial Token Odometer range is not supported.");
+        }
+
         _reader = reader;
         _roots = roots ??
             AgentRegistry.All
@@ -50,6 +62,8 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
                 .ToArray();
         _now = now ?? (() => DateTimeOffset.Now);
         _localTimeZone = localTimeZone ?? TimeZoneInfo.Local;
+        _selectedRange = initialRange;
+        _displayedRange = initialRange;
     }
 
     public event EventHandler? Changed;
@@ -135,6 +149,17 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
         }
     }
 
+    public string? LastError
+    {
+        get
+        {
+            lock (_stateGate)
+            {
+                return _lastError;
+            }
+        }
+    }
+
     public Task SetVisibleAsync(bool visible)
     {
         ThrowIfDisposed();
@@ -154,13 +179,6 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
             else
             {
                 _isVisible = true;
-                _selectedRange = TokenRange.Today;
-                _displayedRange = TokenRange.Today;
-                _pendingRange = TokenRange.Today;
-                _hasLoaded = false;
-                _isScanning = true;
-                _usage = null;
-                _perAgent = [];
                 _visibleDay = CurrentDay();
 
                 // Arm the filesystem watchers before the seed scan so an
@@ -171,7 +189,11 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
                     null,
                     DayCheckInterval,
                     DayCheckInterval);
-                request = BeginScanLocked(TokenRange.Today);
+                // Keep the last completed rows and their displayed range while
+                // the selected range is rescanned. On the first appearance,
+                // HasLoaded is still false and the same path supplies the
+                // initial pending/scanning state.
+                request = BeginScanLocked(_selectedRange);
             }
         }
 
@@ -211,6 +233,7 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
         {
             if (_isVisible)
             {
+                CreateWatchersLocked();
                 request = BeginScanLocked(_selectedRange);
             }
         }
@@ -247,6 +270,7 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
         _scanCancellation?.Dispose();
         _scanCancellation = new CancellationTokenSource();
         _pendingRange = range;
+        _lastError = null;
         _isScanning = true;
         return new ScanRequest(
             _generation,
@@ -262,6 +286,7 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
             _isVisible = false;
             _isScanning = false;
             _pendingRange = null;
+            _lastError = null;
             _scanCancellation?.Cancel();
             _scanCancellation?.Dispose();
             _scanCancellation = null;
@@ -281,6 +306,7 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
         {
             if (!Directory.Exists(root.Path))
             {
+                TryCreateMissingRootWatcherLocked(root.Path);
                 continue;
             }
 
@@ -311,6 +337,41 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
         }
     }
 
+    private void TryCreateMissingRootWatcherLocked(string missingRoot)
+    {
+        var target = new DirectoryInfo(Path.GetFullPath(missingRoot));
+        var ancestor = target.Parent;
+        while (ancestor is not null && !ancestor.Exists)
+        {
+            target = ancestor;
+            ancestor = ancestor.Parent;
+        }
+
+        if (ancestor is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var watcher = new FileSystemWatcher(ancestor.FullName, target.Name)
+            {
+                IncludeSubdirectories = false,
+                NotifyFilter = NotifyFilters.DirectoryName,
+            };
+            watcher.Created += Watcher_OnMissingRootChanged;
+            watcher.Renamed += Watcher_OnMissingRootRenamed;
+            watcher.Error += Watcher_OnError;
+            watcher.EnableRaisingEvents = true;
+            _watchers.Add(watcher);
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException)
+        {
+            // A manual refresh will try to establish the watch again.
+        }
+    }
+
     private void DisposeWatchersLocked()
     {
         foreach (var watcher in _watchers)
@@ -318,8 +379,10 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
             watcher.EnableRaisingEvents = false;
             watcher.Changed -= Watcher_OnChanged;
             watcher.Created -= Watcher_OnChanged;
+            watcher.Created -= Watcher_OnMissingRootChanged;
             watcher.Deleted -= Watcher_OnChanged;
             watcher.Renamed -= Watcher_OnRenamed;
+            watcher.Renamed -= Watcher_OnMissingRootRenamed;
             watcher.Error -= Watcher_OnError;
             watcher.Dispose();
         }
@@ -332,6 +395,16 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
 
     private void Watcher_OnRenamed(object sender, RenamedEventArgs eventArgs) =>
         QueueRefresh(rebuildWatchers: false);
+
+    private void Watcher_OnMissingRootChanged(
+        object sender,
+        FileSystemEventArgs eventArgs) =>
+        QueueRefresh(rebuildWatchers: true);
+
+    private void Watcher_OnMissingRootRenamed(
+        object sender,
+        RenamedEventArgs eventArgs) =>
+        QueueRefresh(rebuildWatchers: true);
 
     private void Watcher_OnError(object sender, ErrorEventArgs eventArgs) =>
         QueueRefresh(rebuildWatchers: true);
@@ -450,6 +523,7 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
                 _usage = combined.ResponseCount > 0 ? combined : null;
                 _displayedRange = request.Range;
                 _pendingRange = null;
+                _lastError = null;
                 _hasLoaded = true;
                 _isScanning = false;
             }
@@ -458,6 +532,29 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
         }
         catch (OperationCanceledException)
         {
+        }
+        catch (Exception exception)
+        {
+            var publish = false;
+            lock (_stateGate)
+            {
+                if (_isVisible &&
+                    request.Generation == _generation &&
+                    request.Range == _selectedRange)
+                {
+                    _pendingRange = null;
+                    _lastError = string.IsNullOrWhiteSpace(exception.Message)
+                        ? exception.GetType().Name
+                        : exception.Message;
+                    _isScanning = false;
+                    publish = true;
+                }
+            }
+
+            if (publish)
+            {
+                Changed?.Invoke(this, EventArgs.Empty);
+            }
         }
         finally
         {
