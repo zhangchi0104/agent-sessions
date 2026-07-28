@@ -5,8 +5,9 @@
 //  The popover anchored to the menu-bar item: a glass tab bar switching
 //  between the Usage tab (one AgentSection per Coding Agent in the user's
 //  Appearance order, primary first) and the Tokens tab (the Token Odometer
-//  broken down by Coding Agent, Model and Token Kind, which arrives with the
-//  table). The footer carries a global refresh control and a single
+//  broken down by Coding Agent, Model and Token Kind). The Tokens tab keeps
+//  itself current from a file watch, so the header's refresh control reaches
+//  the Usage Windows only. The footer carries that refresh control and a single
 //  Settings control that reaches account management (sign in / sign out per
 //  agent) and Quit. All copy follows the glossary (Usage Window, never
 //  "session"; full agent names in the popover).
@@ -88,6 +89,12 @@ struct PopoverView: View {
             Spacer()
             Button {
                 model.refreshAllManually()
+                // The Tokens tab keeps itself current from a file watch, so
+                // this is belt and braces — but "Refresh all" should reach
+                // everything on screen. Only while that tab is the visible
+                // one: re-reading transcripts for an off-screen figure is the
+                // thing ADR-0003 exists to prevent.
+                if tab == .tokens { Task { await odometer.refresh() } }
             } label: {
                 Image(systemName: "arrow.clockwise")
             }

@@ -14,9 +14,18 @@
 //
 
 import SwiftUI
+import AppKit
 
 struct TokensTabView: View {
     let odometer: TokenOdometerModel
+
+    /// How tall the table is allowed to grow before it scrolls instead. The
+    /// popover has no height of its own — it is exactly as tall as its content
+    /// — so without a ceiling a user with many Models gets a window taller
+    /// than the screen. 11 Model rows measured ~539pt in the layout prototype.
+    private static let tableHeightCap: CGFloat = 460
+
+    @State private var tableHeight: CGFloat = 0
 
     /// Dimmed while a scan is in flight — either the first of this appearance,
     /// or a longer range the user switched to — so the tab shows a cue rather
@@ -27,7 +36,11 @@ struct TokensTabView: View {
         VStack(alignment: .leading, spacing: 10) {
             rangePicker
             headingRow
-            table.opacity(isScanning ? 0.45 : 1)
+            // The dim has to clear macOS's own disabled-text alpha: the rows it
+            // covers are already drawn below full strength, and the two
+            // multiply. Held rows are meant to read as *last* range's numbers,
+            // not as a table that has gone blank.
+            scrollingTable.opacity(isScanning ? 0.6 : 1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         // Watches transcripts only while the Tokens tab is showing them;
@@ -46,6 +59,7 @@ struct TokensTabView: View {
         }
         .pickerStyle(.segmented)
         .labelsHidden()
+        .accessibilityLabel("Token Odometer range")
     }
 
     /// The heading names the range the rows below actually describe — never the
@@ -67,6 +81,25 @@ struct TokensTabView: View {
         }
         .foregroundStyle(.secondary)
         .frame(height: 14)
+    }
+
+    /// The table, clamped to `tableHeightCap` and scrolling past it. Measured
+    /// rather than given a fixed frame: a ScrollView takes every point it is
+    /// offered, which in a content-sized popover would pad a two-row table out
+    /// to the full cap.
+    private var scrollingTable: some View {
+        ScrollView(.vertical) {
+            table
+                .background(
+                    GeometryReader { geometry in
+                        Color.clear.preference(key: TableHeightKey.self, value: geometry.size.height)
+                    }
+                )
+        }
+        .frame(height: min(max(tableHeight, 1), Self.tableHeightCap))
+        .onPreferenceChange(TableHeightKey.self) { height in
+            tableHeight = height
+        }
     }
 
     @ViewBuilder private var table: some View {
@@ -92,6 +125,7 @@ struct TokensTabView: View {
                 .foregroundStyle(kind.color)
                 .frame(width: 42, alignment: .trailing)
                 .help(kind.name)
+                .accessibilityLabel(kind.name)
             }
         }
         .font(.system(size: 9.5, weight: .semibold))
@@ -105,18 +139,26 @@ struct TokensTabView: View {
                 Text(agent.label.uppercased())
                 Spacer()
                 if agent.byModel.isEmpty == false {
-                    Text(TokenUsage.compact(agent.usage.totalTokens)).monospacedDigit()
+                    Text(TokenUsage.compact(agent.usage.totalTokens))
+                        .monospacedDigit()
+                        // The compacted subtotal rounds two agents 4% apart to
+                        // the same figure; the exact one belongs within reach.
+                        .help(agent.usage.totalTokens.formatted())
                 }
             }
             .font(.system(size: 12, weight: .semibold))
             .foregroundStyle(.secondary)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(agent.byModel.isEmpty
+                                ? Text(agent.label)
+                                : Text("\(agent.label), \(agent.usage.totalTokens.formatted()) tokens"))
 
             if agent.byModel.isEmpty {
-                // An ordinary state, not an error: a day with no usage for this
-                // agent says so rather than leaving a bare heading behind.
+                // An ordinary state, not an error: an agent with nothing in the
+                // selected range says so rather than leaving a bare heading.
                 Text("No usage in this range")
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.secondary)
             } else {
                 ForEach(agent.byModel, id: \.model) { row in
                     modelRow(row)
@@ -128,44 +170,57 @@ struct TokensTabView: View {
     private func modelRow(_ row: TokenOdometerModel.ModelTokens) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 5) {
-                Text(row.model)
+                Text(row.model.displayName)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .foregroundStyle(.secondary)
                 ForEach(TokenKind.allCases, id: \.self) { kind in
-                    let amount = kind.amount(in: row.usage)
+                    let amount = row.usage.amount(of: kind)
+                    // The figures are the interface here, so they are the one
+                    // thing in the tab drawn at full strength.
                     Text(amount > 0 ? TokenUsage.compact(amount) : "–")
                         .frame(width: 42, alignment: .trailing)
+                        .foregroundStyle(amount > 0 ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
                 }
             }
             .font(.system(size: 12))
             .monospacedDigit()
-            .foregroundStyle(.secondary)
 
             ProportionBar(usage: row.usage)
         }
-        .help(row.usage.kindBreakdown)
+        .help(Self.rowTooltip(row))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(Self.rowTooltip(row).replacingOccurrences(of: "\n", with: ", ")))
+    }
+
+    /// Exact figures, plus the Model's full name — the column truncates it and
+    /// `claude-haiku-4-5-20251001` needs 172pt against the ~135pt available.
+    ///
+    /// A kind with no figure prints a dash rather than a zero. Codex reports no
+    /// cache-write field at all, so "Cache write 0" would assert a measurement
+    /// nobody made; CONTEXT.md calls that absence structural.
+    private static func rowTooltip(_ row: TokenOdometerModel.ModelTokens) -> String {
+        let figures = TokenKind.allCases.map { kind -> String in
+            let amount = row.usage.amount(of: kind)
+            return "\(kind.name) \(amount > 0 ? amount.formatted() : "—")"
+        }
+        return ([row.model.displayName] + figures).joined(separator: "\n")
     }
 }
 
-/// The four Token Kinds as the table shows them, in the order their segments
-/// run in the bar beneath each row — which is what lets the header double as
-/// the colour key.
-enum TokenKind: CaseIterable, Hashable {
-    case directInput
-    case output
-    case cacheWrite
-    case cacheRead
-
-    var name: String {
-        switch self {
-        case .directInput: "Direct input"
-        case .output: "Output"
-        case .cacheWrite: "Cache write"
-        case .cacheRead: "Cache read"
-        }
+/// Measures the table so the scroll view can be exactly as tall as its content
+/// up to the cap, instead of claiming every point offered to it.
+private struct TableHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
+}
 
+extension TokenKind {
+    /// The column header's label. The full name rides in the header tooltip,
+    /// which is what makes `C·W` discoverable.
     var abbreviation: String {
         switch self {
         case .directInput: "IN"
@@ -177,22 +232,28 @@ enum TokenKind: CaseIterable, Hashable {
 
     /// Cache read is most of almost every total, so it is the desaturated one;
     /// the small kinds keep the saturation that makes them visible in a 3pt bar.
+    ///
+    /// Each hue is given twice. These are a colour *key* read against text, not
+    /// a brand tint, and the dark-mode values — chosen first, since that is
+    /// where this app mostly lives — wash out against a white popover. The
+    /// light variants are the same hues darkened to hold their contrast.
     var color: Color {
         switch self {
-        case .directInput: Color(red: 0.29, green: 0.60, blue: 0.94)
-        case .output: Color(red: 0.22, green: 0.68, blue: 0.53)
-        case .cacheWrite: Color(red: 0.85, green: 0.62, blue: 0.22)
-        case .cacheRead: Color(red: 0.56, green: 0.52, blue: 0.75)
+        case .directInput: Self.adaptive(light: (0.13, 0.42, 0.78), dark: (0.29, 0.60, 0.94))
+        case .output: Self.adaptive(light: (0.09, 0.47, 0.35), dark: (0.22, 0.68, 0.53))
+        case .cacheWrite: Self.adaptive(light: (0.62, 0.42, 0.06), dark: (0.85, 0.62, 0.22))
+        case .cacheRead: Self.adaptive(light: (0.40, 0.36, 0.62), dark: (0.56, 0.52, 0.75))
         }
     }
 
-    func amount(in usage: TokenUsage) -> Int {
-        switch self {
-        case .directInput: usage.inputTokens
-        case .output: usage.outputTokens
-        case .cacheWrite: usage.cacheCreationTokens
-        case .cacheRead: usage.cacheReadTokens
-        }
+    private static func adaptive(
+        light: (red: Double, green: Double, blue: Double),
+        dark: (red: Double, green: Double, blue: Double)
+    ) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let variant = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+            return NSColor(srgbRed: variant.red, green: variant.green, blue: variant.blue, alpha: 1)
+        })
     }
 }
 
@@ -206,7 +267,7 @@ private struct ProportionBar: View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
                 ForEach(TokenKind.allCases, id: \.self) { kind in
-                    let amount = kind.amount(in: usage)
+                    let amount = usage.amount(of: kind)
                     if amount > 0 {
                         kind.color.frame(width: width(of: amount, in: geometry.size.width))
                     }
@@ -220,15 +281,9 @@ private struct ProportionBar: View {
 
     private func width(of amount: Int, in total: CGFloat) -> CGFloat {
         guard usage.totalTokens > 0 else { return 0 }
-        return total * CGFloat(amount) / CGFloat(usage.totalTokens)
-    }
-}
-
-extension TokenUsage {
-    /// Exact figures for the row tooltip, since the table itself is compacted.
-    var kindBreakdown: String {
-        TokenKind.allCases
-            .map { "\($0.name) \($0.amount(in: self).formatted())" }
-            .joined(separator: " · ")
+        // A kind that is present but tiny still gets a visible sliver. Letting
+        // it round to nothing would draw it exactly like a kind that is absent,
+        // and telling those two apart is the whole reason this bar is here.
+        return max(total * CGFloat(amount) / CGFloat(usage.totalTokens), 1.5)
     }
 }

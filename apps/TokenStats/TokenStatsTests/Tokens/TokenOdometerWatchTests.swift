@@ -72,4 +72,72 @@ struct TokenOdometerWatchTests {
 
         #expect(model.usage?.totalTokens == 150) // unchanged: watch stopped with the popover
     }
+
+    /// ADR-0003 is "watch only while visible", and the scan is the expensive
+    /// half of that. Cancelling has to stop the walk, not merely stop the
+    /// result being published — a closed popover must not go on reading roots.
+    @Test func aCancelledScanStopsBeforeItsNextRoot() async throws {
+        let claude = try TempTranscripts("claude")
+        try claude.write("a.jsonl", [claudeUsageLine(id: "m1", input: 100, output: 50)])
+        let codex = try TempTranscripts("codex")
+        try codex.write("rollout.jsonl", [codexTokenCountLine(totalInput: 1_000)])
+
+        let model = TokenOdometerModel(
+            reader: TranscriptTokenReader(),
+            roots: [TranscriptRoot(id: .claudeCode, label: "Claude Code", path: claude.path),
+                    TranscriptRoot(id: .codex, label: "Codex", path: codex.path)]
+        )
+        // Cancelled before the task body runs — the main actor is busy here —
+        // so the scan sees cancellation at its very first root boundary.
+        let scan = Task { await model.refresh() }
+        scan.cancel()
+        _ = await scan.value
+
+        #expect(model.hasLoaded == false)
+        #expect(model.perAgent.isEmpty)
+    }
+
+    /// The four Token Kinds have to land in the four fields the table draws.
+    /// Every other Claude fixture leaves both cache kinds at zero, which would
+    /// let the two cache columns be swapped without a test noticing.
+    @Test func eachClaudeTokenKindLandsInItsOwnColumn() async throws {
+        let projects = try TempTranscripts("claude")
+        try projects.write("a.jsonl", [
+            claudeUsageLine(id: "m1", input: 11, output: 22, cacheWrite: 33, cacheRead: 44),
+        ])
+
+        let model = TokenOdometerModel(
+            reader: TranscriptTokenReader(),
+            roots: [TranscriptRoot(id: .claudeCode, label: "Test", path: projects.path)]
+        )
+        let task = Task { await model.observeWhileVisible() }
+        defer { task.cancel() }
+
+        #expect(await waitUntil { model.usage?.totalTokens == 110 })
+        let usage = try #require(model.usage)
+        #expect(usage.inputTokens == 11)
+        #expect(usage.outputTokens == 22)
+        #expect(usage.cacheCreationTokens == 33)
+        #expect(usage.cacheReadTokens == 44)
+    }
+
+    /// A timestamp without fractional seconds still parses. Neither agent
+    /// writes one today, so this is the only thing keeping the reader's
+    /// fallback from being unreachable code nothing proves works.
+    @Test func aTimestampWithoutFractionalSecondsStillBuckets() async throws {
+        let projects = try TempTranscripts("claude")
+        try projects.write("a.jsonl", [
+            claudeUsageLine(id: "m1", input: 100, output: 50, timestamp: nonFractionalStamp()),
+        ])
+
+        let model = TokenOdometerModel(
+            reader: TranscriptTokenReader(),
+            roots: [TranscriptRoot(id: .claudeCode, label: "Test", path: projects.path)]
+        )
+        let task = Task { await model.observeWhileVisible() }
+        defer { task.cancel() }
+
+        // Bucketed into today rather than dropped for want of a parseable day.
+        #expect(await waitUntil { model.usage?.totalTokens == 150 })
+    }
 }

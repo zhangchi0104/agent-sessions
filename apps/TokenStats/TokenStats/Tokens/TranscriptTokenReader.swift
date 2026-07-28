@@ -6,10 +6,13 @@
 //  Codex session rollouts; each line's shape decides its parser. Claude
 //  assistant entries embed their API response's `usage` and one response can
 //  span several lines (one per content block), so totals are deduplicated by
-//  message id; Codex `token_count` events carry per-turn deltas that sum
-//  directly. Both formats are append-only, so the reader remembers how far it
-//  has parsed per file and only reads what was appended since — a re-read
-//  stays cheap even for a transcript that has been growing all day.
+//  message id; Codex `token_count` events carry a *running* session total, and
+//  what one event contributed is how far that total advanced — its
+//  `last_token_usage` looks like the same figure but is re-emitted verbatim on
+//  some turns, so summing it double-counts. Both formats are append-only, so
+//  the reader remembers how far it has parsed per file and only reads what was
+//  appended since — a re-read stays cheap even for a transcript that has been
+//  growing all day.
 //
 
 import Foundation
@@ -17,7 +20,7 @@ import Foundation
 /// Token totals summed across the distinct API responses in one transcript, or
 /// across a whole scan root. Cache tokens are tracked separately so the UI can
 /// disclose the breakdown.
-struct TokenUsage: Equatable, Sendable {
+nonisolated struct TokenUsage: Equatable, Sendable {
     var inputTokens = 0
     var outputTokens = 0
     var cacheCreationTokens = 0
@@ -51,7 +54,7 @@ struct TokenUsage: Equatable, Sendable {
 /// Parses transcripts off the main actor and caches per-file progress, so each
 /// poll only pays for bytes appended since the previous one.
 actor TranscriptTokenReader {
-    private struct ParseState {
+    nonisolated private struct ParseState {
         var consumedBytes: UInt64 = 0
         /// Bytes after the last newline — an incomplete trailing line.
         var partialLine = Data()
@@ -64,47 +67,54 @@ actor TranscriptTokenReader {
         /// The Model subsequent Codex usage belongs to, carried forward from
         /// the last line that named one. Lives here for the same reason as the
         /// running total: the seek past `consumedBytes` never re-reads it.
-        var currentModel: String?
+        var currentModel: ModelName?
         /// Codex usage seen before the file named any Model. A sub-agent
-        /// rollout streams a prefix before its first `turn_context`, and the
-        /// file uses exactly one Model, so this is backfilled rather than
-        /// stranded — it stays pending until a Model appears, and only counts
-        /// as unknown if none ever does.
+        /// rollout streams a prefix before its first `turn_context`, and a
+        /// rollout almost always names one Model throughout — 377 of the 383
+        /// measured locally name exactly one, 5 name none and 1 names two — so
+        /// the prefix is backfilled into the first Model rather than stranded.
+        /// It stays pending until a Model appears, and only counts as
+        /// unattributed if none ever does.
         var pendingByDay: [String: TokenUsage] = [:]
-        /// The last Codex running total seen in this file. It must live here,
+        /// The last Codex running total seen in this file, or nil before the
+        /// first `token_count` event establishes one. It must live here,
         /// beside `consumedBytes`: a poll routinely ends mid-session, and the
         /// seek past `consumedBytes` means the previous total is never re-read.
         /// Clearing it while keeping `consumedBytes` would silently re-count
         /// the whole file — never clear part of a ParseState.
-        var codexRunningTotal = CodexRunningTotal()
+        var codexRunningTotal: CodexRunningTotal?
         /// When a consumer last asked about this file; drives cache eviction.
         var lastAccessed = Date()
     }
 
     /// Where one bucket of usage belongs: a local calendar day, and the Model
     /// that produced it.
-    struct UsageKey: Hashable {
+    nonisolated struct UsageKey: Hashable {
         let day: String
-        let model: String
+        let model: ModelName
     }
 
-    /// The Model reported for usage no line ever attributed. Only a rollout
-    /// that never names a Model at all lands here.
-    static let unknownModel = "unknown"
-
     /// A Codex session's cumulative usage at one point in its rollout, split
-    /// the way TokenUsage counts: direct input separate from the cached part.
-    struct CodexRunningTotal: Equatable {
+    /// the way TokenUsage counts: direct input separate from the cache read.
+    nonisolated struct CodexRunningTotal: Equatable {
         var directInput = 0
-        var cached = 0
+        var cacheRead = 0
         var output = 0
 
         init() {}
 
         fileprivate init(_ reported: CodexRolloutLine.Payload.Info.Usage) {
-            cached = reported.cachedInputTokens ?? 0
-            directInput = max((reported.inputTokens ?? 0) - cached, 0)
+            cacheRead = reported.cachedInputTokens ?? 0
+            directInput = max((reported.inputTokens ?? 0) - cacheRead, 0)
             output = reported.outputTokens ?? 0
+        }
+
+        fileprivate func subtracting(_ other: CodexRunningTotal) -> CodexRunningTotal {
+            var result = CodexRunningTotal()
+            result.directInput = max(directInput - other.directInput, 0)
+            result.cacheRead = max(cacheRead - other.cacheRead, 0)
+            result.output = max(output - other.output, 0)
+            return result
         }
     }
 
@@ -137,47 +147,55 @@ actor TranscriptTokenReader {
         isoTimestampFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     }
 
-    /// Token usage recorded within `range` (local time), per Model, across
-    /// every agent .jsonl under `root` (a Claude projects directory or a Codex
-    /// sessions directory). Transcripts are append-only, so a file last
-    /// modified before the window opened cannot hold an entry inside it — the
+    /// Token usage recorded within `range` (local time) as of `now`, per Model,
+    /// across every agent .jsonl under `root` (a Claude projects directory or a
+    /// Codex sessions directory). Transcripts are append-only, so a file last
+    /// modified before the range opened cannot hold an entry inside it — the
     /// mtime filter is sound, and per-entry timestamps then exclude any older
     /// entries the surviving files still contain. Empty when nothing was
-    /// consumed in the window.
-    func breakdown(underProjectsRoot root: String, range: TokenRange) -> [String: TokenUsage] {
+    /// consumed in the range.
+    ///
+    /// `now` is passed in rather than read here so that one refresh resolves
+    /// the same span for every Coding Agent: reading the clock per root would
+    /// let a scan that straddles local midnight report two agents over two
+    /// different days and present them side by side as a comparison.
+    func breakdown(underTranscriptRoot root: String, range: TokenRange, now: Date) -> [ModelName: TokenUsage] {
         // Calendar.current is right for the *boundary* (local midnight); the
         // resulting Date is then keyed through dayKeyFormatter, whose pinned
         // Gregorian calendar shares the local time zone, so the boundary and
         // the entries inside it always map to the same "yyyy-MM-dd" key.
-        let windowStart = range.start()
+        let rangeStart = range.start(from: now)
         guard let enumerator = FileManager.default.enumerator(
             at: URL(fileURLWithPath: root),
             includingPropertiesForKeys: [.contentModificationDateKey]
         ) else { return [:] }
 
-        // Every day key inside the window, so a range is a sum over its days.
-        let windowKeys = Set((0..<range.days).compactMap { offset in
-            Calendar.current.date(byAdding: .day, value: offset, to: windowStart)
+        // Every day key inside the range, so a range is a sum over its days.
+        let dayKeys = Set((0..<range.days).compactMap { offset in
+            Calendar.current.date(byAdding: .day, value: offset, to: rangeStart)
                 .map { dayKeyFormatter.string(from: $0) }
         })
-        var inWindow: [String: TokenUsage] = [:]
+        var inRange: [ModelName: TokenUsage] = [:]
         for case let url as URL in enumerator {
             guard url.pathExtension == "jsonl",
                   let mtime = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate,
-                  mtime >= windowStart
+                  mtime >= rangeStart
             else { continue }
-            _ = usage(forTranscriptAt: url.path)
+            // A large first read is chunked, and each chunk's buffers are
+            // autoreleased; without a pool of its own a 30-day scan holds on to
+            // every chunk it has ever read until the enumeration returns.
+            autoreleasepool { _ = usage(forTranscriptAt: url.path) }
             guard let state = states[url.path] else { continue }
-            for (key, usage) in state.perDay where windowKeys.contains(key.day) {
-                inWindow[key.model, default: TokenUsage()].add(usage)
+            for (key, usage) in state.perDay where dayKeys.contains(key.day) {
+                inRange[key.model, default: TokenUsage()].add(usage)
             }
             // Usage the file never attributed — no line in it named a Model.
-            for (day, pending) in state.pendingByDay where windowKeys.contains(day) {
-                inWindow[Self.unknownModel, default: TokenUsage()].add(pending)
+            for (day, pending) in state.pendingByDay where dayKeys.contains(day) {
+                inRange[.unattributed, default: TokenUsage()].add(pending)
             }
         }
         evictStaleStates()
-        return inWindow.filter { $0.value.responseCount > 0 }
+        return inRange.filter { $0.value.responseCount > 0 }
     }
 
     /// Parse state for files nothing has read in days is archaeology — this
@@ -202,6 +220,9 @@ actor TranscriptTokenReader {
         state.lastAccessed = Date()
         if size < state.consumedBytes {
             // The file shrank — it was replaced or truncated; parse it afresh.
+            // This is the one path allowed to clear a ParseState, and it clears
+            // the whole of it: keeping `consumedBytes` across a partial clear is
+            // what silently re-counts or mis-attributes an entire file.
             state = ParseState()
         }
 
@@ -235,8 +256,14 @@ actor TranscriptTokenReader {
     /// belongs to.
     private func parse(line: Data, into state: inout ParseState) {
         let carriesUsage = line.range(of: Self.usageMarker) != nil
-        let namesModel = line.range(of: Self.turnContextMarker) != nil
-            || line.range(of: Self.threadSettingsMarker) != nil
+        // A line that carries usage never also names a Model — Codex declares
+        // its Model on lines with no usage at all — so the two model markers
+        // are only worth scanning for once the usage marker has missed. That
+        // keeps a Claude transcript, where neither can ever match, paying one
+        // search per line rather than three.
+        let namesModel = carriesUsage == false
+            && (line.range(of: Self.turnContextMarker) != nil
+                || line.range(of: Self.threadSettingsMarker) != nil)
         guard carriesUsage || namesModel else { return }
 
         // Codex names its Model on `turn_context` and `thread_settings_applied`
@@ -265,7 +292,7 @@ actor TranscriptTokenReader {
             response.cacheCreationTokens = usage.cacheCreationInputTokens ?? 0
             response.cacheReadTokens = usage.cacheReadInputTokens ?? 0
             response.responseCount = 1
-            record(response, model: message.model, timestamp: entry.timestamp, into: &state)
+            record(response, model: message.model.map(ModelName.named), timestamp: entry.timestamp, into: &state)
             return
         }
 
@@ -281,15 +308,22 @@ actor TranscriptTokenReader {
         if let entry = try? decoder.decode(CodexRolloutLine.self, from: line),
            entry.payload?.type == "token_count",
            let running = entry.payload?.info?.totalTokenUsage {
-            let previous = state.codexRunningTotal
             let current = CodexRunningTotal(running)
-            // The running total is monotonic; guard anyway so a malformed or
-            // reset line can never subtract from an established figure.
+            let previous = state.codexRunningTotal ?? openingBaseline(of: entry.payload?.info, at: current)
             var response = TokenUsage()
             response.inputTokens = current.directInput - previous.directInput
-            response.cacheReadTokens = current.cached - previous.cached
+            response.cacheReadTokens = current.cacheRead - previous.cacheRead
             response.outputTokens = current.output - previous.output
-            guard response.inputTokens >= 0, response.cacheReadTokens >= 0, response.outputTokens >= 0 else { return }
+            guard response.inputTokens >= 0, response.cacheReadTokens >= 0, response.outputTokens >= 0 else {
+                // The running total went backwards — a reset, or a line this
+                // reader misread. Contribute nothing for this event, but adopt
+                // the figure as the new baseline: keeping the old one would
+                // reject every later event until the total climbed back past
+                // its previous high-water mark, silently under-counting the
+                // rest of the session instead of just this event.
+                state.codexRunningTotal = current
+                return
+            }
             state.codexRunningTotal = current
             guard response.totalTokens > 0 else { return }
             response.responseCount = 1
@@ -297,7 +331,38 @@ actor TranscriptTokenReader {
         }
     }
 
-    private func record(_ response: TokenUsage, model: String?, timestamp: String?, into state: inout ParseState) {
+    /// What a rollout's running total already held before its first event —
+    /// tokens some earlier rollout spent and has already been counted for.
+    ///
+    /// A rollout that continues an earlier session opens with the head it
+    /// inherited baked into `total_token_usage`, so starting from zero would
+    /// charge this file for the whole parent conversation. The first event's
+    /// own contribution is its `last_token_usage`, which makes the head the
+    /// difference between the two. This is the *only* use of that field: it is
+    /// re-emitted verbatim on later turns, so summing it is what double-counted
+    /// before, and nothing here ever adds it to a total.
+    ///
+    /// A rollout that opens fresh reports the two as equal, leaving a zero
+    /// baseline — which is what all but one of the 373 local rollouts do.
+    private func openingBaseline(
+        of info: CodexRolloutLine.Payload.Info?,
+        at current: CodexRunningTotal
+    ) -> CodexRunningTotal {
+        guard let last = info?.lastTokenUsage else { return CodexRunningTotal() }
+        let turn = CodexRunningTotal(last)
+        // An all-zero turn means the field is absent or unpopulated, not that
+        // the turn spent nothing — a `token_count` event is only written
+        // because something was spent. Reading it as a head would charge this
+        // file nothing at all, so treat it as no information and start at zero.
+        guard turn != CodexRunningTotal() else { return CodexRunningTotal() }
+        return current.subtracting(turn)
+    }
+
+    private func record(_ response: TokenUsage, model: ModelName?, timestamp: String?, into state: inout ParseState) {
+        // A response that spent nothing is not a row. Claude writes `<synthetic>`
+        // entries carrying an all-zero usage block, and counting them would put
+        // a Model on screen whose every column is a dash.
+        guard response.totalTokens > 0 else { return }
         state.usage.add(response)
         guard let timestamp, let date = parseTimestamp(timestamp) else { return }
         let day = dayKeyFormatter.string(from: date)
@@ -313,6 +378,7 @@ actor TranscriptTokenReader {
     /// Adopt the Model a line just named, and settle anything that streamed
     /// before it — the prefix belongs to this Model, not to `unknown`.
     private func adopt(model: String, into state: inout ParseState) {
+        let model = ModelName.named(model)
         state.currentModel = model
         guard state.pendingByDay.isEmpty == false else { return }
         for (day, usage) in state.pendingByDay {
@@ -321,14 +387,16 @@ actor TranscriptTokenReader {
         state.pendingByDay.removeAll()
     }
 
-    /// Transcript timestamps are ISO 8601, with or without fractional seconds.
+    /// Transcript timestamps are ISO 8601. Both agents write fractional seconds
+    /// on every line measured locally; the plain form is kept as a fallback for
+    /// a version that does not.
     private func parseTimestamp(_ value: String) -> Date? {
         isoTimestampFractional.date(from: value) ?? isoTimestamp.date(from: value)
     }
 }
 
 /// The slice of a Claude transcript line the reader cares about.
-private struct TranscriptLine: Decodable {
+nonisolated private struct TranscriptLine: Decodable {
     struct Message: Decodable {
         struct Usage: Decodable {
             let inputTokens: Int?
@@ -347,7 +415,7 @@ private struct TranscriptLine: Decodable {
 
 /// The slice of a Codex line that names the Model. `turn_context` carries it
 /// directly; `thread_settings_applied` nests it one level down.
-struct CodexModelLine: Decodable {
+nonisolated struct CodexModelLine: Decodable {
     struct Payload: Decodable {
         struct ThreadSettings: Decodable { let model: String? }
         let model: String?
@@ -358,10 +426,8 @@ struct CodexModelLine: Decodable {
 
 /// The slice of a Codex rollout line the reader cares about
 /// (`{"timestamp", "type": "event_msg", "payload": {"type": "token_count",
-///   "info": {"total_token_usage": {...}}}}`). `last_token_usage` sits beside it
-/// in the file and is deliberately not decoded: it is the field that
-/// double-counts.
-struct CodexRolloutLine: Decodable {
+///   "info": {"total_token_usage": {...}, "last_token_usage": {...}}}}`).
+nonisolated struct CodexRolloutLine: Decodable {
     struct Payload: Decodable {
         struct Info: Decodable {
             struct Usage: Decodable {
@@ -371,6 +437,10 @@ struct CodexRolloutLine: Decodable {
             }
             /// The session's cumulative usage — the figure totals derive from.
             let totalTokenUsage: Usage?
+            /// The turn's own usage. Summing this is what double-counted, so it
+            /// is never added to a total; it is read once, on a file's first
+            /// event, to tell an inherited head from a fresh start.
+            let lastTokenUsage: Usage?
         }
         let type: String?
         let info: Info?

@@ -3,11 +3,11 @@
 //  TokenStats
 //
 //  Owns the Token Odometer behind the popover's Tokens tab: token usage
-//  broken down by Coding Agent and Model, from local files touched today —
-//  Claude Code transcripts (all projects) and Codex session rollouts. The
-//  sources are plain files written by other processes, so while visible the
-//  model seeds once and then re-reads on each file-change tick from a
-//  TranscriptChangeSource (ADR-0003) rather than polling; the shared
+//  broken down by Coding Agent and Model, over the range the user has
+//  selected — Claude Code transcripts (all projects) and Codex session
+//  rollouts. The sources are plain files written by other processes, so while
+//  visible the model seeds once and then re-reads on each file-change tick
+//  from a TranscriptChangeSource (ADR-0003) rather than polling; the shared
 //  TranscriptTokenReader keeps each re-read cheap by only parsing newly
 //  appended bytes.
 //
@@ -29,7 +29,7 @@ final class TokenOdometerModel {
 
     /// One Model's row within a Coding Agent.
     struct ModelTokens: Equatable {
-        let model: String
+        let model: ModelName
         let usage: TokenUsage
     }
 
@@ -73,9 +73,15 @@ final class TokenOdometerModel {
     /// the view that knows it; registry order until then.
     var displayOrder: [CodingAgentID] = []
     /// The scan started by a range change, tracked so it can be cancelled when
-    /// the tab goes away — an unstructured task would keep walking the
-    /// filesystem after the popover closed, which ADR-0003 exists to prevent.
+    /// the tab goes away — an unstructured task would outlive the popover,
+    /// which ADR-0003 exists to prevent. `refresh()` checks for cancellation
+    /// between roots, so the walk stops at the next root boundary rather than
+    /// mid-file.
     private var rangeScan: Task<Void, Never>?
+    /// Bumped by each appearance of the tab. The outgoing appearance's cleanup
+    /// must not cancel a scan the incoming one has already started, and the two
+    /// overlap: SwiftUI can run the new `.task` before the old one unwinds.
+    private var appearance = 0
 
     init(reader: TranscriptTokenReader,
          roots: [TranscriptRoot],
@@ -96,30 +102,50 @@ final class TokenOdometerModel {
 
     func refresh() async {
         let range = selectedRange
+        // One clock reading for the whole refresh: resolving the range per root
+        // would let a scan running across local midnight report one agent over
+        // today and the next over yesterday, side by side, as a comparison.
+        let now = Date()
         // One scan per agent root; assigning after all awaits keeps the
         // published values consistent with each other, and keeps the rows and
         // the range they describe from ever disagreeing.
         var slices: [AgentTokens] = []
         for root in roots {
-            let byModel = await reader.breakdown(underProjectsRoot: root.path, range: range)
+            // The reader's walk is synchronous, so cancellation lands here,
+            // between roots — close enough that a closed popover stops paying
+            // for the roots it has not reached.
+            if Task.isCancelled { return }
+            let byModel = await reader.breakdown(underTranscriptRoot: root.path, range: range, now: now)
             var total = TokenUsage()
             for usage in byModel.values { total.add(usage) }
             let rows = byModel
                 .map { ModelTokens(model: $0.key, usage: $0.value) }
-                .sorted { ($0.usage.totalTokens, $1.model) > ($1.usage.totalTokens, $0.model) }
+                .sorted { left, right in
+                    // Biggest first, and alphabetical between equals so the
+                    // order of two idle Models doesn't shuffle between scans.
+                    if left.usage.totalTokens != right.usage.totalTokens {
+                        return left.usage.totalTokens > right.usage.totalTokens
+                    }
+                    return left.model < right.model
+                }
             slices.append(AgentTokens(id: root.id, label: root.label, usage: total, byModel: rows))
         }
         // A slower scan for a range the user has since moved off must not
         // land: it would overwrite fresher rows and, worse, park displayedRange
         // behind a selection with no scan left running — a progress cue that
-        // never resolves.
-        guard range == selectedRange else { return }
+        // never resolves. The exception is the first scan of an appearance:
+        // nothing is on screen yet, so its rows are better than the blank the
+        // pending scan would otherwise leave for several seconds, and the
+        // heading still names the range they actually describe.
+        guard range == selectedRange || hasLoaded == false else { return }
         displayedRange = range
         hasLoaded = true
         // Registry order is the scan order; the popover shows the user's.
         let rank = Dictionary(uniqueKeysWithValues: displayOrder.enumerated().map { ($1, $0) })
         perAgent = slices.enumerated()
-            .sorted { rank[$0.element.id] ?? $0.offset < rank[$1.element.id] ?? $1.offset }
+            .sorted { left, right in
+                (rank[left.element.id] ?? left.offset) < (rank[right.element.id] ?? right.offset)
+            }
             .map(\.element)
     }
 
@@ -129,13 +155,25 @@ final class TokenOdometerModel {
     func observeWhileVisible() async {
         // Each appearance starts on Today. The model outlives the popover, so
         // without this a 30-day selection would be waiting on the next opening
-        // and its figure read as today's.
+        // and its figure read as today's — and the rows must be dropped with
+        // it, or a month's numbers and subtotals render for the whole seed
+        // scan beneath a heading that now reads "Today".
+        appearance += 1
+        let epoch = appearance
         selectedRange = .today
         displayedRange = .today
+        perAgent = []
         hasLoaded = false
-        defer { rangeScan?.cancel() }
+        // Only tear down a scan this appearance started: SwiftUI can run the
+        // next appearance's `.task` before this one unwinds, and cancelling
+        // then would kill the scan the user is currently waiting on.
+        defer { if appearance == epoch { rangeScan?.cancel() } }
+        // Arm the watch before seeding rather than after: a transcript written
+        // while the first scan runs would otherwise never tick, and the tab
+        // would settle on figures that were already stale when they landed.
+        let ticks = changeSource.ticks()
         await refresh()
-        for await _ in changeSource.ticks() {
+        for await _ in ticks {
             await refresh()
         }
     }

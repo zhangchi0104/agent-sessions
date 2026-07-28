@@ -10,6 +10,7 @@
 //
 
 import SwiftUI
+import AppKit
 
 /// The two surfaces in the popover: live Usage Windows, and the Token
 /// Odometer broken down by Coding Agent, Model and Token Kind.
@@ -54,7 +55,13 @@ struct GlassTabBar: View {
         } label: {
             Text(title)
                 .font(.body.weight(.medium))
-                .foregroundStyle(isSelected ? Color.white : (hovered == value ? Color.primary : Color.secondary))
+                // Not a hard-coded white: the puck is filled with the user's
+                // accent colour, and Yellow and Graphite leave white text
+                // barely above the background. AppKit's own label for text
+                // drawn on a selection fill flips to dark for exactly those.
+                .foregroundStyle(isSelected
+                                 ? Color(nsColor: .alternateSelectedControlTextColor)
+                                 : (hovered == value ? Color.primary : Color.secondary))
                 .padding(.vertical, 7)
                 // Segments share the bar's width equally.
                 .frame(maxWidth: .infinity)
@@ -75,12 +82,18 @@ struct GlassTabBar: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
+    /// Before macOS 26 this is the whole tab bar. It is drawn a size larger
+    /// than the controls inside a tab — the Tokens tab's own range picker is
+    /// also a segmented picker, and at matching sizes the two read as one
+    /// nested control rather than as navigation above content.
     private var segmentedPicker: some View {
         Picker("View", selection: $selection) {
             Text("Usage").tag(PopoverTab.usage)
             Text("Tokens").tag(PopoverTab.tokens)
         }
         .pickerStyle(.segmented)
+        .controlSize(.large)
         .labelsHidden()
+        .accessibilityLabel("Popover section")
     }
 }
