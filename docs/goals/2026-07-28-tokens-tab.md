@@ -54,6 +54,8 @@ Each is one commit on `feat/token-stats-tab`, revertible on its own.
 
 **Expected breakage:** none. Existing tests only cover Claude transcripts.
 
+**Tickets:** [#37](https://github.com/zhangchi0104/agent-sessions/issues/37).
+
 **Exit gate:** S5, S7, S8 pass; all invariants pass; `git show --stat HEAD` names only files under `apps/TokenStats/TokenStats/Tokens/` and `apps/TokenStats/TokenStatsTests/Tokens/`.
 
 ### M1 — Codex tokens are attributed to a Model
@@ -65,6 +67,8 @@ Each is one commit on `feat/token-stats-tab`, revertible on its own.
 3. Accumulate usage seen before a file's first model into a bounded pending bucket; flush it into that model when it first appears. A file that never declares one keeps its usage under `unknown`.
 4. Re-key the per-file day bucket by day **and** model.
 5. Publish a per-agent, per-model breakdown from the model, summed over the day keys in range.
+
+**Tickets:** [#38](https://github.com/zhangchi0104/agent-sessions/issues/38).
 
 **Exit gate:** S6 passes; all invariants pass; new tests assert attribution, backfill, and the `unknown` fallback.
 
@@ -78,7 +82,9 @@ Each is one commit on `feat/token-stats-tab`, revertible on its own.
 4. Rename `TokensTodayModel` across the four files listed in §8, and its file.
 5. Retire the term from Swift sources — including the **user-visible onboarding copy** at `OnboardingDisclosureStep.swift:26`, which is a deliberate copy change, not an incidental sweep.
 
-**Exit gate:** S1, S2, S3, S4 pass; all invariants pass; `rg -q 'available(macOS 26' apps/TokenStats/TokenStats/GlassTabBar.swift` exits 0.
+**Tickets:** [#39](https://github.com/zhangchi0104/agent-sessions/issues/39), then [#40](https://github.com/zhangchi0104/agent-sessions/issues/40).
+
+**Exit gate:** S1, S2, S3, S4 pass; all invariants pass; `rg -q 'available.macOS 26' apps/TokenStats/TokenStats/GlassTabBar.swift` exits 0.
 
 ### M3 — the breakdown table and its range control
 
@@ -88,6 +94,8 @@ Each is one commit on `feat/token-stats-tab`, revertible on its own.
 2. Publish the in-flight state — which range is pending, and which range the displayed rows belong to — so the view binds rather than computes.
 3. Build the table: agent group headers with subtotals, model rows with four Token Kinds in compact units, a proportion bar beneath each row, swatch and coloured label per column header, header tooltips carrying the full names.
 4. Render an agent group with no usage in range as a worded line, distinct from the scanning state.
+
+**Tickets:** [#41](https://github.com/zhangchi0104/agent-sessions/issues/41).
 
 **Exit gate:** S9 passes; all invariants pass; S10 is handed to a human.
 
@@ -139,3 +147,23 @@ Each is one commit on `feat/token-stats-tab`, revertible on its own.
 **Obsolete history not to consult.** Map issue #12 and its tickets were closed as obsolete when session tracking was deleted; the Sessions tab, hook CLI and all TypeScript are gone. Do not resurrect them.
 
 **Commit convention.** `type(TokenStats): subject` — `feat`, `fix`, `docs`, `refactor`, `test`. semantic-release reads these. Each commit ends with the `Co-Authored-By` trailer this repo already uses.
+
+## 9. Tracking
+
+The tickets live as GitHub issues on this repository, all labelled `ready-for-agent`, each naming issue #36 as its parent:
+
+| Ticket | Milestone | Blocked by |
+|---|---|---|
+| [#37 — Codex token counting becomes exact](https://github.com/zhangchi0104/agent-sessions/issues/37) | M0 | none |
+| [#38 — Codex tokens are attributed to a Model](https://github.com/zhangchi0104/agent-sessions/issues/38) | M1 | #37 |
+| [#39 — The popover regains a two-tab bar with a Tokens tab](https://github.com/zhangchi0104/agent-sessions/issues/39) | M2 | #38 |
+| [#40 — Delete the combined token figure and retire Tokens Today](https://github.com/zhangchi0104/agent-sessions/issues/40) | M2 | #39 |
+| [#41 — The Tokens tab renders the breakdown with a range control](https://github.com/zhangchi0104/agent-sessions/issues/41) | M3 | #40 |
+
+The blocking edges are native GitHub issue dependencies, so the frontier is visible in the tracker's own UI.
+
+**The loop.** Work the frontier — any ticket whose blockers are all closed. Tick each acceptance criterion as it lands, and close the ticket when they all hold.
+
+**Tickets do not commit.** The milestone's one commit lands after its last ticket *and* a passing exit gate. M2 is the only milestone with two tickets: #39 and #40 both close before its single commit.
+
+A gate that fails with every one of its tickets closed means the milestone is not done and the tickets missed something. Report which criterion failed and what it revealed; do not patch past it.
