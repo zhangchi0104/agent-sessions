@@ -18,9 +18,17 @@ import Observation
 @MainActor
 @Observable
 final class TokensTodayModel {
-    /// One agent's slice of today's totals, for the hero tooltip's split.
+    /// One Coding Agent's slice of the Token Odometer: its total, and the
+    /// per-Model rows beneath it, ordered by total descending.
     struct AgentTokens: Equatable {
         let label: String
+        let usage: TokenUsage
+        let byModel: [ModelTokens]
+    }
+
+    /// One Model's row within a Coding Agent.
+    struct ModelTokens: Equatable {
+        let model: String
         let usage: TokenUsage
     }
 
@@ -52,9 +60,14 @@ final class TokensTodayModel {
         // published values consistent with each other.
         var slices: [AgentTokens] = []
         for root in roots {
-            if let today = await reader.todayUsage(underProjectsRoot: root.path) {
-                slices.append(AgentTokens(label: root.label, usage: today))
-            }
+            let byModel = await reader.todayBreakdown(underProjectsRoot: root.path)
+            guard byModel.isEmpty == false else { continue }
+            var total = TokenUsage()
+            for usage in byModel.values { total.add(usage) }
+            let rows = byModel
+                .map { ModelTokens(model: $0.key, usage: $0.value) }
+                .sorted { ($0.usage.totalTokens, $1.model) > ($1.usage.totalTokens, $0.model) }
+            slices.append(AgentTokens(label: root.label, usage: total, byModel: rows))
         }
         perAgent = slices
         usage = slices.reduce(into: nil as TokenUsage?) { combined, slice in

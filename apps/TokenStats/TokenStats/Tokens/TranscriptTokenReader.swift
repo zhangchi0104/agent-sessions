@@ -70,8 +70,20 @@ actor TranscriptTokenReader {
         var partialLine = Data()
         var seenResponseIDs: Set<String> = []
         var usage = TokenUsage()
-        /// Usage bucketed by local calendar day ("yyyy-MM-dd"), for daily sums.
-        var perDay: [String: TokenUsage] = [:]
+        /// Usage bucketed by local calendar day *and* Model, which is what the
+        /// Tokens tab groups by. A file holds about one Model over about one
+        /// day, so the richer key costs roughly one entry per file.
+        var perDay: [UsageKey: TokenUsage] = [:]
+        /// The Model subsequent Codex usage belongs to, carried forward from
+        /// the last line that named one. Lives here for the same reason as the
+        /// running total: the seek past `consumedBytes` never re-reads it.
+        var currentModel: String?
+        /// Codex usage seen before the file named any Model. A sub-agent
+        /// rollout streams a prefix before its first `turn_context`, and the
+        /// file uses exactly one Model, so this is backfilled rather than
+        /// stranded — it stays pending until a Model appears, and only counts
+        /// as unknown if none ever does.
+        var pendingByDay: [String: TokenUsage] = [:]
         /// The last Codex running total seen in this file. It must live here,
         /// beside `consumedBytes`: a poll routinely ends mid-session, and the
         /// seek past `consumedBytes` means the previous total is never re-read.
@@ -81,6 +93,17 @@ actor TranscriptTokenReader {
         /// When a consumer last asked about this file; drives cache eviction.
         var lastAccessed = Date()
     }
+
+    /// Where one bucket of usage belongs: a local calendar day, and the Model
+    /// that produced it.
+    struct UsageKey: Hashable {
+        let day: String
+        let model: String
+    }
+
+    /// The Model reported for usage no line ever attributed. Only a rollout
+    /// that never names a Model at all lands here.
+    static let unknownModel = "unknown"
 
     /// A Codex session's cumulative usage at one point in its rollout, split
     /// the way TokenUsage counts: direct input separate from the cached part.
@@ -103,8 +126,13 @@ actor TranscriptTokenReader {
     private let dayKeyFormatter: DateFormatter
     private let isoTimestamp: ISO8601DateFormatter
     private let isoTimestampFractional: ISO8601DateFormatter
-    /// Fast pre-filter: only lines carrying usage are worth JSON-decoding.
+    /// Fast pre-filter: only lines carrying usage, or naming the Model that
+    /// later usage belongs to, are worth JSON-decoding. Codex names its Model
+    /// on lines that carry no usage at all, so a usage-only filter never sees
+    /// one — which is why every Codex figure was model-less before this.
     private static let usageMarker = Data("\"input_tokens\"".utf8)
+    private static let turnContextMarker = Data("\"turn_context\"".utf8)
+    private static let threadSettingsMarker = Data("\"thread_settings\"".utf8)
     private static let chunkSize = 4 << 20
 
     init() {
@@ -122,13 +150,13 @@ actor TranscriptTokenReader {
         isoTimestampFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     }
 
-    /// Token usage recorded *today* (local time) across every agent .jsonl
-    /// under `root` (a Claude projects directory or a Codex sessions
-    /// directory). Files not modified today can't contain today's entries, so
-    /// only today's files are read; per-entry timestamps then exclude any
-    /// older entries those files still contain. Nil when nothing was consumed
-    /// today.
-    func todayUsage(underProjectsRoot root: String) -> TokenUsage? {
+    /// Token usage recorded *today* (local time), per Model, across every
+    /// agent .jsonl under `root` (a Claude projects directory or a Codex
+    /// sessions directory). Files not modified today can't contain today's
+    /// entries, so only today's files are read; per-entry timestamps then
+    /// exclude any older entries those files still contain. Empty when nothing
+    /// was consumed today.
+    func todayBreakdown(underProjectsRoot root: String) -> [String: TokenUsage] {
         // Calendar.current is right for the *boundary* (local midnight); the
         // resulting Date is then keyed through dayKeyFormatter, whose pinned
         // Gregorian calendar shares the local time zone, so the boundary and
@@ -137,22 +165,27 @@ actor TranscriptTokenReader {
         guard let enumerator = FileManager.default.enumerator(
             at: URL(fileURLWithPath: root),
             includingPropertiesForKeys: [.contentModificationDateKey]
-        ) else { return nil }
+        ) else { return [:] }
 
         let todayKey = dayKeyFormatter.string(from: startOfToday)
-        var today = TokenUsage()
+        var today: [String: TokenUsage] = [:]
         for case let url as URL in enumerator {
             guard url.pathExtension == "jsonl",
                   let mtime = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate,
                   mtime >= startOfToday
             else { continue }
             _ = usage(forTranscriptAt: url.path)
-            if let day = states[url.path]?.perDay[todayKey] {
-                today.add(day)
+            guard let state = states[url.path] else { continue }
+            for (key, usage) in state.perDay where key.day == todayKey {
+                today[key.model, default: TokenUsage()].add(usage)
+            }
+            // Usage the file never attributed — no line in it named a Model.
+            if let pending = state.pendingByDay[todayKey] {
+                today[Self.unknownModel, default: TokenUsage()].add(pending)
             }
         }
         evictStaleStates()
-        return today.responseCount > 0 ? today : nil
+        return today.filter { $0.value.responseCount > 0 }
     }
 
     /// Parse state for files nothing has read in days is archaeology — this
@@ -205,11 +238,27 @@ actor TranscriptTokenReader {
         state.partialLine = buffer.subdata(in: lineStart..<buffer.endIndex)
     }
 
-    /// A line is either a Claude transcript entry (assistant message with
-    /// `usage`) or a Codex rollout `token_count` event; both carry the
-    /// "input_tokens" marker the pre-filter looks for.
+    /// A line either carries usage — a Claude assistant message, or a Codex
+    /// `token_count` event — or names the Model that subsequent Codex usage
+    /// belongs to.
     private func parse(line: Data, into state: inout ParseState) {
-        guard line.range(of: Self.usageMarker) != nil else { return }
+        let carriesUsage = line.range(of: Self.usageMarker) != nil
+        let namesModel = line.range(of: Self.turnContextMarker) != nil
+            || line.range(of: Self.threadSettingsMarker) != nil
+        guard carriesUsage || namesModel else { return }
+
+        // Codex names its Model on `turn_context` and `thread_settings_applied`
+        // lines. Carry the most recent one forward: `token_count` events carry
+        // no model and no turn id, so the preceding declaration is the only
+        // signal, and it must survive into ParseState because a poll routinely
+        // ends mid-session.
+        if namesModel,
+           let entry = try? decoder.decode(CodexModelLine.self, from: line),
+           let model = entry.payload?.model ?? entry.payload?.threadSettings?.model {
+            adopt(model: model, into: &state)
+            return
+        }
+        guard carriesUsage else { return }
 
         if let entry = try? decoder.decode(TranscriptLine.self, from: line),
            let message = entry.message,
@@ -224,7 +273,7 @@ actor TranscriptTokenReader {
             response.cacheCreationTokens = usage.cacheCreationInputTokens ?? 0
             response.cacheReadTokens = usage.cacheReadInputTokens ?? 0
             response.responseCount = 1
-            record(response, timestamp: entry.timestamp, into: &state)
+            record(response, model: message.model, timestamp: entry.timestamp, into: &state)
             return
         }
 
@@ -252,15 +301,32 @@ actor TranscriptTokenReader {
             state.codexRunningTotal = current
             guard response.totalTokens > 0 else { return }
             response.responseCount = 1
-            record(response, timestamp: entry.timestamp, into: &state)
+            record(response, model: state.currentModel, timestamp: entry.timestamp, into: &state)
         }
     }
 
-    private func record(_ response: TokenUsage, timestamp: String?, into state: inout ParseState) {
+    private func record(_ response: TokenUsage, model: String?, timestamp: String?, into state: inout ParseState) {
         state.usage.add(response)
-        if let timestamp, let date = parseTimestamp(timestamp) {
-            state.perDay[dayKeyFormatter.string(from: date), default: TokenUsage()].add(response)
+        guard let timestamp, let date = parseTimestamp(timestamp) else { return }
+        let day = dayKeyFormatter.string(from: date)
+        if let model {
+            state.perDay[UsageKey(day: day, model: model), default: TokenUsage()].add(response)
+        } else {
+            // No Model named yet. Hold it by day so a later declaration can
+            // backfill it without losing which day it belonged to.
+            state.pendingByDay[day, default: TokenUsage()].add(response)
         }
+    }
+
+    /// Adopt the Model a line just named, and settle anything that streamed
+    /// before it — the prefix belongs to this Model, not to `unknown`.
+    private func adopt(model: String, into state: inout ParseState) {
+        state.currentModel = model
+        guard state.pendingByDay.isEmpty == false else { return }
+        for (day, usage) in state.pendingByDay {
+            state.perDay[UsageKey(day: day, model: model), default: TokenUsage()].add(usage)
+        }
+        state.pendingByDay.removeAll()
     }
 
     /// Transcript timestamps are ISO 8601, with or without fractional seconds.
@@ -279,10 +345,23 @@ private struct TranscriptLine: Decodable {
             let cacheReadInputTokens: Int?
         }
         let id: String?
+        /// The Model Claude reports on the same line as the usage.
+        let model: String?
         let usage: Usage?
     }
     let message: Message?
     let timestamp: String?
+}
+
+/// The slice of a Codex line that names the Model. `turn_context` carries it
+/// directly; `thread_settings_applied` nests it one level down.
+struct CodexModelLine: Decodable {
+    struct Payload: Decodable {
+        struct ThreadSettings: Decodable { let model: String? }
+        let model: String?
+        let threadSettings: ThreadSettings?
+    }
+    let payload: Payload?
 }
 
 /// The slice of a Codex rollout line the reader cares about
