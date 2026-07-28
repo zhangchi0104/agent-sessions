@@ -26,10 +26,8 @@ struct TokensTabView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             rangePicker
-            heading
-            table
-                .opacity(isScanning ? 0.45 : 1)
-                .overlay(alignment: .top) { if isScanning { scanning } }
+            headingRow
+            table.opacity(isScanning ? 0.45 : 1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         // Watches transcripts only while the Tokens tab is showing them;
@@ -50,26 +48,25 @@ struct TokensTabView: View {
         .labelsHidden()
     }
 
-    /// Names the range the rows below actually describe — never the pending
-    /// one. Switching to 30 days must not relabel today's numbers while the
-    /// scan is still running.
-    private var heading: some View {
-        Text(odometer.displayedRange.label)
-            .font(.system(size: 11, weight: .semibold))
-            .kerning(0.4)
-            .foregroundStyle(.secondary)
-    }
-
-    /// The cue names what is being *read*, which is the pending range — the
-    /// one thing on screen that may legitimately run ahead of the data.
-    private var scanning: some View {
+    /// The heading names the range the rows below actually describe — never the
+    /// pending one; switching to 30 days must not relabel today's numbers while
+    /// the scan runs. The cue sits beside it rather than over the table, so it
+    /// never lands on the column header, and it names the range being *read*,
+    /// which is the one thing allowed to run ahead of the data.
+    private var headingRow: some View {
         HStack(spacing: 6) {
-            ProgressView().controlSize(.small)
-            Text("Reading \((odometer.pendingRange ?? odometer.selectedRange).label.lowercased())…")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Text(odometer.displayedRange.label)
+                .font(.system(size: 11, weight: .semibold))
+                .kerning(0.4)
+            Spacer(minLength: 8)
+            if isScanning {
+                ProgressView().controlSize(.small).scaleEffect(0.7)
+                Text("Reading \((odometer.pendingRange ?? odometer.selectedRange).label.lowercased())…")
+                    .font(.system(size: 11))
+            }
         }
-        .padding(.top, 2)
+        .foregroundStyle(.secondary)
+        .frame(height: 14)
     }
 
     @ViewBuilder private var table: some View {
