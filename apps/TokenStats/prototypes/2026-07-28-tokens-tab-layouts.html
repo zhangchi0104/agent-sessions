@@ -1,0 +1,589 @@
+<title>Tokens tab layouts — 332pt prototypes</title>
+
+<style>
+  /* PROTOTYPE — throwaway. Answers wayfinder ticket #27 only. Not production code.
+     Round 5: the legend block is gone; its swatch moves into the column header
+     beside each label. Also draws the Codex backfill decided in #30 — toggle
+     between raw and backfilled attribution to watch the `unknown` row vanish.
+     Real popover width (332pt), real token data measured 2026-07-28. */
+
+  :root {
+    --lab-bg: #f0f0f3; --lab-panel: #ffffff; --lab-line: #d8d8de;
+    --ink: #1c1c1e; --ink-2: #55555c; --ink-3: #8a8a92; --accent: #007aff;
+    --pop-bg: #ffffff; --pop-line: #e2e2e7; --pop-ink: #1c1c1e;
+    --pop-ink-2: #6c6c72; --pop-fill: #f2f2f5; --pop-sel: #007aff;
+    --k-in: #3d8ef0; --k-out: #2ba277; --k-cw: #d18f22; --k-cr: #8f86bd;
+    --tint: 0.30;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --sys: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --lab-bg: #141518; --lab-panel: #1c1d21; --lab-line: #303138;
+      --ink: #ebebf0; --ink-2: #a5a5ad; --ink-3: #74747c; --accent: #0a84ff;
+      --pop-bg: #2b2b2e; --pop-line: #3a3a3f; --pop-ink: #f2f2f6;
+      --pop-ink-2: #9a9aa2; --pop-fill: #38383d; --pop-sel: #0a84ff;
+      --k-in: #59a3f5; --k-out: #3fbe8e; --k-cw: #e0a640; --k-cr: #8c82c4;
+      --tint: 0.34;
+    }
+  }
+  :root[data-theme="light"] {
+    --lab-bg: #f0f0f3; --lab-panel: #ffffff; --lab-line: #d8d8de;
+    --ink: #1c1c1e; --ink-2: #55555c; --ink-3: #8a8a92; --accent: #007aff;
+    --pop-bg: #ffffff; --pop-line: #e2e2e7; --pop-ink: #1c1c1e;
+    --pop-ink-2: #6c6c72; --pop-fill: #f2f2f5; --pop-sel: #007aff;
+    --k-in: #3d8ef0; --k-out: #2ba277; --k-cw: #d18f22; --k-cr: #8f86bd; --tint: 0.30;
+  }
+  :root[data-theme="dark"] {
+    --lab-bg: #141518; --lab-panel: #1c1d21; --lab-line: #303138;
+    --ink: #ebebf0; --ink-2: #a5a5ad; --ink-3: #74747c; --accent: #0a84ff;
+    --pop-bg: #2b2b2e; --pop-line: #3a3a3f; --pop-ink: #f2f2f6;
+    --pop-ink-2: #9a9aa2; --pop-fill: #38383d; --pop-sel: #0a84ff;
+    --k-in: #59a3f5; --k-out: #3fbe8e; --k-cw: #e0a640; --k-cr: #8c82c4; --tint: 0.34;
+  }
+
+  body {
+    background: var(--lab-bg); color: var(--ink); font-family: var(--sys);
+    font-size: 14px; line-height: 1.55; margin: 0; padding: 40px 28px 72px;
+  }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  .wrap { max-width: 1500px; margin: 0 auto; }
+  .eyebrow {
+    font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600; margin: 0 0 10px;
+  }
+  h1 { font-size: 27px; font-weight: 640; letter-spacing: -0.02em; margin: 0 0 12px; text-wrap: balance; }
+  .lede { color: var(--ink-2); max-width: 68ch; margin: 0 0 4px; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  .facts {
+    display: grid; gap: 1px; background: var(--lab-line);
+    border: 1px solid var(--lab-line); border-radius: 10px; overflow: hidden;
+    grid-template-columns: repeat(auto-fit, minmax(216px, 1fr)); margin: 26px 0 30px;
+  }
+  .fact { background: var(--lab-panel); padding: 13px 15px; }
+  .fact dt {
+    font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600;
+  }
+  .fact dd { margin: 3px 0 0; font-size: 19px; font-weight: 620; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .fact p { margin: 2px 0 0; font-size: 12px; color: var(--ink-2); line-height: 1.4; }
+
+  .rangebar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 13px 15px; background: var(--lab-panel);
+    border: 1px solid var(--lab-line); border-radius: 10px; margin-bottom: 30px;
+    position: sticky; top: 0; z-index: 5;
+  }
+  .rangebar > span { font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+  .seg { display: flex; background: var(--lab-bg); border-radius: 7px; padding: 2px; gap: 2px; }
+  .seg button {
+    font: inherit; font-size: 13px; font-weight: 500; border: 0; cursor: pointer;
+    background: transparent; color: var(--ink-2); padding: 5px 13px; border-radius: 5px;
+  }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .rangebar em { font-style: normal; font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+  .decks { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .deck { flex: 0 0 auto; width: 332px; }
+  .deck.base { opacity: 0.82; }
+  .deck > h2 { font-size: 15px; font-weight: 640; margin: 0 0 3px; letter-spacing: -0.01em; }
+  .deck > h2 span { color: var(--ink-3); font-weight: 500; }
+  .deck > .why { font-size: 12.5px; color: var(--ink-2); margin: 0 0 14px; line-height: 1.45; min-height: 5.4em; }
+
+  .pop {
+    width: 332px; box-sizing: border-box; background: var(--pop-bg);
+    border: 1px solid var(--pop-line); border-radius: 11px; padding: 16px;
+    color: var(--pop-ink); font-size: 13px; box-shadow: 0 12px 34px rgba(0,0,0,.17);
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .pop-head { display: flex; align-items: baseline; justify-content: space-between; }
+  .pop-head b { font-size: 15px; font-weight: 600; }
+  .pop-head i { font-style: normal; color: var(--pop-ink-2); font-size: 13px; }
+  .tabbar { display: flex; gap: 2px; padding: 3px; background: var(--pop-fill); border-radius: 999px; }
+  .tabbar div { flex: 1; text-align: center; padding: 6px 0; border-radius: 999px; font-size: 13px; font-weight: 500; color: var(--pop-ink-2); }
+  .tabbar div.on { background: var(--pop-sel); color: #fff; }
+  .hero { display: flex; flex-direction: column; gap: 2px; }
+  .hero-n { font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1.05; white-space: nowrap; }
+  .hero-l { font-size: 12px; color: var(--pop-ink-2); }
+  .rangeseg { display: flex; gap: 2px; padding: 2px; background: var(--pop-fill); border-radius: 7px; }
+  .rangeseg div { flex: 1; text-align: center; padding: 4px 0; border-radius: 5px; font-size: 12px; color: var(--pop-ink-2); font-weight: 500; }
+  .rangeseg div.on { background: var(--pop-bg); color: var(--pop-ink); box-shadow: 0 1px 2px rgba(0,0,0,.16); }
+  .agent {
+    display: flex; align-items: baseline; justify-content: space-between;
+    font-size: 12px; font-weight: 600; color: var(--pop-ink-2);
+    letter-spacing: 0.03em; text-transform: uppercase; margin-bottom: 5px;
+  }
+  .agent span { font-variant-numeric: tabular-nums; letter-spacing: 0; text-transform: none; }
+  .empty { font-size: 12px; color: var(--pop-ink-2); font-style: italic; }
+  .foot { border-top: 1px solid var(--pop-line); padding-top: 10px; text-align: right; color: var(--pop-ink-2); }
+
+  /* shared table skin */
+  table.t { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  table.t th {
+    font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--pop-ink-2); font-weight: 600; text-align: right; padding: 0 0 4px;
+  }
+  table.t th:first-child { text-align: left; }
+  table.t td { font-size: 12px; padding: 3px 0; text-align: right; }
+  table.t td:first-child {
+    text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 6px;
+  }
+  table.t td + td { padding-left: 5px; }
+  table.t tr.sub td { color: var(--pop-ink-2); }
+  table.t td.name { max-width: 104px; }
+
+  /* Rows the backfill moves tokens into or out of. */
+  table.t tr.moved td { background: color-mix(in srgb, var(--k-cr) 16%, transparent); }
+  table.t tr.moved td:first-child { border-radius: 3px 0 0 3px; }
+  table.t tr.moved td:last-child { border-radius: 0 3px 3px 0; }
+  table.t tr.vanish td { background: color-mix(in srgb, #d1731f 20%, transparent); }
+  table.t tr.vanish td:first-child { border-radius: 3px 0 0 3px; }
+  table.t tr.vanish td:last-child { border-radius: 0 3px 3px 0; }
+  .movednote {
+    margin-top: 9px; font-size: 10.5px; line-height: 1.45; color: var(--pop-ink-2);
+  }
+  .movednote b { color: var(--pop-ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* Text-safe variants: the bar colours are tuned for 3pt fills, which is not
+     the same job as 9.5pt uppercase type on the popover ground. */
+  :root { --t-in: #1f6fd0; --t-out: #16785a; --t-cw: #9a6708; --t-cr: #6a5fa8; }
+  @media (prefers-color-scheme: dark) { :root { --t-in: #6fb0f8; --t-out: #52c99a; --t-cw: #e8b455; --t-cr: #a79ddb; } }
+  :root[data-theme="light"] { --t-in: #1f6fd0; --t-out: #16785a; --t-cw: #9a6708; --t-cr: #6a5fa8; }
+  :root[data-theme="dark"] { --t-in: #6fb0f8; --t-out: #52c99a; --t-cw: #e8b455; --t-cr: #a79ddb; }
+
+  /* D3c — the header labels carry the colour themselves */
+  table.hc th.k0 { color: var(--t-in); }
+  table.hc th.k1 { color: var(--t-out); }
+  table.hc th.k2 { color: var(--t-cw); }
+  table.hc th.k3 { color: var(--t-cr); }
+
+  /* Swatch in front of each header label, in place of a legend block. */
+  table.hs th span.sw {
+    display: inline-block; width: 6px; height: 6px; border-radius: 1.5px;
+    margin-right: 5px; vertical-align: 0.5px;
+  }
+  /* A wider bar-shaped mark, echoing the row rule it names. */
+  table.hb th span.sw {
+    display: inline-block; width: 10px; height: 3px; border-radius: 1px;
+    margin-right: 3px; vertical-align: 2.5px;
+  }
+
+  /* D3b — the bar tucked flush under the figures as the row's rule */
+  table.d3b tr.sub td { padding: 2px 0 0; }
+  table.d3b tr.barrow td { padding: 1px 0 3px; }
+  .rule-bar { display: flex; height: 3px; overflow: hidden; background: var(--pop-fill); }
+  .rule-bar i { display: block; height: 100%; }
+
+  /* D1 — the proportion painted behind the row */
+  table.d1 tr.sub td { padding-top: 4px; padding-bottom: 4px; position: relative; }
+  table.d1 tr.sub td:first-child { border-radius: 3px 0 0 3px; padding-left: 4px; }
+  table.d1 tr.sub td:last-child { border-radius: 0 3px 3px 0; padding-right: 4px; }
+  table.d1 tr.sub td.name { max-width: 100px; }
+
+  /* D2 — the bar is a column, the four numbers move to the tooltip */
+  table.d2 td.name { max-width: 132px; }
+  .cell-bar { display: flex; height: 9px; border-radius: 3px; overflow: hidden; background: var(--pop-fill); min-width: 86px; }
+  .cell-bar i { display: block; height: 100%; }
+  table.d2 td.barcell { width: 92px; padding-left: 8px; vertical-align: middle; }
+
+  /* D3 — numbers on top, an explicit bar beneath, padding clawed back */
+  table.d3 tr.sub td { padding: 2px 0 0; }
+  table.d3 tr.barrow td { padding: 1px 0 4px; }
+  .row-bar { display: flex; height: 5px; border-radius: 2px; overflow: hidden; background: var(--pop-fill); }
+  .row-bar i { display: block; height: 100%; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 3px 14px; font-size: 10.5px; color: var(--pop-ink-2); margin-top: 9px; }
+  /* Measured: swatch + full label x4 needs 268pt of the 300pt available, so the
+     legend holds one line and costs one row, not two. */
+  .legend.pairs { display: flex; flex-wrap: nowrap; gap: 0 10px; white-space: nowrap; }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .legend b { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
+
+  .metric { margin-top: 11px; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; display: flex; gap: 12px; flex-wrap: wrap; }
+  .metric b { color: var(--ink-2); font-weight: 600; }
+  .metric .warn { color: #d1731f; font-weight: 600; }
+  .metric .ok { color: #2f8d5e; font-weight: 600; }
+
+  .findings { margin-top: 46px; border-top: 1px solid var(--lab-line); padding-top: 26px; }
+  .findings h2 { font-size: 17px; font-weight: 640; margin: 0 0 14px; letter-spacing: -0.01em; }
+  .findings ol { margin: 0; padding-left: 20px; max-width: 80ch; }
+  .findings li { margin-bottom: 11px; color: var(--ink-2); }
+  .findings li b { color: var(--ink); font-weight: 600; }
+  code {
+    font-family: var(--mono); font-size: 0.88em; background: var(--lab-panel);
+    border: 1px solid var(--lab-line); border-radius: 4px; padding: 0.5px 4px;
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<h2 class="sr-only">Three ways of merging the four-column table with proportion bars for the TokenStats Tokens tab, each at the real 332pt popover width with real measured token data.</h2>
+
+<div class="wrap">
+  <p class="eyebrow">Wayfinder #27 · throwaway prototype · round 5</p>
+  <h1>Settled: D3g — swatch and coloured label in the header</h1>
+  <p class="lede">
+    <strong>D3g is the answer.</strong> The legend block is gone and its swatch moves up into the column
+    header, where the label is set in the same colour as its swatch — both marks, in place. Gaps were
+    opened after review: the swatch sits <strong>5pt</strong> from its label rather than 3, and each
+    row's bar takes 1pt of air beneath the figures instead of sitting flush, which costs 11pt at 30 days
+    and lands the layout at <strong>539pt</strong>. D3c and D3d remain below as the alternatives that
+    were rejected. The <strong>Codex attribution</strong> toggle draws
+    the backfill decided in <a href="https://github.com/zhangchi0104/agent-sessions/issues/30">#30</a>:
+    switch it to <em>Raw</em> at 30 days to see the <code>unknown</code> row it removes.</p>
+
+  <dl class="facts">
+    <div class="fact">
+      <dt>Cost of naming the colours</dt>
+      <dd>0pt</dd>
+      <p>All three variants measure the same at every range. The header row already existed.</p>
+    </div>
+    <div class="fact">
+      <dt>Fragility removed</dt>
+      <dd>298 / 298pt</dd>
+      <p>Round 4's legend fitted one line with nothing spare. With no legend, that constraint on wording is gone.</p>
+    </div>
+    <div class="fact">
+      <dt>At 30 days, 11 rows</dt>
+      <dd>539pt</dd>
+      <p>Inside the 600pt line, including the 11pt the opened row gap costs.</p>
+    </div>
+    <div class="fact">
+      <dt>Still an abbreviation</dt>
+      <dd>C·W</dd>
+      <p>The swatch names the colour, not the word. If <em>Cache write</em> needs spelling out, this is not where it happens.</p>
+    </div>
+  </dl>
+
+  <div class="rangebar">
+    <span>Range</span>
+    <div class="seg" role="group" aria-label="Time range">
+      <button type="button" data-range="today" aria-pressed="false">Today</button>
+      <button type="button" data-range="7d" aria-pressed="true">7 days</button>
+      <button type="button" data-range="30d" aria-pressed="false">30 days</button>
+    </div>
+    <span style="margin-left:6px">Codex attribution</span>
+    <div class="seg" role="group" aria-label="Codex attribution">
+      <button type="button" data-bf="1" aria-pressed="true">Backfilled</button>
+      <button type="button" data-bf="0" aria-pressed="false">Raw</button>
+    </div>
+    <em id="load"></em>
+  </div>
+
+  <div class="decks">
+    <section class="deck base">
+      <h2>D3c <span>· coloured label, not chosen</span></h2>
+      <p class="why">The header label itself carries the colour. Nothing added to the row at all —
+        but a coloured word is a weaker mark than a shape, especially at 9.5pt uppercase.</p>
+      <div class="pop" id="popD3c"></div>
+      <p class="metric" id="mD3c"></p>
+    </section>
+
+    <section class="deck">
+      <h2>D3d <span>· swatch only, not chosen</span></h2>
+      <p class="why">The legend's swatch moves into the header beside its label; the text stays grey.
+        The mark is a shape, so it reads as a key rather than as styled type.</p>
+      <div class="pop" id="popD3d"></div>
+      <p class="metric" id="mD3d"></p>
+    </section>
+
+    <section class="deck">
+      <h2>D3g <span>· CHOSEN</span></h2>
+      <p class="why">Both marks in the header: the swatch and the label in the same colour.
+        The loudest of the three, and the hardest to miss.</p>
+      <div class="pop" id="popD3g"></div>
+      <p class="metric" id="mD3g"></p>
+    </section>
+  </div>
+
+  <div class="findings">
+    <h2>What round 5 settles</h2>
+    <ol id="notes"></ol>
+  </div>
+</div>
+
+<script>
+  // Real measurements, 2026-07-28. [directInput, output, cacheWrite, cacheRead].
+  // Claude deduplicated by message id; Codex model carried from the preceding
+  // turn_context (wayfinder #26). The all-zero "<synthetic>" pseudo-model is dropped.
+  const DATA = {
+    today: {
+      "Claude Code": { "claude-opus-5": [39, 29587, 302037, 3608676] },
+      "Codex": {}
+    },
+    "7d": {
+      "Claude Code": {
+        "claude-opus-5": [24876, 1394236, 11251391, 433424142],
+        "claude-opus-4-8": [266, 96792, 252879, 16301724],
+        "claude-fable-5": [76, 31694, 239186, 2514089],
+        "claude-haiku-4-5-20251001": [10, 276, 8533, 17422]
+      },
+      "Codex": {
+        "gpt-5.6-sol": [3789661, 301568, 0, 91609600],
+        "codex-auto-review": [793377, 22283, 0, 18791424]
+      }
+    },
+    "30d": {
+      "Claude Code": {
+        "claude-opus-5": [24876, 1394236, 11251391, 433424142],
+        "claude-opus-4-8": [1391860, 2028914, 17879937, 299787084],
+        "claude-fable-5": [295019, 1523297, 10768538, 290669083],
+        "claude-haiku-4-5-20251001": [7998, 4024, 983880, 12281068],
+        "claude-sonnet-5": [9545, 12828, 71690, 2297540]
+      },
+      "Codex": {
+        "gpt-5.6-sol": [48045645, 4146681, 0, 1221392896],
+        "codex-auto-review": [5909078, 106829, 0, 78145152],
+        "gpt-5.5": [1694227, 142411, 0, 40173440],
+        "gpt-5.6-terra": [702777, 43863, 0, 13433344],
+        "unknown": [975213, 81050, 0, 24596992],
+        "gpt-5.6-luna": [342158, 8334, 0, 1054208]
+      }
+    }
+  };
+  const COST = { today: "~0.05s scan", "7d": "~0.9s scan", "30d": "~4.1s scan" };
+
+  // Wayfinder #30 decided the unattributable Codex prefix is backfilled into its
+  // file's model. Measured: all three leading-prefix rollouts are gpt-5.6-sol, so
+  // the whole `unknown` row folds into it and disappears. Only 30d is affected —
+  // the three files date from 2026-07-13 and 07-16, outside the 7-day window.
+  const BACKFILLED = {
+    "gpt-5.6-sol": [49020858, 4227731, 0, 1245989888],
+    "codex-auto-review": [5909078, 106829, 0, 78145152],
+    "gpt-5.5": [1694227, 142411, 0, 40173440],
+    "gpt-5.6-terra": [702777, 43863, 0, 13433344],
+    "gpt-5.6-luna": [342158, 8334, 0, 1054208]
+  };
+  const MOVED = { model: "gpt-5.6-sol", v: [975213, 81050, 0, 24596992], files: 3 };
+  let backfill = true;
+  const KINDS = ["--k-in", "--k-out", "--k-cw", "--k-cr"];
+  const KIND_LABEL = ["Direct in", "Output", "Cache write", "Cache read"];
+
+  const sum = a => a[0] + a[1] + a[2] + a[3];
+  // Mirrors TokenUsage.compact in TranscriptTokenReader.swift.
+  function compact(n) {
+    for (const [u, s] of [[1e9, "B"], [1e6, "M"], [1e3, "K"]]) {
+      if (n >= u) { const v = n / u; return (v < 9.95 ? v.toFixed(1) : v.toFixed(0)) + s; }
+    }
+    return String(n);
+  }
+  const grouped = n => n.toLocaleString("en-US");
+  const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  const tip = v => KIND_LABEL.map((l, i) => `${l} ${grouped(v[i])}`).join(" · ");
+
+  function rows(range) {
+    const out = [];
+    for (let [agent, models] of Object.entries(DATA[range])) {
+      if (backfill && range === "30d" && agent === "Codex") models = BACKFILLED;
+      const list = Object.entries(models).sort((a, b) => sum(b[1]) - sum(a[1]));
+      out.push({ agent, list, total: list.reduce((t, [, v]) => t + sum(v), 0) });
+    }
+    return out;
+  }
+
+  function segments(v, host, cls) {
+    const t = sum(v) || 1;
+    const b = el("div", cls);
+    v.forEach((x, i) => {
+      if (!x) return;
+      const s = el("i");
+      s.style.width = (x / t * 100) + "%";
+      s.style.background = `var(${KINDS[i]})`;
+      b.appendChild(s);
+    });
+    host.appendChild(b);
+    return b;
+  }
+
+  // A hard-stop gradient of the same four proportions, for painting behind a row.
+  function tintGradient(v) {
+    const t = sum(v) || 1;
+    let at = 0; const stops = [];
+    v.forEach((x, i) => {
+      if (!x) return;
+      const from = at / t * 100; at += x; const to = at / t * 100;
+      stops.push(`color-mix(in srgb, var(${KINDS[i]}) calc(var(--tint) * 100%), transparent) ${from}% ${to}%`);
+    });
+    return stops.length ? `linear-gradient(90deg, ${stops.join(", ")})` : "none";
+  }
+
+  function shell(host, range, fill) {
+    host.textContent = "";
+    const head = el("div", "pop-head");
+    head.appendChild(el("b", null, "TokenStats"));
+    head.appendChild(el("i", null, "⟳"));
+    host.appendChild(head);
+
+    const tabs = el("div", "tabbar");
+    tabs.appendChild(el("div", null, "Usage"));
+    tabs.appendChild(el("div", "on", "Tokens"));
+    host.appendChild(tabs);
+
+    // No hero figure: the grand total is deliberately absent from the top of this
+    // tab. Per-agent totals still sit on each group header.
+    const seg = el("div", "rangeseg");
+    ["Today", "7 days", "30 days"].forEach((l, i) => {
+      seg.appendChild(el("div", ["today", "7d", "30d"][i] === range ? "on" : null, l));
+    });
+    host.appendChild(seg);
+
+    const body = el("div"); host.appendChild(body);
+    fill(body, range);
+    host.appendChild(el("div", "foot", "⚙"));
+  }
+
+  function agentHead(g) {
+    const h = el("div", "agent");
+    h.appendChild(document.createTextNode(g.agent));
+    h.appendChild(el("span", null, compact(g.total)));
+    return h;
+  }
+  function groupRow(tb, g, cols) {
+    const hr = el("tr"); const hc = el("td"); hc.colSpan = cols;
+    hc.appendChild(agentHead(g)); hr.appendChild(hc); tb.appendChild(hr);
+    if (!g.list.length) {
+      const er = el("tr"); const ec = el("td", "empty", "no usage in this range");
+      ec.colSpan = cols; er.appendChild(ec); tb.appendChild(er);
+    }
+  }
+  function legend(body, pairs) {
+    const lg = el("div", "legend" + (pairs ? " pairs" : ""));
+    KIND_LABEL.forEach((l, i) => {
+      const s = el("span"); const b = el("b"); b.style.background = `var(${KINDS[i]})`;
+      s.appendChild(b); s.appendChild(document.createTextNode(l)); lg.appendChild(s);
+    });
+    body.appendChild(lg);
+  }
+
+  function fillB(body, range) {
+    const t = el("table", "t"), thead = el("thead"), tr = el("tr");
+    ["Model", "In", "Out", "C·W", "C·R"].forEach(h => tr.appendChild(el("th", null, h)));
+    thead.appendChild(tr); t.appendChild(thead);
+    const tb = el("tbody");
+    rows(range).forEach(g => {
+      groupRow(tb, g, 5);
+      g.list.forEach(([m, v]) => {
+        const r = el("tr", "sub");
+        const c0 = el("td", "name", m); c0.title = m; r.appendChild(c0);
+        v.forEach(x => r.appendChild(el("td", null, x ? compact(x) : "–")));
+        tb.appendChild(r);
+      });
+    });
+    t.appendChild(tb); body.appendChild(t);
+  }
+
+  // D3 with the legend deleted: the bar's segment order already matches the
+  // column order above it, so the header row carries the mapping.
+  function fillD3b(body, range) { d3table(body, range, "d3b", false, "rule-bar", "plain"); }
+  // The header row made an explicit legend, two ways.
+  function fillD3c(body, range) { d3table(body, range, "d3b", false, "rule-bar", "colour"); }
+  // Colour in the header AND a legend spelling each kind out in full.
+  // No legend block at all — the swatch moves into the header beside its label.
+  function fillD3d(body, range) { d3table(body, range, "d3b", false, "rule-bar", "swatch"); }
+  // Swatch in the header and the label coloured too.
+  function fillD3g(body, range) { d3table(body, range, "d3b", false, "rule-bar", "swatch+colour"); }
+
+  function d3table(body, range, cls, withLegend, barClass, headStyle) {
+    const swatch = headStyle === "swatch" || headStyle === "swatch+colour" || headStyle === "bar";
+    const coloured = headStyle === "colour" || headStyle === "swatch+colour";
+    const t = el("table", "t " + cls + (coloured ? " hc" : "") + (headStyle === "bar" ? " hb" : swatch ? " hs" : "")),
+          thead = el("thead"), tr = el("tr");
+    ["Model", "In", "Out", "C·W", "C·R"].forEach((h, i) => {
+      const th = el("th", i > 0 ? "k" + (i - 1) : null);
+      if (i > 0 && swatch) {
+        const sw = el("span", "sw");
+        sw.style.background = `var(${KINDS[i - 1]})`;
+        th.appendChild(sw);
+      }
+      th.appendChild(document.createTextNode(h));
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr); t.appendChild(thead);
+    const tb = el("tbody");
+    rows(range).forEach(g => {
+      groupRow(tb, g, 5);
+      g.list.forEach(([m, v]) => {
+        const touched = range === "30d" && g.agent === "Codex" &&
+          (m === "unknown" ? "vanish" : (backfill && m === MOVED.model ? "moved" : null));
+        const r = el("tr", "sub" + (touched ? " " + touched : "")); r.title = tip(v);
+        const c0 = el("td", "name", m); c0.title = m; r.appendChild(c0);
+        v.forEach(x => r.appendChild(el("td", null, x ? compact(x) : "–")));
+        tb.appendChild(r);
+        const br = el("tr", "barrow"); const bc = el("td"); bc.colSpan = 5;
+        segments(v, bc, barClass); br.appendChild(bc); tb.appendChild(br);
+      });
+    });
+    t.appendChild(tb); body.appendChild(t);
+    if (withLegend) legend(body, true);
+    if (range === "30d") {
+      const n = el("div", "movednote");
+      n.innerHTML = backfill
+        ? `Backfilled: <b>${grouped(MOVED.v.reduce((a, b) => a + b, 0))}</b> tokens from ${MOVED.files} sub-agent rollouts folded into <b>${MOVED.model}</b>. No <code>unknown</code> row.`
+        : `Raw: <b>${grouped(MOVED.v.reduce((a, b) => a + b, 0))}</b> tokens sit under <code>unknown</code> — a leading prefix from ${MOVED.files} rollouts, every one of them ${MOVED.model}.`;
+      body.appendChild(n);
+    }
+  }
+
+  function fillD3(body, range) { d3table(body, range, "d3", true, "row-bar", "plain"); }
+
+  const NOTES = [
+    ["The backfill is visible in the table, not just in the reader.", "Switch <b>Codex attribution</b> to <em>Raw</em> at 30 days and an <code>unknown</code> row appears carrying <b>25,653,255</b> tokens — a leading prefix from 3 sub-agent rollouts, <em>every one of them <code>gpt-5.6-sol</code></em>, which is why <a href=\"https://github.com/zhangchi0104/agent-sessions/issues/30\">#30</a> chose to backfill rather than surface them. Backfilled, that row is gone and the tokens sit in <code>gpt-5.6-sol</code>. It also removes a row: <b>579pt → 556pt</b> at 30 days. Only 30 days is affected — the three rollouts date from 13 and 16 July, outside the 7-day window."],
+    ["Moving the swatch into the header is free, and it removes a real fragility.", "All three variants measure <b>328 / 418 / 528pt</b> at today / 7 days / 30 days — identical. The header row already exists, so the mark rides along at no cost. More useful than the 25pt saved: round 4's single-line legend fitted in <b>298pt of 298pt available</b>, which made the wording of four labels a layout constraint. With no legend there is nothing to wrap, and that constraint disappears."],
+    ["The swatch names the colour. It does not spell out the word.", "<code>C·W</code> is still an abbreviation — a reader who does not know it means cache write learns the colour, not the term. If the words need to be on screen, the header is not where that happens; a tooltip on the header cell, or the glossary, would have to carry it."],
+    ["Swatch versus coloured label was a legibility question, not a cost one.", "D3c tints the label itself, D3d puts a neutral label after a coloured swatch, D3g does both — all identical in height. <b>D3g was chosen.</b> The reservation on record: 9.5pt uppercase type in colour is the first thing to suffer against a real vibrancy background, where these flat mocks cannot predict the result. The swatch survives that test on its own, so if the coloured type fails in a SwiftUI build, dropping back to D3d costs nothing and loses nothing structural."],
+    ["The bar still carries the finding the merge exists for.", "A Codex row prints <code>–</code> under Cache&nbsp;W <em>and</em> shows a missing amber segment. With the swatch in the header, the amber is named where the dash is, so the absence is legible without prior knowledge."],
+    ["These pixel figures are indicative, not authoritative.", "The same published page measured 443pt in one browser and 484pt in another for the same 7-day view — about 40pt of difference from font metrics alone. The <em>deltas</em> between variants held exactly. Only a SwiftUI build settles the absolute numbers against the 600pt line."]
+  ];
+
+  function render(range) {
+    shell(document.getElementById("popD3c"), range, fillD3c);
+    shell(document.getElementById("popD3d"), range, fillD3d);
+    shell(document.getElementById("popD3g"), range, fillD3g);
+    const gs = rows(range);
+    const models = gs.reduce((t, g) => t + g.list.length, 0);
+    document.getElementById("load").textContent =
+      `${models} model row${models === 1 ? "" : "s"} · ${gs.length} agent groups · ${COST[range]}` +
+      (range === "30d" ? "" : " · backfill affects 30 days only");
+    requestAnimationFrame(() => {
+      const base = document.getElementById("popD3c").offsetHeight;
+      [["mD3c", "popD3c"], ["mD3d", "popD3d"], ["mD3g", "popD3g"]].forEach(([m, p]) => {
+        const h = document.getElementById(p).offsetHeight;
+        const d = h - base;
+        const delta = p === "popD3c" ? "" :
+          ` · <b>vs D3c</b> <span class="${d > 0 ? "warn" : "ok"}">${d > 0 ? "+" : ""}${d}pt</span>`;
+        document.getElementById(m).innerHTML =
+          `<b>height</b> <span class="${h > 600 ? "warn" : "ok"}">${h}pt</span>${delta}` +
+          (h > 600 ? ` <span class="warn">— over 600pt</span>` : "");
+      });
+    });
+  }
+
+  let currentRange = "7d";
+  document.querySelectorAll(".seg button[data-range]").forEach(b => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".seg button[data-range]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+      currentRange = b.dataset.range;
+      render(currentRange);
+    });
+  });
+  document.querySelectorAll(".seg button[data-bf]").forEach(b => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".seg button[data-bf]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+      backfill = b.dataset.bf === "1";
+      render(currentRange);
+    });
+  });
+
+  const ol = document.getElementById("notes");
+  NOTES.forEach(([t, d]) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<b>${t}</b> ${d}`;
+    ol.appendChild(li);
+  });
+
+  render("7d");
+</script>

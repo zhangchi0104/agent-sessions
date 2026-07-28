@@ -2,9 +2,9 @@
 //  TranscriptChangeSource.swift
 //  TokenStats
 //
-//  The file-watch seam behind the popover's Tokens Today refresh (ADR-0003):
+//  The file-watch seam behind the popover's Token Odometer refresh (ADR-0003):
 //  a source that ticks whenever transcripts under the watched roots change, so
-//  TokensTodayModel can re-read instead of polling on a timer. The real source
+//  TokenOdometerModel can re-read instead of polling on a timer. The real source
 //  wraps FSEvents; tests inject a fake that ticks on demand.
 //
 

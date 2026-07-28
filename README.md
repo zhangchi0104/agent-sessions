@@ -4,13 +4,14 @@ A macOS menu-bar app that shows how much of each Coding Agent's **Usage
 Window** you have left and when it resets. Claude Code and Codex are both
 supported.
 
-Two things are on screen and nothing else:
+The popover carries two tabs and nothing else:
 
-- **Usage Windows** — per agent, read from that agent's own authoritative usage
-  endpoint over its own OAuth session: percent consumed and time to reset, drawn
-  as a dial, an arc, or a bar.
-- **Tokens Today** — the raw sum of input/output/cache tokens across the agent
-  transcript files on this Mac since local midnight. An odometer, not a quota.
+- **Usage** — one **Usage Window** set per agent, read from that agent's own
+  authoritative usage endpoint over its own OAuth session: percent consumed and
+  time to reset, drawn as a dial, an arc, or a bar.
+- **Tokens** — the **Token Odometer**: the raw sum of tokens across the agent
+  transcript files on this Mac over a chosen range of up to 30 days, broken down
+  by Coding Agent, then Model, then Token Kind. An odometer, not a quota.
 
 See [`apps/TokenStats/CONTEXT.md`](apps/TokenStats/CONTEXT.md) for the domain
 glossary and [`apps/TokenStats/docs/adr/`](apps/TokenStats/docs/adr/) for the

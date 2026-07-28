@@ -36,3 +36,15 @@ Scope is the **Usage tab's Tokens Today loop only**. The Sessions tab's poll is 
 - The **first** popover open after launch still pays one full-tree enumeration (a cold read); we accept that latency rather than pre-warm with an always-on watcher, because pre-warming means parsing transcripts all day for an off-screen number.
 - **Midnight rollover** is not specially handled: if the popover stays open across local midnight with no further file activity, the displayed day is stale until the next change event re-runs `dailyUsage`. Accepted as rare.
 - Choosing **(A) re-walk on change** over narrowing to the event's changed paths trades some redundant walks during active bursts for zero new code and no new bug surface. If active-session walk cost ever bites, narrowing by changed path (parse only changed files, sum today's buckets from the in-memory `states`) is the escalation — it removes the walk entirely after the seed.
+
+## Amendment — 2026-07-28
+
+The decision above is unchanged: the figure stays **in-process and in-memory**, with no token table, no watcher daemon and no IPC surface, refreshed by an FSEvents watch armed only while visible. Two things around it moved.
+
+**The vocabulary is retired.** `CONTEXT.md` replaced **Tokens Today** with the **Token Odometer**, which is the same measure over a *chosen range* rather than since local midnight. Read every "Tokens Today" below as "Token Odometer". The word is kept in this file's title and body because an ADR records what was decided when, not what it would be called today.
+
+**The scope line moved tabs.** It read "the Usage tab's Tokens Today loop only". The combined figure has since been deleted from the Usage tab, which now shows Usage Window gauges and nothing else, and the watch is armed by the **Tokens tab** instead. The "watch only while visible" property is unaffected — SwiftUI arms the `.task` when that tab appears and cancels it when the tab or the popover goes away — and the Sessions tab the original scope line contrasted against no longer exists at all.
+
+**What the ranges did *not* change.** A 7- or 30-day range re-reads more files on the first pass, but adds no persistence: the reader's per-file parse state is still the only cache and still in-memory, and states untouched for 48 hours are still dropped — on the next scan, since eviction runs inside the scan and the scan only runs while the tab is visible. A process that never sees the Tokens tab again holds what it has.
+
+**What the ranges did change.** The first-open cost is no longer one figure. Measured on the research corpus with a **warm page cache**: a full 30-day scan across both roots is **~4.1s**, and the whole corpus ~5.0s; once every file's parse state is current, a re-scan is the **6–25ms** it takes to enumerate and stat the tree. A genuinely cold, post-reboot figure was never measured — `purge` needs sudo — so the 4.1s is a floor, not a worst case. The "consequences" note above still holds for Today, which is what a popover opens on; a 30-day range is a deliberate switch, and it is the range that pays.

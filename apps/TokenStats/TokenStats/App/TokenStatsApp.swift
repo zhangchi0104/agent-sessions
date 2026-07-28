@@ -27,7 +27,7 @@ struct TokenStatsApp: App {
     var body: some Scene {
         MenuBarExtra {
             PopoverView(model: appDelegate.model,
-                        tokensTodayModel: appDelegate.tokensTodayModel)
+                        odometer: appDelegate.odometer)
         } label: {
             // Monochrome icon + per-agent percent — no threshold colors (PRD).
             Image(systemName: "gauge.with.dots.needle.33percent")
@@ -59,17 +59,17 @@ struct TokenStatsApp: App {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model: UsageModel
-    let tokensTodayModel: TokensTodayModel
+    let odometer: TokenOdometerModel
     let onboarding = OnboardingSettings()
     private var onboardingController: OnboardingWindowController?
 
     override init() {
         // Both models are driven by the registered Coding Agents: the usage
-        // model refreshes one per agent, and Tokens Today scans one transcript
-        // root per agent.
+        // model refreshes one per agent, and the Token Odometer scans one
+        // transcript root per agent.
         model = UsageModel(appearance: AppearanceSettings())
-        tokensTodayModel = TokensTodayModel(reader: TranscriptTokenReader(),
-                                            roots: CodingAgentRegistry.transcriptRoots)
+        odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
+                                      roots: CodingAgentRegistry.transcriptRoots)
         super.init()
     }
 
