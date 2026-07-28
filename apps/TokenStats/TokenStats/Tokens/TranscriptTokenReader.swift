@@ -72,8 +72,30 @@ actor TranscriptTokenReader {
         var usage = TokenUsage()
         /// Usage bucketed by local calendar day ("yyyy-MM-dd"), for daily sums.
         var perDay: [String: TokenUsage] = [:]
+        /// The last Codex running total seen in this file. It must live here,
+        /// beside `consumedBytes`: a poll routinely ends mid-session, and the
+        /// seek past `consumedBytes` means the previous total is never re-read.
+        /// Clearing it while keeping `consumedBytes` would silently re-count
+        /// the whole file — never clear part of a ParseState.
+        var codexRunningTotal = CodexRunningTotal()
         /// When a consumer last asked about this file; drives cache eviction.
         var lastAccessed = Date()
+    }
+
+    /// A Codex session's cumulative usage at one point in its rollout, split
+    /// the way TokenUsage counts: direct input separate from the cached part.
+    struct CodexRunningTotal: Equatable {
+        var directInput = 0
+        var cached = 0
+        var output = 0
+
+        init() {}
+
+        fileprivate init(_ reported: CodexRolloutLine.Payload.Info.Usage) {
+            cached = reported.cachedInputTokens ?? 0
+            directInput = max((reported.inputTokens ?? 0) - cached, 0)
+            output = reported.outputTokens ?? 0
+        }
     }
 
     private var states: [String: ParseState] = [:]
@@ -206,19 +228,29 @@ actor TranscriptTokenReader {
             return
         }
 
-        // Codex rollout: each token_count event's `last_token_usage` is the
-        // delta for one turn (their sum equals the session's cumulative
-        // total), so events are summed directly — no dedup id exists or is
-        // needed. Codex's input_tokens INCLUDES the cached portion; split it
-        // so totals stay comparable with Claude's (direct + cache read).
+        // Codex rollout: `total_token_usage` is the session's running total, so
+        // what one token_count event contributed is how much that total
+        // advanced. `last_token_usage` looks like the same figure but is
+        // re-emitted verbatim on some turns — summing it double-counts, which
+        // it did until this was corrected. Deriving from the running total is
+        // exact and makes a repeat contribute nothing, without the reader
+        // deciding whether an event merely looked like a duplicate. Codex's
+        // input_tokens INCLUDES the cached portion; split it so totals stay
+        // comparable with Claude's (direct + cache read).
         if let entry = try? decoder.decode(CodexRolloutLine.self, from: line),
            entry.payload?.type == "token_count",
-           let usage = entry.payload?.info?.lastTokenUsage {
-            let cached = usage.cachedInputTokens ?? 0
+           let running = entry.payload?.info?.totalTokenUsage {
+            let previous = state.codexRunningTotal
+            let current = CodexRunningTotal(running)
+            // The running total is monotonic; guard anyway so a malformed or
+            // reset line can never subtract from an established figure.
             var response = TokenUsage()
-            response.inputTokens = max((usage.inputTokens ?? 0) - cached, 0)
-            response.cacheReadTokens = cached
-            response.outputTokens = usage.outputTokens ?? 0
+            response.inputTokens = current.directInput - previous.directInput
+            response.cacheReadTokens = current.cached - previous.cached
+            response.outputTokens = current.output - previous.output
+            guard response.inputTokens >= 0, response.cacheReadTokens >= 0, response.outputTokens >= 0 else { return }
+            state.codexRunningTotal = current
+            guard response.totalTokens > 0 else { return }
             response.responseCount = 1
             record(response, timestamp: entry.timestamp, into: &state)
         }
@@ -255,8 +287,9 @@ private struct TranscriptLine: Decodable {
 
 /// The slice of a Codex rollout line the reader cares about
 /// (`{"timestamp", "type": "event_msg", "payload": {"type": "token_count",
-///   "info": {"last_token_usage": {...}}}}`).
-private struct CodexRolloutLine: Decodable {
+///   "info": {"total_token_usage": {...}}}}`). `last_token_usage` is decoded
+/// alongside but deliberately unused: it is the field that double-counts.
+struct CodexRolloutLine: Decodable {
     struct Payload: Decodable {
         struct Info: Decodable {
             struct Usage: Decodable {
@@ -264,7 +297,8 @@ private struct CodexRolloutLine: Decodable {
                 let cachedInputTokens: Int?
                 let outputTokens: Int?
             }
-            let lastTokenUsage: Usage?
+            /// The session's cumulative usage — the figure totals derive from.
+            let totalTokenUsage: Usage?
         }
         let type: String?
         let info: Info?
