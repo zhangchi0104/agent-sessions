@@ -577,14 +577,13 @@ internal static class Program
                 settings.Appearance.TodayMetric != TodayMetricMode.Usage ||
                 !apiSummaryBeforeFilter.StartsWith("$", StringComparison.Ordinal) ||
                 summaryPeer.GetName() != apiSummaryBeforeFilter ||
-                SystemParameters.ClientAreaAnimation &&
-                    !summaryValue.IsRolling ||
+                summaryValue.IsRolling ||
                 new AppSettingsStore(settings.SettingsPath)
                     .Appearance.TodayMetric != TodayMetricMode.Usage)
             {
                 throw new InvalidOperationException(
                     "The API-equivalent metric switch did not revise and " +
-                    "animate the rolling summary before rendering and persisting.");
+                    "settle the summary without rolling before persisting.");
             }
 
             billingMetric.IsChecked = true;
@@ -592,21 +591,23 @@ internal static class Program
             var billingRevision = summaryValue.TransitionRevision;
             if (billingRevision <= apiRevision ||
                 settings.Appearance.TodayMetric != TodayMetricMode.Token ||
-                summaryValue.Text != "150")
+                summaryValue.Text != "150" ||
+                summaryValue.IsRolling)
             {
                 throw new InvalidOperationException(
-                    "The Billing metric switch did not revise the rolling " +
-                    "summary or render 150.");
+                    "The Billing metric switch did not revise and settle the " +
+                    "summary at 150 without rolling.");
             }
 
             apiMetric.IsChecked = true;
             PumpDispatcher(flyout.Dispatcher);
             var filteredApiRevision = summaryValue.TransitionRevision;
-            if (filteredApiRevision <= billingRevision)
+            if (filteredApiRevision <= billingRevision ||
+                summaryValue.IsRolling)
             {
                 throw new InvalidOperationException(
-                    "Switching back to API equivalent did not revise the " +
-                    "rolling summary.");
+                    "Switching back to API equivalent did not revise and " +
+                    "settle the summary without rolling.");
             }
 
             kindButtons[1].IsChecked = false;
@@ -626,15 +627,21 @@ internal static class Program
                     "API equivalent, and the raw Token Odometer.");
             }
 
+            var filteredRevisionBeforeBilling =
+                summaryValue.TransitionRevision;
             billingMetric.IsChecked = true;
             PumpDispatcher(flyout.Dispatcher);
             if (settings.Appearance.TodayMetric != TodayMetricMode.Token ||
                 summaryValue.Text != "150" ||
+                summaryValue.TransitionRevision <=
+                    filteredRevisionBeforeBilling ||
+                summaryValue.IsRolling ||
                 new AppSettingsStore(settings.SettingsPath)
                     .Appearance.TodayMetric != TodayMetricMode.Token)
             {
                 throw new InvalidOperationException(
-                    "Token Kind filtering changed or failed to persist Billing tokens.");
+                    "Token Kind filtering changed Billing tokens, or the " +
+                    "metric switch rolled instead of settling immediately.");
             }
 
             settings.SaveAppearance(
@@ -786,23 +793,34 @@ internal static class Program
             summaryValue.TransitionRevision;
         var thirtyDays =
             FindNamed<RadioButton>(flyout, "ThirtyDaysRangeButton");
+        var sawThirtyDayRolling = false;
         thirtyDays.IsChecked = true;
         WaitForUi(
             flyout.Dispatcher,
             () =>
-                tokens.SelectedRange == TokenRange.ThirtyDays &&
-                tokens.DisplayedRange == TokenRange.ThirtyDays &&
-                tokens.PendingRange is null &&
-                tokens.Usage?.CacheReadTokens == 900 &&
-                summaryValue.TransitionRevision > sevenDaySummaryRevision,
+            {
+                sawThirtyDayRolling |=
+                    summaryValue.TransitionRevision >
+                        sevenDaySummaryRevision &&
+                    summaryValue.IsRolling;
+                return
+                    tokens.SelectedRange == TokenRange.ThirtyDays &&
+                    tokens.DisplayedRange == TokenRange.ThirtyDays &&
+                    tokens.PendingRange is null &&
+                    tokens.Usage?.CacheReadTokens == 900 &&
+                    summaryValue.TransitionRevision >
+                        sevenDaySummaryRevision;
+            },
             "The 30-day viewport fixture did not finish scanning.");
         if (sevenDaySummaryText != "350" ||
             summaryValue.Text != sevenDaySummaryText ||
-            summaryValue.TransitionRevision <= sevenDaySummaryRevision)
+            summaryValue.TransitionRevision <= sevenDaySummaryRevision ||
+            SystemParameters.ClientAreaAnimation &&
+                !sawThirtyDayRolling)
         {
             throw new InvalidOperationException(
-                "Landing the 30-day range did not revise the rolling summary " +
-                "key while preserving the unchanged 350 Billing text.");
+                "Landing the 30-day range did not roll the unchanged 350 " +
+                "Billing text when client-area animations were enabled.");
         }
 
         WaitForUi(

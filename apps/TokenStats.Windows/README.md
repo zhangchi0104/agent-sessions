@@ -125,8 +125,10 @@ SmartScreen.
 - The Today/7-day/30-day range is restored across app restarts. Range changes
   keep the last completed table dimmed until the new scan lands atomically.
 - Billing tokens and API equivalent use per-digit vertical rolling transitions
-  when their value, summary mode, or displayed range changes. The animation
-  follows the Windows client-area animation accessibility preference.
+  when their value or displayed range changes. Switching between the two
+  summary modes settles immediately without animation. Value and range
+  transitions follow the Windows client-area animation accessibility
+  preference.
 - Token Kind filters update the table's selected total while the raw four-kind
   Odometer and objective Billing/API-equivalent summaries remain unchanged.
   Enabled cells can show value, percentage, or value-and-percentage according to

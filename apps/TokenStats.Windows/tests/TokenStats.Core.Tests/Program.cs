@@ -541,7 +541,7 @@ internal static class Program
         }
 
         Check.Equal(
-            "$1.24+",
+            "$1.24",
             UsageFormatting.ApiEquivalentCost(
                 new ApiCostEstimate(1.230_001m, 1, 1, ["unknown"])));
         Check.Equal(

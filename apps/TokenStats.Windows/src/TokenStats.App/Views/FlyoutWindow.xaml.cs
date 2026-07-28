@@ -27,6 +27,7 @@ public partial class FlyoutWindow : Window
     private FlyoutTab _selectedTab = FlyoutTab.Usage;
     private System.Drawing.Point _notificationAreaAnchor;
     private DispatcherOperation? _repositionOperation;
+    private TodayMetricMode? _presentedTokenSummaryMetric;
     private bool _allowClose;
     private bool _refreshInFlight;
     private bool _hasNotificationAreaAnchor;
@@ -358,7 +359,10 @@ public partial class FlyoutWindow : Window
             if (!_tokenOdometer.IsScanning &&
                 !string.IsNullOrWhiteSpace(scanError))
             {
-                SetTokenSummaryValue("—");
+                SetTokenSummaryValue(
+                    "—",
+                    preferences.TodayMetric,
+                    readingRange);
                 TokenSummaryLabel.Text =
                     $"Couldn't read {readingRange.Label()}";
                 TokenSummaryPanel.ToolTip =
@@ -369,7 +373,10 @@ public partial class FlyoutWindow : Window
             }
             else
             {
-                SetTokenSummaryValue("—");
+                SetTokenSummaryValue(
+                    "—",
+                    preferences.TodayMetric,
+                    readingRange);
                 TokenSummaryLabel.Text = $"Reading {readingRange.Label()}…";
                 TokenSummaryPanel.ToolTip =
                     $"Reading token usage for {readingRange.Label()}.";
@@ -452,12 +459,9 @@ public partial class FlyoutWindow : Window
     {
         SetTokenSummaryValue(
             usage?.BillableTokens.ToString("N0") ?? "—",
-            usage?.BillableTokens,
-            usage is null
-                ? null
-                : new TokenSummaryTransitionKey(
-                    TodayMetricMode.Token,
-                    displayedRange));
+            TodayMetricMode.Token,
+            displayedRange,
+            usage?.BillableTokens);
         TokenSummaryLabel.Text =
             $"billing tokens · {displayedRange.Label()}";
         TokenSummaryPanel.ToolTip = usage is null
@@ -480,7 +484,10 @@ public partial class FlyoutWindow : Window
     {
         if (usage is null)
         {
-            SetTokenSummaryValue("—");
+            SetTokenSummaryValue(
+                "—",
+                TodayMetricMode.Usage,
+                displayedRange);
             TokenSummaryLabel.Text =
                 $"API-equivalent · {displayedRange.Label()}";
             TokenSummaryPanel.ToolTip =
@@ -497,12 +504,9 @@ public partial class FlyoutWindow : Window
             pricingDate);
         SetTokenSummaryValue(
             UsageFormatting.ApiEquivalentCost(estimate),
-            estimate.IsAvailable ? estimate.CostUsd : null,
-            estimate.IsAvailable
-                ? new TokenSummaryTransitionKey(
-                    TodayMetricMode.Usage,
-                    displayedRange)
-                : null);
+            TodayMetricMode.Usage,
+            displayedRange,
+            estimate.IsAvailable ? estimate.CostUsd : null);
         TokenSummaryLabel.Text =
             $"API-equivalent · {displayedRange.Label()}";
         var unpriced = estimate.IsPartial
@@ -533,15 +537,23 @@ public partial class FlyoutWindow : Window
 
     private void SetTokenSummaryValue(
         string text,
-        decimal? numericValue = null,
-        TokenSummaryTransitionKey? transitionKey = null) =>
+        TodayMetricMode metric,
+        TokenRange displayedRange,
+        decimal? numericValue = null)
+    {
+        var metricChanged =
+            _presentedTokenSummaryMetric is { } previousMetric &&
+            previousMetric != metric;
+        _presentedTokenSummaryMetric = metric;
         TokenSummaryValue.SetAnimatedValue(
             text,
             numericValue,
-            transitionKey,
+            new TokenSummaryTransitionKey(metric, displayedRange),
             animate:
                 numericValue.HasValue &&
-                _selectedTab == FlyoutTab.Tokens);
+                _selectedTab == FlyoutTab.Tokens &&
+                !metricChanged);
+    }
 
     private FrameworkElement BuildTokenAgentSection(
         string label,

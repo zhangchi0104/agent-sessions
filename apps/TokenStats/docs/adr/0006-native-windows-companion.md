@@ -55,8 +55,9 @@ Add a separate native Windows application under `apps/TokenStats.Windows`:
   time range and ignore Token Kind display filters. Neither summary changes the
   four-kind Odometer total. API equivalent rounds the final aggregate upward
   once to the nearest cent and displays exactly two decimal places. Both summary
-  values use per-digit vertical rolling transitions for value, mode, and range
-  changes when Windows client-area animations are enabled.
+  values use per-digit vertical rolling transitions for value and range changes
+  when Windows client-area animations are enabled. Switching between Billing
+  tokens and API equivalent settles immediately without animation.
 - Windows normalizes Codex Usage Windows using the returned duration and
   renders the windows actually present. A missing short-term window does not
   produce a fixed 5-hour placeholder.
