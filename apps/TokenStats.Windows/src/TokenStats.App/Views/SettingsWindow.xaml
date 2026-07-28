@@ -122,7 +122,7 @@
                     <TextBlock
                         Margin="0,6,0,0"
                         Style="{StaticResource SecondaryText}"
-                        Text="API equivalent estimates standard list-price cost by recorded model. Billing tokens count direct input + cache write + output; cache reads stay visible in the Odometer table but are excluded from this summary."
+                        Text="API equivalent estimates standard list-price cost by recorded model. Billing tokens count direct input + cache write + output; cache reads stay visible in the Odometer table but are excluded from this summary. Token Kind display toggles do not change either summary."
                         TextWrapping="Wrap" />
 
                     <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Token values" />
@@ -148,7 +148,7 @@
                     </WrapPanel>
                     <TextBlock
                         Style="{StaticResource SecondaryText}"
-                        Text="Choose how each selected Token Kind is shown. Percentages are the share of the selected kinds in that Model row."
+                        Text="Active Token Kinds use this format. Disabled kinds remain as dimmed raw values and are excluded from composition percentages."
                         TextWrapping="Wrap" />
 
                     <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Usage Window style" />

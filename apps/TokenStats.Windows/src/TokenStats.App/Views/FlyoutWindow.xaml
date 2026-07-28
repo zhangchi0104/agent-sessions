@@ -354,12 +354,6 @@
                             <StackPanel x:Name="TokenRowsPanel" />
                         </StackPanel>
 
-                        <TextBlock
-                            Margin="0,10,0,0"
-                            FontSize="10.5"
-                            Foreground="{DynamicResource SecondaryTextBrush}"
-                            Text="IN direct input · OUT output · C·W cache write · C·R cache read"
-                            TextWrapping="Wrap" />
                     </StackPanel>
                 </ScrollViewer>
             </Grid>

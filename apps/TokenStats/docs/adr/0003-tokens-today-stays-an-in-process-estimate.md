@@ -14,7 +14,7 @@ Neither the parsed token records nor the derived estimate is promoted to the
 shared SQLite database, a watcher daemon, or any IPC surface. macOS watches its
 transcript roots only while the Tokens tab is visible. Windows now seeds its
 persisted range at app startup and keeps an event-driven `FileSystemWatcher`
-inside the resident tray process so the tray selected total remains current
+inside the resident tray process so the tray's objective Token summary remains current
 (see the 2026-07-29 amendment). Neither platform polls on a timer.
 
 This sits under ADR-0001: the Token Odometer is the *estimate-grade* local-file
@@ -82,15 +82,19 @@ unchanged.
 
 The original visibility gate relied on the fact that nothing consumed the
 Token Odometer while the popover was closed. Windows now places the persisted
-range's **selected total** in the notification-area tooltip. That status-area
+range's objective Billing tokens or API-equivalent summary in the
+notification-area tooltip. That status-area
 consumer remains visible while the WPF flyout is closed, so a watcher stopped
 with the Tokens tab would leave the tooltip stale.
 
 The selected total is a display projection: the sum of the currently enabled
 Token Kinds. Token Kind headings can be toggled, and cells can present a value,
 that kind's share of the row's selected total, or `value (percentage)`. None of
-those choices changes the raw four-kind Token Odometer or promotes it to a
-quota measure.
+those choices changes the raw four-kind Token Odometer, the objective
+Billing/API-equivalent summary, or the tray tooltip. A disabled Token Kind
+retains a dimmed raw value, has no composition percentage, and is excluded from
+the percentage denominator. None of these readings is promoted to a quota
+measure.
 
 ### Decision
 
@@ -102,8 +106,8 @@ On Windows:
   and Codex transcript roots for the application's lifetime. Coalesce change
   bursts before reusing the in-process incremental reader; do not add periodic
   full-tree polling.
-- Recompute the selected total and tray tooltip from the same in-memory result
-  used by the flyout.
+- Recompute the table projection and objective tray summary separately from the
+  same in-memory result used by the flyout.
 - Persist presentation preferences such as the selected range and pin choice,
   but do not persist parsed token records or aggregate token readings.
 
@@ -121,5 +125,6 @@ daemon, no SQLite table, no IPC protocol, and no second source of truth.
   but idle operation performs no repeated enumeration; work follows transcript
   events and the existing coalescing policy.
 - The raw Token Odometer remains the sum of all four Token Kinds. A filtered
-  selected total must be labelled as such in UI, accessibility text, tests, and
-  documentation.
+  selected total is only a table projection and must be labelled as such in UI,
+  accessibility text, tests, and documentation; it must not alter the objective
+  Billing/API-equivalent summary.

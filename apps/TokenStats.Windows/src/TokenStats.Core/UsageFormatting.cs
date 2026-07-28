@@ -187,31 +187,18 @@ public static class UsageFormatting
         TokenUsage usage,
         TokenRange range,
         TodayMetricMode metric,
-        TokenKindSelection selection,
         DateOnly? pricingDate = null)
     {
         ArgumentNullException.ThrowIfNull(usage);
-        if (!selection.IsValid(allowNone: false))
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(selection),
-                selection,
-                "At least one known Token Kind must be selected.");
-        }
 
         var value = metric switch
         {
-            TodayMetricMode.Token => $"T: {CompactTokenCount(
-                usage.SelectedTotal(
-                    selection &
-                    (TokenKindSelection.DirectInput |
-                     TokenKindSelection.Output |
-                     TokenKindSelection.CacheWrite)))}",
+            TodayMetricMode.Token =>
+                $"T: {CompactTokenCount(usage.BillableTokens)}",
             TodayMetricMode.Usage => $"API: {ApiEquivalentCost(
                 ApiPricingCatalog.Estimate(
                     usage,
-                    pricingDate,
-                    selection))}",
+                    pricingDate))}",
             _ => throw new ArgumentOutOfRangeException(
                 nameof(metric),
                 metric,

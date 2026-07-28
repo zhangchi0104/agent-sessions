@@ -517,62 +517,19 @@ internal static class Program
                 throw new InvalidOperationException(
                     "Value mode did not render the four Token Kind cells.");
             }
-
-            kindButtons[1].IsChecked = false;
-            PumpDispatcher(flyout.Dispatcher);
-            if (settings.Appearance.SelectedTokenKinds !=
-                    (TokenKindSelection.All & ~TokenKindSelection.Output) ||
-                kindButtons[1].IsChecked != false ||
-                summaryValue.Text != "100" ||
-                !tableTotal.Text.Contains("3 selected kinds", StringComparison.Ordinal) ||
-                tokens.Usage?.OdometerTokens != 150)
+            if (EnumerateVisualDescendants<TextBlock>(flyout).Any(text =>
+                    text.Text ==
+                    "IN direct input · OUT output · C·W cache write · C·R cache read"))
             {
                 throw new InvalidOperationException(
-                    "A Token Kind filter did not update the selected total " +
-                    "without changing the raw Token Odometer.");
+                    "The redundant Token Kind explanation row is still visible.");
             }
-
-            kindButtons[1].IsChecked = true;
-            PumpDispatcher(flyout.Dispatcher);
-            settings.SaveAppearance(
-                settings.Appearance with
-                {
-                    TokenValueDisplay = TokenValueDisplayMode.Percentage,
-                });
-            PumpDispatcher(flyout.Dispatcher);
-            if (FindTokenCell(flyout, "Direct input").Text != "66.7%" ||
-                FindTokenCell(flyout, "Output").Text != "33.3%")
-            {
-                throw new InvalidOperationException(
-                    "Percentage mode did not use the selected-kinds row total.");
-            }
-
-            settings.SaveAppearance(
-                settings.Appearance with
-                {
-                    TokenValueDisplay =
-                        TokenValueDisplayMode.ValueAndPercentage,
-                });
-            PumpDispatcher(flyout.Dispatcher);
-            if (FindTokenCell(flyout, "Direct input").Text !=
-                    "100\n(66.7%)" ||
-                FindTokenCell(flyout, "Output").Text != "50\n(33.3%)")
-            {
-                throw new InvalidOperationException(
-                    "Value-and-percentage mode did not render both figures.");
-            }
-
-            settings.SaveAppearance(
-                settings.Appearance with
-                {
-                    TokenValueDisplay = TokenValueDisplayMode.Value,
-                });
-            PumpDispatcher(flyout.Dispatcher);
 
             apiMetric.IsChecked = true;
             PumpDispatcher(flyout.Dispatcher);
+            var apiSummaryBeforeFilter = summaryValue.Text;
             if (settings.Appearance.TodayMetric != TodayMetricMode.Usage ||
-                !summaryValue.Text.StartsWith("$", StringComparison.Ordinal) ||
+                !apiSummaryBeforeFilter.StartsWith("$", StringComparison.Ordinal) ||
                 new AppSettingsStore(settings.SettingsPath)
                     .Appearance.TodayMetric != TodayMetricMode.Usage)
             {
@@ -583,12 +540,88 @@ internal static class Program
             billingMetric.IsChecked = true;
             PumpDispatcher(flyout.Dispatcher);
             if (settings.Appearance.TodayMetric != TodayMetricMode.Token ||
+                summaryValue.Text != "150")
+            {
+                throw new InvalidOperationException(
+                    "The unfiltered Billing tokens summary was not 150.");
+            }
+
+            apiMetric.IsChecked = true;
+            PumpDispatcher(flyout.Dispatcher);
+            kindButtons[1].IsChecked = false;
+            PumpDispatcher(flyout.Dispatcher);
+            var excludedOutput = FindTokenCell(flyout, "Output");
+            if (settings.Appearance.SelectedTokenKinds !=
+                    (TokenKindSelection.All & ~TokenKindSelection.Output) ||
+                kindButtons[1].IsChecked != false ||
+                summaryValue.Text != apiSummaryBeforeFilter ||
+                excludedOutput.Text != "50" ||
+                Math.Abs(excludedOutput.Opacity - 0.32) > 0.01 ||
+                !tableTotal.Text.Contains("3 selected kinds", StringComparison.Ordinal) ||
+                tokens.Usage?.OdometerTokens != 150)
+            {
+                throw new InvalidOperationException(
+                    "Filtering Output did not preserve its dimmed raw value, " +
+                    "API equivalent, and the raw Token Odometer.");
+            }
+
+            billingMetric.IsChecked = true;
+            PumpDispatcher(flyout.Dispatcher);
+            if (settings.Appearance.TodayMetric != TodayMetricMode.Token ||
                 summaryValue.Text != "150" ||
                 new AppSettingsStore(settings.SettingsPath)
                     .Appearance.TodayMetric != TodayMetricMode.Token)
             {
                 throw new InvalidOperationException(
-                    "The Billing tokens flyout choice was not rendered and persisted.");
+                    "Token Kind filtering changed or failed to persist Billing tokens.");
+            }
+
+            settings.SaveAppearance(
+                settings.Appearance with
+                {
+                    TokenValueDisplay = TokenValueDisplayMode.Percentage,
+                });
+            PumpDispatcher(flyout.Dispatcher);
+            excludedOutput = FindTokenCell(flyout, "Output");
+            if (FindTokenCell(flyout, "Direct input").Text != "100%" ||
+                excludedOutput.Text != "50" ||
+                Math.Abs(excludedOutput.Opacity - 0.32) > 0.01)
+            {
+                throw new InvalidOperationException(
+                    "Percentage mode did not keep excluded Output as a dimmed raw value.");
+            }
+
+            settings.SaveAppearance(
+                settings.Appearance with
+                {
+                    TokenValueDisplay =
+                        TokenValueDisplayMode.ValueAndPercentage,
+                });
+            PumpDispatcher(flyout.Dispatcher);
+            excludedOutput = FindTokenCell(flyout, "Output");
+            if (FindTokenCell(flyout, "Direct input").Text !=
+                    "100\n(100%)" ||
+                excludedOutput.Text != "50" ||
+                Math.Abs(excludedOutput.Opacity - 0.32) > 0.01)
+            {
+                throw new InvalidOperationException(
+                    "Value-and-percentage mode added a percentage to excluded Output.");
+            }
+
+            settings.SaveAppearance(
+                settings.Appearance with
+                {
+                    TokenValueDisplay = TokenValueDisplayMode.Value,
+                });
+            PumpDispatcher(flyout.Dispatcher);
+            excludedOutput = FindTokenCell(flyout, "Output");
+            if (excludedOutput.Text != "50" ||
+                Math.Abs(excludedOutput.Opacity - 0.32) > 0.01 ||
+                summaryValue.Text != "150" ||
+                tokens.Usage?.OdometerTokens != 150)
+            {
+                throw new InvalidOperationException(
+                    "Value mode or Billing summary lost the excluded raw Output.");
             }
 
             if (flyout.Topmost || pin.IsChecked == true || !pin.Focusable)

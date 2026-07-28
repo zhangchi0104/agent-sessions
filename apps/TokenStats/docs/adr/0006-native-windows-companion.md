@@ -42,15 +42,18 @@ Add a separate native Windows application under `apps/TokenStats.Windows`:
   7 days, or 30 days, grouped by Coding Agent, Model, and the four disjoint
   Token Kinds.
 - Each Windows Token Kind heading is an independent filter. Enabled headings
-  produce a **selected total** for the flyout and tray tooltip while the raw
-  four-kind Token Odometer remains unchanged. Token cells can show value,
-  percentage composition, or `value (percentage)` according to the
-  **Display** preference.
+  produce a **selected total** for table subtotals, ordering, and percentage
+  composition while the raw four-kind Token Odometer remains unchanged.
+  Enabled Token cells can show value, percentage composition, or
+  `value (percentage)` according to the **Display** preference. Disabled cells
+  retain a dimmed raw value with no percentage.
 - Windows retains two summary presentations inside that tab. Billing tokens
   count direct input, cache writes, and output while excluding cache reads;
   API equivalent derives a list-price estimate from transcript model
   attribution, includes priced cache reads, and marks unknown models as
-  partial. Neither summary changes the four-kind Odometer total.
+  partial. Both are objective over the full recorded usage for the selected
+  time range and ignore Token Kind display filters. Neither summary changes the
+  four-kind Odometer total.
 - Windows normalizes Codex Usage Windows using the returned duration and
   renders the windows actually present. A missing short-term window does not
   produce a fixed 5-hour placeholder.
@@ -64,8 +67,8 @@ Add a separate native Windows application under `apps/TokenStats.Windows`:
   notification area's monitor work area. This includes range and Token Kind
   changes, Display preference changes, tab changes, scan results, and expanded
   diagnostics.
-- Because the tray tooltip consumes the selected total while the flyout is
-  closed, Windows seeds the persisted range at startup and keeps debounced
+- Because the tray tooltip consumes the objective Token summary while the
+  flyout is closed, Windows seeds the persisted range at startup and keeps debounced
   `FileSystemWatcher` subscriptions active for the resident app's lifetime.
   The watcher remains in-process and event-driven; it is not a daemon, database
   cache, IPC service, or polling loop.
@@ -75,7 +78,8 @@ Add a separate native Windows application under `apps/TokenStats.Windows`:
 
 Windows notification-area icons cannot reserve adjacent dynamic text as a
 macOS menu-bar item can. The compact status-area reading therefore lives in the
-tray tooltip, including the persisted Token Odometer range's selected total,
+tray tooltip, including the persisted Token Odometer range's objective Billing
+tokens or API-equivalent summary,
 with full per-Agent, per-Model, and per-Kind readings in the flyout.
 
 Opening the Windows flyout intentionally triggers a Usage Window refresh. The
@@ -115,12 +119,14 @@ daemon. C# is introduced only for the Windows client.
 
 ## Amendment — 2026-07-29
 
-Windows' status-area surface now includes the Token Odometer selected total, so
-three implementation details become durable product behavior:
+Windows' status-area surface now includes an objective Token summary over the
+persisted range, so three implementation details become durable product
+behavior:
 
 1. Token Kind filters and their value/percentage presentation belong to
-   **Display**, while selected total remains explicitly distinct from the raw
-   four-kind Odometer.
+   **Display**. Their selected total remains explicitly distinct from the raw
+   four-kind Odometer and from the Billing/API-equivalent summary; disabled
+   kinds retain a dimmed raw value but no percentage.
 2. The chosen Token Odometer range and flyout pin preference survive process
    restarts, and every size-changing operation repositions the flyout inside
    the current work area.

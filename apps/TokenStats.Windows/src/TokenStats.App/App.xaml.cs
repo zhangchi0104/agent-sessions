@@ -273,8 +273,7 @@ public partial class App : System.Windows.Application
                 UsageFormatting.TokenStatusSummary(
                     tokenUsage,
                     _tokenOdometer.DisplayedRange,
-                    preferences.TodayMetric,
-                    preferences.SelectedTokenKinds));
+                    preferences.TodayMetric));
         }
 
         _tray?.UpdateSummary(string.Join(" · ", summaries));

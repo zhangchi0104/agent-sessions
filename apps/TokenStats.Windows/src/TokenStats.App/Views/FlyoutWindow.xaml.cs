@@ -381,11 +381,11 @@ public partial class FlyoutWindow : Window
         }
         else if (preferences.TodayMetric == TodayMetricMode.Usage)
         {
-            RenderApiEquivalent(usage, displayedRange, selection);
+            RenderApiEquivalent(usage, displayedRange);
         }
         else
         {
-            RenderBillingTokens(usage, displayedRange, selection);
+            RenderBillingTokens(usage, displayedRange);
         }
 
         OdometerProgress.Visibility = _tokenOdometer.IsScanning
@@ -449,36 +449,28 @@ public partial class FlyoutWindow : Window
 
     private void RenderBillingTokens(
         TokenUsage? usage,
-        TokenRange displayedRange,
-        TokenKindSelection selection)
+        TokenRange displayedRange)
     {
-        const TokenKindSelection billableKinds =
-            TokenKindSelection.DirectInput |
-            TokenKindSelection.Output |
-            TokenKindSelection.CacheWrite;
-        var selectedBillableKinds = selection & billableKinds;
-        var selectedTotal = usage?.SelectedTotal(selectedBillableKinds);
-        TokenSummaryValue.Text = selectedTotal?.ToString("N0") ?? "—";
+        TokenSummaryValue.Text = usage?.BillableTokens.ToString("N0") ?? "—";
         TokenSummaryLabel.Text =
             $"billing tokens · {displayedRange.Label()}";
         TokenSummaryPanel.ToolTip = usage is null
             ? $"No billing token usage for {displayedRange.Label()}."
             : $"{UsageFormatting.TokenBreakdown(usage)}. " +
-              $"Selected kinds: {UsageFormatting.TokenKindSelectionLabel(selection)}. " +
               "Billing tokens include direct input, cache writes, and output; " +
-              "cache reads remain visible in the table but are excluded from this total.";
+              "cache reads remain visible in the table but are excluded from this total. " +
+              "Token Kind display toggles do not change this objective summary.";
         AutomationProperties.SetName(
             TokenSummaryPanel,
             usage is null
                 ? $"No billing token usage for {displayedRange.Label()}"
-                : $"{selectedTotal:N0} selected billing tokens for " +
+                : $"{usage.BillableTokens:N0} billing tokens for " +
                   $"{displayedRange.Label()}; cache reads excluded");
     }
 
     private void RenderApiEquivalent(
         TokenUsage? usage,
-        TokenRange displayedRange,
-        TokenKindSelection selection)
+        TokenRange displayedRange)
     {
         if (usage is null)
         {
@@ -496,8 +488,7 @@ public partial class FlyoutWindow : Window
         var pricingDate = DateOnly.FromDateTime(DateTime.Today);
         var estimate = ApiPricingCatalog.Estimate(
             usage,
-            pricingDate,
-            selection);
+            pricingDate);
         TokenSummaryValue.Text = UsageFormatting.ApiEquivalentCost(estimate);
         TokenSummaryLabel.Text =
             $"API-equivalent · {displayedRange.Label()}";
@@ -511,9 +502,8 @@ public partial class FlyoutWindow : Window
                 .Select(item => item.Model ?? "unknown model")
                 .Distinct(StringComparer.OrdinalIgnoreCase));
         TokenSummaryPanel.ToolTip =
-            "Standard API-equivalent estimate by recorded model; includes " +
-            "the selected Token Kinds at list rates. " +
-            $"Selected kinds: {UsageFormatting.TokenKindSelectionLabel(selection)}. " +
+            "Standard API-equivalent estimate by recorded model; includes all " +
+            "four Token Kinds at list rates regardless of the display toggles. " +
             "Claude cache writes without TTL detail use the default 5-minute rate. " +
             $"Models: {(models.Length > 0 ? models : "unknown")}. " +
             $"Prices reviewed {ApiPricingCatalog.LastReviewed:yyyy-MM-dd}." +
@@ -649,9 +639,12 @@ public partial class FlyoutWindow : Window
                         values[index],
                         selectedTotal,
                         displayMode)
-                    : "–",
+                    : values[index] == 0
+                        ? "–"
+                        : UsageFormatting.CompactTokenCount(values[index]),
                 FontFamily = new FontFamily("Cascadia Mono, Consolas"),
-                FontSize = displayMode ==
+                FontSize = included &&
+                           displayMode ==
                            TokenValueDisplayMode.ValueAndPercentage
                     ? 9.5
                     : 10.5,
@@ -663,7 +656,8 @@ public partial class FlyoutWindow : Window
                 ToolTip = included
                     ? $"{TokenKindName(index)}: {values[index]:N0} " +
                       $"({percentage:0.#}% of selected kinds)"
-                    : $"{TokenKindName(index)}: excluded from the selected total",
+                    : $"{TokenKindName(index)}: {values[index]:N0}; " +
+                      "dimmed and excluded from composition percentages",
             };
             Grid.SetColumn(value, index + 1);
             grid.Children.Add(value);

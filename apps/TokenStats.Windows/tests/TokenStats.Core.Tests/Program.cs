@@ -492,19 +492,17 @@ internal static class Program
         }
 
         Check.Equal(
-            "T: 44 · 7 days",
+            "T: 66 · 7 days",
             UsageFormatting.TokenStatusSummary(
                 usage,
                 TokenRange.SevenDays,
-                TodayMetricMode.Token,
-                inputAndCacheWrite));
+                TodayMetricMode.Token));
         Check.Equal(
-            "T: 0 · Today",
+            "T: 66 · Today",
             UsageFormatting.TokenStatusSummary(
                 usage,
                 TokenRange.Today,
-                TodayMetricMode.Token,
-                TokenKindSelection.CacheRead));
+                TodayMetricMode.Token));
 
         var attributed = new TokenUsage();
         attributed.AddAttributed(
@@ -517,12 +515,11 @@ internal static class Program
                 ResponseCount = 1,
             });
         Check.Equal(
-            "API: $5.00 · 30 days",
+            "API: $35.00 · 30 days",
             UsageFormatting.TokenStatusSummary(
                 attributed,
                 TokenRange.ThirtyDays,
                 TodayMetricMode.Usage,
-                TokenKindSelection.DirectInput,
                 new DateOnly(2026, 7, 27)));
     }
 

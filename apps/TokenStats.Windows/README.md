@@ -8,27 +8,29 @@ A native Windows notification-area app for TokenStats' two-tab flyout:
 - **Tokens** shows a local Token Odometer derived from native Windows transcript
   directories for Today, 7 days, or 30 days. It groups four disjoint Token
   Kinds by Coding Agent and Model. Each Token Kind heading is also a filter;
-  the enabled headings form a Windows-only **selected total** without changing
-  the underlying four-kind Odometer.
+  the enabled headings form a Windows-only **selected total** for table
+  composition without changing the underlying four-kind Odometer. Disabled
+  kinds remain visible as dimmed raw values.
 
-The tray tooltip carries a compact status summary, including the selected total
-for the persisted Token Odometer range. Changing a Token Kind filter updates
-that reading. Click the tray gauge for the full flyout; right-click it for
-Refresh, Settings, and Quit. **Refresh all** updates both subscription Usage
-Windows and local transcript tokens.
+The tray tooltip carries a compact objective status summary for the persisted
+Token Odometer range: either Billing tokens or API equivalent. Token Kind
+display filters do not change that reading. Click the tray gauge for the full
+flyout; right-click it for Refresh, Settings, and Quit. **Refresh all** updates
+both subscription Usage Windows and local transcript tokens.
 
 ## Tokens and API-equivalent estimates
 
-The Tokens tab retains a Windows-specific summary mode over the selected
+The Tokens tab retains a Windows-specific summary mode over the selected time
 range:
 
 - **Billing tokens** is `direct input + cache writes + output`. Cache reads
   remain visible in the Odometer table but are deliberately excluded from this
-  summary.
+  summary. Display filters do not change the count.
 - **API equivalent** is an estimated USD value. Each transcript entry is
   attributed to its recorded model and valued using that model's standard
   official API list prices. Unlike Billing tokens, this estimate includes
-  cache reads at the applicable cache-read price. Entries whose model is
+  cache reads at the applicable cached-input price. It always uses all four
+  recorded Token Kinds, regardless of display filters. Entries whose model is
   missing or absent from the pricing catalog remain unpriced and make the
   displayed estimate explicitly partial.
 
@@ -45,14 +47,16 @@ The Odometer table itself always uses the cross-platform raw definition:
 
 On Windows, the four column headings can be toggled independently. The
 **selected total** is the sum of the enabled Token Kinds over the selected
-range; it is the filtered figure shown in the flyout and tray tooltip. It does
-not rewrite transcript records or redefine the raw four-kind Token Odometer
-total.
+range; it drives table subtotals, model ordering, and composition percentages.
+It does not change the Billing tokens/API-equivalent summary, rewrite transcript
+records, or redefine the raw four-kind Token Odometer total.
 
 The **Display** Settings page controls whether each enabled Token Kind is shown
 as a numeric value, its percentage of that row's selected total, or both as
-`value (percentage)`. These percentages describe token composition only. They
-are not quota consumption, a Limit, or a Usage Window percentage.
+`value (percentage)`. A disabled kind remains as a dimmed raw numeric value,
+has no percentage, and is excluded from the percentage denominator. These
+percentages describe token composition only. They are not quota consumption, a
+Limit, or a Usage Window percentage.
 
 Pricing sources, last checked **2026-07-27**:
 
@@ -113,15 +117,17 @@ SmartScreen.
 - Opening the flyout refreshes Usage Windows. The Windows transcript reader
   seeds the persisted Token Odometer range when the app starts, then keeps
   debounced `FileSystemWatcher` subscriptions active for the lifetime of the
-  resident tray process. This keeps the tray's selected total current without
-  polling and without a daemon, database, or IPC surface. If a transcript root
-  does not exist yet, a lightweight parent-directory watch adopts it when the
-  Coding Agent creates it.
+  resident tray process. This keeps the tray's objective Token summary current
+  without polling and without a daemon, database, or IPC surface. If a
+  transcript root does not exist yet, a lightweight parent-directory watch
+  adopts it when the Coding Agent creates it.
 - The Today/7-day/30-day range is restored across app restarts. Range changes
   keep the last completed table dimmed until the new scan lands atomically.
-- Token Kind filters update the selected total while the raw four-kind Odometer
-  remains unchanged. Token cells can show value, percentage, or
-  value-and-percentage according to the Display preference.
+- Token Kind filters update the table's selected total while the raw four-kind
+  Odometer and objective Billing/API-equivalent summaries remain unchanged.
+  Enabled cells can show value, percentage, or value-and-percentage according to
+  the Display preference; disabled cells retain a dimmed raw value and no
+  percentage.
 - The flyout can be pinned so it remains visible and always on top. The pin
   choice is restored across app restarts; Escape and explicit tray actions
   still dismiss it.
