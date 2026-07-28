@@ -79,6 +79,28 @@ struct TokenRangeTests {
         #expect(await waitUntil { odometer.usage?.totalTokens == 150 + 1_998 })
     }
 
+    /// A scan for a range the user has moved off must not land — it would park
+    /// the displayed range behind the selection with nothing left running, and
+    /// the progress cue would never resolve.
+    @Test func aScanForAnAbandonedRangeDoesNotLand() async throws {
+        let root = try TempTranscripts("claude")
+        try root.write("a.jsonl", [
+            claudeUsageLine(id: "m1", input: 100, output: 50),
+            claudeUsageLine(id: "old", input: 999, output: 999, daysAgo: 10),
+        ])
+
+        let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
+                                          roots: [(label: "Agent", path: root.path)])
+        odometer.select(.thirtyDays)
+        // A refresh captured while Today was selected completes late.
+        odometer.select(.today)
+        odometer.select(.thirtyDays)
+
+        #expect(await waitUntil { odometer.displayedRange == .thirtyDays })
+        #expect(odometer.pendingRange == nil)
+        #expect(odometer.usage?.totalTokens == 150 + 1_998)
+    }
+
     /// A Coding Agent with nothing in range is reported as present-and-empty,
     /// not omitted — an empty group is an everyday state and says so in words.
     @Test func anAgentWithNoUsageInRangeIsStillListed() async throws {

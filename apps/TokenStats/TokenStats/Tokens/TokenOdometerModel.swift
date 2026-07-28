@@ -90,6 +90,11 @@ final class TokenOdometerModel {
                 .sorted { ($0.usage.totalTokens, $1.model) > ($1.usage.totalTokens, $0.model) }
             slices.append(AgentTokens(label: root.label, usage: total, byModel: rows))
         }
+        // A slower scan for a range the user has since moved off must not
+        // land: it would overwrite fresher rows and, worse, park displayedRange
+        // behind a selection with no scan left running — a progress cue that
+        // never resolves.
+        guard range == selectedRange else { return }
         displayedRange = range
         perAgent = slices
         var combined = TokenUsage()
