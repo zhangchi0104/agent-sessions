@@ -1,0 +1,545 @@
+<title>Tokens tab layouts — 332pt prototypes</title>
+
+<style>
+  /* PROTOTYPE — throwaway. Answers wayfinder ticket #27 only. Not production code.
+     Round 2: B (the four-column table) merged with C (proportion bars), three ways.
+     Real popover width (332pt), real token data measured 2026-07-28. */
+
+  :root {
+    --lab-bg: #f0f0f3; --lab-panel: #ffffff; --lab-line: #d8d8de;
+    --ink: #1c1c1e; --ink-2: #55555c; --ink-3: #8a8a92; --accent: #007aff;
+    --pop-bg: #ffffff; --pop-line: #e2e2e7; --pop-ink: #1c1c1e;
+    --pop-ink-2: #6c6c72; --pop-fill: #f2f2f5; --pop-sel: #007aff;
+    --k-in: #3d8ef0; --k-out: #2ba277; --k-cw: #d18f22; --k-cr: #8f86bd;
+    --tint: 0.30;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --sys: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --lab-bg: #141518; --lab-panel: #1c1d21; --lab-line: #303138;
+      --ink: #ebebf0; --ink-2: #a5a5ad; --ink-3: #74747c; --accent: #0a84ff;
+      --pop-bg: #2b2b2e; --pop-line: #3a3a3f; --pop-ink: #f2f2f6;
+      --pop-ink-2: #9a9aa2; --pop-fill: #38383d; --pop-sel: #0a84ff;
+      --k-in: #59a3f5; --k-out: #3fbe8e; --k-cw: #e0a640; --k-cr: #8c82c4;
+      --tint: 0.34;
+    }
+  }
+  :root[data-theme="light"] {
+    --lab-bg: #f0f0f3; --lab-panel: #ffffff; --lab-line: #d8d8de;
+    --ink: #1c1c1e; --ink-2: #55555c; --ink-3: #8a8a92; --accent: #007aff;
+    --pop-bg: #ffffff; --pop-line: #e2e2e7; --pop-ink: #1c1c1e;
+    --pop-ink-2: #6c6c72; --pop-fill: #f2f2f5; --pop-sel: #007aff;
+    --k-in: #3d8ef0; --k-out: #2ba277; --k-cw: #d18f22; --k-cr: #8f86bd; --tint: 0.30;
+  }
+  :root[data-theme="dark"] {
+    --lab-bg: #141518; --lab-panel: #1c1d21; --lab-line: #303138;
+    --ink: #ebebf0; --ink-2: #a5a5ad; --ink-3: #74747c; --accent: #0a84ff;
+    --pop-bg: #2b2b2e; --pop-line: #3a3a3f; --pop-ink: #f2f2f6;
+    --pop-ink-2: #9a9aa2; --pop-fill: #38383d; --pop-sel: #0a84ff;
+    --k-in: #59a3f5; --k-out: #3fbe8e; --k-cw: #e0a640; --k-cr: #8c82c4; --tint: 0.34;
+  }
+
+  body {
+    background: var(--lab-bg); color: var(--ink); font-family: var(--sys);
+    font-size: 14px; line-height: 1.55; margin: 0; padding: 40px 28px 72px;
+  }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  .wrap { max-width: 1500px; margin: 0 auto; }
+  .eyebrow {
+    font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600; margin: 0 0 10px;
+  }
+  h1 { font-size: 27px; font-weight: 640; letter-spacing: -0.02em; margin: 0 0 12px; text-wrap: balance; }
+  .lede { color: var(--ink-2); max-width: 68ch; margin: 0 0 4px; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  .facts {
+    display: grid; gap: 1px; background: var(--lab-line);
+    border: 1px solid var(--lab-line); border-radius: 10px; overflow: hidden;
+    grid-template-columns: repeat(auto-fit, minmax(216px, 1fr)); margin: 26px 0 30px;
+  }
+  .fact { background: var(--lab-panel); padding: 13px 15px; }
+  .fact dt {
+    font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600;
+  }
+  .fact dd { margin: 3px 0 0; font-size: 19px; font-weight: 620; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .fact p { margin: 2px 0 0; font-size: 12px; color: var(--ink-2); line-height: 1.4; }
+
+  .rangebar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 13px 15px; background: var(--lab-panel);
+    border: 1px solid var(--lab-line); border-radius: 10px; margin-bottom: 30px;
+    position: sticky; top: 0; z-index: 5;
+  }
+  .rangebar > span { font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+  .seg { display: flex; background: var(--lab-bg); border-radius: 7px; padding: 2px; gap: 2px; }
+  .seg button {
+    font: inherit; font-size: 13px; font-weight: 500; border: 0; cursor: pointer;
+    background: transparent; color: var(--ink-2); padding: 5px 13px; border-radius: 5px;
+  }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .rangebar em { font-style: normal; font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+  .decks { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .deck { flex: 0 0 auto; width: 332px; }
+  .deck.base { opacity: 0.82; }
+  .deck > h2 { font-size: 15px; font-weight: 640; margin: 0 0 3px; letter-spacing: -0.01em; }
+  .deck > h2 span { color: var(--ink-3); font-weight: 500; }
+  .deck > .why { font-size: 12.5px; color: var(--ink-2); margin: 0 0 14px; line-height: 1.45; min-height: 5.4em; }
+
+  .pop {
+    width: 332px; box-sizing: border-box; background: var(--pop-bg);
+    border: 1px solid var(--pop-line); border-radius: 11px; padding: 16px;
+    color: var(--pop-ink); font-size: 13px; box-shadow: 0 12px 34px rgba(0,0,0,.17);
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .pop-head { display: flex; align-items: baseline; justify-content: space-between; }
+  .pop-head b { font-size: 15px; font-weight: 600; }
+  .pop-head i { font-style: normal; color: var(--pop-ink-2); font-size: 13px; }
+  .tabbar { display: flex; gap: 2px; padding: 3px; background: var(--pop-fill); border-radius: 999px; }
+  .tabbar div { flex: 1; text-align: center; padding: 6px 0; border-radius: 999px; font-size: 13px; font-weight: 500; color: var(--pop-ink-2); }
+  .tabbar div.on { background: var(--pop-sel); color: #fff; }
+  .hero { display: flex; flex-direction: column; gap: 2px; }
+  .hero-n { font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1.05; white-space: nowrap; }
+  .hero-l { font-size: 12px; color: var(--pop-ink-2); }
+  .rangeseg { display: flex; gap: 2px; padding: 2px; background: var(--pop-fill); border-radius: 7px; }
+  .rangeseg div { flex: 1; text-align: center; padding: 4px 0; border-radius: 5px; font-size: 12px; color: var(--pop-ink-2); font-weight: 500; }
+  .rangeseg div.on { background: var(--pop-bg); color: var(--pop-ink); box-shadow: 0 1px 2px rgba(0,0,0,.16); }
+  .agent {
+    display: flex; align-items: baseline; justify-content: space-between;
+    font-size: 12px; font-weight: 600; color: var(--pop-ink-2);
+    letter-spacing: 0.03em; text-transform: uppercase; margin-bottom: 5px;
+  }
+  .agent span { font-variant-numeric: tabular-nums; letter-spacing: 0; text-transform: none; }
+  .empty { font-size: 12px; color: var(--pop-ink-2); font-style: italic; }
+  .foot { border-top: 1px solid var(--pop-line); padding-top: 10px; text-align: right; color: var(--pop-ink-2); }
+
+  /* shared table skin */
+  table.t { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  table.t th {
+    font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--pop-ink-2); font-weight: 600; text-align: right; padding: 0 0 4px;
+  }
+  table.t th:first-child { text-align: left; }
+  table.t td { font-size: 12px; padding: 3px 0; text-align: right; }
+  table.t td:first-child {
+    text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 6px;
+  }
+  table.t td + td { padding-left: 5px; }
+  table.t tr.sub td { color: var(--pop-ink-2); }
+  table.t td.name { max-width: 104px; }
+
+  /* D1 — the proportion painted behind the row */
+  table.d1 tr.sub td { padding-top: 4px; padding-bottom: 4px; position: relative; }
+  table.d1 tr.sub td:first-child { border-radius: 3px 0 0 3px; padding-left: 4px; }
+  table.d1 tr.sub td:last-child { border-radius: 0 3px 3px 0; padding-right: 4px; }
+  table.d1 tr.sub td.name { max-width: 100px; }
+
+  /* D2 — the bar is a column, the four numbers move to the tooltip */
+  table.d2 td.name { max-width: 132px; }
+  .cell-bar { display: flex; height: 9px; border-radius: 3px; overflow: hidden; background: var(--pop-fill); min-width: 86px; }
+  .cell-bar i { display: block; height: 100%; }
+  table.d2 td.barcell { width: 92px; padding-left: 8px; vertical-align: middle; }
+
+  /* D3 — numbers on top, an explicit bar beneath, padding clawed back */
+  table.d3 tr.sub td { padding: 2px 0 0; }
+  table.d3 tr.barrow td { padding: 1px 0 4px; }
+  .row-bar { display: flex; height: 5px; border-radius: 2px; overflow: hidden; background: var(--pop-fill); }
+  .row-bar i { display: block; height: 100%; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 11px; font-size: 10.5px; color: var(--pop-ink-2); margin-top: 9px; }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .legend b { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
+
+  .metric { margin-top: 11px; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; display: flex; gap: 12px; flex-wrap: wrap; }
+  .metric b { color: var(--ink-2); font-weight: 600; }
+  .metric .warn { color: #d1731f; font-weight: 600; }
+  .metric .ok { color: #2f8d5e; font-weight: 600; }
+
+  .findings { margin-top: 46px; border-top: 1px solid var(--lab-line); padding-top: 26px; }
+  .findings h2 { font-size: 17px; font-weight: 640; margin: 0 0 14px; letter-spacing: -0.01em; }
+  .findings ol { margin: 0; padding-left: 20px; max-width: 80ch; }
+  .findings li { margin-bottom: 11px; color: var(--ink-2); }
+  .findings li b { color: var(--ink); font-weight: 600; }
+  code {
+    font-family: var(--mono); font-size: 0.88em; background: var(--lab-panel);
+    border: 1px solid var(--lab-line); border-radius: 4px; padding: 0.5px 4px;
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<h2 class="sr-only">Three ways of merging the four-column table with proportion bars for the TokenStats Tokens tab, each at the real 332pt popover width with real measured token data.</h2>
+
+<div class="wrap">
+  <p class="eyebrow">Wayfinder #27 · throwaway prototype · round 3</p>
+  <h1>D3 picked — now paying down its 92pt</h1>
+  <p class="lede">
+    <strong>D3</strong> was chosen: every figure kept, plus an explicit bar under each row. It came in at
+    <strong>648pt</strong> at 30 days, 92pt over the plain table and well past the 600pt comfort line.
+    These two tightenings try to pay that back without giving up anything D3 was chosen for. The key move:
+    the bar's segments run <strong>in the same order as the columns above them</strong> — in, out, cache write,
+    cache read — so the table header already <em>is</em> the legend, and the legend can go.
+  </p>
+
+  <dl class="facts">
+    <div class="fact">
+      <dt>D3 as picked, at 30 days</dt>
+      <dd>648pt</dd>
+      <p>92pt over the plain table, 48pt over the comfort line. This is the debt.</p>
+    </div>
+    <div class="fact">
+      <dt>What the legend costs</dt>
+      <dd>~28pt</dd>
+      <p>Paid once, not per row — and avoidable, because the header row already orders the four kinds.</p>
+    </div>
+    <div class="fact">
+      <dt>What a bar row costs</dt>
+      <dd>~6pt each</dd>
+      <p>Multiplied by eleven rows at 30 days. Padding, not the 5pt bar itself, is most of it.</p>
+    </div>
+    <div class="fact">
+      <dt>Target</dt>
+      <dd>&lt; 600pt</dd>
+      <p>The comfort line for a menu-bar popover. Argue with the line, not the measurements.</p>
+    </div>
+  </dl>
+
+  <div class="rangebar">
+    <span>Range</span>
+    <div class="seg" role="group" aria-label="Time range">
+      <button type="button" data-range="today" aria-pressed="false">Today</button>
+      <button type="button" data-range="7d" aria-pressed="true">7 days</button>
+      <button type="button" data-range="30d" aria-pressed="false">30 days</button>
+    </div>
+    <em id="load"></em>
+  </div>
+
+  <div class="decks">
+    <section class="deck base">
+      <h2>B <span>· plain table, for scale</span></h2>
+      <p class="why">No bar, no legend. Not a candidate any more — it is here only so the cost of
+        composition stays visible as a number.</p>
+      <div class="pop" id="popB"></div>
+      <p class="metric" id="mB"></p>
+    </section>
+
+    <section class="deck">
+      <h2>D3 <span>· as picked</span></h2>
+      <p class="why">Four numbers, a 5pt bar beneath each row, row padding at 2pt, and a legend
+        underneath. The version chosen, unchanged, so the tightenings have something to beat.</p>
+      <div class="pop" id="popD3"></div>
+      <p class="metric" id="mD3"></p>
+    </section>
+
+    <section class="deck">
+      <h2>D3a <span>· header is the legend</span></h2>
+      <p class="why">Identical to D3 with the legend deleted. The bar's segments already run in the
+        column order above them, so the header carries the mapping — nothing is lost but the block.</p>
+      <div class="pop" id="popD3a"></div>
+      <p class="metric" id="mD3a"></p>
+    </section>
+
+    <section class="deck">
+      <h2>D3b <span>· bar becomes the row rule</span></h2>
+      <p class="why">No legend, and the bar tucked flush under the figures as a 3pt rule with no
+        padding of its own — it replaces the separator a dense table would need anyway.</p>
+      <div class="pop" id="popD3b"></div>
+      <p class="metric" id="mD3b"></p>
+    </section>
+  </div>
+
+  <div class="findings">
+    <h2>What round 2 settles</h2>
+    <ol id="notes"></ol>
+  </div>
+</div>
+
+<script>
+  // Real measurements, 2026-07-28. [directInput, output, cacheWrite, cacheRead].
+  // Claude deduplicated by message id; Codex model carried from the preceding
+  // turn_context (wayfinder #26). The all-zero "<synthetic>" pseudo-model is dropped.
+  const DATA = {
+    today: {
+      "Claude Code": { "claude-opus-5": [39, 29587, 302037, 3608676] },
+      "Codex": {}
+    },
+    "7d": {
+      "Claude Code": {
+        "claude-opus-5": [24876, 1394236, 11251391, 433424142],
+        "claude-opus-4-8": [266, 96792, 252879, 16301724],
+        "claude-fable-5": [76, 31694, 239186, 2514089],
+        "claude-haiku-4-5-20251001": [10, 276, 8533, 17422]
+      },
+      "Codex": {
+        "gpt-5.6-sol": [3789661, 301568, 0, 91609600],
+        "codex-auto-review": [793377, 22283, 0, 18791424]
+      }
+    },
+    "30d": {
+      "Claude Code": {
+        "claude-opus-5": [24876, 1394236, 11251391, 433424142],
+        "claude-opus-4-8": [1391860, 2028914, 17879937, 299787084],
+        "claude-fable-5": [295019, 1523297, 10768538, 290669083],
+        "claude-haiku-4-5-20251001": [7998, 4024, 983880, 12281068],
+        "claude-sonnet-5": [9545, 12828, 71690, 2297540]
+      },
+      "Codex": {
+        "gpt-5.6-sol": [48045645, 4146681, 0, 1221392896],
+        "codex-auto-review": [5909078, 106829, 0, 78145152],
+        "gpt-5.5": [1694227, 142411, 0, 40173440],
+        "gpt-5.6-terra": [702777, 43863, 0, 13433344],
+        "unknown": [975213, 81050, 0, 24596992],
+        "gpt-5.6-luna": [342158, 8334, 0, 1054208]
+      }
+    }
+  };
+  const COST = { today: "~0.05s scan", "7d": "~0.9s scan", "30d": "~4.1s scan" };
+  const KINDS = ["--k-in", "--k-out", "--k-cw", "--k-cr"];
+  const KIND_LABEL = ["Direct in", "Output", "Cache write", "Cache read"];
+
+  const sum = a => a[0] + a[1] + a[2] + a[3];
+  // Mirrors TokenUsage.compact in TranscriptTokenReader.swift.
+  function compact(n) {
+    for (const [u, s] of [[1e9, "B"], [1e6, "M"], [1e3, "K"]]) {
+      if (n >= u) { const v = n / u; return (v < 9.95 ? v.toFixed(1) : v.toFixed(0)) + s; }
+    }
+    return String(n);
+  }
+  const grouped = n => n.toLocaleString("en-US");
+  const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  const tip = v => KIND_LABEL.map((l, i) => `${l} ${grouped(v[i])}`).join(" · ");
+
+  function rows(range) {
+    const out = [];
+    for (const [agent, models] of Object.entries(DATA[range])) {
+      const list = Object.entries(models).sort((a, b) => sum(b[1]) - sum(a[1]));
+      out.push({ agent, list, total: list.reduce((t, [, v]) => t + sum(v), 0) });
+    }
+    return out;
+  }
+
+  function segments(v, host, cls) {
+    const t = sum(v) || 1;
+    const b = el("div", cls);
+    v.forEach((x, i) => {
+      if (!x) return;
+      const s = el("i");
+      s.style.width = (x / t * 100) + "%";
+      s.style.background = `var(${KINDS[i]})`;
+      b.appendChild(s);
+    });
+    host.appendChild(b);
+    return b;
+  }
+
+  // A hard-stop gradient of the same four proportions, for painting behind a row.
+  function tintGradient(v) {
+    const t = sum(v) || 1;
+    let at = 0; const stops = [];
+    v.forEach((x, i) => {
+      if (!x) return;
+      const from = at / t * 100; at += x; const to = at / t * 100;
+      stops.push(`color-mix(in srgb, var(${KINDS[i]}) calc(var(--tint) * 100%), transparent) ${from}% ${to}%`);
+    });
+    return stops.length ? `linear-gradient(90deg, ${stops.join(", ")})` : "none";
+  }
+
+  function shell(host, range, fill) {
+    host.textContent = "";
+    const head = el("div", "pop-head");
+    head.appendChild(el("b", null, "TokenStats"));
+    head.appendChild(el("i", null, "⟳"));
+    host.appendChild(head);
+
+    const tabs = el("div", "tabbar");
+    tabs.appendChild(el("div", null, "Usage"));
+    tabs.appendChild(el("div", "on", "Tokens"));
+    host.appendChild(tabs);
+
+    const grand = rows(range).reduce((t, g) => t + g.total, 0);
+    const hero = el("div", "hero");
+    const n = el("div", "hero-n", grouped(grand));
+    hero.appendChild(n);
+    hero.appendChild(el("div", "hero-l", "tokens · " + ({ today: "today", "7d": "last 7 days", "30d": "last 30 days" })[range]));
+    host.appendChild(hero);
+
+    const seg = el("div", "rangeseg");
+    ["Today", "7 days", "30 days"].forEach((l, i) => {
+      seg.appendChild(el("div", ["today", "7d", "30d"][i] === range ? "on" : null, l));
+    });
+    host.appendChild(seg);
+
+    const body = el("div"); host.appendChild(body);
+    fill(body, range);
+    host.appendChild(el("div", "foot", "⚙"));
+
+    // Mirrors SwiftUI's .minimumScaleFactor(0.5) on a single line.
+    requestAnimationFrame(() => {
+      let size = 42; n.style.fontSize = size + "px";
+      const max = host.clientWidth - 32;
+      while (n.scrollWidth > max && size > 21) { size -= 1; n.style.fontSize = size + "px"; }
+    });
+  }
+
+  function agentHead(g) {
+    const h = el("div", "agent");
+    h.appendChild(document.createTextNode(g.agent));
+    h.appendChild(el("span", null, compact(g.total)));
+    return h;
+  }
+  function groupRow(tb, g, cols) {
+    const hr = el("tr"); const hc = el("td"); hc.colSpan = cols;
+    hc.appendChild(agentHead(g)); hr.appendChild(hc); tb.appendChild(hr);
+    if (!g.list.length) {
+      const er = el("tr"); const ec = el("td", "empty", "no usage in this range");
+      ec.colSpan = cols; er.appendChild(ec); tb.appendChild(er);
+    }
+  }
+  function legend(body) {
+    const lg = el("div", "legend");
+    KIND_LABEL.forEach((l, i) => {
+      const s = el("span"); const b = el("b"); b.style.background = `var(${KINDS[i]})`;
+      s.appendChild(b); s.appendChild(document.createTextNode(l)); lg.appendChild(s);
+    });
+    body.appendChild(lg);
+  }
+
+  function fillB(body, range) {
+    const t = el("table", "t"), thead = el("thead"), tr = el("tr");
+    ["Model", "In", "Out", "C·W", "C·R"].forEach(h => tr.appendChild(el("th", null, h)));
+    thead.appendChild(tr); t.appendChild(thead);
+    const tb = el("tbody");
+    rows(range).forEach(g => {
+      groupRow(tb, g, 5);
+      g.list.forEach(([m, v]) => {
+        const r = el("tr", "sub");
+        const c0 = el("td", "name", m); c0.title = m; r.appendChild(c0);
+        v.forEach(x => r.appendChild(el("td", null, x ? compact(x) : "–")));
+        tb.appendChild(r);
+      });
+    });
+    t.appendChild(tb); body.appendChild(t);
+  }
+
+  function fillD1(body, range) {
+    const t = el("table", "t d1"), thead = el("thead"), tr = el("tr");
+    ["Model", "In", "Out", "C·W", "C·R"].forEach(h => tr.appendChild(el("th", null, h)));
+    thead.appendChild(tr); t.appendChild(thead);
+    const tb = el("tbody");
+    rows(range).forEach(g => {
+      groupRow(tb, g, 5);
+      g.list.forEach(([m, v]) => {
+        const r = el("tr", "sub");
+        r.style.background = tintGradient(v);
+        r.title = tip(v);
+        const c0 = el("td", "name", m); r.appendChild(c0);
+        v.forEach(x => r.appendChild(el("td", null, x ? compact(x) : "–")));
+        tb.appendChild(r);
+      });
+    });
+    t.appendChild(tb); body.appendChild(t);
+    legend(body);
+  }
+
+  function fillD2(body, range) {
+    const t = el("table", "t d2"), thead = el("thead"), tr = el("tr");
+    ["Model", "Total", "Composition"].forEach((h, i) => {
+      const th = el("th", null, h);
+      if (i === 2) th.style.textAlign = "left", th.style.paddingLeft = "8px";
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr); t.appendChild(thead);
+    const tb = el("tbody");
+    rows(range).forEach(g => {
+      groupRow(tb, g, 3);
+      g.list.forEach(([m, v]) => {
+        const r = el("tr", "sub"); r.title = tip(v);
+        const c0 = el("td", "name", m); r.appendChild(c0);
+        r.appendChild(el("td", null, compact(sum(v))));
+        const cb = el("td", "barcell");
+        segments(v, cb, "cell-bar");
+        r.appendChild(cb);
+        tb.appendChild(r);
+      });
+    });
+    t.appendChild(tb); body.appendChild(t);
+    legend(body);
+  }
+
+  function fillD3(body, range) {
+    const t = el("table", "t d3"), thead = el("thead"), tr = el("tr");
+    ["Model", "In", "Out", "C·W", "C·R"].forEach(h => tr.appendChild(el("th", null, h)));
+    thead.appendChild(tr); t.appendChild(thead);
+    const tb = el("tbody");
+    rows(range).forEach(g => {
+      groupRow(tb, g, 5);
+      g.list.forEach(([m, v]) => {
+        const r = el("tr", "sub"); r.title = tip(v);
+        const c0 = el("td", "name", m); c0.title = m; r.appendChild(c0);
+        v.forEach(x => r.appendChild(el("td", null, x ? compact(x) : "–")));
+        tb.appendChild(r);
+        const br = el("tr", "barrow"); const bc = el("td"); bc.colSpan = 5;
+        segments(v, bc, "row-bar"); br.appendChild(bc); tb.appendChild(br);
+      });
+    });
+    t.appendChild(tb); body.appendChild(t);
+    legend(body);
+  }
+
+  const NOTES = [
+    ["Every merge costs height, and the legend is why.", "All three are <b>taller than B at every range</b> — at 30 days D2 is +26pt, D1 +48pt, D3 +92pt. Encoding four kinds in colour forces a legend that B never needed; that is ~20pt paid once, before any per-row cost. <b>D2 is the cheapest merge and the only one still under the 600pt comfort line at 30 days</b> (582pt); D1 (604pt) and D3 (648pt) both cross it."],
+    ["D2 buys width, but not enough to fix truncation.", "Trading four numeric columns for one bar column widens the model column from <b>129pt to 155pt</b> — and <code>claude-haiku-4-5-20251001</code> needs <b>172pt</b>. It still truncates, just later. Column trading cannot solve the name problem at 332pt; that needs a shorter label, a second line, or accepting the ellipsis. D2's real price is different: no exact figure is on screen at all, and a popover that dismisses on focus loss and cannot be hovered from the keyboard is a bad place to hide numbers behind a tooltip."],
+    ["D1 is free per row, which is what makes it suspicious.", "Painting the proportion behind the row adds nothing per row — its whole +48pt is the legend and the slightly taller rows the tint needs to read. Codex rows do look visibly different from Claude ones. But composition becomes decoration <em>behind</em> data rather than something measurable, and a tinted row is the variant most likely to fall apart against real Liquid Glass rather than a flat mock."],
+    ["D3 is the honest one and it costs the most.", "All four numbers plus an explicit 5pt bar, with row padding cut to 2pt to pay for it — and it still lands at 648pt, the worst of the four. That difference against B's 556pt is the true price of showing composition explicitly while keeping every figure on screen."],
+    ["The Codex dash disappears in all three.", "In B a Codex row prints <code>–</code> under Cache&nbsp;W and you have to already know why. In every merge the absence is visible as a missing segment, which is the round-1 finding this merge exists to keep."]
+  ];
+
+  function render(range) {
+    shell(document.getElementById("popB"), range, fillB);
+    shell(document.getElementById("popD1"), range, fillD1);
+    shell(document.getElementById("popD2"), range, fillD2);
+    shell(document.getElementById("popD3"), range, fillD3);
+    const gs = rows(range);
+    const models = gs.reduce((t, g) => t + g.list.length, 0);
+    document.getElementById("load").textContent =
+      `${models} model row${models === 1 ? "" : "s"} · ${gs.length} agent groups · ${COST[range]}`;
+    requestAnimationFrame(() => {
+      const base = document.getElementById("popB").offsetHeight;
+      [["mB", "popB"], ["mD1", "popD1"], ["mD2", "popD2"], ["mD3", "popD3"]].forEach(([m, p]) => {
+        const h = document.getElementById(p).offsetHeight;
+        const d = h - base;
+        const over = h > 600;
+        let delta = "";
+        if (p !== "popB") {
+          const cls = d > 0 ? "warn" : d < 0 ? "ok" : "";
+          delta = ` · <b>vs B</b> <span class="${cls}">${d > 0 ? "+" : ""}${d}pt</span>`;
+        }
+        document.getElementById(m).innerHTML =
+          `<b>height</b> <span class="${over ? "warn" : ""}">${h}pt</span>${delta}` +
+          (over ? ` <span class="warn">— over the 600pt comfort line</span>` : "");
+      });
+    });
+  }
+
+  document.querySelectorAll(".seg button").forEach(b => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+      render(b.dataset.range);
+    });
+  });
+
+  const ol = document.getElementById("notes");
+  NOTES.forEach(([t, d]) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<b>${t}</b> ${d}`;
+    ol.appendChild(li);
+  });
+
+  render("7d");
+</script>
