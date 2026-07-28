@@ -1,9 +1,9 @@
 //
-//  TokensTodayModel.swift
+//  TokenOdometerModel.swift
 //  TokenStats
 //
-//  Owns the Tokens Today hero figure at the top of the popover: token
-//  usage summed across every Coding Agent's local files touched today —
+//  Owns the Token Odometer behind the popover's Tokens tab: token usage
+//  broken down by Coding Agent and Model, from local files touched today —
 //  Claude Code transcripts (all projects) and Codex session rollouts. The
 //  sources are plain files written by other processes, so while visible the
 //  model seeds once and then re-reads on each file-change tick from a
@@ -17,7 +17,7 @@ import Observation
 
 @MainActor
 @Observable
-final class TokensTodayModel {
+final class TokenOdometerModel {
     /// One Coding Agent's slice of the Token Odometer: its total, and the
     /// per-Model rows beneath it, ordered by total descending.
     struct AgentTokens: Equatable {

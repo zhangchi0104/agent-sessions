@@ -88,7 +88,7 @@ struct ModelAttributionTests {
             codexTokenCountLine(totalInput: 1_000, totalCached: 400, totalOutput: 100),
         ])
 
-        let model = TokensTodayModel(
+        let model = TokenOdometerModel(
             reader: TranscriptTokenReader(),
             roots: [(label: "Claude Code", path: claude.path), (label: "Codex", path: codex.path)]
         )
@@ -106,7 +106,7 @@ struct ModelAttributionTests {
 
     /// Drives the model over a single root and returns its per-Model slice.
     private func breakdown(of root: TempTranscripts) async throws -> [String: TokenUsage] {
-        let model = TokensTodayModel(reader: TranscriptTokenReader(),
+        let model = TokenOdometerModel(reader: TranscriptTokenReader(),
                                      roots: [(label: "Agent", path: root.path)])
         let task = Task { await model.observeWhileVisible() }
         defer { task.cancel() }

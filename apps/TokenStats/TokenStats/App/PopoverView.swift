@@ -2,9 +2,11 @@
 //  PopoverView.swift
 //  TokenStats
 //
-//  The popover anchored to the menu-bar item: the combined Tokens Today hero,
-//  then one AgentSection per Coding Agent in the user's Appearance order,
-//  primary first. The footer carries a global refresh control and a single
+//  The popover anchored to the menu-bar item: a glass tab bar switching
+//  between the Usage tab (one AgentSection per Coding Agent in the user's
+//  Appearance order, primary first) and the Tokens tab (the Token Odometer
+//  broken down by Coding Agent, Model and Token Kind, which arrives with the
+//  table). The footer carries a global refresh control and a single
 //  Settings control that reaches account management (sign in / sign out per
 //  agent) and Quit. All copy follows the glossary (Usage Window, never
 //  "session"; full agent names in the popover).
@@ -15,14 +17,22 @@ import AppKit
 
 struct PopoverView: View {
     let model: UsageModel
-    let tokensTodayModel: TokensTodayModel
+    let odometer: TokenOdometerModel
     @Environment(\.openWindow) private var openWindow
+    @State private var tab: PopoverTab = .usage
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
 
-            usage
+            GlassTabBar(selection: $tab)
+
+            switch tab {
+            case .usage:
+                usage
+            case .tokens:
+                tokens
+            }
 
             Divider()
             HStack {
@@ -36,21 +46,27 @@ struct PopoverView: View {
         .frame(width: 332)
     }
 
-    /// The combined tokens-today figure (every Coding Agent) on top, then one
-    /// section per agent in the user's display order.
+    /// The Usage tab: one section per Coding Agent in the user's display
+    /// order. Usage Window gauges and nothing else.
     @ViewBuilder private var usage: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if let usage = tokensTodayModel.usage {
-                TokensTodayHero(usage: usage, perAgent: tokensTodayModel.perAgent)
-            }
             ForEach(Array(model.appearance.displayOrder.enumerated()), id: \.element) { index, id in
                 if index > 0 { Divider() }
                 AgentSection(model: model, id: id)
             }
         }
-        // Watches transcripts only while the popover shows the figure;
-        // SwiftUI cancels this when the popover goes away.
-        .task { await tokensTodayModel.observeWhileVisible() }
+    }
+
+    /// The Tokens tab. The breakdown table lands here next; for now the tab
+    /// exists so the bar has somewhere to switch to.
+    @ViewBuilder private var tokens: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            EmptyView()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // Watches transcripts only while the Tokens tab is showing them;
+        // SwiftUI cancels this when the tab (or the popover) goes away.
+        .task { await odometer.observeWhileVisible() }
     }
 
     /// Footer menu: open the dedicated Settings page (account management) or quit.

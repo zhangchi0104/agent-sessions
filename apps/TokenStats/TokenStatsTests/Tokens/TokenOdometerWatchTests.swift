@@ -1,8 +1,8 @@
 //
-//  TokensTodayWatchTests.swift
+//  TokenOdometerWatchTests.swift
 //  TokenStatsTests
 //
-//  Behavior of the popover's Tokens Today figure under the file-watch refresh
+//  Behavior of the popover's Token Odometer under the file-watch refresh
 //  model (ADR-0003): it seeds today's total when the popover becomes visible
 //  and re-reads when a change is observed, all in-process. Only the OS
 //  file-watch boundary is faked; the real TranscriptTokenReader parses real
@@ -14,12 +14,12 @@ import Testing
 @testable import TokenStats
 
 @MainActor
-struct TokensTodayWatchTests {
+struct TokenOdometerWatchTests {
     @Test func seedsTodaysTotalOnActivation() async throws {
         let projects = try TempTranscripts("claude")
         try projects.write("a.jsonl", [claudeUsageLine(id: "m1", input: 100, output: 50)])
 
-        let model = TokensTodayModel(
+        let model = TokenOdometerModel(
             reader: TranscriptTokenReader(),
             roots: [(label: "Test", path: projects.path)]
         )
@@ -34,7 +34,7 @@ struct TokensTodayWatchTests {
         try projects.write("a.jsonl", [claudeUsageLine(id: "m1", input: 100, output: 50)])
 
         let source = EmittingTicks()
-        let model = TokensTodayModel(
+        let model = TokenOdometerModel(
             reader: TranscriptTokenReader(),
             roots: [(label: "Test", path: projects.path)],
             changeSource: source
@@ -55,7 +55,7 @@ struct TokensTodayWatchTests {
         try projects.write("a.jsonl", [claudeUsageLine(id: "m1", input: 100, output: 50)])
 
         let source = EmittingTicks()
-        let model = TokensTodayModel(
+        let model = TokenOdometerModel(
             reader: TranscriptTokenReader(),
             roots: [(label: "Test", path: projects.path)],
             changeSource: source

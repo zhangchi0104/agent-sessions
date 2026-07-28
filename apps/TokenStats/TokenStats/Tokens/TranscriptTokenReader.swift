@@ -36,19 +36,6 @@ struct TokenUsage: Equatable, Sendable {
         responseCount += other.responseCount
     }
 
-    /// "1.2M"-style figure for the row label; exact numbers go in the tooltip.
-    var compactTotal: String { Self.compact(totalTokens) }
-
-    /// Tooltip phrasing of the in/out split, shared by every surface that
-    /// discloses one.
-    var breakdownDescription: String {
-        "input \((inputTokens + cacheCreationTokens + cacheReadTokens).formatted()) "
-            + "(direct \(inputTokens.formatted()), "
-            + "cache write \(cacheCreationTokens.formatted()), "
-            + "cache read \(cacheReadTokens.formatted())) · "
-            + "output \(outputTokens.formatted())"
-    }
-
     static func compact(_ count: Int) -> String {
         let units: [(Double, String)] = [(1e9, "B"), (1e6, "M"), (1e3, "K")]
         for (unit, suffix) in units where Double(count) >= unit {

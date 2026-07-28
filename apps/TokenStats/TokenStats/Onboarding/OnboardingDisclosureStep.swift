@@ -23,7 +23,7 @@ struct OnboardingDisclosureStep: View {
                     "Usage is fetched directly from Claude and OpenAI. Your tokens and "
                     + "usage are never sent to any other server.")
                 row("internaldrive.fill", "Nothing about your work leaves your Mac",
-                    "Tokens Today is counted by reading your agents' transcript files "
+                    "Your token counts are read from your agents' transcript files "
                     + "on this Mac. TokenStats reads them and uploads nothing.")
             }
             Text("Every step is optional — you can skip any of them and change these later in Settings.")

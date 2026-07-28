@@ -70,7 +70,7 @@ protocol CodingAgentIntegration {
     var auth: any AgentAuthSession { get }
     var signInStyle: SignInStyle { get }
     var gaugeLayout: GaugeLayout { get }
-    /// The directory Tokens Today scans for this agent's transcripts.
+    /// The directory the Token Odometer scans for this agent's transcripts.
     var transcriptRoot: String { get }
 
     func makeProvider() -> UsageProvider

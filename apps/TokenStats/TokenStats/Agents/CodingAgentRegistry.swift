@@ -28,7 +28,7 @@ enum CodingAgentRegistry {
         return agent
     }
 
-    /// The Tokens Today scan roots, one per Coding Agent, in registry order.
+    /// The Token Odometer scan roots, one per Coding Agent, in registry order.
     static var transcriptRoots: [(label: String, path: String)] {
         all.map { (label: $0.displayName, path: $0.transcriptRoot) }
     }

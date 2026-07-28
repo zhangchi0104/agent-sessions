@@ -27,7 +27,7 @@ struct CodexCountingTests {
                                 lastInput: 1_000, lastCached: 400, lastOutput: 100),
         ])
 
-        let model = TokensTodayModel(reader: TranscriptTokenReader(),
+        let model = TokenOdometerModel(reader: TranscriptTokenReader(),
                                      roots: [(label: "Codex", path: root.path)])
         let task = Task { await model.observeWhileVisible() }
         defer { task.cancel() }
@@ -47,7 +47,7 @@ struct CodexCountingTests {
                                 lastInput: 500, lastCached: 200, lastOutput: 150),
         ])
 
-        let model = TokensTodayModel(reader: TranscriptTokenReader(),
+        let model = TokenOdometerModel(reader: TranscriptTokenReader(),
                                      roots: [(label: "Codex", path: root.path)])
         let task = Task { await model.observeWhileVisible() }
         defer { task.cancel() }
@@ -64,7 +64,7 @@ struct CodexCountingTests {
                                 lastInput: 1_000, lastCached: 400, lastOutput: 100),
         ])
 
-        let model = TokensTodayModel(reader: TranscriptTokenReader(),
+        let model = TokenOdometerModel(reader: TranscriptTokenReader(),
                                      roots: [(label: "Codex", path: root.path)])
         let task = Task { await model.observeWhileVisible() }
         defer { task.cancel() }
@@ -87,7 +87,7 @@ struct CodexCountingTests {
         ])
 
         let source = EmittingTicks()
-        let model = TokensTodayModel(reader: TranscriptTokenReader(),
+        let model = TokenOdometerModel(reader: TranscriptTokenReader(),
                                      roots: [(label: "Codex", path: root.path)],
                                      changeSource: source)
         let task = Task { await model.observeWhileVisible() }
