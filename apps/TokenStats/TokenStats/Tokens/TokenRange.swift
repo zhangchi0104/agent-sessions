@@ -32,9 +32,11 @@ enum TokenRange: CaseIterable, Hashable {
         }
     }
 
-    /// Local midnight at the start of the window.
-    func start(from now: Date = Date(), calendar: Calendar = .current) -> Date {
-        let startOfToday = calendar.startOfDay(for: now)
-        return calendar.date(byAdding: .day, value: -(days - 1), to: startOfToday) ?? startOfToday
+    /// Local midnight at the start of the window. `Calendar.current` is right
+    /// for the boundary, and the reader keys the result through a calendar
+    /// pinned to the same time zone, so boundary and entries agree.
+    func start() -> Date {
+        let startOfToday = Calendar.current.startOfDay(for: Date())
+        return Calendar.current.date(byAdding: .day, value: -(days - 1), to: startOfToday) ?? startOfToday
     }
 }

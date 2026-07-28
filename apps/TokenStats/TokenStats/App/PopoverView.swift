@@ -31,7 +31,7 @@ struct PopoverView: View {
             case .usage:
                 usage
             case .tokens:
-                tokens
+                TokensTabView(odometer: odometer)
             }
 
             Divider()
@@ -55,12 +55,6 @@ struct PopoverView: View {
                 AgentSection(model: model, id: id)
             }
         }
-    }
-
-    /// The Tokens tab: the Token Odometer for the selected range, broken down
-    /// by Coding Agent, Model and Token Kind.
-    private var tokens: some View {
-        TokensTabView(odometer: odometer)
     }
 
     /// Footer menu: open the dedicated Settings page (account management) or quit.

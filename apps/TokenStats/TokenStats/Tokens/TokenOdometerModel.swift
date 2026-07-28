@@ -33,8 +33,14 @@ final class TokenOdometerModel {
     }
 
     /// Combined totals across every Coding Agent for the displayed range, or
-    /// nil when nothing was consumed in it.
-    private(set) var usage: TokenUsage?
+    /// nil when nothing was consumed in it. Derived, not stored: the tab shows
+    /// no grand total, so nothing on screen depends on it — it exists as a
+    /// summary for callers that want one, and cannot drift from `perAgent`.
+    var usage: TokenUsage? {
+        var combined = TokenUsage()
+        for slice in perAgent { combined.add(slice.usage) }
+        return combined.responseCount > 0 ? combined : nil
+    }
     /// Per-agent slices in `roots` order. An agent with no usage in range is
     /// listed with an empty breakdown rather than omitted — a quiet day is an
     /// ordinary state, and the tab says so in words instead of dropping a row.
@@ -97,11 +103,6 @@ final class TokenOdometerModel {
         guard range == selectedRange else { return }
         displayedRange = range
         perAgent = slices
-        var combined = TokenUsage()
-        for slice in slices { combined.add(slice.usage) }
-        // Nil means "nothing in this range", which the tab words rather than
-        // rendering as a table of zeroes.
-        usage = combined.responseCount > 0 ? combined : nil
     }
 
     /// Seed today's totals, then re-read whenever the watched transcript files

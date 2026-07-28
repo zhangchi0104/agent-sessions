@@ -149,7 +149,7 @@ actor TranscriptTokenReader {
         // resulting Date is then keyed through dayKeyFormatter, whose pinned
         // Gregorian calendar shares the local time zone, so the boundary and
         // the entries inside it always map to the same "yyyy-MM-dd" key.
-        let startOfToday = range.start()
+        let windowStart = range.start()
         guard let enumerator = FileManager.default.enumerator(
             at: URL(fileURLWithPath: root),
             includingPropertiesForKeys: [.contentModificationDateKey]
@@ -157,27 +157,27 @@ actor TranscriptTokenReader {
 
         // Every day key inside the window, so a range is a sum over its days.
         let windowKeys = Set((0..<range.days).compactMap { offset in
-            Calendar.current.date(byAdding: .day, value: offset, to: startOfToday)
+            Calendar.current.date(byAdding: .day, value: offset, to: windowStart)
                 .map { dayKeyFormatter.string(from: $0) }
         })
-        var today: [String: TokenUsage] = [:]
+        var inWindow: [String: TokenUsage] = [:]
         for case let url as URL in enumerator {
             guard url.pathExtension == "jsonl",
                   let mtime = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate,
-                  mtime >= startOfToday
+                  mtime >= windowStart
             else { continue }
             _ = usage(forTranscriptAt: url.path)
             guard let state = states[url.path] else { continue }
             for (key, usage) in state.perDay where windowKeys.contains(key.day) {
-                today[key.model, default: TokenUsage()].add(usage)
+                inWindow[key.model, default: TokenUsage()].add(usage)
             }
             // Usage the file never attributed — no line in it named a Model.
             for (day, pending) in state.pendingByDay where windowKeys.contains(day) {
-                today[Self.unknownModel, default: TokenUsage()].add(pending)
+                inWindow[Self.unknownModel, default: TokenUsage()].add(pending)
             }
         }
         evictStaleStates()
-        return today.filter { $0.value.responseCount > 0 }
+        return inWindow.filter { $0.value.responseCount > 0 }
     }
 
     /// Parse state for files nothing has read in days is archaeology — this
@@ -358,8 +358,9 @@ struct CodexModelLine: Decodable {
 
 /// The slice of a Codex rollout line the reader cares about
 /// (`{"timestamp", "type": "event_msg", "payload": {"type": "token_count",
-///   "info": {"total_token_usage": {...}}}}`). `last_token_usage` is decoded
-/// alongside but deliberately unused: it is the field that double-counts.
+///   "info": {"total_token_usage": {...}}}}`). `last_token_usage` sits beside it
+/// in the file and is deliberately not decoded: it is the field that
+/// double-counts.
 struct CodexRolloutLine: Decodable {
     struct Payload: Decodable {
         struct Info: Decodable {
