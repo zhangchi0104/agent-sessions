@@ -59,6 +59,12 @@ struct TokensTabView: View {
         }
         .pickerStyle(.segmented)
         .labelsHidden()
+        // Centred, not stretched. A segmented control on macOS draws at its
+        // intrinsic width and centres itself in whatever frame it is given —
+        // handing it a definite 300pt (measured, not guessed) leaves the
+        // segments exactly this wide, so there is nothing to be gained by
+        // measuring. It sits narrower than the table below it by design.
+        .frame(maxWidth: .infinity)
         .accessibilityLabel("Token Odometer range")
     }
 
