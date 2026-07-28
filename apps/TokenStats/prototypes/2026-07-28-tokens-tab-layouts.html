@@ -2,7 +2,8 @@
 
 <style>
   /* PROTOTYPE — throwaway. Answers wayfinder ticket #27 only. Not production code.
-     Round 2: B (the four-column table) merged with C (proportion bars), three ways.
+     Round 4: D3 settled (figures + a bar per row); the open question is how the
+     four colours get named — abbreviated header, spelled-out legend, or both.
      Real popover width (332pt), real token data measured 2026-07-28. */
 
   :root {
@@ -135,6 +136,25 @@
   table.t tr.sub td { color: var(--pop-ink-2); }
   table.t td.name { max-width: 104px; }
 
+  /* Text-safe variants: the bar colours are tuned for 3pt fills, which is not
+     the same job as 9.5pt uppercase type on the popover ground. */
+  :root { --t-in: #1f6fd0; --t-out: #16785a; --t-cw: #9a6708; --t-cr: #6a5fa8; }
+  @media (prefers-color-scheme: dark) { :root { --t-in: #6fb0f8; --t-out: #52c99a; --t-cw: #e8b455; --t-cr: #a79ddb; } }
+  :root[data-theme="light"] { --t-in: #1f6fd0; --t-out: #16785a; --t-cw: #9a6708; --t-cr: #6a5fa8; }
+  :root[data-theme="dark"] { --t-in: #6fb0f8; --t-out: #52c99a; --t-cw: #e8b455; --t-cr: #a79ddb; }
+
+  /* D3c — the header labels carry the colour themselves */
+  table.hc th.k0 { color: var(--t-in); }
+  table.hc th.k1 { color: var(--t-out); }
+  table.hc th.k2 { color: var(--t-cw); }
+  table.hc th.k3 { color: var(--t-cr); }
+
+  /* D3d — a swatch in front of each header label */
+  table.hs th span.sw {
+    display: inline-block; width: 6px; height: 6px; border-radius: 1.5px;
+    margin-right: 3px; vertical-align: 0.5px;
+  }
+
   /* D3b — the bar tucked flush under the figures as the row's rule */
   table.d3b tr.sub td { padding: 2px 0 0; }
   table.d3b tr.barrow td { padding: 0 0 3px; }
@@ -159,7 +179,10 @@
   .row-bar { display: flex; height: 5px; border-radius: 2px; overflow: hidden; background: var(--pop-fill); }
   .row-bar i { display: block; height: 100%; }
 
-  .legend { display: flex; flex-wrap: wrap; gap: 4px 11px; font-size: 10.5px; color: var(--pop-ink-2); margin-top: 9px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 3px 14px; font-size: 10.5px; color: var(--pop-ink-2); margin-top: 9px; }
+  /* Measured: swatch + full label x4 needs 268pt of the 300pt available, so the
+     legend holds one line and costs one row, not two. */
+  .legend.pairs { display: flex; flex-wrap: nowrap; gap: 0 10px; white-space: nowrap; }
   .legend span { display: inline-flex; align-items: center; gap: 4px; }
   .legend b { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
 
@@ -183,36 +206,34 @@
 <h2 class="sr-only">Three ways of merging the four-column table with proportion bars for the TokenStats Tokens tab, each at the real 332pt popover width with real measured token data.</h2>
 
 <div class="wrap">
-  <p class="eyebrow">Wayfinder #27 · throwaway prototype · round 3</p>
-  <h1>D3 picked — and the 92pt is paid off</h1>
+  <p class="eyebrow">Wayfinder #27 · throwaway prototype · round 4</p>
+  <h1>Naming the colours: header, legend, or both</h1>
   <p class="lede">
-    <strong>D3</strong> was chosen: every figure kept, plus an explicit bar under each row. It came in at
-    648pt at 30 days, 92pt over a plain table and well past the 600pt comfort line. Two moves paid that
-    back. <strong>Dropping the hero</strong> — the big total that used to sit at the top of this tab — is
-    worth 51pt on its own, and D3 clears the line without further help. Then the legend goes, because the
-    bar's segments run <strong>in the same order as the columns above them</strong>: in, out, cache write,
-    cache read. The header row already <em>is</em> the legend.</p>
+    D3 is settled — every figure, plus a bar beneath each row, at <strong>528pt</strong> for 30 days.
+    What is left is how the four colours get <em>named</em>. The abbreviated header
+    (<code>C·W</code>) is terse and free; a legend spells <em>Cache write</em> out in full beside its
+    swatch and costs <strong>25pt</strong>, once. These three are the same layout differing only in that.</p>
 
   <dl class="facts">
     <div class="fact">
-      <dt>Dropping the hero</dt>
-      <dd>−51pt</dd>
-      <p>The grand total is gone from the top of the tab. Per-agent totals stay on the group headers.</p>
+      <dt>A spelled-out legend costs</dt>
+      <dd>+25pt</dd>
+      <p>Once, not per row — and only because it fits on a single line.</p>
     </div>
     <div class="fact">
-      <dt>Header doubles as legend</dt>
-      <dd>−25pt</dd>
-      <p>Segment order matches column order, so the colour key is already on screen.</p>
+      <dt>Single-line legend, measured</dt>
+      <dd>298 / 298pt</dd>
+      <p>It fits with nothing to spare. A longer word, a larger type size, or another language breaks it onto a second row and doubles the cost.</p>
     </div>
     <div class="fact">
-      <dt>D3b over a bar-less table</dt>
-      <dd>+22pt</dd>
-      <p>Two points per row — the bar replaces the separator a dense table needs anyway.</p>
+      <dt>Colouring the header costs</dt>
+      <dd>0pt</dd>
+      <p>The header row already exists. D3c and D3f measure identically apart from the legend.</p>
     </div>
     <div class="fact">
-      <dt>All three now clear</dt>
-      <dd>&lt; 600pt</dd>
-      <p>At 30 days, 11 model rows: 597 / 572 / 528pt.</p>
+      <dt>At 30 days, 11 rows</dt>
+      <dd>528 / 553pt</dd>
+      <p>Both comfortably inside the 600pt line.</p>
     </div>
   </dl>
 
@@ -228,40 +249,34 @@
 
   <div class="decks">
     <section class="deck base">
-      <h2>B <span>· no composition, for scale</span></h2>
-      <p class="why">Four numbers, no bar, no legend. Not a candidate — it is here only so the price of
-        showing composition at all stays visible as a number.</p>
-      <div class="pop" id="popB"></div>
-      <p class="metric" id="mB"></p>
+      <h2>D3c <span>· coloured header only</span></h2>
+      <p class="why">Where the last round landed: <code>IN</code> <code>OUT</code> <code>C·W</code>
+        <code>C·R</code> each set in their kind's colour, no legend block. Cheapest, but the labels
+        are abbreviations — the colour is named only if you already know what C·W means.</p>
+      <div class="pop" id="popD3c"></div>
+      <p class="metric" id="mD3c"></p>
     </section>
 
     <section class="deck">
-      <h2>D3 <span>· as picked</span></h2>
-      <p class="why">Four numbers, a 5pt bar beneath each row, row padding at 2pt, and a legend
-        underneath. The version chosen, unchanged, so the tightenings have something to beat.</p>
-      <div class="pop" id="popD3"></div>
-      <p class="metric" id="mD3"></p>
+      <h2>D3e <span>· coloured header + spelled-out legend</span></h2>
+      <p class="why">Both. The header keeps its colour, and a legend underneath puts the full label
+        beside each swatch — <em>Cache write</em>, not <code>C·W</code>. The colour is named twice,
+        once tersely in place and once in full.</p>
+      <div class="pop" id="popD3e"></div>
+      <p class="metric" id="mD3e"></p>
     </section>
 
     <section class="deck">
-      <h2>D3a <span>· header is the legend</span></h2>
-      <p class="why">Identical to D3 with the legend deleted. The bar's segments already run in the
-        column order above them, so the header carries the mapping — nothing is lost but the block.</p>
-      <div class="pop" id="popD3a"></div>
-      <p class="metric" id="mD3a"></p>
-    </section>
-
-    <section class="deck">
-      <h2>D3b <span>· bar becomes the row rule</span></h2>
-      <p class="why">No legend, and the bar tucked flush under the figures as a 3pt rule with no
-        padding of its own — it replaces the separator a dense table would need anyway.</p>
-      <div class="pop" id="popD3b"></div>
-      <p class="metric" id="mD3b"></p>
+      <h2>D3f <span>· legend only, neutral header</span></h2>
+      <p class="why">The legend carries the whole job: swatch, then full label beside it. Header type
+        stays grey, so nothing competes with the numbers and the colour lives in one place.</p>
+      <div class="pop" id="popD3f"></div>
+      <p class="metric" id="mD3f"></p>
     </section>
   </div>
 
   <div class="findings">
-    <h2>What round 2 settles</h2>
+    <h2>What round 4 settles</h2>
     <ol id="notes"></ol>
   </div>
 </div>
@@ -395,8 +410,8 @@
       ec.colSpan = cols; er.appendChild(ec); tb.appendChild(er);
     }
   }
-  function legend(body) {
-    const lg = el("div", "legend");
+  function legend(body, pairs) {
+    const lg = el("div", "legend" + (pairs ? " pairs" : ""));
     KIND_LABEL.forEach((l, i) => {
       const s = el("span"); const b = el("b"); b.style.background = `var(${KINDS[i]})`;
       s.appendChild(b); s.appendChild(document.createTextNode(l)); lg.appendChild(s);
@@ -423,13 +438,27 @@
 
   // D3 with the legend deleted: the bar's segment order already matches the
   // column order above it, so the header row carries the mapping.
-  function fillD3a(body, range) { d3table(body, range, "d3", false, "row-bar"); }
-  // ...and with the bar tucked flush under the figures as the row's own rule.
-  function fillD3b(body, range) { d3table(body, range, "d3b", false, "rule-bar"); }
+  function fillD3b(body, range) { d3table(body, range, "d3b", false, "rule-bar", "plain"); }
+  // The header row made an explicit legend, two ways.
+  function fillD3c(body, range) { d3table(body, range, "d3b", false, "rule-bar", "colour"); }
+  // Colour in the header AND a legend spelling each kind out in full.
+  function fillD3e(body, range) { d3table(body, range, "d3b", true, "rule-bar", "colour"); }
+  // The legend alone, carrying the full labels; header stays neutral.
+  function fillD3f(body, range) { d3table(body, range, "d3b", true, "rule-bar", "plain"); }
 
-  function d3table(body, range, cls, withLegend, barClass) {
-    const t = el("table", "t " + cls), thead = el("thead"), tr = el("tr");
-    ["Model", "In", "Out", "C·W", "C·R"].forEach(h => tr.appendChild(el("th", null, h)));
+  function d3table(body, range, cls, withLegend, barClass, headStyle) {
+    const t = el("table", "t " + cls + (headStyle === "colour" ? " hc" : headStyle === "swatch" ? " hs" : "")),
+          thead = el("thead"), tr = el("tr");
+    ["Model", "In", "Out", "C·W", "C·R"].forEach((h, i) => {
+      const th = el("th", i > 0 ? "k" + (i - 1) : null);
+      if (i > 0 && headStyle === "swatch") {
+        const sw = el("span", "sw");
+        sw.style.background = `var(${KINDS[i - 1]})`;
+        th.appendChild(sw);
+      }
+      th.appendChild(document.createTextNode(h));
+      tr.appendChild(th);
+    });
     thead.appendChild(tr); t.appendChild(thead);
     const tb = el("tbody");
     rows(range).forEach(g => {
@@ -444,37 +473,36 @@
       });
     });
     t.appendChild(tb); body.appendChild(t);
-    if (withLegend) legend(body);
+    if (withLegend) legend(body, true);
   }
 
-  function fillD3(body, range) { d3table(body, range, "d3", true, "row-bar"); }
+  function fillD3(body, range) { d3table(body, range, "d3", true, "row-bar", "plain"); }
 
   const NOTES = [
-    ["Removing the hero paid most of the debt.", "The grand total at the top of the tab was worth <b>51pt</b> — D3 fell from 648pt to <b>597pt</b> and cleared the 600pt line with no other change. Per-agent totals still sit on each group header, so the tab has not lost the ability to answer \"how much, per agent\"; it has lost only the single combined figure, which was the number least specific to this tab."],
-    ["The header row is the legend.", "The bar's segments run in the same order as the columns above them — in, out, cache write, cache read — so the colour key is already on screen and the legend block is redundant. Worth <b>25pt</b>, paid once. The mapping is order-preserving, not width-preserving: cache read is a narrow column and most of the bar, which is exactly the asymmetry the bar exists to show."],
-    ["D3b costs 22pt more than showing no composition at all.", "Tucking the bar flush under the figures as a 3pt rule with no padding of its own lands at <b>528pt</b> against the bar-less table's 506pt — two points per row, because the bar replaces the separator a dense table would need anyway. It is the cheapest way to keep every figure <em>and</em> the composition."],
-    ["The Codex dash becomes a visible absence.", "A Codex row prints <code>–</code> under Cache&nbsp;W and, without a bar, you have to already know that Codex reports no cache writes. With the bar, the missing amber segment says it. That is the round-1 finding this whole merge exists to preserve."],
-    ["Model names still truncate, and no layout here fixes it.", "<code>claude-haiku-4-5-20251001</code> needs 172pt of column and none of these give it more than 129pt. Keeping four numeric columns means the name column cannot grow. That is now a known, accepted cost of D3 rather than an open question — unless a shorter display name is worth its own decision."]
+    ["The legend fits on one line, with nothing to spare.", "Swatch plus full label, four times, measures <b>298pt against the 298pt available</b>. That is what makes it cost 25pt instead of 50 — and it is not robust. A longer label, a larger type size, or a translation wraps it to a second row and doubles the price. If the legend stays, that measurement is a constraint on the wording, not a happy accident."],
+    ["Colouring the header is genuinely free.", "D3c and D3f are identical in height at every range; the only difference between them is 25pt of legend. So the real question is not <em>header or legend</em> on cost grounds — it is whether an abbreviation named by colour alone (<code>C·W</code>) is enough, or whether the words need to be on screen."],
+    ["D3e names each colour twice.", "Coloured header <em>and</em> spelled-out legend. Redundant by construction — which is the point if the abbreviations are the problem, and clutter if they are not. It costs exactly the same as D3f, so the choice between them is about where the colour belongs, not what it costs."],
+    ["The bar still carries the finding the merge exists for.", "In every variant here a Codex row prints <code>–</code> under Cache&nbsp;W <em>and</em> shows a missing amber segment. Naming the colours makes that absence legible to someone who has not been told that Codex reports no cache writes."],
+    ["Model names still truncate.", "<code>claude-haiku-4-5-20251001</code> needs 172pt of column against the 135pt these give it. Unchanged by anything in this round, and now a known accepted cost of keeping four numeric columns."]
   ];
 
   function render(range) {
-    shell(document.getElementById("popB"), range, fillB);
-    shell(document.getElementById("popD3"), range, fillD3);
-    shell(document.getElementById("popD3a"), range, fillD3a);
-    shell(document.getElementById("popD3b"), range, fillD3b);
+    shell(document.getElementById("popD3c"), range, fillD3c);
+    shell(document.getElementById("popD3e"), range, fillD3e);
+    shell(document.getElementById("popD3f"), range, fillD3f);
     const gs = rows(range);
     const models = gs.reduce((t, g) => t + g.list.length, 0);
     document.getElementById("load").textContent =
       `${models} model row${models === 1 ? "" : "s"} · ${gs.length} agent groups · ${COST[range]}`;
     requestAnimationFrame(() => {
-      const base = document.getElementById("popD3").offsetHeight;
-      [["mB", "popB"], ["mD3", "popD3"], ["mD3a", "popD3a"], ["mD3b", "popD3b"]].forEach(([m, p]) => {
+      const base = document.getElementById("popD3c").offsetHeight;
+      [["mD3c", "popD3c"], ["mD3e", "popD3e"], ["mD3f", "popD3f"]].forEach(([m, p]) => {
         const h = document.getElementById(p).offsetHeight;
         const over = h > 600;
         let delta = "";
-        if (p !== "popD3") {
+        if (p !== "popD3c") {
           const d = h - base;
-          delta = ` · <b>vs D3</b> <span class="${d > 0 ? "warn" : d < 0 ? "ok" : ""}">${d > 0 ? "+" : ""}${d}pt</span>`;
+          delta = ` · <b>vs D3c</b> <span class="${d > 0 ? "warn" : "ok"}">${d > 0 ? "+" : ""}${d}pt</span>`;
         }
         document.getElementById(m).innerHTML =
           `<b>height</b> <span class="${over ? "warn" : "ok"}">${h}pt</span>${delta}` +
