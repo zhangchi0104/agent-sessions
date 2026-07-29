@@ -5,6 +5,8 @@ Date: 2026-07-27
 Status: Accepted
 
 Amends [ADR-0005 — TokenStats tracks usage only](0005-tokenstats-tracks-usage-only.md).
+The local parse-persistence boundary is amended by
+[ADR-0007 — Windows keeps a disposable local token parse cache](0007-local-token-parse-cache.md).
 
 ## Context
 
@@ -73,10 +75,12 @@ Add a separate native Windows application under `apps/TokenStats.Windows`:
   range and Token Kind changes, Display preference changes, tab changes, scan
   results, and expanded diagnostics.
 - Because the tray tooltip consumes the objective Token summary while the
-  flyout is closed, Windows seeds the persisted range at startup and keeps debounced
-  `FileSystemWatcher` subscriptions active for the resident app's lifetime.
-  The watcher remains in-process and event-driven; it is not a daemon, database
-  cache, IPC service, or polling loop.
+  flyout is closed, Windows fully reconciles the persisted range at startup and
+  keeps debounced `FileSystemWatcher` subscriptions active for the resident
+  app's lifetime. The watcher remains in-process and event-driven; it is not a
+  daemon, database, IPC service, or polling loop. ADR-0007 permits only a
+  disposable local per-file parse-checkpoint cache to accelerate that
+  reconciliation.
 - The existing Swift/macOS project remains native and independent. The two apps
   share target behavior specifications, endpoint documentation, terminology,
   and visual assets—not a runtime or build graph.
@@ -113,10 +117,12 @@ daemon. C# is introduced only for the Windows client.
   C#, so parser fixtures and acceptance tests must guard against drift. The
   Windows-only pricing summary must remain clearly separated from the shared
   raw Token Odometer semantics.
-- **Negative:** Windows keeps two recursive file-system subscriptions armed
-  while the tray process is resident and performs a background seed scan at
-  every launch. Persisting 30 days can make that initial scan materially more
-  expensive than Today, although idle operation performs no polling.
+- **Negative:** Windows keeps recursive file and directory subscriptions for
+  both transcript roots armed while the tray process is resident and performs
+  a background full reconciliation at every launch. A cold or invalidated
+  30-day cache can make that initial reconciliation materially more expensive
+  than Today, although valid checkpoints avoid re-parsing unchanged files and
+  idle operation performs no transcript polling.
 - **Negative:** Windows packaging, Authenticode signing, SmartScreen reputation,
   and release assets require their own pipeline and credentials.
 - **Risk:** the Claude and Codex endpoints are unofficial. Codex login and usage
@@ -136,5 +142,6 @@ behavior:
    restarts. The flyout grows to the current work-area limit before scrolling,
    and every size-changing operation repositions it inside that work area.
 3. The Windows watcher is application-resident rather than Tokens-tab-visible.
-   This revises only the watcher lifetime from ADR-0003; the no-daemon,
-   no-database, and no-IPC architecture remains accepted.
+   This revises the watcher lifetime from ADR-0003. ADR-0007 later revises the
+   strictly in-memory parse-state boundary, while the no-daemon, no-database,
+   and no-IPC architecture remains accepted.

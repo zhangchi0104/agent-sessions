@@ -64,7 +64,13 @@ public partial class App : System.Windows.Application
 
         _coordinator = new UsageCoordinator(_settings, auth, providers);
         _tokenOdometer = new TokenOdometerWatcher(
-            new TranscriptTokenReader(),
+            new TranscriptTokenReader(
+                cacheDirectory: Path.Combine(
+                    Environment.GetFolderPath(
+                        Environment.SpecialFolder.LocalApplicationData),
+                    "TokenStats",
+                    "Cache",
+                    "token-reader-v1")),
             initialRange: _settings.Appearance.SelectedTokenRange);
         _flyout = new FlyoutWindow(
             _coordinator,
