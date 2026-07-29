@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Automation.Peers;
 using System.Windows.Media;
+using TokenStats.App.Services;
 using TokenStats.Core;
 
 namespace TokenStats.App.Controls;
@@ -387,7 +388,12 @@ public sealed class UsageGauge : FrameworkElement
             text,
             CultureInfo.CurrentUICulture,
             FlowDirection.LeftToRight,
-            new Typeface(new FontFamily("Segoe UI Variable Text"), FontStyles.Normal, weight, FontStretches.Normal),
+            new Typeface(
+                TryFindResource("AppFontFamily") as FontFamily ??
+                new FontFamily(VisualAppearancePreferences.DefaultFontFamily),
+                FontStyles.Normal,
+                weight,
+                FontStretches.Normal),
             fontSize,
             brush,
             VisualTreeHelper.GetDpi(this).PixelsPerDip);

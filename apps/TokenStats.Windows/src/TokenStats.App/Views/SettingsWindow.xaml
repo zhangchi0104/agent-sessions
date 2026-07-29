@@ -14,11 +14,16 @@
     ShowInTaskbar="True"
     Style="{StaticResource {x:Type Window}}"
     WindowStartupLocation="CenterScreen">
-    <Grid>
+    <Grid x:Name="AppearanceRoot">
         <Grid.ColumnDefinitions>
             <ColumnDefinition x:Name="NavigationColumn" Width="190" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
+
+        <Border
+            Grid.ColumnSpan="2"
+            Background="{DynamicResource AppBackgroundImageBrush}"
+            IsHitTestVisible="False" />
 
         <Border
             Grid.Column="0"
@@ -50,7 +55,8 @@
                         </Style>
                     </ListBox.Resources>
                     <ListBoxItem Content="Accounts" Tag="accounts" />
-                    <ListBoxItem Content="Display" Tag="appearance" />
+                    <ListBoxItem Content="Display" Tag="display" />
+                    <ListBoxItem Content="Appearance" Tag="appearance" />
                     <ListBoxItem Content="About" Tag="about" />
                 </ListBox>
             </DockPanel>
@@ -76,7 +82,7 @@
             </ScrollViewer>
 
             <ScrollViewer
-                x:Name="AppearancePage"
+                x:Name="DisplayPage"
                 Padding="28,24"
                 VerticalScrollBarVisibility="Auto"
                 Visibility="Collapsed">
@@ -190,6 +196,265 @@
                         Checked="StartWithWindows_OnChanged"
                         Unchecked="StartWithWindows_OnChanged"
                         Content="Start TokenStats when I sign in" />
+                </StackPanel>
+            </ScrollViewer>
+
+            <ScrollViewer
+                x:Name="AppearancePage"
+                Padding="28,24"
+                VerticalScrollBarVisibility="Auto"
+                Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock FontSize="24" FontWeight="SemiBold" Text="Appearance" />
+                    <TextBlock
+                        Margin="0,4,0,0"
+                        Style="{StaticResource SecondaryText}"
+                        Text="Personalize TokenStats independently from Windows while preserving High Contrast accessibility."
+                        TextWrapping="Wrap" />
+
+                    <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Theme" />
+                    <ComboBox
+                        x:Name="ThemeModeCombo"
+                        Width="220"
+                        HorizontalAlignment="Left"
+                        SelectionChanged="ThemeModeCombo_OnSelectionChanged">
+                        <ComboBoxItem Content="Follow Windows" Tag="System" />
+                        <ComboBoxItem Content="Light" Tag="Light" />
+                        <ComboBoxItem Content="Dark" Tag="Dark" />
+                    </ComboBox>
+                    <TextBlock
+                        Margin="0,6,0,0"
+                        Style="{StaticResource SecondaryText}"
+                        Text="High Contrast always follows Windows and temporarily overrides custom colors, images, and flyout transparency."
+                        TextWrapping="Wrap" />
+
+                    <Grid Margin="0,22,0,8">
+                        <TextBlock Style="{StaticResource SectionTitle}" Text="Theme colors" />
+                        <Button
+                            x:Name="ResetColorsButton"
+                            HorizontalAlignment="Right"
+                            Click="ResetColors_OnClick"
+                            Content="Reset colors" />
+                    </Grid>
+                    <UniformGrid
+                        x:Name="ColorOverridesPanel"
+                        Columns="2"
+                        Rows="7" />
+                    <TextBlock
+                        Margin="0,6,0,0"
+                        Style="{StaticResource SecondaryText}"
+                        Text="Choose a swatch to override it. Each override is layered over the selected light or dark palette."
+                        TextWrapping="Wrap" />
+
+                    <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Typography" />
+                    <ComboBox
+                        x:Name="FontFamilyCombo"
+                        Width="320"
+                        HorizontalAlignment="Left"
+                        DisplayMemberPath="Label"
+                        SelectedValuePath="Value"
+                        SelectionChanged="FontFamilyCombo_OnSelectionChanged" />
+                    <TextBlock
+                        Margin="0,6,0,0"
+                        Style="{StaticResource SecondaryText}"
+                        Text="Applies to interface text and Usage Window gauges. Icons and aligned token columns keep their specialized fonts."
+                        TextWrapping="Wrap" />
+
+                    <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Background image" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox
+                            x:Name="BackgroundImagePathText"
+                            MinWidth="180"
+                            IsReadOnly="True"
+                            ToolTip="Selected background image" />
+                        <Button
+                            Grid.Column="1"
+                            Margin="8,0,0,0"
+                            Click="ChooseBackgroundImage_OnClick"
+                            Content="Choose…" />
+                        <Button
+                            x:Name="ClearBackgroundImageButton"
+                            Grid.Column="2"
+                            Margin="8,0,0,0"
+                            Click="ClearBackgroundImage_OnClick"
+                            Content="Clear" />
+                    </Grid>
+                    <Grid Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            Margin="0,0,12,0"
+                            VerticalAlignment="Center"
+                            Text="Placement" />
+                        <ComboBox
+                            x:Name="BackgroundPlacementCombo"
+                            Grid.Column="1"
+                            Width="180"
+                            HorizontalAlignment="Left"
+                            SelectionChanged="BackgroundPlacementCombo_OnSelectionChanged">
+                            <ComboBoxItem Content="Fill" Tag="Fill" />
+                            <ComboBoxItem Content="Fit" Tag="Fit" />
+                            <ComboBoxItem Content="Center" Tag="Center" />
+                            <ComboBoxItem Content="Tile" Tag="Tile" />
+                        </ComboBox>
+                    </Grid>
+                    <Grid Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            Margin="0,0,12,0"
+                            VerticalAlignment="Center"
+                            Text="Position" />
+                        <ComboBox
+                            x:Name="BackgroundPositionCombo"
+                            Grid.Column="1"
+                            Width="180"
+                            HorizontalAlignment="Left"
+                            SelectionChanged="BackgroundPositionCombo_OnSelectionChanged">
+                            <ComboBoxItem Content="Top left" Tag="TopLeft" />
+                            <ComboBoxItem Content="Top" Tag="Top" />
+                            <ComboBoxItem Content="Top right" Tag="TopRight" />
+                            <ComboBoxItem Content="Left" Tag="Left" />
+                            <ComboBoxItem Content="Center" Tag="Center" />
+                            <ComboBoxItem Content="Right" Tag="Right" />
+                            <ComboBoxItem Content="Bottom left" Tag="BottomLeft" />
+                            <ComboBoxItem Content="Bottom" Tag="Bottom" />
+                            <ComboBoxItem Content="Bottom right" Tag="BottomRight" />
+                        </ComboBox>
+                    </Grid>
+                    <TextBlock Margin="0,12,0,0" Text="Opacity" />
+                    <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="52" />
+                        </Grid.ColumnDefinitions>
+                        <Slider
+                            x:Name="BackgroundImageOpacitySlider"
+                            Maximum="100"
+                            Minimum="0"
+                            TickFrequency="5"
+                            IsSnapToTickEnabled="True"
+                            AutomationProperties.Name="Background image opacity"
+                            ValueChanged="BackgroundImageOpacity_OnValueChanged" />
+                        <TextBlock
+                            x:Name="BackgroundImageOpacityValue"
+                            Grid.Column="1"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource SecondaryText}" />
+                    </Grid>
+
+                    <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Flyout" />
+                    <TextBlock Text="Opacity" />
+                    <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="52" />
+                        </Grid.ColumnDefinitions>
+                        <Slider
+                            x:Name="FlyoutOpacitySlider"
+                            Maximum="100"
+                            Minimum="55"
+                            TickFrequency="5"
+                            IsSnapToTickEnabled="True"
+                            AutomationProperties.Name="Flyout opacity"
+                            ValueChanged="FlyoutOpacity_OnValueChanged" />
+                        <TextBlock
+                            x:Name="FlyoutOpacityValue"
+                            Grid.Column="1"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource SecondaryText}" />
+                    </Grid>
+                    <TextBlock Margin="0,12,0,0" Text="Width" />
+                    <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="72" />
+                        </Grid.ColumnDefinitions>
+                        <Slider
+                            x:Name="FlyoutWidthSlider"
+                            Maximum="640"
+                            Minimum="360"
+                            TickFrequency="20"
+                            IsSnapToTickEnabled="True"
+                            AutomationProperties.Name="Flyout width"
+                            ValueChanged="FlyoutWidth_OnValueChanged" />
+                        <TextBlock
+                            x:Name="FlyoutWidthValue"
+                            Grid.Column="1"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource SecondaryText}" />
+                    </Grid>
+
+                    <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Interface scale" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="52" />
+                        </Grid.ColumnDefinitions>
+                        <Slider
+                            x:Name="InterfaceScaleSlider"
+                            Maximum="140"
+                            Minimum="80"
+                            TickFrequency="5"
+                            IsSnapToTickEnabled="True"
+                            AutomationProperties.Name="Text and interface scale"
+                            ValueChanged="InterfaceScale_OnValueChanged" />
+                        <TextBlock
+                            x:Name="InterfaceScaleValue"
+                            Grid.Column="1"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource SecondaryText}" />
+                    </Grid>
+                    <TextBlock
+                        Margin="0,6,0,0"
+                        Style="{StaticResource SecondaryText}"
+                        Text="Text, controls, spacing, and window dimensions scale together. Windows DPI scaling remains active."
+                        TextWrapping="Wrap" />
+
+                    <Border
+                        Margin="0,22,0,0"
+                        Background="{DynamicResource WindowBackgroundBrush}"
+                        Style="{StaticResource CardBorder}">
+                        <Grid>
+                            <Border
+                                Background="{DynamicResource AppBackgroundImageBrush}"
+                                IsHitTestVisible="False" />
+                            <StackPanel Margin="6">
+                                <TextBlock FontSize="16" FontWeight="SemiBold" Text="Live preview" />
+                                <TextBlock
+                                    Margin="0,3,0,10"
+                                    Foreground="{DynamicResource SecondaryTextBrush}"
+                                    Text="Typography, surfaces, borders, and token colors"
+                                    TextWrapping="Wrap" />
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Width="42" Height="8" Margin="0,0,6,0" Background="{DynamicResource AccentBrush}" CornerRadius="4" />
+                                    <Border Width="42" Height="8" Margin="0,0,6,0" Background="{DynamicResource TokenInputBrush}" CornerRadius="4" />
+                                    <Border Width="42" Height="8" Margin="0,0,6,0" Background="{DynamicResource TokenOutputBrush}" CornerRadius="4" />
+                                    <Border Width="42" Height="8" Background="{DynamicResource TokenCacheReadBrush}" CornerRadius="4" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Button
+                        x:Name="ResetAppearanceButton"
+                        Margin="0,18,0,0"
+                        HorizontalAlignment="Left"
+                        Click="ResetAppearance_OnClick"
+                        Content="Reset all appearance settings" />
                 </StackPanel>
             </ScrollViewer>
 

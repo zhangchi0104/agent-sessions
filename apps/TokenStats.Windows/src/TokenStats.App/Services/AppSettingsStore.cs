@@ -40,6 +40,94 @@ public sealed record AppearancePreferences(
     }
 }
 
+public enum AppThemeMode
+{
+    System,
+    Light,
+    Dark,
+}
+
+public enum BackgroundImagePlacement
+{
+    Fill,
+    Fit,
+    Center,
+    Tile,
+}
+
+public enum BackgroundImagePosition
+{
+    Center = 0,
+    TopLeft = 1,
+    Top = 2,
+    TopRight = 3,
+    Left = 4,
+    Right = 5,
+    BottomLeft = 6,
+    Bottom = 7,
+    BottomRight = 8,
+}
+
+/// <summary>
+/// Optional overrides layered over the selected light or dark palette. Null
+/// values continue to use the built-in palette so changing theme mode remains
+/// useful after individual colors have been customized.
+/// </summary>
+public sealed record ThemeColorOverrides(
+    string? WindowBackground = null,
+    string? CardBackground = null,
+    string? SubtleBackground = null,
+    string? ControlBackground = null,
+    string? PrimaryText = null,
+    string? SecondaryText = null,
+    string? Border = null,
+    string? Accent = null,
+    string? Danger = null,
+    string? Warning = null,
+    string? TokenInput = null,
+    string? TokenOutput = null,
+    string? TokenCacheWrite = null,
+    string? TokenCacheRead = null)
+{
+    public static ThemeColorOverrides Empty { get; } = new();
+}
+
+/// <summary>
+/// Visual customization that is independent of the data-presentation choices
+/// stored in <see cref="AppearancePreferences"/>.
+/// </summary>
+public sealed record VisualAppearancePreferences(
+    AppThemeMode ThemeMode,
+    ThemeColorOverrides Colors,
+    string FontFamily,
+    string? BackgroundImagePath,
+    BackgroundImagePlacement BackgroundImagePlacement,
+    BackgroundImagePosition BackgroundImagePosition,
+    double BackgroundImageOpacity,
+    double FlyoutOpacity,
+    double FlyoutWidth,
+    double InterfaceScale)
+{
+    public const string DefaultFontFamily = "Segoe UI Variable Text, Segoe UI";
+    public const double MinimumFlyoutWidth = 360;
+    public const double MaximumFlyoutWidth = 640;
+    public const double MinimumInterfaceScale = 0.8;
+    public const double MaximumInterfaceScale = 1.4;
+    public const double MinimumFlyoutOpacity = 0.55;
+
+    public static VisualAppearancePreferences Default { get; } = new(
+        AppThemeMode.System,
+        ThemeColorOverrides.Empty,
+        DefaultFontFamily,
+        null,
+        BackgroundImagePlacement.Fill,
+        BackgroundImagePosition.Center,
+        0.2,
+        1,
+        424,
+        1);
+}
+
 public sealed record OnboardingPreferences(bool Completed)
 {
     public static OnboardingPreferences Default { get; } = new(false);
@@ -52,14 +140,16 @@ public sealed record OnboardingPreferences(bool Completed)
 public sealed record AppSettings(
     int Version,
     AppearancePreferences Appearance,
+    VisualAppearancePreferences VisualAppearance,
     OnboardingPreferences Onboarding,
     IReadOnlyDictionary<AgentId, UsageSnapshot> LastSnapshots)
 {
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
 
     public static AppSettings Default { get; } = new(
         CurrentVersion,
         AppearancePreferences.Default,
+        VisualAppearancePreferences.Default,
         OnboardingPreferences.Default,
         new ReadOnlyDictionary<AgentId, UsageSnapshot>(
             new Dictionary<AgentId, UsageSnapshot>()));
@@ -109,6 +199,9 @@ public sealed class AppSettingsStore
 
     public AppearancePreferences Appearance => Current.Appearance;
 
+    public VisualAppearancePreferences VisualAppearance =>
+        Current.VisualAppearance;
+
     public bool OnboardingCompleted => Current.Onboarding.Completed;
 
     public AppSettings Reload()
@@ -134,6 +227,15 @@ public sealed class AppSettingsStore
         }
 
         OnChanged();
+    }
+
+    public void SaveVisualAppearance(VisualAppearancePreferences appearance)
+    {
+        ArgumentNullException.ThrowIfNull(appearance);
+        Mutate(settings => settings with
+        {
+            VisualAppearance = NormalizeVisualAppearance(appearance),
+        });
     }
 
     public void SaveAppearance(AppearancePreferences appearance)
@@ -327,6 +429,8 @@ public sealed class AppSettingsStore
         return new AppSettings(
             AppSettings.CurrentVersion,
             NormalizeAppearance(settings.Appearance ?? AppearancePreferences.Default),
+            NormalizeVisualAppearance(
+                settings.VisualAppearance ?? VisualAppearancePreferences.Default),
             settings.Onboarding ?? OnboardingPreferences.Default,
             AsReadOnly(snapshots));
     }
@@ -402,6 +506,104 @@ public sealed class AppSettingsStore
             appearance.AlwaysOnTop);
     }
 
+    private static VisualAppearancePreferences NormalizeVisualAppearance(
+        VisualAppearancePreferences appearance)
+    {
+        var themeMode = Enum.IsDefined(appearance.ThemeMode)
+            ? appearance.ThemeMode
+            : VisualAppearancePreferences.Default.ThemeMode;
+        var placement = Enum.IsDefined(appearance.BackgroundImagePlacement)
+            ? appearance.BackgroundImagePlacement
+            : VisualAppearancePreferences.Default.BackgroundImagePlacement;
+        var position = Enum.IsDefined(appearance.BackgroundImagePosition)
+            ? appearance.BackgroundImagePosition
+            : VisualAppearancePreferences.Default.BackgroundImagePosition;
+        var colors = appearance.Colors ?? ThemeColorOverrides.Empty;
+        var fontFamily = string.IsNullOrWhiteSpace(appearance.FontFamily)
+            ? VisualAppearancePreferences.Default.FontFamily
+            : appearance.FontFamily.Trim();
+        var imagePath = string.IsNullOrWhiteSpace(appearance.BackgroundImagePath)
+            ? null
+            : appearance.BackgroundImagePath.Trim();
+
+        return new VisualAppearancePreferences(
+            themeMode,
+            new ThemeColorOverrides(
+                NormalizeColor(colors.WindowBackground),
+                NormalizeColor(colors.CardBackground),
+                NormalizeColor(colors.SubtleBackground),
+                NormalizeColor(colors.ControlBackground),
+                NormalizeColor(colors.PrimaryText),
+                NormalizeColor(colors.SecondaryText),
+                NormalizeColor(colors.Border),
+                NormalizeColor(colors.Accent),
+                NormalizeColor(colors.Danger),
+                NormalizeColor(colors.Warning),
+                NormalizeColor(colors.TokenInput),
+                NormalizeColor(colors.TokenOutput),
+                NormalizeColor(colors.TokenCacheWrite),
+                NormalizeColor(colors.TokenCacheRead)),
+            fontFamily,
+            imagePath,
+            placement,
+            position,
+            NormalizeUnitInterval(
+                appearance.BackgroundImageOpacity,
+                VisualAppearancePreferences.Default.BackgroundImageOpacity),
+            Math.Clamp(
+                NormalizeFinite(
+                    appearance.FlyoutOpacity,
+                    VisualAppearancePreferences.Default.FlyoutOpacity),
+                VisualAppearancePreferences.MinimumFlyoutOpacity,
+                1),
+            Math.Clamp(
+                NormalizeFinite(
+                    appearance.FlyoutWidth,
+                    VisualAppearancePreferences.Default.FlyoutWidth),
+                VisualAppearancePreferences.MinimumFlyoutWidth,
+                VisualAppearancePreferences.MaximumFlyoutWidth),
+            Math.Clamp(
+                NormalizeFinite(
+                    appearance.InterfaceScale,
+                    VisualAppearancePreferences.Default.InterfaceScale),
+                VisualAppearancePreferences.MinimumInterfaceScale,
+                VisualAppearancePreferences.MaximumInterfaceScale));
+    }
+
+    private static double NormalizeUnitInterval(double value, double fallback) =>
+        Math.Clamp(NormalizeFinite(value, fallback), 0, 1);
+
+    private static double NormalizeFinite(double value, double fallback) =>
+        double.IsFinite(value) ? value : fallback;
+
+    private static string? NormalizeColor(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var candidate = value.Trim();
+        if (candidate.StartsWith('#'))
+        {
+            candidate = candidate[1..];
+        }
+
+        if (candidate.Length == 6)
+        {
+            candidate = $"FF{candidate}";
+        }
+
+        return candidate.Length == 8 &&
+               uint.TryParse(
+                   candidate,
+                   System.Globalization.NumberStyles.HexNumber,
+                   System.Globalization.CultureInfo.InvariantCulture,
+                   out _)
+            ? $"#{candidate.ToUpperInvariant()}"
+            : null;
+    }
+
     private static AppSettings Clone(AppSettings settings) => new(
         settings.Version,
         new AppearancePreferences(
@@ -413,6 +615,31 @@ public sealed class AppSettingsStore
             settings.Appearance.TokenValueDisplay,
             settings.Appearance.SelectedTokenRange,
             settings.Appearance.AlwaysOnTop),
+        new VisualAppearancePreferences(
+            settings.VisualAppearance.ThemeMode,
+            new ThemeColorOverrides(
+                settings.VisualAppearance.Colors.WindowBackground,
+                settings.VisualAppearance.Colors.CardBackground,
+                settings.VisualAppearance.Colors.SubtleBackground,
+                settings.VisualAppearance.Colors.ControlBackground,
+                settings.VisualAppearance.Colors.PrimaryText,
+                settings.VisualAppearance.Colors.SecondaryText,
+                settings.VisualAppearance.Colors.Border,
+                settings.VisualAppearance.Colors.Accent,
+                settings.VisualAppearance.Colors.Danger,
+                settings.VisualAppearance.Colors.Warning,
+                settings.VisualAppearance.Colors.TokenInput,
+                settings.VisualAppearance.Colors.TokenOutput,
+                settings.VisualAppearance.Colors.TokenCacheWrite,
+                settings.VisualAppearance.Colors.TokenCacheRead),
+            settings.VisualAppearance.FontFamily,
+            settings.VisualAppearance.BackgroundImagePath,
+            settings.VisualAppearance.BackgroundImagePlacement,
+            settings.VisualAppearance.BackgroundImagePosition,
+            settings.VisualAppearance.BackgroundImageOpacity,
+            settings.VisualAppearance.FlyoutOpacity,
+            settings.VisualAppearance.FlyoutWidth,
+            settings.VisualAppearance.InterfaceScale),
         new OnboardingPreferences(settings.Onboarding.Completed),
         AsReadOnly(settings.LastSnapshots.ToDictionary(
             pair => pair.Key,

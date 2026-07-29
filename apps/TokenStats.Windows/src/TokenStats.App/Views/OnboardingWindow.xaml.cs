@@ -33,8 +33,14 @@ public partial class OnboardingWindow : Window
         Render();
     }
 
-    private void ConstrainToWorkArea() =>
-        WindowSizing.ConstrainToCurrentWorkArea(this, 400, 360);
+    private void ConstrainToWorkArea()
+    {
+        var scale = _settings.VisualAppearance.InterfaceScale;
+        WindowSizing.ConstrainToCurrentWorkArea(
+            this,
+            400 * scale,
+            360 * scale);
+    }
 
     private void Render()
     {
@@ -43,6 +49,13 @@ public partial class OnboardingWindow : Window
             Dispatcher.BeginInvoke(Render);
             return;
         }
+
+        WindowAppearanceService.Apply(
+            this,
+            AppearanceRoot,
+            _settings.VisualAppearance,
+            AppearanceWindowKind.Onboarding);
+        ConstrainToWorkArea();
 
         _isRendering = true;
         try

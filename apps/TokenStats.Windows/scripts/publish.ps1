@@ -37,6 +37,7 @@ dotnet publish $project `
     --output $output `
     --no-restore `
     -p:PublishSingleFile=true `
+    -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:PublishTrimmed=false `
     -p:DebugType=None
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

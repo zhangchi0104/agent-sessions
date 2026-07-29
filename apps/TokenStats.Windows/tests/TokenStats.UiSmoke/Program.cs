@@ -4,6 +4,7 @@ using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.IO;
+using System.Reflection;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -27,7 +28,7 @@ internal static class Program
         Directory.CreateDirectory(temporary);
         try
         {
-            var application = new System.Windows.Application
+            var application = new TokenStats.App.App
             {
                 ShutdownMode = ShutdownMode.OnExplicitShutdown,
             };
@@ -37,7 +38,8 @@ internal static class Program
                     "pack://application:,,,/TokenStats;component/Themes/Styles.xaml",
                     UriKind.Absolute),
             });
-            VerifyThemePalettes(application.Resources);
+            VerifyBackgroundSettingsDispatch(application);
+            VerifyThemePalettes(application.Resources, temporary);
 
             var settings = new AppSettingsStore(
                 Path.Combine(temporary, "settings.json"));
@@ -54,6 +56,25 @@ internal static class Program
                     SelectedTokenRange = TokenRange.ThirtyDays,
                     AlwaysOnTop = true,
                 });
+            var customVisualAppearance = VisualAppearancePreferences.Default with
+            {
+                ThemeMode = AppThemeMode.Dark,
+                Colors = ThemeColorOverrides.Empty with
+                {
+                    WindowBackground = "#FF102030",
+                    Accent = "#FF336699",
+                    TokenCacheRead = "#FF7654A1",
+                },
+                FontFamily = "Consolas",
+                BackgroundImagePath = Path.Combine(temporary, "wallpaper.png"),
+                BackgroundImagePlacement = BackgroundImagePlacement.Tile,
+                BackgroundImagePosition = BackgroundImagePosition.BottomRight,
+                BackgroundImageOpacity = 0.35,
+                FlyoutOpacity = 0.8,
+                FlyoutWidth = 520,
+                InterfaceScale = 1.2,
+            };
+            settings.SaveVisualAppearance(customVisualAppearance);
             var reloadedSettings = new AppSettingsStore(settings.SettingsPath);
             if (reloadedSettings.Appearance.GaugeStyle != GaugeStyle.Ring ||
                 reloadedSettings.Appearance.TodayMetric != TodayMetricMode.Usage ||
@@ -65,10 +86,11 @@ internal static class Program
                 reloadedSettings.Appearance.SelectedTokenRange !=
                     TokenRange.ThirtyDays ||
                 !reloadedSettings.Appearance.AlwaysOnTop ||
+                reloadedSettings.VisualAppearance != customVisualAppearance ||
                 reloadedSettings.Current.Version != AppSettings.CurrentVersion)
             {
                 throw new InvalidOperationException(
-                    "Windows v3 display settings did not survive an ISO-JSON round trip.");
+                    "Windows v4 settings did not survive an ISO-JSON round trip.");
             }
 
             var malformedSettingsPath = Path.Combine(
@@ -113,12 +135,48 @@ internal static class Program
                     TokenValueDisplayMode.Value ||
                 sanitizedSettings.Appearance.SelectedTokenRange !=
                     TokenRange.Today ||
-                sanitizedSettings.Appearance.AlwaysOnTop)
+                sanitizedSettings.Appearance.AlwaysOnTop ||
+                sanitizedSettings.VisualAppearance !=
+                    VisualAppearancePreferences.Default)
             {
                 throw new InvalidOperationException(
-                    "Legacy settings did not receive safe v3 display defaults.");
+                    "Legacy settings did not receive safe v4 defaults.");
             }
 
+            settings.SaveVisualAppearance(new VisualAppearancePreferences(
+                (AppThemeMode)999,
+                new ThemeColorOverrides(
+                    WindowBackground: "not-a-color",
+                    CardBackground: "123456"),
+                " ",
+                " ",
+                (BackgroundImagePlacement)999,
+                (BackgroundImagePosition)999,
+                double.NaN,
+                0.1,
+                900,
+                double.PositiveInfinity));
+            var normalizedVisualAppearance = settings.VisualAppearance;
+            if (normalizedVisualAppearance.ThemeMode != AppThemeMode.System ||
+                normalizedVisualAppearance.Colors.WindowBackground is not null ||
+                normalizedVisualAppearance.Colors.CardBackground != "#FF123456" ||
+                normalizedVisualAppearance.FontFamily !=
+                    VisualAppearancePreferences.DefaultFontFamily ||
+                normalizedVisualAppearance.BackgroundImagePath is not null ||
+                normalizedVisualAppearance.BackgroundImagePlacement !=
+                    BackgroundImagePlacement.Fill ||
+                normalizedVisualAppearance.BackgroundImagePosition !=
+                    BackgroundImagePosition.Center ||
+                normalizedVisualAppearance.BackgroundImageOpacity != 0.2 ||
+                normalizedVisualAppearance.FlyoutOpacity != 0.55 ||
+                normalizedVisualAppearance.FlyoutWidth != 640 ||
+                normalizedVisualAppearance.InterfaceScale != 1)
+            {
+                throw new InvalidOperationException(
+                    "Invalid visual appearance values were not normalized safely.");
+            }
+
+            settings.SaveVisualAppearance(VisualAppearancePreferences.Default);
             settings.SaveAppearance(
                 AppearancePreferences.Default with { GaugeStyle = GaugeStyle.Dial });
             var callback = LoopbackAuthListener.ParseRequest(
@@ -293,6 +351,13 @@ internal static class Program
                 settings,
                 tokens,
                 application.Resources);
+            VerifyCustomAppearanceLayout(
+                coordinator,
+                settings,
+                tokens,
+                application.Resources,
+                temporary,
+                args.FirstOrDefault());
             CaptureThemeMatrix(
                 coordinator,
                 settings,
@@ -324,7 +389,47 @@ internal static class Program
         }
     }
 
-    private static void VerifyThemePalettes(ResourceDictionary resources)
+    private static void VerifyBackgroundSettingsDispatch(
+        TokenStats.App.App application)
+    {
+        var handler = typeof(TokenStats.App.App).GetMethod(
+                          "Settings_OnChanged",
+                          BindingFlags.Instance | BindingFlags.NonPublic) ??
+                      throw new InvalidOperationException(
+                          "The application settings callback could not be found.");
+
+        Task.Run(() =>
+            {
+                try
+                {
+                    handler.Invoke(
+                        application,
+                        new object?[] { null, EventArgs.Empty });
+                }
+                catch (TargetInvocationException exception)
+                {
+                    throw exception.InnerException ?? exception;
+                }
+            })
+            .GetAwaiter()
+            .GetResult();
+
+        try
+        {
+            PumpDispatcher(application.Dispatcher);
+        }
+        catch (TargetParameterCountException exception)
+        {
+            throw new InvalidOperationException(
+                "The background settings callback queued a Dispatcher delegate " +
+                "with the wrong parameter count.",
+                exception);
+        }
+    }
+
+    private static void VerifyThemePalettes(
+        ResourceDictionary resources,
+        string temporaryDirectory)
     {
         var notifications = new List<WindowsAppTheme>();
         EventHandler handler = (_, _) =>
@@ -442,6 +547,177 @@ internal static class Program
         {
             throw new InvalidOperationException(
                 "ThemeChanged did not report every explicitly applied theme.");
+        }
+
+        if (WindowsThemeService.ResolveTheme(
+                AppThemeMode.System,
+                WindowsAppTheme.Dark) != WindowsAppTheme.Dark ||
+            WindowsThemeService.ResolveTheme(
+                AppThemeMode.Light,
+                WindowsAppTheme.Dark) != WindowsAppTheme.Light ||
+            WindowsThemeService.ResolveTheme(
+                AppThemeMode.Dark,
+                WindowsAppTheme.Light) != WindowsAppTheme.Dark ||
+            WindowsThemeService.ResolveTheme(
+                AppThemeMode.Dark,
+                WindowsAppTheme.HighContrast) != WindowsAppTheme.HighContrast)
+        {
+            throw new InvalidOperationException(
+                "Appearance theme mode did not resolve safely.");
+        }
+
+        var backgroundPath = Path.Combine(
+            temporaryDirectory,
+            "appearance-background.png");
+        var backgroundBitmap = BitmapSource.Create(
+            2,
+            2,
+            144,
+            144,
+            PixelFormats.Bgra32,
+            null,
+            new byte[]
+            {
+                0x30, 0x20, 0x10, 0xFF,
+                0x60, 0x50, 0x40, 0xFF,
+                0x90, 0x80, 0x70, 0xFF,
+                0xC0, 0xB0, 0xA0, 0xFF,
+            },
+            8);
+        var backgroundEncoder = new PngBitmapEncoder();
+        backgroundEncoder.Frames.Add(BitmapFrame.Create(backgroundBitmap));
+        using (var backgroundStream = File.Create(backgroundPath))
+        {
+            backgroundEncoder.Save(backgroundStream);
+        }
+
+        var customAppearance = VisualAppearancePreferences.Default with
+        {
+            Colors = ThemeColorOverrides.Empty with
+            {
+                WindowBackground = "#FF102030",
+                CardBackground = "#FF203040",
+                Accent = "#FF336699",
+                TokenCacheRead = "#FF7654A1",
+            },
+            FontFamily = "Consolas",
+            BackgroundImagePath = backgroundPath,
+            BackgroundImagePlacement = BackgroundImagePlacement.Fit,
+            BackgroundImagePosition = BackgroundImagePosition.BottomRight,
+            BackgroundImageOpacity = 0.4,
+            InterfaceScale = 1.25,
+        };
+        WindowsThemeService.Apply(
+            resources,
+            WindowsAppTheme.Light,
+            customAppearance);
+        AssertBrushColor(
+            (Brush)resources["WindowBackgroundBrush"],
+            Rgb(0x10, 0x20, 0x30),
+            "Custom window background");
+        AssertBrushColor(
+            (Brush)resources["AccentBrush"],
+            Rgb(0x33, 0x66, 0x99),
+            "Custom accent");
+        AssertBrushColor(
+            (Brush)resources["TokenCacheReadBrush"],
+            Rgb(0x76, 0x54, 0xA1),
+            "Custom token cache-read color");
+        if (resources["AppFontFamily"] is not FontFamily fontFamily ||
+            !fontFamily.Source.Contains("Consolas", StringComparison.Ordinal) ||
+            resources["InterfaceScale"] is not double scale ||
+            Math.Abs(scale - 1.25) > 0.001 ||
+            resources["AppBackgroundImageBrush"] is not ImageBrush
+            {
+                Stretch: Stretch.Uniform,
+                AlignmentX: AlignmentX.Right,
+                AlignmentY: AlignmentY.Bottom,
+            } imageBrush ||
+            Math.Abs(imageBrush.Opacity - 0.4) > 0.001)
+        {
+            throw new InvalidOperationException(
+                "Custom font, scale, or background image was not applied.");
+        }
+
+        WindowsThemeService.Apply(
+            resources,
+            WindowsAppTheme.Light,
+            customAppearance with
+            {
+                BackgroundImagePlacement = BackgroundImagePlacement.Tile,
+            });
+        if (resources["AppBackgroundImageBrush"] is not ImageBrush
+            {
+                TileMode: TileMode.Tile,
+            } tileBrush ||
+            !ReferenceEquals(imageBrush.ImageSource, tileBrush.ImageSource) ||
+            tileBrush.ImageSource is not BitmapSource tileSource ||
+            Math.Abs(tileBrush.Viewbox.Width - tileSource.Width) > 0.001 ||
+            Math.Abs(tileBrush.Viewbox.Height - tileSource.Height) > 0.001)
+        {
+            throw new InvalidOperationException(
+                "Background image caching or high-DPI tiling is incorrect.");
+        }
+
+        File.Delete(backgroundPath);
+        if (File.Exists(backgroundPath))
+        {
+            throw new InvalidOperationException(
+                "The loaded appearance background image remained locked.");
+        }
+
+        WindowsThemeService.Apply(
+            resources,
+            WindowsAppTheme.Light,
+            customAppearance);
+        if (resources["AppBackgroundImageBrush"] is not SolidColorBrush
+            {
+                Color: var missingImageColor,
+            } ||
+            missingImageColor.A != 0)
+        {
+            throw new InvalidOperationException(
+                "A missing appearance background image did not fall back safely.");
+        }
+
+        var malformedBackgroundPath = Path.Combine(
+            temporaryDirectory,
+            "malformed-background.png");
+        File.WriteAllText(malformedBackgroundPath, "not an image");
+        WindowsThemeService.Apply(
+            resources,
+            WindowsAppTheme.Light,
+            customAppearance with
+            {
+                BackgroundImagePath = malformedBackgroundPath,
+            });
+        if (resources["AppBackgroundImageBrush"] is not SolidColorBrush
+            {
+                Color: var malformedImageColor,
+            } ||
+            malformedImageColor.A != 0)
+        {
+            throw new InvalidOperationException(
+                "A malformed background image did not fall back safely.");
+        }
+        File.Delete(malformedBackgroundPath);
+
+        WindowsThemeService.Apply(
+            resources,
+            WindowsAppTheme.HighContrast,
+            customAppearance);
+        AssertBrushColor(
+            (Brush)resources["WindowBackgroundBrush"],
+            SystemColors.WindowColor,
+            "High Contrast custom-color override");
+        if (resources["AppBackgroundImageBrush"] is not SolidColorBrush
+            {
+                Color: var highContrastImageColor,
+            } ||
+            highContrastImageColor.A != 0)
+        {
+            throw new InvalidOperationException(
+                "High Contrast did not suppress the background image.");
         }
 
         WindowsThemeService.Apply(resources, WindowsAppTheme.Light);
@@ -1065,6 +1341,7 @@ internal static class Program
                 text => text.Text == "–" && Grid.GetColumn(text) == 3);
 
             WindowsThemeService.Apply(resources, WindowsAppTheme.Dark);
+            usageTab.IsChecked = true;
             FlushThemeChange(flyout);
             status = FindVisualDescendant<TextBlock>(
                 flyout,
@@ -1089,6 +1366,8 @@ internal static class Program
                 summaryLabel.Foreground,
                 Rgb(0xB3, 0xB8, 0xC0),
                 "Dark DynamicResource text");
+            tokensTab.IsChecked = true;
+            FlushThemeChange(flyout);
             AssertTokenColumnColors(
                 flyout,
                 [
@@ -1134,6 +1413,168 @@ internal static class Program
             flyout.AllowClose();
             flyout.Close();
             WindowsThemeService.Apply(resources, WindowsAppTheme.Light);
+        }
+    }
+
+    private static void VerifyCustomAppearanceLayout(
+        UsageCoordinator coordinator,
+        AppSettingsStore settings,
+        TokenOdometerWatcher tokens,
+        ResourceDictionary resources,
+        string temporaryDirectory,
+        string? snapshotDirectory)
+    {
+        var backgroundPath = Path.Combine(
+            temporaryDirectory,
+            "custom-appearance-background.png");
+        const int imageSize = 48;
+        var pixels = new byte[imageSize * imageSize * 4];
+        for (var y = 0; y < imageSize; y++)
+        {
+            for (var x = 0; x < imageSize; x++)
+            {
+                var offset = (y * imageSize + x) * 4;
+                var alternate = (x / 12 + y / 12) % 2 == 0;
+                pixels[offset] = alternate ? (byte)0x72 : (byte)0x36;
+                pixels[offset + 1] = alternate ? (byte)0x48 : (byte)0x2C;
+                pixels[offset + 2] = alternate ? (byte)0x2A : (byte)0x5A;
+                pixels[offset + 3] = 0xFF;
+            }
+        }
+
+        var bitmap = BitmapSource.Create(
+            imageSize,
+            imageSize,
+            96,
+            96,
+            PixelFormats.Bgra32,
+            null,
+            pixels,
+            imageSize * 4);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using (var stream = File.Create(backgroundPath))
+        {
+            encoder.Save(stream);
+        }
+
+        var custom = VisualAppearancePreferences.Default with
+        {
+            ThemeMode = AppThemeMode.Dark,
+            Colors = ThemeColorOverrides.Empty with
+            {
+                WindowBackground = "#FF18232E",
+                CardBackground = "#FF243241",
+                Accent = "#FF75D8C0",
+            },
+            FontFamily = "Consolas",
+            BackgroundImagePath = backgroundPath,
+            BackgroundImagePlacement = BackgroundImagePlacement.Tile,
+            BackgroundImagePosition = BackgroundImagePosition.TopLeft,
+            BackgroundImageOpacity = 0.28,
+            FlyoutOpacity = 0.78,
+            FlyoutWidth = 500,
+            InterfaceScale = 1.1,
+        };
+        settings.SaveVisualAppearance(custom);
+        WindowsThemeService.Apply(
+            resources,
+            WindowsAppTheme.Dark,
+            custom);
+
+        var flyout = new FlyoutWindow(
+            coordinator,
+            settings,
+            tokens,
+            () => { },
+            () => { })
+        {
+            ShowActivated = false,
+        };
+        var settingsWindow = new SettingsWindow(
+            coordinator,
+            settings,
+            () => { })
+        {
+            ShowActivated = false,
+        };
+        var onboarding = new OnboardingWindow(coordinator, settings)
+        {
+            ShowActivated = false,
+        };
+        try
+        {
+            ShowAndCompleteLayout(flyout);
+            AssertCustomAppearanceWindow(
+                flyout,
+                "AppearanceRoot",
+                1.1,
+                expectImage: true);
+            if (Math.Abs(flyout.Width - 550) > 0.5 ||
+                Math.Abs(flyout.Opacity - 0.78) > 0.001 ||
+                !flyout.FontFamily.Source.Contains(
+                    "Consolas",
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "Flyout width, opacity, or font did not follow Appearance.");
+            }
+
+            ShowAndCompleteLayout(settingsWindow);
+            AssertCustomAppearanceWindow(
+                settingsWindow,
+                "AppearanceRoot",
+                1.1,
+                expectImage: true);
+            ShowAndCompleteLayout(onboarding);
+            AssertCustomAppearanceWindow(
+                onboarding,
+                "AppearanceRoot",
+                1.1,
+                expectImage: true);
+
+            if (!string.IsNullOrWhiteSpace(snapshotDirectory))
+            {
+                Directory.CreateDirectory(snapshotDirectory);
+                SavePng(
+                    RenderVisual(flyout),
+                    Path.Combine(snapshotDirectory, "flyout-custom-appearance.png"));
+                SavePng(
+                    RenderVisual(settingsWindow),
+                    Path.Combine(snapshotDirectory, "settings-custom-appearance.png"));
+            }
+        }
+        finally
+        {
+            flyout.AllowClose();
+            flyout.Close();
+            settingsWindow.Close();
+            onboarding.Close();
+            settings.SaveVisualAppearance(VisualAppearancePreferences.Default);
+            WindowsThemeService.Apply(resources, WindowsAppTheme.Light);
+            File.Delete(backgroundPath);
+        }
+    }
+
+    private static void AssertCustomAppearanceWindow(
+        FrameworkElement window,
+        string rootName,
+        double expectedScale,
+        bool expectImage)
+    {
+        if (window.FindName(rootName) is not FrameworkElement root ||
+            root.LayoutTransform is not ScaleTransform scale ||
+            Math.Abs(scale.ScaleX - expectedScale) > 0.001 ||
+            expectImage &&
+            !EnumerateVisualDescendants<Border>(window)
+                .Any(border => border.Background is ImageBrush
+                {
+                    AlignmentX: AlignmentX.Left,
+                    AlignmentY: AlignmentY.Top,
+                }))
+        {
+            throw new InvalidOperationException(
+                $"{window.GetType().Name} did not apply the custom background and scale.");
         }
     }
 
@@ -1319,7 +1760,7 @@ internal static class Program
                 settings,
                 navigation);
             VerifyPrimaryAgentComboPresentation(settingsWindow);
-            if (settingsWindow.FindName("AppearancePage") is not
+            if (settingsWindow.FindName("DisplayPage") is not
                 ScrollViewer displayPage)
             {
                 throw new InvalidOperationException(
@@ -1332,6 +1773,33 @@ internal static class Program
                 snapshotDirectory,
                 background,
                 SnapshotNames("settings-display-options", suffix, theme));
+
+            navigation.SelectedIndex = 2;
+            snapshots["settings-appearance"] = ShowAndLayout(
+                settingsWindow,
+                snapshotDirectory,
+                background,
+                SnapshotNames("settings-appearance", suffix, theme));
+            VerifyAppearanceSettingsPresentation(
+                settingsWindow,
+                settings,
+                navigation);
+            WindowsThemeService.Apply(
+                System.Windows.Application.Current.Resources,
+                theme);
+            if (settingsWindow.FindName("AppearancePage") is not
+                ScrollViewer appearancePage)
+            {
+                throw new InvalidOperationException(
+                    "The Appearance page scroll viewer could not be found.");
+            }
+
+            appearancePage.ScrollToEnd();
+            snapshots["settings-appearance-options"] = ShowAndLayout(
+                settingsWindow,
+                snapshotDirectory,
+                background,
+                SnapshotNames("settings-appearance-options", suffix, theme));
         }
         finally
         {
@@ -1806,6 +2274,7 @@ internal static class Program
                 $"{window.GetType().Name} did not complete layout.");
         }
 
+
         var snapshot = RenderVisual(window);
         AssertContainsColor(
             window.GetType().Name,
@@ -1926,19 +2395,20 @@ internal static class Program
         AppSettingsStore settings,
         ListBox navigation)
     {
-        if (navigation.Items.Count < 2 ||
+        if (navigation.Items.Count != 4 ||
             navigation.Items[1] is not ListBoxItem
             {
-                Content: string displayLabel,
+                Content: "Display",
             } ||
-            displayLabel != "Display" ||
+            navigation.Items[2] is not ListBoxItem
+            {
+                Content: "Appearance",
+            } ||
             !EnumerateVisualDescendants<TextBlock>(settingsWindow)
-                .Any(text => text.Text == "Display") ||
-            EnumerateVisualDescendants<TextBlock>(settingsWindow)
-                .Any(text => text.Text == "Appearance"))
+                .Any(text => text.Text == "Display"))
         {
             throw new InvalidOperationException(
-                "The user-facing Settings pane was not renamed to Display.");
+                "Settings did not keep Display separate from Appearance.");
         }
 
         var value =
@@ -1999,6 +2469,91 @@ internal static class Program
         {
             throw new InvalidOperationException(
                 "The Display pane did not save the unpinned preference.");
+        }
+    }
+
+    private static void VerifyAppearanceSettingsPresentation(
+        SettingsWindow settingsWindow,
+        AppSettingsStore settings,
+        ListBox navigation)
+    {
+        if (navigation.Items.Count != 4 ||
+            navigation.Items[2] is not ListBoxItem { Content: "Appearance" })
+        {
+            throw new InvalidOperationException(
+                "The Appearance Settings navigation item is missing.");
+        }
+
+        var theme = FindNamed<ComboBox>(settingsWindow, "ThemeModeCombo");
+        var font = FindNamed<ComboBox>(settingsWindow, "FontFamilyCombo");
+        var placement =
+            FindNamed<ComboBox>(settingsWindow, "BackgroundPlacementCombo");
+        var position =
+            FindNamed<ComboBox>(settingsWindow, "BackgroundPositionCombo");
+        var imageOpacity =
+            FindNamed<Slider>(settingsWindow, "BackgroundImageOpacitySlider");
+        var flyoutOpacity =
+            FindNamed<Slider>(settingsWindow, "FlyoutOpacitySlider");
+        var flyoutWidth = FindNamed<Slider>(settingsWindow, "FlyoutWidthSlider");
+        var interfaceScale =
+            FindNamed<Slider>(settingsWindow, "InterfaceScaleSlider");
+        var colors = FindNamed<UniformGrid>(settingsWindow, "ColorOverridesPanel");
+        var reset = FindNamed<Button>(settingsWindow, "ResetAppearanceButton");
+        if (!theme.Focusable ||
+            !font.Focusable ||
+            !placement.Focusable ||
+            !position.Focusable ||
+            !imageOpacity.Focusable ||
+            !flyoutOpacity.Focusable ||
+            !flyoutWidth.Focusable ||
+            !interfaceScale.Focusable ||
+            !reset.Focusable ||
+            font.Items.Count < 2 ||
+            position.Items.Count != 9 ||
+            colors.Children.Count != 14)
+        {
+            throw new InvalidOperationException(
+                "Appearance controls are not complete or keyboard reachable.");
+        }
+
+        theme.SelectedItem = theme.Items
+            .OfType<ComboBoxItem>()
+            .Single(item => item.Tag as string == "Dark");
+        placement.SelectedItem = placement.Items
+            .OfType<ComboBoxItem>()
+            .Single(item => item.Tag as string == "Tile");
+        position.SelectedItem = position.Items
+            .OfType<ComboBoxItem>()
+            .Single(item => item.Tag as string == "BottomRight");
+        imageOpacity.Value = 45;
+        flyoutOpacity.Value = 75;
+        flyoutWidth.Value = 480;
+        interfaceScale.Value = 110;
+        PumpDispatcher(settingsWindow.Dispatcher);
+
+        var appearance = settings.VisualAppearance;
+        if (appearance.ThemeMode != AppThemeMode.Dark ||
+            appearance.BackgroundImagePlacement != BackgroundImagePlacement.Tile ||
+            appearance.BackgroundImagePosition !=
+                BackgroundImagePosition.BottomRight ||
+            Math.Abs(appearance.BackgroundImageOpacity - 0.45) > 0.001 ||
+            Math.Abs(appearance.FlyoutOpacity - 0.75) > 0.001 ||
+            Math.Abs(appearance.FlyoutWidth - 480) > 0.001 ||
+            Math.Abs(appearance.InterfaceScale - 1.1) > 0.001 ||
+            settingsWindow.FindName("AppearanceRoot") is not FrameworkElement root ||
+            root.LayoutTransform is not ScaleTransform transform ||
+            Math.Abs(transform.ScaleX - 1.1) > 0.001)
+        {
+            throw new InvalidOperationException(
+                "Appearance controls did not persist and apply live.");
+        }
+
+        reset.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        PumpDispatcher(settingsWindow.Dispatcher);
+        if (settings.VisualAppearance != VisualAppearancePreferences.Default)
+        {
+            throw new InvalidOperationException(
+                "Reset all did not restore Appearance defaults.");
         }
     }
 

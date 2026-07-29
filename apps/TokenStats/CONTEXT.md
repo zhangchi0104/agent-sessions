@@ -29,8 +29,12 @@ A Windows table projection over the Token Odometer: the sum of the Token Kinds w
 _Avoid_: calling the selected total the Token Odometer total; treating a Token Kind percentage as a Usage Window percentage.
 
 **Display**:
-The user-facing name of the Windows Settings pane for presentation choices: primary Coding Agent and order, gauge style, Token Kind figure format, and related status-area display behavior. Theme still follows Windows automatically and is a separate concern.
-_Avoid_: Appearance (ambiguous with light/dark theme selection).
+The Windows Settings pane for data-presentation choices: primary Coding Agent and order, gauge style, Token Kind figure format, and related status-area display behavior. These choices do not alter the app theme.
+_Avoid_: calling this pane Appearance; Appearance is the separate visual-customization surface.
+
+**Appearance**:
+The Windows Settings pane for visual customization: follow Windows/light/dark theme mode, palette and font overrides, background imagery, flyout opacity and width, and proportional text/UI scaling. Windows High Contrast takes precedence over custom colors, imagery, and transparency. Appearance is independent of Display and evolves as a Windows-native feature set.
+_Avoid_: putting Coding Agent order, Usage Window gauge style, or Token Odometer formatting here; those remain Display preferences.
 
 **API-equivalent usage estimate**:
 An optional Windows presentation of Token Odometer records as an estimated USD value, derived from the Model recorded in each transcript entry and that Model's standard official API list prices. Direct input, cache write, cache read, and output are each priced in the category the API documents; OpenAI cache reads use the documented cached-input rate. The estimate always uses all recorded Token Kinds and is unaffected by the table's Token Kind display filters. The final aggregate is rounded upward once to the nearest cent and displayed with exactly two decimal places. Missing or unrecognized Models remain unpriced, so a mixed result is marked partial. This is not an actual bill: a transcript cannot reliably reconstruct every pricing modifier, subscription term, discount, or non-token charge.
