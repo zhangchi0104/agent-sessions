@@ -122,4 +122,32 @@ echo "==> Stapling"
 xcrun stapler staple "$DMG_PATH"
 xcrun stapler validate "$DMG_PATH"
 
+# Verify the app as it exists inside the finished release asset, not only the
+# pre-packaging build product. A damaged inner signature can still leave a DMG
+# that signs, notarizes and staples successfully, but the installed app is then
+# no longer the executable we verified above.
+echo "==> Verifying packaged app signature"
+VERIFY_MOUNT="$(mktemp -d)"
+VERIFY_MOUNTED=0
+cleanup_verification_mount() {
+  if [[ "$VERIFY_MOUNTED" -eq 1 ]]; then
+    hdiutil detach "$VERIFY_MOUNT" -quiet >/dev/null 2>&1 || true
+  fi
+  rmdir "$VERIFY_MOUNT" >/dev/null 2>&1 || true
+}
+trap cleanup_verification_mount EXIT
+
+hdiutil attach \
+  -nobrowse \
+  -readonly \
+  -mountpoint "$VERIFY_MOUNT" \
+  -quiet \
+  "$DMG_PATH"
+VERIFY_MOUNTED=1
+codesign --verify --deep --strict --verbose=4 "$VERIFY_MOUNT/${APP_NAME}.app"
+hdiutil detach "$VERIFY_MOUNT" -quiet
+VERIFY_MOUNTED=0
+rmdir "$VERIFY_MOUNT"
+trap - EXIT
+
 echo "==> Done: $DMG_PATH"
