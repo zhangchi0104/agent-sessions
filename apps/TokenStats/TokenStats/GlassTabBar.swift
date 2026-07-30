@@ -43,15 +43,18 @@ struct GlassTabBar: View {
         // The whole bar shares a single glass surface — one floating slab,
         // like the system's floating toolbars, spanning the popover width.
         .glassEffect(.regular, in: Capsule())
+        // Scope the animation to the tab bar. Animating the binding mutation
+        // itself also animates the sibling tab content and the content-sized
+        // popover, crossfading both tabs over each other while the window jumps
+        // between their heights.
+        .animation(reduceMotion ? nil : .snappy(duration: 0.28), value: selection)
     }
 
     @available(macOS 26.0, *)
     private func segment(_ value: PopoverTab, _ title: String) -> some View {
         let isSelected = selection == value
         return Button {
-            // Under Reduce Motion the puck jumps to the new segment instead of
-            // morphing across the bar.
-            withAnimation(reduceMotion ? nil : .snappy(duration: 0.28)) { selection = value }
+            selection = value
         } label: {
             Text(title)
                 .font(.body.weight(.medium))
