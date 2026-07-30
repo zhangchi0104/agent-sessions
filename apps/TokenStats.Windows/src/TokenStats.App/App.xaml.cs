@@ -19,6 +19,7 @@ public partial class App : System.Windows.Application
     private SettingsWindow? _settingsWindow;
     private OnboardingWindow? _onboardingWindow;
     private TrayIconService? _tray;
+    private VisualAppearancePreferences? _appliedVisualAppearance;
     private bool _isQuitting;
 
     protected override async void OnStartup(StartupEventArgs eventArgs)
@@ -33,11 +34,12 @@ public partial class App : System.Windows.Application
             return;
         }
 
-        ApplySystemTheme();
+        _settings = new AppSettingsStore();
+        _settings.Changed += Settings_OnChanged;
+        ApplyVisualAppearance(force: true);
         SystemEvents.UserPreferenceChanged += SystemEvents_OnUserPreferenceChanged;
         SystemEvents.PowerModeChanged += SystemEvents_OnPowerModeChanged;
 
-        _settings = new AppSettingsStore();
         _httpClient = new HttpClient();
         var oauthClient = new OAuthHttpClient(_httpClient);
         var claudeAuth = new ClaudeAuthSession(
@@ -109,6 +111,11 @@ public partial class App : System.Windows.Application
     {
         SystemEvents.UserPreferenceChanged -= SystemEvents_OnUserPreferenceChanged;
         SystemEvents.PowerModeChanged -= SystemEvents_OnPowerModeChanged;
+        if (_settings is not null)
+        {
+            _settings.Changed -= Settings_OnChanged;
+        }
+
         _tray?.Dispose();
         _httpClient?.Dispose();
         _singleInstance?.Dispose();
@@ -304,10 +311,36 @@ public partial class App : System.Windows.Application
             UserPreferenceCategory.Color or
             UserPreferenceCategory.VisualStyle)
         {
-            Dispatcher.BeginInvoke(ApplySystemTheme);
+            Dispatcher.BeginInvoke(() => ApplyVisualAppearance(force: true));
         }
     }
 
-    private void ApplySystemTheme() =>
-        WindowsThemeService.ApplySystemTheme(Resources);
+    private void Settings_OnChanged(object? sender, EventArgs eventArgs)
+    {
+        if (Dispatcher.CheckAccess())
+        {
+            ApplyVisualAppearance(force: false);
+        }
+        else
+        {
+            Dispatcher.InvokeAsync(() => ApplyVisualAppearance(force: false));
+        }
+    }
+
+    private void ApplyVisualAppearance(bool force)
+    {
+        if (_settings is null)
+        {
+            return;
+        }
+
+        var appearance = _settings.VisualAppearance;
+        if (!force && appearance == _appliedVisualAppearance)
+        {
+            return;
+        }
+
+        _appliedVisualAppearance = appearance;
+        WindowsThemeService.ApplyAppearance(Resources, appearance);
+    }
 }

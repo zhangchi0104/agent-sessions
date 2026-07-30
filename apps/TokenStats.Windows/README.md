@@ -70,7 +70,8 @@ Pricing sources, last checked **2026-07-27**:
 - .NET 8 SDK for development
 - No third-party runtime or NuGet package dependencies
 
-Published builds are self-contained, so end users do not need to install .NET.
+Published builds are self-contained single-file executables, so end users do
+not need to install .NET or copy companion WPF DLLs.
 
 ## Develop
 
@@ -110,11 +111,17 @@ SmartScreen.
 - Codex Usage Windows are named and classified from the returned window
   duration and rendered dynamically. If the response has no short-term
   window, the flyout does not invent a fixed 5-hour placeholder.
-- The flyout, Settings, onboarding, native title bars, controls, and tray menu
-  follow the Windows app theme at startup and while the app is running. Windows
-  High Contrast colors take precedence over the light and dark palettes.
-- Presentation preferences live under **Display**, not Appearance; theme
-  selection remains automatic and separate.
+- **Appearance** can follow Windows or force a light or dark theme. It also
+  supports palette overrides, an installed interface font, a background image
+  with Fill/Fit/Center/Tile sizing, nine-point positioning, and opacity,
+  flyout opacity and width, and proportional text/UI scaling. Changes apply
+  live to the flyout, Settings, onboarding, native title bars, and theme-aware
+  controls. Windows
+  High Contrast always takes precedence over custom colors, imagery, and
+  transparency.
+- Data-presentation preferences remain under **Display** so primary-agent order,
+  gauge style, Token Kind formatting, and pinning stay independent from visual
+  customization.
 - Opening the flyout refreshes Usage Windows. At startup the Windows transcript
   reader fully reconciles the persisted Token Odometer range against the
   transcript roots, then keeps debounced `FileSystemWatcher` subscriptions

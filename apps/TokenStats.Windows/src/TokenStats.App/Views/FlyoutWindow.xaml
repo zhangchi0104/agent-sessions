@@ -15,8 +15,8 @@
     Style="{StaticResource {x:Type Window}}"
     WindowStyle="None">
     <Border
+        x:Name="AppearanceRoot"
         Margin="12"
-        Padding="16"
         Background="{DynamicResource WindowBackgroundBrush}"
         BorderBrush="{DynamicResource BorderBrush}"
         BorderThickness="1"
@@ -30,6 +30,11 @@
                 Color="#70000000" />
         </Border.Effect>
         <Grid>
+            <Border
+                Background="{DynamicResource AppBackgroundImageBrush}"
+                CornerRadius="13"
+                IsHitTestVisible="False" />
+            <Grid Margin="16">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -151,7 +156,7 @@
                             <StackPanel>
                                 <controls:RollingNumberText
                                     x:Name="TokenSummaryValue"
-                                    FontFamily="Segoe UI Variable Display, Segoe UI"
+                                    FontFamily="{DynamicResource AppFontFamily}"
                                     FontSize="38"
                                     FontWeight="Bold"
                                     Focusable="False"
@@ -379,6 +384,7 @@
                         Click="SettingsButton_OnClick"
                         Content="&#xE713;" />
                 </StackPanel>
+            </Grid>
             </Grid>
         </Grid>
     </Border>

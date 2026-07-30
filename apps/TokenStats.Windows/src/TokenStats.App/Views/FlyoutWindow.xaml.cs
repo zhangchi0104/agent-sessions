@@ -139,6 +139,11 @@ public partial class FlyoutWindow : Window
         }
 
         _selectedTab = FlyoutTab.Tokens;
+        WindowAppearanceService.Apply(
+            this,
+            AppearanceRoot,
+            _settings.VisualAppearance,
+            AppearanceWindowKind.Flyout);
         RenderTabVisibility();
         RenderTokenOdometer();
     }
@@ -287,6 +292,11 @@ public partial class FlyoutWindow : Window
             return;
         }
 
+        WindowAppearanceService.Apply(
+            this,
+            AppearanceRoot,
+            _settings.VisualAppearance,
+            AppearanceWindowKind.Flyout);
         RenderTabVisibility();
         RenderTokenOdometer();
         AgentsPanel.Children.Clear();
