@@ -15,6 +15,7 @@
 //  growing all day.
 //
 
+import CryptoKit
 import Foundation
 
 /// Token totals summed across the distinct API responses in one transcript, or
@@ -55,48 +56,26 @@ nonisolated struct TokenUsage: Equatable, Sendable {
 /// poll only pays for bytes appended since the previous one.
 actor TranscriptTokenReader {
     nonisolated private struct ParseState {
-        var consumedBytes: UInt64 = 0
+        var continuation = TranscriptDurableContinuation()
+        /// Bytes observed by this process. Unlike the durable committed cursor,
+        /// this includes an ordinary incomplete tail kept in `partialLine`.
+        var observedBytes: UInt64 = 0
         /// Bytes after the last newline — an incomplete trailing line.
         var partialLine = Data()
-        var seenResponseIDs: Set<String> = []
-        var usage = TokenUsage()
-        /// Usage bucketed by local calendar day *and* Model, which is what the
-        /// Tokens tab groups by. A file holds about one Model over about one
-        /// day, so the richer key costs roughly one entry per file.
-        var perDay: [UsageKey: TokenUsage] = [:]
-        /// The Model subsequent Codex usage belongs to, carried forward from
-        /// the last line that named one. Lives here for the same reason as the
-        /// running total: the seek past `consumedBytes` never re-reads it.
-        var currentModel: ModelName?
-        /// Codex usage seen before the file named any Model. A sub-agent
-        /// rollout streams a prefix before its first `turn_context`, and a
-        /// rollout almost always names one Model throughout — 377 of the 383
-        /// measured locally name exactly one, 5 name none and 1 names two — so
-        /// the prefix is backfilled into the first Model rather than stranded.
-        /// It stays pending until a Model appears, and only counts as
-        /// unattributed if none ever does.
-        var pendingByDay: [String: TokenUsage] = [:]
-        /// The last Codex running total seen in this file, or nil before the
-        /// first `token_count` event establishes one. It must live here,
-        /// beside `consumedBytes`: a poll routinely ends mid-session, and the
-        /// seek past `consumedBytes` means the previous total is never re-read.
-        /// Clearing it while keeping `consumedBytes` would silently re-count
-        /// the whole file — never clear part of a ParseState.
-        var codexRunningTotal: CodexRunningTotal?
         /// When a consumer last asked about this file; drives cache eviction.
-        var lastAccessed = Date()
+        var lastAccessed: Date
     }
 
     /// Where one bucket of usage belongs: a local calendar day, and the Model
     /// that produced it.
-    nonisolated struct UsageKey: Hashable {
+    nonisolated struct UsageKey: Hashable, Sendable {
         let day: String
         let model: ModelName
     }
 
     /// A Codex session's cumulative usage at one point in its rollout, split
     /// the way TokenUsage counts: direct input separate from the cache read.
-    nonisolated struct CodexRunningTotal: Equatable {
+    nonisolated struct CodexRunningTotal: Equatable, Sendable {
         var directInput = 0
         var cacheRead = 0
         var output = 0
@@ -119,6 +98,9 @@ actor TranscriptTokenReader {
     }
 
     private var states: [String: ParseState] = [:]
+    private(set) var statistics = TranscriptReadStatistics()
+    private let checkpointStore: (any TranscriptCheckpointStoring)?
+    private let nowProvider: @Sendable () -> Date
     private let decoder: JSONDecoder
     private let dayKeyFormatter: DateFormatter
     private let isoTimestamp: ISO8601DateFormatter
@@ -131,8 +113,15 @@ actor TranscriptTokenReader {
     private static let turnContextMarker = Data("\"turn_context\"".utf8)
     private static let threadSettingsMarker = Data("\"thread_settings\"".utf8)
     private static let chunkSize = 4 << 20
+    private static let maximumLineBytes = 16 << 20
 
-    init() {
+    init(
+        checkpointStore: (any TranscriptCheckpointStoring)? = nil,
+        now: @escaping @Sendable () -> Date = Date.init,
+        timeZone: TimeZone = .current
+    ) {
+        self.checkpointStore = checkpointStore
+        nowProvider = now
         decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         // Day keys are internal identifiers, never shown: locale and calendar
@@ -142,6 +131,7 @@ actor TranscriptTokenReader {
         dayKeyFormatter.locale = Locale(identifier: "en_US_POSIX")
         dayKeyFormatter.calendar = Calendar(identifier: .gregorian)
         dayKeyFormatter.dateFormat = "yyyy-MM-dd"
+        dayKeyFormatter.timeZone = timeZone
         isoTimestamp = ISO8601DateFormatter()
         isoTimestampFractional = ISO8601DateFormatter()
         isoTimestampFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -186,11 +176,11 @@ actor TranscriptTokenReader {
             // every chunk it has ever read until the enumeration returns.
             autoreleasepool { _ = usage(forTranscriptAt: url.path) }
             guard let state = states[url.path] else { continue }
-            for (key, usage) in state.perDay where dayKeys.contains(key.day) {
+            for (key, usage) in state.continuation.perDay where dayKeys.contains(key.day) {
                 inRange[key.model, default: TokenUsage()].add(usage)
             }
             // Usage the file never attributed — no line in it named a Model.
-            for (day, pending) in state.pendingByDay where dayKeys.contains(day) {
+            for (day, pending) in state.continuation.pendingByDay where dayKeys.contains(day) {
                 inRange[.unattributed, default: TokenUsage()].add(pending)
             }
         }
@@ -202,59 +192,123 @@ actor TranscriptTokenReader {
     /// process runs for weeks, and the per-file response-id sets are the bulk
     /// of the memory — so drop entries no consumer is touching anymore.
     private func evictStaleStates() {
-        let cutoff = Date().addingTimeInterval(-48 * 60 * 60)
+        let cutoff = nowProvider().addingTimeInterval(-48 * 60 * 60)
         states = states.filter { $0.value.lastAccessed > cutoff }
     }
 
     /// Totals for the transcript at `path`, or nil when the file is missing or
     /// holds no usage entries.
     func usage(forTranscriptAt path: String) -> TokenUsage? {
+        readTranscript(at: path).usage
+    }
+
+    /// Reads one transcript and reports both its totals and deterministic work.
+    /// The checkpoint store is intentionally dormant in M1; M2 will activate
+    /// it at this already-injected boundary.
+    func readTranscript(at path: String) -> TranscriptReadResult {
+        var readStatistics = TranscriptReadStatistics()
         guard let handle = FileHandle(forReadingAtPath: path) else {
             states[path] = nil
-            return nil
+            return TranscriptReadResult(usage: nil, continuation: nil, statistics: readStatistics)
         }
         defer { try? handle.close() }
-        guard let size = try? handle.seekToEnd() else { return nil }
-
-        var state = states[path] ?? ParseState()
-        state.lastAccessed = Date()
-        if size < state.consumedBytes {
-            // The file shrank — it was replaced or truncated; parse it afresh.
-            // This is the one path allowed to clear a ParseState, and it clears
-            // the whole of it: keeping `consumedBytes` across a partial clear is
-            // what silently re-counts or mis-attributes an entire file.
-            state = ParseState()
+        guard let size = try? handle.seekToEnd() else {
+            return TranscriptReadResult(usage: nil, continuation: nil, statistics: readStatistics)
         }
 
-        if size > state.consumedBytes, (try? handle.seek(toOffset: state.consumedBytes)) != nil {
+        var state = states[path] ?? ParseState(lastAccessed: nowProvider())
+        state.lastAccessed = nowProvider()
+        if size < state.observedBytes {
+            // The file shrank — it was replaced or truncated; parse it afresh.
+            // This is the one path allowed to clear a ParseState, and it clears
+            // the whole of it: keeping `observedBytes` across a partial clear is
+            // what silently re-counts or mis-attributes an entire file.
+            state = ParseState(lastAccessed: nowProvider())
+        }
+
+        if size > state.observedBytes, (try? handle.seek(toOffset: state.observedBytes)) != nil {
             // Chunked so a first read of a large transcript doesn't buffer the
             // whole file at once.
             while let chunk = try? handle.read(upToCount: Self.chunkSize), chunk.isEmpty == false {
-                ingest(chunk, into: &state)
-                state.consumedBytes += UInt64(chunk.count)
+                readStatistics.transcriptContentBytesRead += UInt64(chunk.count)
+                ingest(chunk, into: &state, statistics: &readStatistics)
             }
         }
 
         states[path] = state
-        return state.usage.responseCount > 0 ? state.usage : nil
+        statistics.add(readStatistics)
+        let usage = state.continuation.usage.responseCount > 0 ? state.continuation.usage : nil
+        let snapshot = TranscriptContinuationSnapshot(
+            safeCommittedBytes: state.continuation.safeCommittedBytes,
+            observedBytes: state.observedBytes,
+            bufferedPartialBytes: state.partialLine.count,
+            isDiscardingOversizedLine: state.continuation.isDiscardingOversizedLine,
+            discardedThroughBytes: state.continuation.discardedThroughBytes
+        )
+        return TranscriptReadResult(usage: usage, continuation: snapshot, statistics: readStatistics)
     }
 
-    private func ingest(_ appended: Data, into state: inout ParseState) {
-        var buffer = state.partialLine
-        buffer.append(appended)
+    private func ingest(
+        _ appended: Data,
+        into state: inout ParseState,
+        statistics: inout TranscriptReadStatistics
+    ) {
+        var cursor = appended.startIndex
+        while cursor < appended.endIndex {
+            if state.continuation.isDiscardingOversizedLine {
+                guard let newline = appended[cursor...].firstIndex(of: 0x0A) else {
+                    state.observedBytes += UInt64(appended.distance(from: cursor, to: appended.endIndex))
+                    state.continuation.discardedThroughBytes = state.observedBytes
+                    return
+                }
+                let afterNewline = appended.index(after: newline)
+                state.observedBytes += UInt64(appended.distance(from: cursor, to: afterNewline))
+                state.continuation.safeCommittedBytes = state.observedBytes
+                state.continuation.isDiscardingOversizedLine = false
+                state.continuation.discardedThroughBytes = nil
+                cursor = afterNewline
+                continue
+            }
 
-        var lineStart = buffer.startIndex
-        while let newline = buffer[lineStart...].firstIndex(of: 0x0A) {
-            parse(line: buffer.subdata(in: lineStart..<newline), into: &state)
-            lineStart = buffer.index(after: newline)
+            let newline = appended[cursor...].firstIndex(of: 0x0A)
+            let segmentEnd = newline ?? appended.endIndex
+            let segmentCount = appended.distance(from: cursor, to: segmentEnd)
+
+            if segmentCount > Self.maximumLineBytes - state.partialLine.count {
+                state.partialLine.removeAll(keepingCapacity: false)
+                state.observedBytes += UInt64(segmentCount)
+                if let newline {
+                    state.observedBytes += 1
+                    state.continuation.safeCommittedBytes = state.observedBytes
+                    cursor = appended.index(after: newline)
+                } else {
+                    state.continuation.isDiscardingOversizedLine = true
+                    state.continuation.discardedThroughBytes = state.observedBytes
+                    return
+                }
+                continue
+            }
+
+            state.partialLine.append(contentsOf: appended[cursor..<segmentEnd])
+            state.observedBytes += UInt64(segmentCount)
+            guard let newline else { return }
+
+            parse(line: state.partialLine, into: &state, statistics: &statistics)
+            state.partialLine.removeAll(keepingCapacity: true)
+            state.observedBytes += 1
+            state.continuation.safeCommittedBytes = state.observedBytes
+            cursor = appended.index(after: newline)
         }
-        state.partialLine = buffer.subdata(in: lineStart..<buffer.endIndex)
     }
 
     /// A line either carries usage — a Claude assistant message, or a Codex
     /// `token_count` event — or names the Model that subsequent Codex usage
     /// belongs to.
-    private func parse(line: Data, into state: inout ParseState) {
+    private func parse(
+        line: Data,
+        into state: inout ParseState,
+        statistics: inout TranscriptReadStatistics
+    ) {
         let carriesUsage = line.range(of: Self.usageMarker) != nil
         // A line that carries usage never also names a Model — Codex declares
         // its Model on lines with no usage at all — so the two model markers
@@ -265,6 +319,7 @@ actor TranscriptTokenReader {
             && (line.range(of: Self.turnContextMarker) != nil
                 || line.range(of: Self.threadSettingsMarker) != nil)
         guard carriesUsage || namesModel else { return }
+        statistics.jsonLinesSubmittedForDecoding += 1
 
         // Codex names its Model on `turn_context` and `thread_settings_applied`
         // lines. Carry the most recent one forward: `token_count` events carry
@@ -284,7 +339,10 @@ actor TranscriptTokenReader {
            let usage = message.usage {
             // Count each API response once, however many lines it spans.
             if let id = message.id {
-                guard state.seenResponseIDs.insert(id).inserted else { return }
+                let hash = SHA256.hash(data: Data(id.utf8))
+                    .map { String(format: "%02x", $0) }
+                    .joined()
+                guard state.continuation.seenClaudeResponseHashes.insert(hash).inserted else { return }
             }
             var response = TokenUsage()
             response.inputTokens = usage.inputTokens ?? 0
@@ -309,7 +367,7 @@ actor TranscriptTokenReader {
            entry.payload?.type == "token_count",
            let running = entry.payload?.info?.totalTokenUsage {
             let current = CodexRunningTotal(running)
-            let previous = state.codexRunningTotal ?? openingBaseline(of: entry.payload?.info, at: current)
+            let previous = state.continuation.codexRunningTotal ?? openingBaseline(of: entry.payload?.info, at: current)
             var response = TokenUsage()
             response.inputTokens = current.directInput - previous.directInput
             response.cacheReadTokens = current.cacheRead - previous.cacheRead
@@ -321,13 +379,13 @@ actor TranscriptTokenReader {
                 // reject every later event until the total climbed back past
                 // its previous high-water mark, silently under-counting the
                 // rest of the session instead of just this event.
-                state.codexRunningTotal = current
+                state.continuation.codexRunningTotal = current
                 return
             }
-            state.codexRunningTotal = current
+            state.continuation.codexRunningTotal = current
             guard response.totalTokens > 0 else { return }
             response.responseCount = 1
-            record(response, model: state.currentModel, timestamp: entry.timestamp, into: &state)
+            record(response, model: state.continuation.currentCodexModel, timestamp: entry.timestamp, into: &state)
         }
     }
 
@@ -363,15 +421,15 @@ actor TranscriptTokenReader {
         // entries carrying an all-zero usage block, and counting them would put
         // a Model on screen whose every column is a dash.
         guard response.totalTokens > 0 else { return }
-        state.usage.add(response)
+        state.continuation.usage.add(response)
         guard let timestamp, let date = parseTimestamp(timestamp) else { return }
         let day = dayKeyFormatter.string(from: date)
         if let model {
-            state.perDay[UsageKey(day: day, model: model), default: TokenUsage()].add(response)
+            state.continuation.perDay[UsageKey(day: day, model: model), default: TokenUsage()].add(response)
         } else {
             // No Model named yet. Hold it by day so a later declaration can
             // backfill it without losing which day it belonged to.
-            state.pendingByDay[day, default: TokenUsage()].add(response)
+            state.continuation.pendingByDay[day, default: TokenUsage()].add(response)
         }
     }
 
@@ -379,12 +437,12 @@ actor TranscriptTokenReader {
     /// before it — the prefix belongs to this Model, not to `unknown`.
     private func adopt(model: String, into state: inout ParseState) {
         let model = ModelName.named(model)
-        state.currentModel = model
-        guard state.pendingByDay.isEmpty == false else { return }
-        for (day, usage) in state.pendingByDay {
-            state.perDay[UsageKey(day: day, model: model), default: TokenUsage()].add(usage)
+        state.continuation.currentCodexModel = model
+        guard state.continuation.pendingByDay.isEmpty == false else { return }
+        for (day, usage) in state.continuation.pendingByDay {
+            state.continuation.perDay[UsageKey(day: day, model: model), default: TokenUsage()].add(usage)
         }
-        state.pendingByDay.removeAll()
+        state.continuation.pendingByDay.removeAll()
     }
 
     /// Transcript timestamps are ISO 8601. Both agents write fractional seconds
