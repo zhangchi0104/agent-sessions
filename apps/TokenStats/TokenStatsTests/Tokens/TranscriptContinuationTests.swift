@@ -113,21 +113,15 @@ struct TranscriptContinuationTests {
         #expect(result.statistics.jsonLinesSubmittedForDecoding == 2)
     }
 
-    @Test func m1DoesNotTouchItsCheckpointStoreDuringConstructionOrReads() async throws {
-        let root = try TempTranscripts("continuation-no-store")
-        let name = "transcript.jsonl"
-        let file = root.url.appendingPathComponent(name)
-        try root.write(name, [claudeUsageLine(id: "one", input: 1)])
+    @Test func constructingAReaderDoesNotTouchItsCheckpointStore() {
         let store = RecordingCheckpointStore()
 
-        let reader = TranscriptTokenReader(
+        _ = TranscriptTokenReader(
             checkpointStore: store,
             now: Date.init,
             timeZone: TimeZone(secondsFromGMT: 0) ?? .current
         )
 
-        #expect(store.counts == .zero)
-        #expect(await reader.readTranscript(at: file.path).usage?.totalTokens == 1)
         #expect(store.counts == .zero)
     }
 }

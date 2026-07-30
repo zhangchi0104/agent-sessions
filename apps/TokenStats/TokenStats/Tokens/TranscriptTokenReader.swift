@@ -15,7 +15,7 @@
 //  growing all day.
 //
 
-import CryptoKit
+import Darwin
 import Foundation
 
 /// Token totals summed across the distinct API responses in one transcript, or
@@ -57,6 +57,8 @@ nonisolated struct TokenUsage: Equatable, Sendable {
 actor TranscriptTokenReader {
     nonisolated private struct ParseState {
         var continuation = TranscriptDurableContinuation()
+        /// The bounded source identity the continuation was derived from.
+        var sourceValidation: TranscriptSourceValidation?
         /// Bytes observed by this process. Unlike the durable committed cursor,
         /// this includes an ordinary incomplete tail kept in `partialLine`.
         var observedBytes: UInt64 = 0
@@ -64,6 +66,88 @@ actor TranscriptTokenReader {
         var partialLine = Data()
         /// When a consumer last asked about this file; drives cache eviction.
         var lastAccessed: Date
+    }
+
+    nonisolated private struct SourceMetadata: Equatable {
+        let length: UInt64
+        let lastWriteSeconds: Int64
+        let lastWriteNanoseconds: Int64
+    }
+
+    /// Raw fingerprint windows exist only for the duration of one validation.
+    /// Keeping them transient lets an append derive its next fingerprints
+    /// without another source read.
+    nonisolated private struct ValidatedFingerprintMaterial {
+        let prefix: Data
+        let oldEnd: Data
+    }
+
+    nonisolated private struct FingerprintAccumulator {
+        private(set) var prefix: Data
+        private(set) var oldEnd: Data
+        /// Bytes below this old source end were already represented by the
+        /// validated windows. Ordinary partial-tail replay must not append them
+        /// to the rolling tail a second time.
+        let appendStartsAt: UInt64
+
+        init(
+            material: ValidatedFingerprintMaterial?,
+            appendStartsAt: UInt64
+        ) {
+            prefix = material?.prefix ?? Data()
+            oldEnd = material?.oldEnd ?? Data()
+            self.appendStartsAt = appendStartsAt
+        }
+
+        mutating func observe(_ data: Data, startingAt offset: UInt64) {
+            let dataEnd = offset + UInt64(data.count)
+            guard dataEnd > appendStartsAt else { return }
+            let skipped = appendStartsAt > offset
+                ? Int(appendStartsAt - offset)
+                : 0
+            let appended = data[data.index(data.startIndex, offsetBy: skipped)...]
+
+            if prefix.count < TranscriptCheckpointCodec.fingerprintWindowBytes {
+                let needed = TranscriptCheckpointCodec.fingerprintWindowBytes - prefix.count
+                prefix.append(contentsOf: appended.prefix(needed))
+            }
+
+            if appended.count >= TranscriptCheckpointCodec.fingerprintWindowBytes {
+                oldEnd = Data(appended.suffix(TranscriptCheckpointCodec.fingerprintWindowBytes))
+            } else {
+                oldEnd.append(contentsOf: appended)
+                if oldEnd.count > TranscriptCheckpointCodec.fingerprintWindowBytes {
+                    oldEnd.removeFirst(
+                        oldEnd.count - TranscriptCheckpointCodec.fingerprintWindowBytes
+                    )
+                }
+            }
+        }
+
+        func sourceValidation(for metadata: SourceMetadata) -> TranscriptSourceValidation? {
+            let expectedLength = Int(min(
+                metadata.length,
+                UInt64(TranscriptCheckpointCodec.fingerprintWindowBytes)
+            ))
+            guard prefix.count == expectedLength, oldEnd.count == expectedLength else {
+                return nil
+            }
+            return TranscriptSourceValidation(
+                sourceLengthAtCheckpoint: metadata.length,
+                lastWriteSeconds: metadata.lastWriteSeconds,
+                lastWriteNanoseconds: metadata.lastWriteNanoseconds,
+                prefixFingerprint: TranscriptFingerprint(
+                    offset: 0,
+                    length: expectedLength,
+                    sha256: TranscriptHash.sha256Hex(prefix)
+                ),
+                oldEndFingerprint: TranscriptFingerprint(
+                    offset: metadata.length - UInt64(expectedLength),
+                    length: expectedLength,
+                    sha256: TranscriptHash.sha256Hex(oldEnd)
+                )
+            )
+        }
     }
 
     /// Where one bucket of usage belongs: a local calendar day, and the Model
@@ -101,6 +185,7 @@ actor TranscriptTokenReader {
     private(set) var statistics = TranscriptReadStatistics()
     private let checkpointStore: (any TranscriptCheckpointStoring)?
     private let nowProvider: @Sendable () -> Date
+    private let timeZoneIdentifier: String
     private let decoder: JSONDecoder
     private let dayKeyFormatter: DateFormatter
     private let isoTimestamp: ISO8601DateFormatter
@@ -116,12 +201,14 @@ actor TranscriptTokenReader {
     private static let maximumLineBytes = 16 << 20
 
     init(
-        checkpointStore: (any TranscriptCheckpointStoring)? = nil,
+        checkpointStore: (any TranscriptCheckpointStoring)?
+            = TranscriptCheckpointStore.productionDefault,
         now: @escaping @Sendable () -> Date = Date.init,
         timeZone: TimeZone = .current
     ) {
         self.checkpointStore = checkpointStore
         nowProvider = now
+        timeZoneIdentifier = timeZone.identifier
         decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         // Day keys are internal identifiers, never shown: locale and calendar
@@ -203,49 +290,265 @@ actor TranscriptTokenReader {
     }
 
     /// Reads one transcript and reports both its totals and deterministic work.
-    /// The checkpoint store is intentionally dormant in M1; M2 will activate
-    /// it at this already-injected boundary.
+    /// Checkpoints are loaded lazily here, after the authoritative transcript
+    /// itself has been encountered and opened.
     func readTranscript(at path: String) -> TranscriptReadResult {
         var readStatistics = TranscriptReadStatistics()
+        defer { statistics.add(readStatistics) }
         guard let handle = FileHandle(forReadingAtPath: path) else {
             states[path] = nil
             return TranscriptReadResult(usage: nil, continuation: nil, statistics: readStatistics)
         }
         defer { try? handle.close() }
-        guard let size = try? handle.seekToEnd() else {
+        guard let metadata = sourceMetadata(for: handle) else {
             return TranscriptReadResult(usage: nil, continuation: nil, statistics: readStatistics)
         }
 
-        var state = states[path] ?? ParseState(lastAccessed: nowProvider())
-        state.lastAccessed = nowProvider()
-        if size < state.observedBytes {
-            // The file shrank — it was replaced or truncated; parse it afresh.
-            // This is the one path allowed to clear a ParseState, and it clears
-            // the whole of it: keeping `observedBytes` across a partial clear is
-            // what silently re-counts or mis-attributes an entire file.
-            state = ParseState(lastAccessed: nowProvider())
-        }
+        let accessedAt = nowProvider()
+        let hadInMemoryState = states[path] != nil
+        var state = states[path] ?? ParseState(lastAccessed: accessedAt)
+        state.lastAccessed = accessedAt
+        var fingerprintMaterial: ValidatedFingerprintMaterial?
+        var shouldPersist = false
 
-        if size > state.observedBytes, (try? handle.seek(toOffset: state.observedBytes)) != nil {
-            // Chunked so a first read of a large transcript doesn't buffer the
-            // whole file at once.
-            while let chunk = try? handle.read(upToCount: Self.chunkSize), chunk.isEmpty == false {
-                readStatistics.transcriptContentBytesRead += UInt64(chunk.count)
-                ingest(chunk, into: &state, statistics: &readStatistics)
+        if hadInMemoryState == false, let checkpointStore {
+            do {
+                if let data = try checkpointStore.loadCheckpoint(forTranscriptAt: path) {
+                    let checkpoint = try TranscriptCheckpointCodec.decode(
+                        data,
+                        transcriptPath: path,
+                        timeZoneIdentifier: timeZoneIdentifier
+                    )
+                    guard let material = validate(
+                        checkpoint.source,
+                        against: handle,
+                        metadata: metadata,
+                        statistics: &readStatistics
+                    ) else {
+                        throw TranscriptCheckpointCodingError.invalidEnvelope
+                    }
+
+                    state.continuation = checkpoint.continuation
+                    state.sourceValidation = checkpoint.source
+                    state.partialLine.removeAll(keepingCapacity: false)
+                    if checkpoint.continuation.isDiscardingOversizedLine {
+                        guard let discarded = checkpoint.continuation.discardedThroughBytes else {
+                            throw TranscriptCheckpointCodingError.invalidEnvelope
+                        }
+                        state.observedBytes = discarded
+                    } else {
+                        state.observedBytes = checkpoint.continuation.safeCommittedBytes
+                    }
+                    fingerprintMaterial = material
+                    readStatistics.checkpointLoads += 1
+                } else {
+                    readStatistics.checkpointMisses += 1
+                    shouldPersist = true
+                }
+            } catch {
+                readStatistics.checkpointInvalidations += 1
+                state = ParseState(lastAccessed: accessedAt)
+                shouldPersist = true
             }
         }
 
+        if let source = state.sourceValidation, fingerprintMaterial == nil {
+            if let material = validate(
+                source,
+                against: handle,
+                metadata: metadata,
+                statistics: &readStatistics
+            ) {
+                fingerprintMaterial = material
+            } else {
+                if checkpointStore != nil {
+                    readStatistics.checkpointInvalidations += 1
+                }
+                state = ParseState(lastAccessed: accessedAt)
+                shouldPersist = true
+            }
+        }
+
+        if metadata.length < state.observedBytes {
+            // The file shrank — it was replaced or truncated; parse it afresh.
+            // This path clears the whole state: keeping a cursor across a
+            // partial clear silently re-counts or misattributes an entire file.
+            if checkpointStore != nil {
+                readStatistics.checkpointInvalidations += 1
+            }
+            state = ParseState(lastAccessed: accessedAt)
+            fingerprintMaterial = nil
+            shouldPersist = true
+        }
+
+        let oldSourceLength = state.sourceValidation?.sourceLengthAtCheckpoint ?? 0
+        var fingerprintAccumulator = FingerprintAccumulator(
+            material: fingerprintMaterial,
+            appendStartsAt: oldSourceLength
+        )
+        var sourceReadSucceeded = true
+        if metadata.length > state.observedBytes {
+            do {
+                try handle.seek(toOffset: state.observedBytes)
+                // Read exactly the source snapshot validated above. An append
+                // racing this pass is left for the next scan rather than mixed
+                // into the checkpoint currently being published.
+                while state.observedBytes < metadata.length {
+                    let remaining = metadata.length - state.observedBytes
+                    let requested = Int(min(UInt64(Self.chunkSize), remaining))
+                    guard let chunk = try handle.read(upToCount: requested),
+                          chunk.isEmpty == false
+                    else {
+                        sourceReadSucceeded = false
+                        break
+                    }
+                    fingerprintAccumulator.observe(
+                        chunk,
+                        startingAt: state.observedBytes
+                    )
+                    readStatistics.transcriptContentBytesRead += UInt64(chunk.count)
+                    ingest(chunk, into: &state, statistics: &readStatistics)
+                }
+            } catch {
+                sourceReadSucceeded = false
+            }
+        }
+
+        guard sourceReadSucceeded,
+              let finalMetadata = sourceMetadata(for: handle),
+              finalMetadata == metadata,
+              state.observedBytes == metadata.length,
+              let sourceValidation = fingerprintAccumulator.sourceValidation(
+                  for: finalMetadata
+              )
+        else {
+            states[path] = state
+            let usage = state.continuation.usage.responseCount > 0
+                ? state.continuation.usage
+                : nil
+            return TranscriptReadResult(
+                usage: usage,
+                continuation: continuationSnapshot(for: state),
+                statistics: readStatistics
+            )
+        }
+
+        state.sourceValidation = sourceValidation
+        shouldPersist = shouldPersist
+            || readStatistics.transcriptContentBytesRead > 0
         states[path] = state
-        statistics.add(readStatistics)
-        let usage = state.continuation.usage.responseCount > 0 ? state.continuation.usage : nil
-        let snapshot = TranscriptContinuationSnapshot(
+
+        if shouldPersist, let checkpointStore {
+            do {
+                let data = try TranscriptCheckpointCodec.encode(
+                    TranscriptCheckpoint(
+                        source: sourceValidation,
+                        continuation: state.continuation
+                    ),
+                    transcriptPath: path,
+                    timeZoneIdentifier: timeZoneIdentifier
+                )
+                try checkpointStore.publishCheckpoint(data, forTranscriptAt: path)
+                readStatistics.checkpointWrites += 1
+            } catch {
+                // Checkpoints are rebuildable derived data. The authoritative
+                // transcript result already lives in memory and remains usable.
+            }
+        }
+
+        let usage = state.continuation.usage.responseCount > 0
+            ? state.continuation.usage
+            : nil
+        return TranscriptReadResult(
+            usage: usage,
+            continuation: continuationSnapshot(for: state),
+            statistics: readStatistics
+        )
+    }
+
+    private func sourceMetadata(for handle: FileHandle) -> SourceMetadata? {
+        var status = stat()
+        guard fstat(handle.fileDescriptor, &status) == 0,
+              status.st_size >= 0
+        else { return nil }
+        return SourceMetadata(
+            length: UInt64(status.st_size),
+            lastWriteSeconds: Int64(status.st_mtimespec.tv_sec),
+            lastWriteNanoseconds: Int64(status.st_mtimespec.tv_nsec)
+        )
+    }
+
+    private func validate(
+        _ source: TranscriptSourceValidation,
+        against handle: FileHandle,
+        metadata: SourceMetadata,
+        statistics: inout TranscriptReadStatistics
+    ) -> ValidatedFingerprintMaterial? {
+        guard metadata.length >= source.sourceLengthAtCheckpoint else {
+            return nil
+        }
+        if metadata.length == source.sourceLengthAtCheckpoint {
+            guard metadata.lastWriteSeconds == source.lastWriteSeconds,
+                  metadata.lastWriteNanoseconds == source.lastWriteNanoseconds
+            else { return nil }
+        }
+
+        guard let prefix = readFingerprintWindow(
+            source.prefixFingerprint,
+            from: handle,
+            statistics: &statistics
+        ),
+        let oldEnd = readFingerprintWindow(
+            source.oldEndFingerprint,
+            from: handle,
+            statistics: &statistics
+        ),
+        TranscriptHash.sha256Hex(prefix) == source.prefixFingerprint.sha256,
+        TranscriptHash.sha256Hex(oldEnd) == source.oldEndFingerprint.sha256,
+        sourceMetadata(for: handle) == metadata
+        else {
+            return nil
+        }
+        return ValidatedFingerprintMaterial(prefix: prefix, oldEnd: oldEnd)
+    }
+
+    private func readFingerprintWindow(
+        _ fingerprint: TranscriptFingerprint,
+        from handle: FileHandle,
+        statistics: inout TranscriptReadStatistics
+    ) -> Data? {
+        guard fingerprint.length >= 0,
+              fingerprint.length <= TranscriptCheckpointCodec.fingerprintWindowBytes,
+              fingerprint.offset <= UInt64.max - UInt64(fingerprint.length)
+        else { return nil }
+
+        do {
+            try handle.seek(toOffset: fingerprint.offset)
+            var result = Data()
+            while result.count < fingerprint.length {
+                let remaining = fingerprint.length - result.count
+                guard let chunk = try handle.read(upToCount: remaining),
+                      chunk.isEmpty == false
+                else { return nil }
+                result.append(chunk)
+                statistics.fingerprintBytesRead += UInt64(chunk.count)
+            }
+            return result
+        } catch {
+            return nil
+        }
+    }
+
+    private func continuationSnapshot(
+        for state: ParseState
+    ) -> TranscriptContinuationSnapshot {
+        TranscriptContinuationSnapshot(
             safeCommittedBytes: state.continuation.safeCommittedBytes,
             observedBytes: state.observedBytes,
             bufferedPartialBytes: state.partialLine.count,
             isDiscardingOversizedLine: state.continuation.isDiscardingOversizedLine,
             discardedThroughBytes: state.continuation.discardedThroughBytes
         )
-        return TranscriptReadResult(usage: usage, continuation: snapshot, statistics: readStatistics)
     }
 
     private func ingest(
@@ -339,9 +642,7 @@ actor TranscriptTokenReader {
            let usage = message.usage {
             // Count each API response once, however many lines it spans.
             if let id = message.id {
-                let hash = SHA256.hash(data: Data(id.utf8))
-                    .map { String(format: "%02x", $0) }
-                    .joined()
+                let hash = TranscriptHash.sha256Hex(Data(id.utf8))
                 guard state.continuation.seenClaudeResponseHashes.insert(hash).inserted else { return }
             }
             var response = TokenUsage()
