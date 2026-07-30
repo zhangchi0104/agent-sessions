@@ -43,6 +43,14 @@ internal static class Program
             new(nameof(CodexTranscriptRetainsModelAcrossIncrementalAppends), CodexTranscriptRetainsModelAcrossIncrementalAppends),
             new(nameof(TokenRangesUseExactLocalCalendarDays), TokenRangesUseExactLocalCalendarDays),
             new(nameof(TranscriptReadsOnlyAppendedBytesAndRetainsPartialLines), TranscriptReadsOnlyAppendedBytesAndRetainsPartialLines),
+            new(nameof(PersistentTranscriptCacheRestartsWithoutReadingContent), PersistentTranscriptCacheRestartsWithoutReadingContent),
+            new(nameof(PersistentTranscriptCacheAppendsWithoutDoubleCounting), PersistentTranscriptCacheAppendsWithoutDoubleCounting),
+            new(nameof(PersistentTranscriptCacheCompletesPartialLineOnce), PersistentTranscriptCacheCompletesPartialLineOnce),
+            new(nameof(PersistentTranscriptCacheInvalidatesReplacementAndTruncation), PersistentTranscriptCacheInvalidatesReplacementAndTruncation),
+            new(nameof(PersistentTranscriptCacheRecoversFromCorruption), PersistentTranscriptCacheRecoversFromCorruption),
+            new(nameof(PersistentTranscriptCacheInvalidatesLocalTimeZone), PersistentTranscriptCacheInvalidatesLocalTimeZone),
+            new(nameof(TargetedRefreshRetainsUnchangedRangeState), TargetedRefreshRetainsUnchangedRangeState),
+            new(nameof(PersistentTranscriptCacheTargetedDeleteDoesNotResurrect), PersistentTranscriptCacheTargetedDeleteDoesNotResurrect),
         };
 
         var failed = 0;
@@ -1555,15 +1563,638 @@ internal static class Program
             output: 2);
         Check.Equal(replacement.Length, sameSizeReplacement.Length);
         File.WriteAllText(transcript, sameSizeReplacement + "\n");
-        File.SetLastWriteTimeUtc(
-            transcript,
-            now.AddMinutes(1).UtcDateTime);
+        File.SetLastWriteTimeUtc(transcript, now.UtcDateTime);
         var afterSameSizeReplacement = Check.NotNull(
             reader.TodayUsage(temp.Path, now));
         Check.Equal(1, afterSameSizeReplacement.ResponseCount);
         Check.Equal(6L, afterSameSizeReplacement.InputTokens);
         Check.Equal(3L, afterSameSizeReplacement.CacheReadTokens);
         Check.Equal(2L, afterSameSizeReplacement.OutputTokens);
+    }
+
+    private static async Task PersistentTranscriptCacheRestartsWithoutReadingContent()
+    {
+        using var temp = new TemporaryDirectory();
+        var sessions = Directory.CreateDirectory(
+            Path.Combine(temp.Path, "sessions")).FullName;
+        var cache = Path.Combine(temp.Path, "cache");
+        var now = DateTimeOffset.Parse("2026-07-27T12:00:00Z", Invariant);
+        var transcript = Path.Combine(sessions, "claude.jsonl");
+        File.WriteAllText(
+            transcript,
+            string.Join(
+                '\n',
+                ClaudeLine(
+                    "today",
+                    "2026-07-27T10:00:00Z",
+                    input: 10,
+                    output: 1,
+                    cacheCreation: 2,
+                    cacheRead: 3,
+                    model: "claude-sonnet-cache"),
+                ClaudeLine(
+                    "day-3",
+                    "2026-07-24T10:00:00Z",
+                    input: 20,
+                    output: 2,
+                    cacheCreation: 4,
+                    cacheRead: 5,
+                    model: "claude-opus-cache")) +
+            "\n");
+        File.SetLastWriteTimeUtc(transcript, now.UtcDateTime);
+
+        var firstReader = new TranscriptTokenReader(
+            TimeZoneInfo.Utc,
+            cache);
+        var firstToday = Check.NotNull(
+            await firstReader
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+        var firstSevenDays = Check.NotNull(
+            await firstReader
+                .RangeUsageAsync(sessions, TokenRange.SevenDays, now)
+                .ConfigureAwait(false));
+
+        Check.Equal(1, firstToday.ResponseCount);
+        Check.Equal(13L, firstToday.TotalTokens);
+        Check.Equal(2, firstSevenDays.ResponseCount);
+        Check.Equal(39L, firstSevenDays.TotalTokens);
+        Check.Equal(new FileInfo(transcript).Length, firstReader.Statistics.ContentBytesRead);
+        Check.Equal(1L, firstReader.Statistics.CacheMisses);
+        Check.Equal(1L, firstReader.Statistics.CacheWrites);
+        var cacheFile = Directory.GetFiles(cache, "*.json").Single();
+        Check.Equal(64, Path.GetFileNameWithoutExtension(cacheFile).Length);
+        Check.True(!File.ReadAllText(cacheFile).Contains(
+            transcript,
+            StringComparison.OrdinalIgnoreCase));
+
+        var restartedReader = new TranscriptTokenReader(
+            TimeZoneInfo.Utc,
+            cache);
+        var restartedToday = Check.NotNull(
+            await restartedReader
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+        var restartedSevenDays = Check.NotNull(
+            await restartedReader
+                .RangeUsageAsync(sessions, TokenRange.SevenDays, now)
+                .ConfigureAwait(false));
+
+        AssertUsageEquivalent(firstToday, restartedToday);
+        AssertUsageEquivalent(firstSevenDays, restartedSevenDays);
+        Check.Equal(1L, restartedReader.Statistics.CacheLoads);
+        Check.Equal(0L, restartedReader.Statistics.ContentBytesRead);
+        Check.Equal(0L, restartedReader.Statistics.CacheWrites);
+    }
+
+    private static async Task PersistentTranscriptCacheAppendsWithoutDoubleCounting()
+    {
+        using var temp = new TemporaryDirectory();
+        var sessions = Directory.CreateDirectory(
+            Path.Combine(temp.Path, "sessions")).FullName;
+        var cache = Path.Combine(temp.Path, "cache");
+        var now = DateTimeOffset.Parse("2026-07-27T12:00:00Z", Invariant);
+        var claudeTranscript = Path.Combine(sessions, "claude.jsonl");
+        var codexTranscript = Path.Combine(sessions, "codex.jsonl");
+
+        File.WriteAllText(
+            claudeTranscript,
+            ClaudeLine(
+                "claude-1",
+                "2026-07-27T10:00:00Z",
+                input: 10,
+                output: 1,
+                model: "claude-sonnet-cache") +
+            "\n");
+        File.WriteAllText(
+            codexTranscript,
+            CodexTurnContextLine("gpt-5.6-sol") +
+            "\n" +
+            CodexLine(
+                "2026-07-27T10:00:00Z",
+                input: 100,
+                cachedInput: 30,
+                output: 20,
+                cacheWrite: 10) +
+            "\n");
+        File.SetLastWriteTimeUtc(claudeTranscript, now.UtcDateTime);
+        File.SetLastWriteTimeUtc(codexTranscript, now.UtcDateTime);
+
+        var firstReader = new TranscriptTokenReader(
+            TimeZoneInfo.Utc,
+            cache);
+        _ = Check.NotNull(
+            await firstReader
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+
+        var restartedReader = new TranscriptTokenReader(
+            TimeZoneInfo.Utc,
+            cache);
+        _ = Check.NotNull(
+            await restartedReader
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+        Check.Equal(2L, restartedReader.Statistics.CacheLoads);
+        Check.Equal(0L, restartedReader.Statistics.ContentBytesRead);
+
+        var claudeAppend =
+            ClaudeLine(
+                "claude-1",
+                "2026-07-27T10:01:00Z",
+                input: 999,
+                output: 999,
+                model: "claude-sonnet-cache") +
+            "\n" +
+            ClaudeLine(
+                "claude-2",
+                "2026-07-27T10:02:00Z",
+                input: 5,
+                output: 2,
+                model: "claude-sonnet-cache") +
+            "\n";
+        var codexAppend =
+            CodexLine(
+                "2026-07-27T10:01:00Z",
+                input: 150,
+                cachedInput: 40,
+                output: 30,
+                cacheWrite: 15) +
+            "\n";
+        File.AppendAllText(claudeTranscript, claudeAppend);
+        File.AppendAllText(codexTranscript, codexAppend);
+        File.SetLastWriteTimeUtc(
+            claudeTranscript,
+            now.AddMinutes(1).UtcDateTime);
+        File.SetLastWriteTimeUtc(
+            codexTranscript,
+            now.AddMinutes(1).UtcDateTime);
+
+        var appended = Check.NotNull(
+            await restartedReader
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+        Check.Equal(4, appended.ResponseCount);
+        Check.Equal(110L, appended.InputTokens);
+        Check.Equal(33L, appended.OutputTokens);
+        Check.Equal(15L, appended.CacheWriteTokens);
+        Check.Equal(40L, appended.CacheReadTokens);
+        Check.Equal(
+            (long)Encoding.UTF8.GetByteCount(claudeAppend + codexAppend),
+            restartedReader.Statistics.ContentBytesRead);
+
+        var claude = appended.ModelUsage.Single(
+            item =>
+                item.AgentId == AgentId.ClaudeCode &&
+                item.Model == "claude-sonnet-cache");
+        Check.Equal(2, claude.ResponseCount);
+        Check.Equal(15L, claude.Breakdown.RawInputTokens);
+        Check.Equal(3L, claude.Breakdown.OutputTokens);
+
+        var codex = appended.ModelUsage.Single(
+            item =>
+                item.AgentId == AgentId.Codex &&
+                item.Model == "gpt-5.6-sol");
+        Check.Equal(2, codex.ResponseCount);
+        Check.Equal(95L, codex.Breakdown.RawInputTokens);
+        Check.Equal(30L, codex.Breakdown.OutputTokens);
+        Check.Equal(15L, codex.Breakdown.CacheWriteTokens);
+        Check.Equal(40L, codex.Breakdown.CacheReadTokens);
+
+        var secondRestart = new TranscriptTokenReader(
+            TimeZoneInfo.Utc,
+            cache);
+        var afterSecondRestart = Check.NotNull(
+            await secondRestart
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+        AssertUsageEquivalent(appended, afterSecondRestart);
+        Check.Equal(2L, secondRestart.Statistics.CacheLoads);
+        Check.Equal(0L, secondRestart.Statistics.ContentBytesRead);
+    }
+
+    private static async Task PersistentTranscriptCacheCompletesPartialLineOnce()
+    {
+        using var temp = new TemporaryDirectory();
+        var sessions = Directory.CreateDirectory(
+            Path.Combine(temp.Path, "sessions")).FullName;
+        var cache = Path.Combine(temp.Path, "cache");
+        var now = DateTimeOffset.Parse("2026-07-27T12:00:00Z", Invariant);
+        var transcript = Path.Combine(sessions, "partial.jsonl");
+        var first = ClaudeLine(
+            "first",
+            "2026-07-27T10:00:00Z",
+            input: 10,
+            output: 1);
+        var second = ClaudeLine(
+            "second",
+            "2026-07-27T10:01:00Z",
+            input: 20,
+            output: 2);
+        var split = second.Length / 2;
+        File.WriteAllText(
+            transcript,
+            first + "\n" + second[..split]);
+        File.SetLastWriteTimeUtc(transcript, now.UtcDateTime);
+
+        var firstReader = new TranscriptTokenReader(
+            TimeZoneInfo.Utc,
+            cache);
+        var initial = Check.NotNull(
+            await firstReader
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+        Check.Equal(1, initial.ResponseCount);
+        Check.Equal(10L, initial.InputTokens);
+
+        File.AppendAllText(transcript, second[split..] + "\n");
+        File.SetLastWriteTimeUtc(
+            transcript,
+            now.AddMinutes(1).UtcDateTime);
+        var restartedReader = new TranscriptTokenReader(
+            TimeZoneInfo.Utc,
+            cache);
+        var completed = Check.NotNull(
+            await restartedReader
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+
+        Check.Equal(2, completed.ResponseCount);
+        Check.Equal(30L, completed.InputTokens);
+        Check.Equal(3L, completed.OutputTokens);
+        Check.Equal(1L, restartedReader.Statistics.CacheLoads);
+        Check.Equal(
+            (long)Encoding.UTF8.GetByteCount(second + "\n"),
+            restartedReader.Statistics.ContentBytesRead);
+
+        var secondRestart = new TranscriptTokenReader(
+            TimeZoneInfo.Utc,
+            cache);
+        var unchanged = Check.NotNull(
+            await secondRestart
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+        AssertUsageEquivalent(completed, unchanged);
+        Check.Equal(1L, secondRestart.Statistics.CacheLoads);
+        Check.Equal(0L, secondRestart.Statistics.ContentBytesRead);
+    }
+
+    private static async Task PersistentTranscriptCacheInvalidatesReplacementAndTruncation()
+    {
+        using var temp = new TemporaryDirectory();
+        var sessions = Directory.CreateDirectory(
+            Path.Combine(temp.Path, "sessions")).FullName;
+        var cache = Path.Combine(temp.Path, "cache");
+        var now = DateTimeOffset.Parse("2026-07-27T12:00:00Z", Invariant);
+        var transcript = Path.Combine(sessions, "replace.jsonl");
+        var original =
+            CodexLine(
+                "2026-07-27T11:00:00Z",
+                input: 7,
+                cachedInput: 2,
+                output: 1) +
+            "\n";
+        var sameSizeReplacement =
+            CodexLine(
+                "2026-07-27T11:00:00Z",
+                input: 9,
+                cachedInput: 3,
+                output: 2) +
+            "\n";
+        Check.Equal(
+            Encoding.UTF8.GetByteCount(original),
+            Encoding.UTF8.GetByteCount(sameSizeReplacement));
+        File.WriteAllText(transcript, original);
+        File.SetLastWriteTimeUtc(transcript, now.UtcDateTime);
+
+        var firstReader = new TranscriptTokenReader(
+            TimeZoneInfo.Utc,
+            cache);
+        _ = Check.NotNull(
+            await firstReader
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+
+        File.WriteAllText(transcript, sameSizeReplacement);
+        // Keep size and timestamp unchanged so only the persisted source
+        // fingerprints can distinguish the replacement from a cache hit.
+        File.SetLastWriteTimeUtc(transcript, now.UtcDateTime);
+        var replacementReader = new TranscriptTokenReader(
+            TimeZoneInfo.Utc,
+            cache);
+        var replaced = Check.NotNull(
+            await replacementReader
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+        Check.Equal(1, replaced.ResponseCount);
+        Check.Equal(6L, replaced.InputTokens);
+        Check.Equal(3L, replaced.CacheReadTokens);
+        Check.Equal(2L, replaced.OutputTokens);
+        Check.Equal(1L, replacementReader.Statistics.CacheLoads);
+        Check.Equal(1L, replacementReader.Statistics.CacheInvalidations);
+        Check.Equal(
+            (long)Encoding.UTF8.GetByteCount(sameSizeReplacement),
+            replacementReader.Statistics.ContentBytesRead);
+
+        var truncated =
+            ClaudeLine(
+                "t",
+                "2026-07-27T11:30:00Z",
+                input: 4,
+                output: 1,
+                model: "m") +
+            "\n";
+        Check.True(
+            Encoding.UTF8.GetByteCount(truncated) <
+            Encoding.UTF8.GetByteCount(sameSizeReplacement));
+        File.WriteAllText(transcript, truncated);
+        File.SetLastWriteTimeUtc(
+            transcript,
+            now.AddMinutes(2).UtcDateTime);
+        var truncationReader = new TranscriptTokenReader(
+            TimeZoneInfo.Utc,
+            cache);
+        var afterTruncation = Check.NotNull(
+            await truncationReader
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+        Check.Equal(1, afterTruncation.ResponseCount);
+        Check.Equal(4L, afterTruncation.InputTokens);
+        Check.Equal(1L, afterTruncation.OutputTokens);
+        Check.Equal(1L, truncationReader.Statistics.CacheLoads);
+        Check.Equal(1L, truncationReader.Statistics.CacheInvalidations);
+        Check.Equal(
+            (long)Encoding.UTF8.GetByteCount(truncated),
+            truncationReader.Statistics.ContentBytesRead);
+    }
+
+    private static async Task PersistentTranscriptCacheRecoversFromCorruption()
+    {
+        using var temp = new TemporaryDirectory();
+        var sessions = Directory.CreateDirectory(
+            Path.Combine(temp.Path, "sessions")).FullName;
+        var cache = Path.Combine(temp.Path, "cache");
+        var now = DateTimeOffset.Parse("2026-07-27T12:00:00Z", Invariant);
+        var transcript = Path.Combine(sessions, "corrupt.jsonl");
+        File.WriteAllText(
+            transcript,
+            ClaudeLine(
+                "survives-corruption",
+                "2026-07-27T10:00:00Z",
+                input: 12,
+                output: 3,
+                model: "claude-sonnet-cache") +
+            "\n");
+        File.SetLastWriteTimeUtc(transcript, now.UtcDateTime);
+
+        var firstReader = new TranscriptTokenReader(
+            TimeZoneInfo.Utc,
+            cache);
+        var expected = Check.NotNull(
+            await firstReader
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+        var cacheFile = Directory.GetFiles(cache, "*.json").Single();
+        var validCache = File.ReadAllText(cacheFile);
+        var corruptedCache = validCache.Replace(
+            "\"inputTokens\":12",
+            "\"inputTokens\":999",
+            StringComparison.Ordinal);
+        Check.True(!string.Equals(
+            validCache,
+            corruptedCache,
+            StringComparison.Ordinal));
+        File.WriteAllText(cacheFile, corruptedCache);
+
+        var recoveryReader = new TranscriptTokenReader(
+            TimeZoneInfo.Utc,
+            cache);
+        var recovered = Check.NotNull(
+            await recoveryReader
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+        AssertUsageEquivalent(expected, recovered);
+        Check.Equal(0L, recoveryReader.Statistics.CacheLoads);
+        Check.Equal(1L, recoveryReader.Statistics.CacheInvalidations);
+        Check.Equal(
+            new FileInfo(transcript).Length,
+            recoveryReader.Statistics.ContentBytesRead);
+        Check.Equal(1L, recoveryReader.Statistics.CacheWrites);
+
+        var restartedReader = new TranscriptTokenReader(
+            TimeZoneInfo.Utc,
+            cache);
+        var afterRestart = Check.NotNull(
+            await restartedReader
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+        AssertUsageEquivalent(recovered, afterRestart);
+        Check.Equal(1L, restartedReader.Statistics.CacheLoads);
+        Check.Equal(0L, restartedReader.Statistics.ContentBytesRead);
+    }
+
+    private static async Task PersistentTranscriptCacheTargetedDeleteDoesNotResurrect()
+    {
+        using var temp = new TemporaryDirectory();
+        var sessions = Directory.CreateDirectory(
+            Path.Combine(temp.Path, "sessions")).FullName;
+        var cache = Path.Combine(temp.Path, "cache");
+        var now = DateTimeOffset.Parse("2026-07-27T12:00:00Z", Invariant);
+        var retainedTranscript = Path.Combine(sessions, "retained.jsonl");
+        var deletedTranscript = Path.Combine(sessions, "deleted.jsonl");
+        File.WriteAllText(
+            retainedTranscript,
+            ClaudeLine(
+                "retained",
+                "2026-07-27T10:00:00Z",
+                input: 10,
+                output: 1,
+                model: "retained-model") +
+            "\n");
+        File.WriteAllText(
+            deletedTranscript,
+            ClaudeLine(
+                "deleted",
+                "2026-07-27T10:01:00Z",
+                input: 20,
+                output: 2,
+                model: "deleted-model") +
+            "\n");
+        File.SetLastWriteTimeUtc(retainedTranscript, now.UtcDateTime);
+        File.SetLastWriteTimeUtc(deletedTranscript, now.UtcDateTime);
+
+        var reader = new TranscriptTokenReader(TimeZoneInfo.Utc, cache);
+        var initial = Check.NotNull(
+            await reader
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+        Check.Equal(2, initial.ResponseCount);
+        Check.Equal(2, Directory.GetFiles(cache, "*.json").Length);
+
+        File.Delete(deletedTranscript);
+        var afterDelete = Check.NotNull(
+            await reader
+                .RefreshRangeAsync(
+                    sessions,
+                    TokenRange.Today,
+                    [deletedTranscript],
+                    now)
+                .ConfigureAwait(false));
+        Check.Equal(1, afterDelete.ResponseCount);
+        Check.Equal(10L, afterDelete.InputTokens);
+        Check.Equal(1L, afterDelete.OutputTokens);
+        Check.Equal(1L, reader.Statistics.TargetedRefreshes);
+        Check.Equal(1, Directory.GetFiles(cache, "*.json").Length);
+
+        var restartedReader = new TranscriptTokenReader(
+            TimeZoneInfo.Utc,
+            cache);
+        var afterRestart = Check.NotNull(
+            await restartedReader
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+        AssertUsageEquivalent(afterDelete, afterRestart);
+        Check.Equal(1L, restartedReader.Statistics.CacheLoads);
+        Check.Equal(0L, restartedReader.Statistics.ContentBytesRead);
+        Check.Equal(1, Directory.GetFiles(cache, "*.json").Length);
+    }
+
+    private static async Task PersistentTranscriptCacheInvalidatesLocalTimeZone()
+    {
+        using var temp = new TemporaryDirectory();
+        var sessions = Directory.CreateDirectory(
+            Path.Combine(temp.Path, "sessions")).FullName;
+        var cache = Path.Combine(temp.Path, "cache");
+        var now = DateTimeOffset.Parse("2026-07-27T01:00:00Z", Invariant);
+        var transcript = Path.Combine(sessions, "timezone.jsonl");
+        File.WriteAllText(
+            transcript,
+            ClaudeLine(
+                "timezone-boundary",
+                "2026-07-26T23:30:00Z",
+                input: 8,
+                output: 2,
+                model: "timezone-model") +
+            "\n");
+        File.SetLastWriteTimeUtc(transcript, now.UtcDateTime);
+
+        var utcReader = new TranscriptTokenReader(TimeZoneInfo.Utc, cache);
+        var utcToday = await utcReader
+            .RangeUsageAsync(sessions, TokenRange.Today, now)
+            .ConfigureAwait(false);
+        Check.True(utcToday is null);
+        Check.Equal(1L, utcReader.Statistics.CacheWrites);
+
+        var utcPlusEight = TimeZoneInfo.CreateCustomTimeZone(
+            "TokenStats-Test-UTC+08",
+            TimeSpan.FromHours(8),
+            "TokenStats Test UTC+08",
+            "TokenStats Test UTC+08");
+        var localReader = new TranscriptTokenReader(utcPlusEight, cache);
+        var localToday = Check.NotNull(
+            await localReader
+                .RangeUsageAsync(sessions, TokenRange.Today, now)
+                .ConfigureAwait(false));
+
+        Check.Equal(1, localToday.ResponseCount);
+        Check.Equal(8L, localToday.InputTokens);
+        Check.Equal(2L, localToday.OutputTokens);
+        Check.Equal(0L, localReader.Statistics.CacheLoads);
+        Check.Equal(1L, localReader.Statistics.CacheInvalidations);
+        Check.Equal(
+            new FileInfo(transcript).Length,
+            localReader.Statistics.ContentBytesRead);
+    }
+
+    private static async Task TargetedRefreshRetainsUnchangedRangeState()
+    {
+        using var temp = new TemporaryDirectory();
+        var sessions = Directory.CreateDirectory(
+            Path.Combine(temp.Path, "sessions")).FullName;
+        var cache = Path.Combine(temp.Path, "cache");
+        var initialNow = DateTimeOffset.Parse(
+            "2026-07-27T12:00:00Z",
+            Invariant);
+        var changedNow = initialNow.AddHours(72);
+        var unchangedTranscript = Path.Combine(sessions, "unchanged.jsonl");
+        var changedTranscript = Path.Combine(sessions, "changed.jsonl");
+        File.WriteAllText(
+            unchangedTranscript,
+            ClaudeLine(
+                "unchanged",
+                "2026-07-27T10:00:00Z",
+                input: 10,
+                output: 0,
+                model: "range-cache") +
+            "\n");
+        File.WriteAllText(
+            changedTranscript,
+            ClaudeLine(
+                "changed-1",
+                "2026-07-27T10:01:00Z",
+                input: 20,
+                output: 0,
+                model: "range-cache") +
+            "\n");
+        File.SetLastWriteTimeUtc(
+            unchangedTranscript,
+            initialNow.UtcDateTime);
+        File.SetLastWriteTimeUtc(
+            changedTranscript,
+            initialNow.UtcDateTime);
+
+        var reader = new TranscriptTokenReader(TimeZoneInfo.Utc, cache);
+        var initial = Check.NotNull(
+            await reader
+                .RangeUsageAsync(
+                    sessions,
+                    TokenRange.SevenDays,
+                    initialNow)
+                .ConfigureAwait(false));
+        Check.Equal(30L, initial.InputTokens);
+
+        var appended = ClaudeLine(
+            "changed-2",
+            "2026-07-30T10:00:00Z",
+            input: 5,
+            output: 0,
+            model: "range-cache") +
+            "\n";
+        File.AppendAllText(changedTranscript, appended);
+        File.SetLastWriteTimeUtc(
+            changedTranscript,
+            changedNow.UtcDateTime);
+        var refreshed = Check.NotNull(
+            await reader
+                .RefreshRangeAsync(
+                    sessions,
+                    TokenRange.SevenDays,
+                    [changedTranscript],
+                    changedNow)
+                .ConfigureAwait(false));
+
+        Check.Equal(3, refreshed.ResponseCount);
+        Check.Equal(35L, refreshed.InputTokens);
+        Check.Equal(1L, reader.Statistics.TargetedRefreshes);
+        Check.Equal(
+            new FileInfo(unchangedTranscript).Length +
+            new FileInfo(changedTranscript).Length,
+            reader.Statistics.ContentBytesRead);
+    }
+
+    private static void AssertUsageEquivalent(
+        TokenUsage expected,
+        TokenUsage actual)
+    {
+        Check.Equal(expected.Breakdown, actual.Breakdown);
+        Check.Equal(expected.ResponseCount, actual.ResponseCount);
+        Check.Equal(expected.ModelUsage.Count, actual.ModelUsage.Count);
+        for (var index = 0; index < expected.ModelUsage.Count; index++)
+        {
+            Check.Equal(
+                expected.ModelUsage[index],
+                actual.ModelUsage[index]);
+        }
     }
 
     private static string ClaudeLine(

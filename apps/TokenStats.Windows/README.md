@@ -115,13 +115,23 @@ SmartScreen.
   High Contrast colors take precedence over the light and dark palettes.
 - Presentation preferences live under **Display**, not Appearance; theme
   selection remains automatic and separate.
-- Opening the flyout refreshes Usage Windows. The Windows transcript reader
-  seeds the persisted Token Odometer range when the app starts, then keeps
-  debounced `FileSystemWatcher` subscriptions active for the lifetime of the
-  resident tray process. This keeps the tray's objective Token summary current
-  without polling and without a daemon, database, or IPC surface. If a
-  transcript root does not exist yet, a lightweight parent-directory watch
-  adopts it when the Coding Agent creates it.
+- Opening the flyout refreshes Usage Windows. At startup the Windows transcript
+  reader fully reconciles the persisted Token Odometer range against the
+  transcript roots, then keeps debounced `FileSystemWatcher` subscriptions
+  active for the lifetime of the resident tray process. JSONL events reconcile
+  affected files; directory changes, watcher errors, and **Refresh all**
+  trigger another full reconciliation. This keeps the tray's objective Token
+  summary current without polling and without a daemon, database, or IPC
+  surface. If a transcript root does not exist yet, a lightweight
+  parent-directory watch adopts it when the Coding Agent creates it.
+- Unchanged transcript prefixes can hydrate from disposable per-file
+  checkpoints under
+  `%LocalAppData%\TokenStats\Cache\token-reader-v1`. Checkpoint filenames are
+  hashed, payloads carry an integrity checksum, writes are atomic, and schema
+  or local-time-zone changes, replacement, truncation, deletion, rename, or
+  corruption cause conservative re-parsing.
+  The cache stores no transcript text, incomplete-line bytes, or credentials;
+  deleting the directory is safe and rebuilds it from the transcript roots.
 - The Today/7-day/30-day range is restored across app restarts. Range changes
   keep the last completed table dimmed until the new scan lands atomically.
 - Billing tokens and API equivalent use per-digit vertical rolling transitions
@@ -174,4 +184,6 @@ scripts/
 ```
 
 See [ADR-0006](../TokenStats/docs/adr/0006-native-windows-companion.md) for the
-native companion decision and the deliberate tray differences from macOS.
+native companion decision and the deliberate tray differences from macOS, and
+[ADR-0007](../TokenStats/docs/adr/0007-local-token-parse-cache.md) for the
+disposable Windows parse-checkpoint cache.

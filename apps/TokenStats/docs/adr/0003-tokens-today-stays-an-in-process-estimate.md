@@ -1,8 +1,10 @@
 # Tokens Today stays an in-process estimate, not a shared-DB figure
 
 The **Token Odometer** is computed **in-process inside TokenStats** from local
-transcript files and held in memory. Its shared raw total is the sum of the four
-disjoint Token Kinds: direct input, output, cache write, and cache read.
+transcript files. Its shared raw total is the sum of the four disjoint Token
+Kinds: direct input, output, cache write, and cache read. macOS holds parse
+state in memory; ADR-0007 permits Windows to persist disposable per-file parse
+checkpoints solely to accelerate reconciliation.
 
 The Windows client additionally derives two optional summaries from the same
 records: Billing tokens excludes cache read, while API equivalent applies the
@@ -10,12 +12,14 @@ recorded Model's standard list prices to all four Token Kinds. Unknown Models
 remain unpriced and make the estimate partial. These summaries do not redefine
 the Token Odometer.
 
-Neither the parsed token records nor the derived estimate is promoted to the
-shared SQLite database, a watcher daemon, or any IPC surface. macOS watches its
-transcript roots only while the Tokens tab is visible. Windows now seeds its
-persisted range at app startup and keeps an event-driven `FileSystemWatcher`
-inside the resident tray process so the tray's objective Token summary remains current
-(see the 2026-07-29 amendment). Neither platform polls on a timer.
+No token parse state or derived estimate is promoted to the shared SQLite
+database, a watcher daemon, or any IPC surface. The Windows-only cache from
+ADR-0007 is local, disposable, and never authoritative. macOS watches its
+transcript roots only while the Tokens tab is visible. Windows fully reconciles
+its persisted range at app startup and keeps an event-driven
+`FileSystemWatcher` inside the resident tray process so the tray's objective
+Token summary remains current (see the 2026-07-29 amendment). Neither platform
+polls transcript contents on a timer.
 
 This sits under ADR-0001: the Token Odometer is the *estimate-grade* local-file
 figure that ADR-0001 rejected as the source of truth for the authoritative
@@ -38,11 +42,12 @@ With the sole consumer being a resident app and the menu-bar label driven by the
 
 ## Decision
 
-Keep the Today counter **in-process and in-memory** in TokenStats. Do not add a
-token table, a watcher daemon, or an IPC surface. The Usage view is a pure
-derivation over the same in-memory transcript records and a versioned list-price
-catalog; adding it does not change this persistence or source-of-truth
-decision.
+Keep the Today counter **in-process** in TokenStats. Do not add a token table, a
+watcher daemon, or an IPC surface. The original implementation kept every parse
+checkpoint in memory; ADR-0007 now permits a narrow Windows-only disposable
+disk cache without changing the source-of-truth decision. The Usage view is a
+pure derivation over reconciled transcript records and a versioned list-price
+catalog.
 
 Replace the Usage tab's 5-second poll with an **FSEvents watch on `~/.claude/projects`, armed only while the Usage tab is visible**. On a coalesced change event, re-run the existing `dailyUsage` walk wholesale (no narrowing by changed path):
 
@@ -54,29 +59,37 @@ Scope is the **Usage tab's Tokens Today loop only**. The Sessions tab's poll is 
 ## Consequences
 
 - **Positive:** the repeated full-tree walk is gone — idle popover does zero filesystem work, active use does ~one walk/second. No second process, no launchd plist to install/codesign/keep alive, no schema migration, no IPC protocol or reconnect logic, no cross-language client. The change is small and reuses proven code. Estimate-grade data stays out of the shared persistence layer, so the DB keeps meaning "authoritative session state," not "a cache of guesses."
-- **Negative:** the figure exists only while TokenStats runs — there is no durable record of Tokens Today, and a future headless consumer (or a TUI tokens column) would have nothing to read. If such a consumer ever appears, this decision must be revisited, and the watcher-daemon-writes-DB option above becomes the natural answer (its only missing justification today is that second consumer).
-- The **first** popover open after launch still pays one full-tree enumeration (a cold read); we accept that latency rather than pre-warm with an always-on watcher, because pre-warming means parsing transcripts all day for an off-screen number.
+- **Negative:** there is no durable, authoritative record of Tokens Today, and a future headless consumer (or a TUI tokens column) would have nothing supported to read. Windows' disposable cache is not an API or historical ledger. If such a consumer ever appears, this decision must be revisited, and the watcher-daemon-writes-DB option above becomes the natural answer.
+- On macOS, the **first** popover open after launch still pays one full-tree enumeration (a cold read); we accept that latency rather than pre-warm with an always-on watcher, because pre-warming means parsing transcripts all day for an off-screen number. Windows instead performs a startup reconciliation and may hydrate unchanged files from ADR-0007 checkpoints.
 - **Midnight rollover** is not specially handled: if the popover stays open across local midnight with no further file activity, the displayed day is stale until the next change event re-runs `dailyUsage`. Accepted as rare.
-- Choosing **(A) re-walk on change** over narrowing to the event's changed paths trades some redundant walks during active bursts for zero new code and no new bug surface. If active-session walk cost ever bites, narrowing by changed path (parse only changed files, sum today's buckets from the in-memory `states`) is the escalation — it removes the walk entirely after the seed.
+- On macOS, choosing **(A) re-walk on change** over narrowing to the event's
+  changed paths trades some redundant walks during active bursts for zero new
+  code and no new bug surface. Windows instead uses ADR-0007's targeted
+  reconciliation, with a full reconciliation after startup, manual refresh, or
+  an unsafe watcher event.
 
 ## Amendment — 2026-07-28
 
-The decision above is unchanged: the figure stays **in-process and in-memory**, with no token table, no watcher daemon and no IPC surface, refreshed by an FSEvents watch armed only while visible. Two things around it moved.
+At the time of this amendment the figure stayed **in-process and in-memory**,
+with no token table, watcher daemon, or IPC surface, refreshed by an FSEvents
+watch armed only while visible. ADR-0007 later revises only the Windows
+parse-checkpoint persistence boundary.
 
 **The vocabulary is retired.** `CONTEXT.md` replaced **Tokens Today** with the **Token Odometer**, which is the same measure over a *chosen range* rather than since local midnight. Read every "Tokens Today" below as "Token Odometer". The word is kept in this file's title and body because an ADR records what was decided when, not what it would be called today.
 
 **The scope line moved tabs.** It read "the Usage tab's Tokens Today loop only". The combined figure has since been deleted from the Usage tab, which now shows Usage Window gauges and nothing else, and the watch is armed by the **Tokens tab** instead. The "watch only while visible" property is unaffected — SwiftUI arms the `.task` when that tab appears and cancels it when the tab or the popover goes away — and the Sessions tab the original scope line contrasted against no longer exists at all.
 
-**What the ranges did *not* change.** A 7- or 30-day range re-reads more files on the first pass, but adds no persistence: the reader's per-file parse state is still the only cache and still in-memory, and states untouched for 48 hours are still dropped — on the next scan, since eviction runs inside the scan and the scan only runs while the tab is visible. A process that never sees the Tokens tab again holds what it has.
+**What the ranges did *not* change.** On macOS, a 7- or 30-day range re-reads more files on the first pass but adds no persistence: the reader's per-file parse state is still in-memory, and states untouched for 48 hours are still dropped — on the next scan, since eviction runs inside the scan and the scan only runs while the tab is visible. ADR-0007 later allows Windows to retain disposable per-file checkpoints across launches.
 
 **What the ranges did change.** The first-open cost is no longer one figure. Measured on the research corpus with a **warm page cache**: a full 30-day scan across both roots is **~4.1s**, and the whole corpus ~5.0s; once every file's parse state is current, a re-scan is the **6–25ms** it takes to enumerate and stat the tree. A genuinely cold, post-reboot figure was never measured — `purge` needs sudo — so the 4.1s is a floor, not a worst case. The "consequences" note above still holds for Today, which is what a popover opens on; a 30-day range is a deliberate switch, and it is the range that pays.
 
 ## Amendment — 2026-07-29
 
-The in-process and in-memory boundary remains unchanged, but the Windows
-watcher's lifetime changes. This amendment supersedes the Windows portion of
-the 2026-07-28 "watch only while visible" statement; macOS behavior is
-unchanged.
+The in-process boundary remains unchanged, but the Windows watcher's lifetime
+changes. This amendment supersedes the Windows portion of the 2026-07-28
+"watch only while visible" statement; macOS behavior is unchanged. ADR-0007
+later supersedes this amendment's strictly in-memory Windows boundary with a
+disposable local parse cache.
 
 ### Context
 
@@ -100,16 +113,17 @@ measure.
 
 On Windows:
 
-- Seed the persisted Today, 7-day, or 30-day range in the background when the
-  resident tray application starts.
+- Fully reconcile the persisted Today, 7-day, or 30-day range in the background
+  when the resident tray application starts.
 - Arm recursive `FileSystemWatcher` subscriptions for the native Claude Code
   and Codex transcript roots for the application's lifetime. Coalesce change
   bursts before reusing the in-process incremental reader; do not add periodic
   full-tree polling.
 - Recompute the table projection and objective tray summary separately from the
-  same in-memory result used by the flyout.
-- Persist presentation preferences such as the selected range and pin choice,
-  but do not persist parsed token records or aggregate token readings.
+  same reconciled in-memory result used by the flyout.
+- Persist presentation preferences such as the selected range and pin choice.
+  ADR-0007 additionally permits disposable per-file parse checkpoints, but not
+  an authoritative aggregate, transcript content, credentials, or a database.
 
 This is still one native application process. It adds no service or watcher
 daemon, no SQLite table, no IPC protocol, and no second source of truth.
@@ -118,9 +132,10 @@ daemon, no SQLite table, no IPC protocol, and no second source of truth.
 
 - The Windows notification-area summary can stay current without opening the
   Tokens tab.
-- Windows pays one seed scan on every application launch. A persisted 30-day
-  range can therefore incur the measured warm-cache multi-second scan at
-  startup, so seeding must not block tray creation or UI activation.
+- Windows performs one full reconciliation on every application launch. A cold
+  or invalidated 30-day cache can therefore incur the measured multi-second
+  parse at startup, while valid ADR-0007 checkpoints avoid re-parsing unchanged
+  files. Reconciliation must not block tray creation or UI activation.
 - File-system subscriptions remain armed while the tray process is resident,
   but idle operation performs no repeated enumeration; work follows transcript
   events and the existing coalescing policy.

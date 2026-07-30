@@ -141,6 +141,9 @@ internal static class Program
             VerifySmallWorkAreaConstraints();
             VerifyFlyoutPlacement();
             VerifyMissingTranscriptRootRecovery(temporary);
+            VerifyWatcherDebounceDrainsWithoutCanceling(temporary);
+            VerifyWatcherScanFailureRetries(temporary);
+            VerifyDirectoryChangesForceReconciliation(temporary);
             VerifySignOutWinsInFlightRefresh(temporary);
 
             var auth = AgentRegistry.All.ToDictionary(
@@ -1497,6 +1500,256 @@ internal static class Program
             watcher.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
     }
+
+    private static void VerifyWatcherDebounceDrainsWithoutCanceling(
+        string temporary)
+    {
+        var now = DateTimeOffset.Now;
+        var root = Path.Combine(temporary, "watcher-drain");
+        Directory.CreateDirectory(root);
+        var transcript = Path.Combine(root, "drain.jsonl");
+        File.WriteAllText(
+            transcript,
+            CreateTranscriptLine(now, "drain-seed", input: 7, output: 3));
+
+        using var firstScanEntered = new ManualResetEventSlim();
+        using var releaseFirstScan = new ManualResetEventSlim();
+        using var followUpEntered = new ManualResetEventSlim();
+        using var releaseFollowUp = new ManualResetEventSlim();
+        var nowCallCount = 0;
+        DateTimeOffset ControlledNow()
+        {
+            var call = Interlocked.Increment(ref nowCallCount);
+            if (call == 2)
+            {
+                firstScanEntered.Set();
+                if (!releaseFirstScan.Wait(TimeSpan.FromSeconds(5)))
+                {
+                    throw new TimeoutException(
+                        "The controlled seed token scan was not released.");
+                }
+            }
+            else if (call == 3)
+            {
+                followUpEntered.Set();
+                if (!releaseFollowUp.Wait(TimeSpan.FromSeconds(5)))
+                {
+                    throw new TimeoutException(
+                        "The controlled follow-up token scan was not released.");
+                }
+            }
+
+            return now;
+        }
+
+        var watcher = new TokenOdometerWatcher(
+            new TranscriptTokenReader(),
+            [("Drain root", root)],
+            ControlledNow);
+        Task? seed = null;
+        try
+        {
+            seed = Task.Run(() => watcher.SetVisibleAsync(true));
+            if (!firstScanEntered.Wait(TimeSpan.FromSeconds(5)))
+            {
+                throw new TimeoutException(
+                    "The seed token scan did not enter its controlled read.");
+            }
+
+            File.AppendAllText(
+                transcript,
+                CreateTranscriptLine(
+                    now,
+                    "drain-append",
+                    input: 4,
+                    output: 6));
+            Thread.Sleep(TimeSpan.FromMilliseconds(1500));
+            releaseFirstScan.Set();
+
+            if (!seed.Wait(TimeSpan.FromSeconds(5)))
+            {
+                throw new TimeoutException(
+                    "The seed token scan did not complete after release.");
+            }
+
+            if (!watcher.HasLoaded ||
+                watcher.Usage?.OdometerTokens != 20)
+            {
+                throw new InvalidOperationException(
+                    "A debounced file event canceled the in-flight seed scan.");
+            }
+
+            if (!followUpEntered.Wait(TimeSpan.FromSeconds(5)))
+            {
+                throw new TimeoutException(
+                    "File changes accumulated during the seed scan were not drained.");
+            }
+
+            releaseFollowUp.Set();
+            if (!SpinWait.SpinUntil(
+                    () =>
+                        !watcher.IsScanning &&
+                        watcher.Usage?.OdometerTokens == 20,
+                    TimeSpan.FromSeconds(5)))
+            {
+                throw new TimeoutException(
+                    "The queued targeted refresh did not finish after the seed scan.");
+            }
+        }
+        finally
+        {
+            releaseFirstScan.Set();
+            releaseFollowUp.Set();
+            if (seed is not null)
+            {
+                try
+                {
+                    seed.GetAwaiter().GetResult();
+                }
+                catch
+                {
+                    // Preserve the primary smoke-test failure.
+                }
+            }
+            watcher.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    private static void VerifyWatcherScanFailureRetries(string temporary)
+    {
+        var now = DateTimeOffset.Now;
+        var root = Path.Combine(temporary, "watcher-retry");
+        Directory.CreateDirectory(root);
+        File.WriteAllText(
+            Path.Combine(root, "retry.jsonl"),
+            CreateTranscriptLine(now, "retry-seed", input: 8, output: 2));
+
+        var nowCallCount = 0;
+        DateTimeOffset FailFirstScan()
+        {
+            var call = Interlocked.Increment(ref nowCallCount);
+            if (call == 2)
+            {
+                throw new IOException("Controlled token scan failure.");
+            }
+
+            return now;
+        }
+
+        var watcher = new TokenOdometerWatcher(
+            new TranscriptTokenReader(),
+            [("Retry root", root)],
+            FailFirstScan);
+        try
+        {
+            watcher.SetVisibleAsync(true).GetAwaiter().GetResult();
+            if (watcher.HasLoaded ||
+                watcher.IsScanning ||
+                watcher.LastError != "Controlled token scan failure.")
+            {
+                throw new InvalidOperationException(
+                    "The controlled token scan failure was not published.");
+            }
+
+            if (!SpinWait.SpinUntil(
+                    () =>
+                        watcher.HasLoaded &&
+                        !watcher.IsScanning &&
+                        watcher.LastError is null &&
+                        watcher.Usage?.OdometerTokens == 10,
+                    TimeSpan.FromSeconds(5)))
+            {
+                throw new TimeoutException(
+                    "A failed token scan was not retried with a full reconciliation.");
+            }
+        }
+        finally
+        {
+            watcher.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    private static void VerifyDirectoryChangesForceReconciliation(
+        string temporary)
+    {
+        var now = DateTimeOffset.Now;
+        var root = Path.Combine(temporary, "watcher-directories");
+        var oldDirectory = Path.Combine(root, "before");
+        var newDirectory = Path.Combine(root, "after");
+        Directory.CreateDirectory(oldDirectory);
+        var oldTranscript = Path.Combine(oldDirectory, "session.jsonl");
+        File.WriteAllText(
+            oldTranscript,
+            CreateTranscriptLine(now, "directory-seed", input: 6, output: 4));
+
+        var watcher = new TokenOdometerWatcher(
+            new TranscriptTokenReader(),
+            [("Directory root", root)],
+            () => now);
+        try
+        {
+            watcher.SetVisibleAsync(true).GetAwaiter().GetResult();
+            if (watcher.Usage?.OdometerTokens != 10)
+            {
+                throw new InvalidOperationException(
+                    "The directory reconciliation seed was not loaded.");
+            }
+
+            Directory.Move(oldDirectory, newDirectory);
+            var movedTranscript = Path.Combine(newDirectory, "session.jsonl");
+            File.AppendAllText(
+                movedTranscript,
+                CreateTranscriptLine(
+                    now,
+                    "directory-append",
+                    input: 3,
+                    output: 2));
+            if (!SpinWait.SpinUntil(
+                    () =>
+                        !watcher.IsScanning &&
+                        watcher.Usage?.OdometerTokens == 15,
+                    TimeSpan.FromSeconds(7)))
+            {
+                throw new TimeoutException(
+                    "A directory rename did not force full transcript reconciliation.");
+            }
+
+            Directory.Delete(newDirectory, recursive: true);
+            if (!SpinWait.SpinUntil(
+                    () => !watcher.IsScanning && watcher.Usage is null,
+                    TimeSpan.FromSeconds(7)))
+            {
+                throw new TimeoutException(
+                    "A directory deletion did not remove stale transcript usage.");
+            }
+        }
+        finally
+        {
+            watcher.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    private static string CreateTranscriptLine(
+        DateTimeOffset timestamp,
+        string id,
+        long input,
+        long output) =>
+        JsonSerializer.Serialize(new
+        {
+            timestamp = timestamp.ToString("O"),
+            message = new
+            {
+                id,
+                model = "claude-sonnet-4-6",
+                usage = new
+                {
+                    input_tokens = input,
+                    output_tokens = output,
+                    cache_creation_input_tokens = 0,
+                    cache_read_input_tokens = 0,
+                },
+            },
+        }) + Environment.NewLine;
 
     private static void VerifySignOutWinsInFlightRefresh(string temporary)
     {

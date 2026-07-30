@@ -1,13 +1,22 @@
 using System.Globalization;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace TokenStats.Core;
 
+public readonly record struct TranscriptReadStatistics(
+    long CacheLoads,
+    long CacheMisses,
+    long CacheInvalidations,
+    long CacheWrites,
+    long ContentBytesRead,
+    long TargetedRefreshes);
+
 /// <summary>
 /// Incrementally reads Claude Code transcripts and Codex rollout JSONL files.
-/// Parse progress is cached per file, so subsequent scans only inspect bytes
-/// appended since the previous scan.
+/// Parse progress is cached per file in memory and can be checkpointed to an
+/// app-private cache directory, so subsequent scans only parse appended bytes.
 /// </summary>
 public sealed class TranscriptTokenReader
 {
@@ -15,16 +24,48 @@ public sealed class TranscriptTokenReader
     private const int MaximumLineBytes = 16 * 1024 * 1024;
     private const int MaximumRetainedPartialBytes = 4 * ReadBufferSize;
     private const int FileIdentityPrefixBytes = 4 * 1024;
+    private const int FileIdentityCheckpointBytes = 4 * 1024;
     private static readonly TimeSpan StateRetention = TimeSpan.FromHours(48);
 
     private readonly object sync = new();
     private readonly TimeZoneInfo localTimeZone;
+    private readonly TranscriptTokenCacheStore? cacheStore;
     private readonly Dictionary<string, ParseState> states =
         new(StringComparer.OrdinalIgnoreCase);
+    private long cacheLoads;
+    private long cacheMisses;
+    private long cacheInvalidations;
+    private long cacheWrites;
+    private long contentBytesRead;
+    private long targetedRefreshes;
 
-    public TranscriptTokenReader(TimeZoneInfo? localTimeZone = null)
+    public TranscriptTokenReader(
+        TimeZoneInfo? localTimeZone = null,
+        string? cacheDirectory = null)
     {
         this.localTimeZone = localTimeZone ?? TimeZoneInfo.Local;
+        cacheStore = string.IsNullOrWhiteSpace(cacheDirectory)
+            ? null
+            : new TranscriptTokenCacheStore(
+                cacheDirectory,
+                this.localTimeZone.Id);
+    }
+
+    public TranscriptReadStatistics Statistics
+    {
+        get
+        {
+            lock (sync)
+            {
+                return new TranscriptReadStatistics(
+                    cacheLoads,
+                    cacheMisses,
+                    cacheInvalidations,
+                    cacheWrites,
+                    contentBytesRead,
+                    targetedRefreshes);
+            }
+        }
     }
 
     /// <summary>
@@ -64,7 +105,8 @@ public sealed class TranscriptTokenReader
             root,
             range,
             now ?? DateTimeOffset.Now,
-            CancellationToken.None);
+            CancellationToken.None,
+            changedPaths: null);
 
     /// <summary>
     /// Runs a rolling-range filesystem scan away from the UI thread.
@@ -79,8 +121,33 @@ public sealed class TranscriptTokenReader
                 root,
                 range,
                 now ?? DateTimeOffset.Now,
-                cancellationToken),
+                cancellationToken,
+                changedPaths: null),
             cancellationToken);
+
+    /// <summary>
+    /// Reconciles only transcript paths reported by the filesystem watcher,
+    /// then recomputes the selected range from the in-memory/cache index.
+    /// Manual refreshes and range changes should still use
+    /// <see cref="RangeUsageAsync"/> for a full directory reconciliation.
+    /// </summary>
+    public Task<TokenUsage?> RefreshRangeAsync(
+        string root,
+        TokenRange range,
+        IReadOnlyCollection<string> changedPaths,
+        DateTimeOffset? now = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(changedPaths);
+        return Task.Run(
+            () => RangeUsageCore(
+                root,
+                range,
+                now ?? DateTimeOffset.Now,
+                cancellationToken,
+                changedPaths),
+            cancellationToken);
+    }
 
     /// <summary>
     /// Returns all usage in one transcript. Repeated calls only parse appended
@@ -91,8 +158,14 @@ public sealed class TranscriptTokenReader
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         lock (sync)
         {
+            var fullPath = Path.GetFullPath(path);
+            if (states.TryGetValue(fullPath, out var state))
+            {
+                state.RequiresIdentityValidation = true;
+            }
+
             return UsageForTranscriptLocked(
-                Path.GetFullPath(path),
+                fullPath,
                 DateTimeOffset.Now,
                 CancellationToken.None);
         }
@@ -102,7 +175,8 @@ public sealed class TranscriptTokenReader
         string root,
         TokenRange range,
         DateTimeOffset now,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<string>? changedPaths)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(root);
         lock (sync)
@@ -111,6 +185,13 @@ public sealed class TranscriptTokenReader
             var fullRoot = Path.GetFullPath(root);
             if (!Directory.Exists(fullRoot))
             {
+                foreach (var path in states.Keys
+                             .Where(path => IsPathBelowRoot(fullRoot, path))
+                             .ToArray())
+                {
+                    RemoveState(path, removePersistentCache: true);
+                }
+
                 EvictStaleStates(now);
                 return null;
             }
@@ -120,100 +201,228 @@ public sealed class TranscriptTokenReader
                 .Range(0, range.Days())
                 .Select(rangeStart.AddDays)
                 .ToHashSet();
-            var combined = new TokenUsage();
+            HashSet<string>? activePaths = null;
             try
             {
-                var options = new EnumerationOptions
+                if (changedPaths is null)
                 {
-                    RecurseSubdirectories = true,
-                    IgnoreInaccessible = true,
-                    ReturnSpecialDirectories = false,
-                    AttributesToSkip = FileAttributes.ReparsePoint,
-                };
-
-                foreach (var path in Directory.EnumerateFiles(fullRoot, "*", options))
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (!string.Equals(
-                            Path.GetExtension(path),
-                            ".jsonl",
-                            StringComparison.OrdinalIgnoreCase) ||
-                        !WasModifiedOnOrAfter(path, rangeStart))
-                    {
-                        continue;
-                    }
-
-                    var fullPath = Path.GetFullPath(path);
-                    _ = UsageForTranscriptLocked(
-                        fullPath,
+                    activePaths = ReconcileRoot(
+                        fullRoot,
+                        rangeStart,
                         now,
                         cancellationToken);
-                    if (!states.TryGetValue(fullPath, out var state))
-                    {
-                        continue;
-                    }
-
-                    foreach (var day in days)
-                    {
-                        if (state.PerDay.TryGetValue(day, out var usage))
-                        {
-                            combined.Add(usage);
-                        }
-                    }
-
-                    foreach (var item in state.PendingByDay)
-                    {
-                        if (days.Contains(item.Key.Day))
-                        {
-                            combined.AddAttribution(
-                                item.Key.AgentId,
-                                ModelName.Unattributed,
-                                item.Value);
-                        }
-                    }
+                }
+                else
+                {
+                    targetedRefreshes++;
+                    ReconcileChangedPaths(
+                        fullRoot,
+                        changedPaths,
+                        now,
+                        cancellationToken);
                 }
             }
             catch (DirectoryNotFoundException)
             {
-                return null;
+                return LastKnownRange(fullRoot, days);
             }
             catch (UnauthorizedAccessException)
             {
-                return null;
+                return LastKnownRange(fullRoot, days);
             }
             catch (IOException)
             {
-                return null;
+                return LastKnownRange(fullRoot, days);
             }
             finally
             {
-                EvictStaleStates(now);
+                // A targeted reconcile depends on the complete in-memory index
+                // for every unchanged path. Full scans can safely evict because
+                // they rebuild the authoritative active-path set first.
+                if (changedPaths is null)
+                {
+                    EvictStaleStates(now);
+                }
             }
 
+            var combined = CombineRange(
+                fullRoot,
+                days,
+                activePaths);
             return combined.ResponseCount > 0 ? combined : null;
         }
     }
 
+    private HashSet<string> ReconcileRoot(
+        string fullRoot,
+        DateOnly rangeStart,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var allPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var activePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var options = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = false,
+            ReturnSpecialDirectories = false,
+            AttributesToSkip = FileAttributes.ReparsePoint,
+        };
+
+        foreach (var path in Directory.EnumerateFiles(fullRoot, "*", options))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!string.Equals(
+                    Path.GetExtension(path),
+                    ".jsonl",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var fullPath = Path.GetFullPath(path);
+            allPaths.Add(fullPath);
+            if (!WasModifiedOnOrAfter(fullPath, rangeStart))
+            {
+                continue;
+            }
+
+            activePaths.Add(fullPath);
+            if (states.TryGetValue(fullPath, out var state))
+            {
+                // Full/manual reconciliation is a truth pass, not merely a
+                // metadata poll. Validate fingerprints even when length and
+                // timestamp are unchanged.
+                state.RequiresIdentityValidation = true;
+            }
+
+            _ = UsageForTranscriptLocked(
+                fullPath,
+                now,
+                cancellationToken);
+        }
+
+        foreach (var path in states.Keys
+                     .Where(path => IsPathBelowRoot(fullRoot, path))
+                     .Where(path => !allPaths.Contains(path))
+                     .ToArray())
+        {
+            RemoveState(path, removePersistentCache: true);
+        }
+
+        return activePaths;
+    }
+
+    private void ReconcileChangedPaths(
+        string fullRoot,
+        IReadOnlyCollection<string> changedPaths,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        foreach (var path in changedPaths
+                     .Where(path => !string.IsNullOrWhiteSpace(path))
+                     .Select(Path.GetFullPath)
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!IsPathBelowRoot(fullRoot, path) ||
+                !string.Equals(
+                    Path.GetExtension(path),
+                    ".jsonl",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!File.Exists(path))
+            {
+                RemoveState(path, removePersistentCache: true);
+                continue;
+            }
+
+            if (states.TryGetValue(path, out var state))
+            {
+                // A watcher event is positive evidence that the file changed.
+                // Do not let an unchanged/coarse timestamp bypass the identity
+                // checks for a same-size replacement.
+                state.RequiresIdentityValidation = true;
+            }
+
+            _ = UsageForTranscriptLocked(
+                path,
+                now,
+                cancellationToken);
+        }
+    }
+
+    private TokenUsage CombineRange(
+        string fullRoot,
+        IReadOnlySet<DateOnly> days,
+        IReadOnlySet<string>? activePaths)
+    {
+        var combined = new TokenUsage();
+        foreach (var item in states)
+        {
+            if (!IsPathBelowRoot(fullRoot, item.Key) ||
+                activePaths is not null &&
+                !activePaths.Contains(item.Key))
+            {
+                continue;
+            }
+
+            var state = item.Value;
+            foreach (var day in days)
+            {
+                if (state.PerDay.TryGetValue(day, out var usage))
+                {
+                    combined.Add(usage);
+                }
+            }
+
+            foreach (var pending in state.PendingByDay)
+            {
+                if (days.Contains(pending.Key.Day))
+                {
+                    combined.AddAttribution(
+                        pending.Key.AgentId,
+                        ModelName.Unattributed,
+                        pending.Value);
+                }
+            }
+        }
+
+        return combined;
+    }
+
+    private TokenUsage? LastKnownRange(
+        string fullRoot,
+        IReadOnlySet<DateOnly> days)
+    {
+        var fallback = CombineRange(
+            fullRoot,
+            days,
+            activePaths: null);
+        return fallback.ResponseCount > 0 ? fallback : null;
+    }
+
+    private static bool IsPathBelowRoot(string fullRoot, string fullPath)
+    {
+        var relative = Path.GetRelativePath(fullRoot, fullPath);
+        return !Path.IsPathRooted(relative) &&
+               !string.Equals(relative, "..", StringComparison.Ordinal) &&
+               !relative.StartsWith(
+                   $"..{Path.DirectorySeparatorChar}",
+                   StringComparison.Ordinal) &&
+               !relative.StartsWith(
+                   $"..{Path.AltDirectorySeparatorChar}",
+                   StringComparison.Ordinal);
+    }
+
     private bool WasModifiedOnOrAfter(string path, DateOnly day)
     {
-        try
-        {
-            var modifiedUtc = File.GetLastWriteTimeUtc(path);
-            var modified = new DateTimeOffset(modifiedUtc, TimeSpan.Zero);
-            return LocalDate(modified) >= day;
-        }
-        catch (ArgumentException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
+        var modifiedUtc = File.GetLastWriteTimeUtc(path);
+        var modified = new DateTimeOffset(modifiedUtc, TimeSpan.Zero);
+        return LocalDate(modified) >= day;
     }
 
     private TokenUsage? UsageForTranscriptLocked(
@@ -221,6 +430,59 @@ public sealed class TranscriptTokenReader
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
+        var state = states.TryGetValue(path, out var inMemory)
+            ? inMemory
+            : TryLoadCachedState(path, now);
+
+        long metadataLength;
+        DateTime metadataLastWriteUtc;
+        try
+        {
+            var information = new FileInfo(path);
+            information.Refresh();
+            if (!information.Exists)
+            {
+                RemoveState(path, removePersistentCache: true);
+                return null;
+            }
+
+            metadataLength = information.Length;
+            metadataLastWriteUtc = information.LastWriteTimeUtc;
+        }
+        catch (ArgumentException)
+        {
+            RemoveState(path, removePersistentCache: true);
+            return null;
+        }
+        catch (FileNotFoundException)
+        {
+            RemoveState(path, removePersistentCache: true);
+            return null;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            RemoveState(path, removePersistentCache: true);
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+
+        if (state is not null &&
+            !state.RequiresIdentityValidation &&
+            state.ObservedLength == metadataLength &&
+            state.ConsumedBytes == metadataLength &&
+            state.LastWriteUtc == metadataLastWriteUtc)
+        {
+            state.LastAccessed = now;
+            return ResultFromState(state);
+        }
+
         FileStream stream;
         try
         {
@@ -234,17 +496,17 @@ public sealed class TranscriptTokenReader
         }
         catch (ArgumentException)
         {
-            states.Remove(path);
+            RemoveState(path, removePersistentCache: true);
             return null;
         }
         catch (FileNotFoundException)
         {
-            states.Remove(path);
+            RemoveState(path, removePersistentCache: true);
             return null;
         }
         catch (DirectoryNotFoundException)
         {
-            states.Remove(path);
+            RemoveState(path, removePersistentCache: true);
             return null;
         }
         catch (UnauthorizedAccessException)
@@ -258,27 +520,32 @@ public sealed class TranscriptTokenReader
 
         using (stream)
         {
-            ParseState state;
+            var persist = false;
             long size;
             try
             {
                 size = stream.Length;
-                state = states.TryGetValue(path, out var cached)
-                    ? cached
-                    : new ParseState();
+                state ??= new ParseState();
                 var lastWriteUtc = File.GetLastWriteTimeUtc(path);
-                if (size < state.ConsumedBytes ||
-                    (size == state.ConsumedBytes &&
+                if (size < state.ObservedLength ||
+                    size < state.ConsumedBytes ||
+                    (size == state.ObservedLength &&
                      state.LastWriteUtc != default &&
                      state.LastWriteUtc != lastWriteUtc) ||
-                    !PrefixMatches(stream, state))
+                    !PrefixMatches(stream, state) ||
+                    !CheckpointMatches(stream, state))
                 {
+                    state.PartialLine.Dispose();
                     state = new ParseState();
+                    persist = true;
+                    if (cacheStore is not null)
+                    {
+                        cacheInvalidations++;
+                        cacheStore.Remove(path);
+                    }
                 }
 
                 CapturePrefix(stream, state, size);
-                state.LastWriteUtc = lastWriteUtc;
-                state.LastAccessed = now;
                 if (size > state.ConsumedBytes)
                 {
                     stream.Seek(state.ConsumedBytes, SeekOrigin.Begin);
@@ -289,30 +556,322 @@ public sealed class TranscriptTokenReader
                         cancellationToken.ThrowIfCancellationRequested();
                         Ingest(buffer.AsMemory(0, count), state);
                         state.ConsumedBytes += count;
+                        contentBytesRead += count;
+                        persist = true;
                     }
                 }
+
+                CaptureCheckpoint(stream, state, size);
+                state.ObservedLength = size;
+                state.LastWriteUtc = lastWriteUtc;
+                state.LastAccessed = now;
+                state.RequiresIdentityValidation = false;
             }
-            catch (IOException)
+            catch (OperationCanceledException)
             {
+                AbandonInterruptedState(path, state);
+                throw;
+            }
+            catch (Exception exception) when (
+                exception is IOException or UnauthorizedAccessException)
+            {
+                AbandonInterruptedState(path, state);
                 return null;
             }
 
             states[path] = state;
-            if (state.Usage.ResponseCount == 0)
+            if (persist)
             {
-                return null;
+                PersistState(path, state);
             }
 
-            var result = state.Usage.Clone();
-            foreach (var item in state.PendingByAgent)
-            {
-                result.AddAttribution(
-                    item.Key,
-                    ModelName.Unattributed,
-                    item.Value);
-            }
+            return ResultFromState(state);
+        }
+    }
 
-            return result;
+    private ParseState? TryLoadCachedState(
+        string path,
+        DateTimeOffset now)
+    {
+        if (cacheStore is null)
+        {
+            return null;
+        }
+
+        var result = cacheStore.Load(path);
+        if (result.Status == TranscriptTokenCacheLoadStatus.Miss)
+        {
+            cacheMisses++;
+            return null;
+        }
+
+        if (result.Status != TranscriptTokenCacheLoadStatus.Loaded ||
+            result.Entry is null ||
+            !TryRestoreState(result.Entry, now, out var state))
+        {
+            cacheInvalidations++;
+            cacheStore.Remove(path);
+            return null;
+        }
+
+        cacheLoads++;
+        return state;
+    }
+
+    private static bool TryRestoreState(
+        TranscriptTokenCacheEntry entry,
+        DateTimeOffset now,
+        out ParseState? state)
+    {
+        state = null;
+        var expectedWindowLength = checked(
+            (int)Math.Min(
+                entry.ObservedLength,
+                FileIdentityCheckpointBytes));
+        if (entry.ConsumedBytes > entry.ObservedLength ||
+            entry.PrefixOffset != 0 ||
+            !IsValidIdentityWindow(
+                entry.PrefixLength,
+                entry.PrefixHash,
+                expectedWindowLength) ||
+            !IsValidIdentityWindow(
+                entry.CheckpointLength,
+                entry.CheckpointHash,
+                expectedWindowLength) ||
+            entry.CheckpointOffset !=
+            entry.ObservedLength - entry.CheckpointLength ||
+            entry.SeenResponseIds.Any(
+                static identity => !IsSha256Identity(identity)))
+        {
+            return false;
+        }
+
+        var restored = new ParseState
+        {
+            ConsumedBytes = entry.ConsumedBytes,
+            ObservedLength = entry.ObservedLength,
+            DroppingOversizedLine = entry.DroppingOversizedLine,
+            PrefixLength = entry.PrefixLength,
+            PrefixHash = entry.PrefixHash.ToArray(),
+            CheckpointOffset = entry.CheckpointOffset,
+            CheckpointLength = entry.CheckpointLength,
+            CheckpointHash = entry.CheckpointHash.ToArray(),
+            ActiveCodexModel = entry.ActiveCodexModel is null
+                ? null
+                : ModelName.Named(entry.ActiveCodexModel),
+            CodexRunningTotal = entry.CodexRunningTotal is null
+                ? null
+                : new CodexRunningTotal(
+                    entry.CodexRunningTotal.DirectInput,
+                    entry.CodexRunningTotal.Output,
+                    entry.CodexRunningTotal.CacheWrite,
+                    entry.CodexRunningTotal.CacheWrite1Hour,
+                    entry.CodexRunningTotal.CacheRead),
+            LastAccessed = now,
+            LastWriteUtc = entry.LastWriteUtc,
+            RequiresIdentityValidation = true,
+        };
+
+        if (entry.SeenResponseIds.Distinct(
+                StringComparer.Ordinal).Count() !=
+            entry.SeenResponseIds.Count)
+        {
+            restored.PartialLine.Dispose();
+            return false;
+        }
+
+        foreach (var identity in entry.SeenResponseIds)
+        {
+            restored.SeenResponseIds.Add(identity);
+        }
+
+        restored.Usage.Add(entry.Usage.ToUsage());
+        foreach (var item in entry.PerDay)
+        {
+            if (!restored.PerDay.TryAdd(
+                    item.Day,
+                    item.Usage.ToUsage()))
+            {
+                restored.PartialLine.Dispose();
+                return false;
+            }
+        }
+
+        foreach (var item in entry.PendingByAgent)
+        {
+            if (!restored.PendingByAgent.TryAdd(
+                    item.AgentId,
+                    item.Usage.ToUsage()))
+            {
+                restored.PartialLine.Dispose();
+                return false;
+            }
+        }
+
+        foreach (var item in entry.PendingByDay)
+        {
+            if (!restored.PendingByDay.TryAdd(
+                    new PendingUsageKey(item.Day, item.AgentId),
+                    item.Usage.ToUsage()))
+            {
+                restored.PartialLine.Dispose();
+                return false;
+            }
+        }
+
+        state = restored;
+        return true;
+    }
+
+    private static bool IsValidIdentityWindow(
+        int length,
+        byte[] hash,
+        int expectedLength) =>
+        length == expectedLength &&
+        (length == 0
+            ? hash.Length == 0
+            : hash.Length == 32);
+
+    private static bool IsSha256Identity(string identity)
+    {
+        if (identity.Length != 64)
+        {
+            return false;
+        }
+
+        foreach (var character in identity)
+        {
+            if (!((character >= '0' && character <= '9') ||
+                  (character >= 'A' && character <= 'F')))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void PersistState(string path, ParseState state)
+    {
+        if (cacheStore is null)
+        {
+            return;
+        }
+
+        var safeConsumedBytes = state.DroppingOversizedLine
+            ? state.ConsumedBytes
+            : state.ConsumedBytes - state.PartialLine.Length;
+        if (safeConsumedBytes < 0 ||
+            safeConsumedBytes > state.ObservedLength)
+        {
+            return;
+        }
+
+        var entry = new TranscriptTokenCacheEntry
+        {
+            ConsumedBytes = safeConsumedBytes,
+            ObservedLength = state.ObservedLength,
+            LastWriteUtc = state.LastWriteUtc,
+            DroppingOversizedLine = state.DroppingOversizedLine,
+            PrefixOffset = 0,
+            PrefixLength = state.PrefixLength,
+            PrefixHash = state.PrefixHash.ToArray(),
+            CheckpointOffset = state.CheckpointOffset,
+            CheckpointLength = state.CheckpointLength,
+            CheckpointHash = state.CheckpointHash.ToArray(),
+            SeenResponseIds = state.SeenResponseIds
+                .Order(StringComparer.Ordinal)
+                .ToList(),
+            Usage = TranscriptTokenUsageSnapshot.FromUsage(state.Usage),
+            PerDay = state.PerDay
+                .OrderBy(item => item.Key)
+                .Select(item => new TranscriptDailyUsageSnapshot
+                {
+                    Day = item.Key,
+                    Usage = TranscriptTokenUsageSnapshot.FromUsage(item.Value),
+                })
+                .ToList(),
+            PendingByAgent = state.PendingByAgent
+                .OrderBy(item => item.Key)
+                .Select(item => new TranscriptPendingAgentUsageSnapshot
+                {
+                    AgentId = item.Key,
+                    Usage = TranscriptTokenUsageSnapshot.FromUsage(item.Value),
+                })
+                .ToList(),
+            PendingByDay = state.PendingByDay
+                .OrderBy(item => item.Key.Day)
+                .ThenBy(item => item.Key.AgentId)
+                .Select(item => new TranscriptPendingDayUsageSnapshot
+                {
+                    Day = item.Key.Day,
+                    AgentId = item.Key.AgentId,
+                    Usage = TranscriptTokenUsageSnapshot.FromUsage(item.Value),
+                })
+                .ToList(),
+            ActiveCodexModel = state.ActiveCodexModel?.Value,
+            CodexRunningTotal = state.CodexRunningTotal is not { } total
+                ? null
+                : new TranscriptCodexRunningTotalSnapshot
+                {
+                    DirectInput = total.DirectInput,
+                    Output = total.Output,
+                    CacheWrite = total.CacheWrite,
+                    CacheWrite1Hour = total.CacheWrite1Hour,
+                    CacheRead = total.CacheRead,
+                },
+        };
+
+        if (cacheStore.Save(path, entry))
+        {
+            cacheWrites++;
+        }
+    }
+
+    private static TokenUsage? ResultFromState(ParseState state)
+    {
+        if (state.Usage.ResponseCount == 0)
+        {
+            return null;
+        }
+
+        var result = state.Usage.Clone();
+        foreach (var pending in state.PendingByAgent)
+        {
+            result.AddAttribution(
+                pending.Key,
+                ModelName.Unattributed,
+                pending.Value);
+        }
+
+        return result;
+    }
+
+    private void RemoveState(
+        string path,
+        bool removePersistentCache)
+    {
+        if (states.Remove(path, out var state))
+        {
+            state.PartialLine.Dispose();
+        }
+
+        if (removePersistentCache)
+        {
+            cacheStore?.Remove(path);
+        }
+    }
+
+    private void AbandonInterruptedState(
+        string path,
+        ParseState? state)
+    {
+        states.TryGetValue(path, out var registered);
+        RemoveState(path, removePersistentCache: false);
+        if (state is not null &&
+            !ReferenceEquals(registered, state))
+        {
+            state.PartialLine.Dispose();
         }
     }
 
@@ -390,7 +949,7 @@ public sealed class TranscriptTokenReader
             return false;
         }
 
-        var current = HashPrefix(stream, state.PrefixLength);
+        var current = HashWindow(stream, 0, state.PrefixLength);
         try
         {
             return CryptographicOperations.FixedTimeEquals(
@@ -408,33 +967,99 @@ public sealed class TranscriptTokenReader
         ParseState state,
         long size)
     {
-        if (state.PrefixHash.Length > 0 || size <= 0)
+        if (size <= 0)
         {
             return;
         }
 
-        state.PrefixLength = checked((int)Math.Min(size, FileIdentityPrefixBytes));
-        state.PrefixHash = HashPrefix(stream, state.PrefixLength);
+        var prefixLength = checked(
+            (int)Math.Min(size, FileIdentityPrefixBytes));
+        if (state.PrefixLength == prefixLength &&
+            state.PrefixHash.Length > 0)
+        {
+            return;
+        }
+
+        state.PrefixLength = prefixLength;
+        state.PrefixHash = HashWindow(stream, 0, state.PrefixLength);
     }
 
-    private static byte[] HashPrefix(FileStream stream, int length)
+    private static bool CheckpointMatches(FileStream stream, ParseState state)
+    {
+        if (state.CheckpointHash.Length == 0 ||
+            state.CheckpointLength == 0)
+        {
+            return true;
+        }
+
+        if (stream.Length <
+            state.CheckpointOffset + state.CheckpointLength)
+        {
+            return false;
+        }
+
+        var current = HashWindow(
+            stream,
+            state.CheckpointOffset,
+            state.CheckpointLength);
+        try
+        {
+            return CryptographicOperations.FixedTimeEquals(
+                current,
+                state.CheckpointHash);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(current);
+        }
+    }
+
+    private static void CaptureCheckpoint(
+        FileStream stream,
+        ParseState state,
+        long size)
+    {
+        if (size <= 0)
+        {
+            state.CheckpointOffset = 0;
+            state.CheckpointLength = 0;
+            state.CheckpointHash = [];
+            return;
+        }
+
+        state.CheckpointLength = checked(
+            (int)Math.Min(size, FileIdentityCheckpointBytes));
+        state.CheckpointOffset = size - state.CheckpointLength;
+        state.CheckpointHash = HashWindow(
+            stream,
+            state.CheckpointOffset,
+            state.CheckpointLength);
+    }
+
+    private static byte[] HashWindow(
+        FileStream stream,
+        long offset,
+        int length)
     {
         var originalPosition = stream.Position;
         var buffer = new byte[length];
         try
         {
-            stream.Seek(0, SeekOrigin.Begin);
-            var offset = 0;
-            while (offset < buffer.Length)
+            stream.Seek(offset, SeekOrigin.Begin);
+            var readOffset = 0;
+            while (readOffset < buffer.Length)
             {
-                var count = stream.Read(buffer, offset, buffer.Length - offset);
+                var count = stream.Read(
+                    buffer,
+                    readOffset,
+                    buffer.Length - readOffset);
                 if (count == 0)
                 {
                     throw new EndOfStreamException(
                         "The transcript changed while its identity was checked.");
                 }
 
-                offset += count;
+                readOffset += count;
             }
 
             return SHA256.HashData(buffer);
@@ -552,7 +1177,7 @@ public sealed class TranscriptTokenReader
         if (message.TryGetProperty("id", out var idElement) &&
             idElement.ValueKind == JsonValueKind.String &&
             idElement.GetString() is { } id &&
-            !state.SeenResponseIds.Add(id))
+            !state.SeenResponseIds.Add(ResponseIdentity(id)))
         {
             return false;
         }
@@ -599,6 +1224,10 @@ public sealed class TranscriptTokenReader
         timestamp = ReadString(root, "timestamp");
         return true;
     }
+
+    private static string ResponseIdentity(string responseId) =>
+        Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(responseId)));
 
     private static bool TryParseCodex(
         JsonElement root,
@@ -936,17 +1565,21 @@ public sealed class TranscriptTokenReader
                      .Select(item => item.Key)
                      .ToArray())
         {
-            states.Remove(path);
+            RemoveState(path, removePersistentCache: false);
         }
     }
 
     private sealed class ParseState
     {
         public long ConsumedBytes { get; set; }
+        public long ObservedLength { get; set; }
         public MemoryStream PartialLine { get; set; } = new();
         public bool DroppingOversizedLine { get; set; }
         public int PrefixLength { get; set; }
         public byte[] PrefixHash { get; set; } = [];
+        public long CheckpointOffset { get; set; }
+        public int CheckpointLength { get; set; }
+        public byte[] CheckpointHash { get; set; } = [];
         public HashSet<string> SeenResponseIds { get; } =
             new(StringComparer.Ordinal);
         public TokenUsage Usage { get; } = new();
@@ -957,6 +1590,7 @@ public sealed class TranscriptTokenReader
         public CodexRunningTotal? CodexRunningTotal { get; set; }
         public DateTimeOffset LastAccessed { get; set; } = DateTimeOffset.Now;
         public DateTime LastWriteUtc { get; set; }
+        public bool RequiresIdentityValidation { get; set; }
     }
 
     private readonly record struct PendingUsageKey(

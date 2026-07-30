@@ -15,6 +15,10 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
 {
     private static readonly TimeSpan DebounceInterval = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan DayCheckInterval = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan WatcherRetryInterval =
+        TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan MaximumScanRetryInterval =
+        TimeSpan.FromSeconds(30);
     private readonly object _stateGate = new();
     private readonly TranscriptTokenReader _reader;
     private readonly IReadOnlyList<(string Label, string Path)> _roots;
@@ -22,9 +26,13 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
     private readonly TimeZoneInfo _localTimeZone;
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private readonly List<FileSystemWatcher> _watchers = [];
+    private readonly HashSet<string> _changedTranscriptPaths =
+        new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _scanCancellation;
     private Timer? _debounceTimer;
     private Timer? _dayTimer;
+    private Timer? _scanRetryTimer;
+    private Timer? _watcherRetryTimer;
     private TokenUsage? _usage;
     private IReadOnlyList<AgentTokenSlice> _perAgent = [];
     private DateOnly? _visibleDay;
@@ -32,10 +40,17 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
     private TokenRange _displayedRange;
     private TokenRange? _pendingRange;
     private string? _lastError;
+    private long _changedPathsVersion;
+    private long _fullReconciliationVersion;
     private int _generation;
+    private int _consecutiveScanFailures;
     private bool _hasLoaded;
     private bool _isScanning;
     private bool _isVisible;
+    private bool _drainPending;
+    private bool _rebuildWatchersPending;
+    private bool _watcherCoverageIncomplete;
+    private bool _requiresFullReconciliation = true;
     private bool _disposed;
 
     public TokenOdometerWatcher(
@@ -263,19 +278,86 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
         // cannot race a disposed synchronization primitive.
     }
 
-    private ScanRequest BeginScanLocked(TokenRange range)
+    private ScanRequest BeginScanLocked(
+        TokenRange range,
+        IReadOnlyList<string>? changedPaths = null)
     {
+        if (changedPaths is null)
+        {
+            RequireFullReconciliationLocked();
+        }
+
+        if (_requiresFullReconciliation)
+        {
+            changedPaths = null;
+        }
+
+        _debounceTimer?.Dispose();
+        _debounceTimer = null;
+        _drainPending = false;
+        return StartScanLocked(range, changedPaths, supersede: true);
+    }
+
+    private ScanRequest? BeginPendingScanLocked()
+    {
+        _drainPending = false;
+        if (_isScanning)
+        {
+            _drainPending = true;
+            return null;
+        }
+
+        if (!_requiresFullReconciliation &&
+            _changedTranscriptPaths.Count == 0)
+        {
+            return null;
+        }
+
+        var changedPaths = _requiresFullReconciliation
+            ? null
+            : _changedTranscriptPaths.ToArray();
+        return StartScanLocked(
+            _selectedRange,
+            changedPaths,
+            supersede: false);
+    }
+
+    private ScanRequest StartScanLocked(
+        TokenRange range,
+        IReadOnlyList<string>? changedPaths,
+        bool supersede)
+    {
+        if (_isScanning && !supersede)
+        {
+            throw new InvalidOperationException(
+                "A queued Token Odometer scan cannot supersede an active scan.");
+        }
+
         _generation++;
-        _scanCancellation?.Cancel();
+        if (_isScanning)
+        {
+            _scanCancellation?.Cancel();
+        }
         _scanCancellation?.Dispose();
         _scanCancellation = new CancellationTokenSource();
+        _scanRetryTimer?.Dispose();
+        _scanRetryTimer = null;
         _pendingRange = range;
         _lastError = null;
         _isScanning = true;
         return new ScanRequest(
             _generation,
             range,
+            changedPaths,
+            _changedPathsVersion,
+            _fullReconciliationVersion,
             _scanCancellation.Token);
+    }
+
+    private void RequireFullReconciliationLocked()
+    {
+        _requiresFullReconciliation = true;
+        _fullReconciliationVersion++;
     }
 
     private void StopWatching()
@@ -294,50 +376,115 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
             _debounceTimer = null;
             _dayTimer?.Dispose();
             _dayTimer = null;
+            _scanRetryTimer?.Dispose();
+            _scanRetryTimer = null;
+            _watcherRetryTimer?.Dispose();
+            _watcherRetryTimer = null;
             _visibleDay = null;
+            _changedTranscriptPaths.Clear();
+            _drainPending = false;
+            _rebuildWatchersPending = false;
+            _watcherCoverageIncomplete = false;
+            _requiresFullReconciliation = true;
+            _consecutiveScanFailures = 0;
             DisposeWatchersLocked();
         }
     }
 
-    private void CreateWatchersLocked()
+    private bool CreateWatchersLocked()
     {
+        _watcherRetryTimer?.Dispose();
+        _watcherRetryTimer = null;
         DisposeWatchersLocked();
+        var registrationFailed = false;
         foreach (var root in _roots)
         {
             if (!Directory.Exists(root.Path))
             {
-                TryCreateMissingRootWatcherLocked(root.Path);
+                registrationFailed |=
+                    !TryCreateMissingRootWatcherLocked(root.Path);
                 continue;
             }
 
-            try
+            registrationFailed |=
+                !TryCreateTranscriptWatcherLocked(root.Path);
+            registrationFailed |=
+                !TryCreateDirectoryWatcherLocked(root.Path);
+        }
+
+        if (registrationFailed && _isVisible && !_disposed)
+        {
+            _watcherRetryTimer = new Timer(
+                _ => RetryWatcherRegistration(),
+                null,
+                WatcherRetryInterval,
+                Timeout.InfiniteTimeSpan);
+        }
+
+        _watcherCoverageIncomplete = registrationFailed;
+        return !registrationFailed;
+    }
+
+    private bool TryCreateTranscriptWatcherLocked(string root)
+    {
+        FileSystemWatcher? watcher = null;
+        try
+        {
+            watcher = new FileSystemWatcher(root, "*.jsonl")
             {
-                var watcher = new FileSystemWatcher(root.Path, "*.jsonl")
-                {
-                    IncludeSubdirectories = true,
-                    NotifyFilter = NotifyFilters.FileName |
-                                   NotifyFilters.DirectoryName |
-                                   NotifyFilters.LastWrite |
-                                   NotifyFilters.Size,
-                    InternalBufferSize = 16 * 1024,
-                };
-                watcher.Changed += Watcher_OnChanged;
-                watcher.Created += Watcher_OnChanged;
-                watcher.Deleted += Watcher_OnChanged;
-                watcher.Renamed += Watcher_OnRenamed;
-                watcher.Error += Watcher_OnError;
-                watcher.EnableRaisingEvents = true;
-                _watchers.Add(watcher);
-            }
-            catch (Exception exception) when (
-                exception is IOException or UnauthorizedAccessException)
-            {
-                // The seed scan still works when a directory cannot be watched.
-            }
+                IncludeSubdirectories = true,
+                NotifyFilter = NotifyFilters.FileName |
+                               NotifyFilters.LastWrite |
+                               NotifyFilters.Size,
+                InternalBufferSize = 16 * 1024,
+            };
+            watcher.Changed += Watcher_OnChanged;
+            watcher.Created += Watcher_OnChanged;
+            watcher.Deleted += Watcher_OnChanged;
+            watcher.Renamed += Watcher_OnRenamed;
+            watcher.Error += Watcher_OnError;
+            watcher.EnableRaisingEvents = true;
+            _watchers.Add(watcher);
+            return true;
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException)
+        {
+            watcher?.Dispose();
+            // The seed scan still works while watcher registration retries.
+            return false;
         }
     }
 
-    private void TryCreateMissingRootWatcherLocked(string missingRoot)
+    private bool TryCreateDirectoryWatcherLocked(string root)
+    {
+        FileSystemWatcher? watcher = null;
+        try
+        {
+            watcher = new FileSystemWatcher(root, "*")
+            {
+                IncludeSubdirectories = true,
+                NotifyFilter = NotifyFilters.DirectoryName,
+                InternalBufferSize = 16 * 1024,
+            };
+            watcher.Created += Watcher_OnDirectoryChanged;
+            watcher.Deleted += Watcher_OnDirectoryChanged;
+            watcher.Renamed += Watcher_OnDirectoryRenamed;
+            watcher.Error += Watcher_OnError;
+            watcher.EnableRaisingEvents = true;
+            _watchers.Add(watcher);
+            return true;
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException)
+        {
+            watcher?.Dispose();
+            // File events remain covered while directory watching retries.
+            return false;
+        }
+    }
+
+    private bool TryCreateMissingRootWatcherLocked(string missingRoot)
     {
         var target = new DirectoryInfo(Path.GetFullPath(missingRoot));
         var ancestor = target.Parent;
@@ -349,12 +496,13 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
 
         if (ancestor is null)
         {
-            return;
+            return false;
         }
 
+        FileSystemWatcher? watcher = null;
         try
         {
-            var watcher = new FileSystemWatcher(ancestor.FullName, target.Name)
+            watcher = new FileSystemWatcher(ancestor.FullName, target.Name)
             {
                 IncludeSubdirectories = false,
                 NotifyFilter = NotifyFilters.DirectoryName,
@@ -364,11 +512,40 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
             watcher.Error += Watcher_OnError;
             watcher.EnableRaisingEvents = true;
             _watchers.Add(watcher);
+            return true;
         }
         catch (Exception exception) when (
             exception is IOException or UnauthorizedAccessException)
         {
-            // A manual refresh will try to establish the watch again.
+            watcher?.Dispose();
+            return false;
+        }
+    }
+
+    private void RetryWatcherRegistration()
+    {
+        var recovered = false;
+        lock (_stateGate)
+        {
+            if (!_isVisible ||
+                _disposed ||
+                !_watcherCoverageIncomplete)
+            {
+                return;
+            }
+
+            // Failed retries only restore/re-arm watcher coverage; they never
+            // poll transcripts. A successful recovery is reconciled below.
+            recovered = CreateWatchersLocked();
+        }
+
+        if (recovered)
+        {
+            // Reconcile once after coverage returns so filesystem changes made
+            // while registration was unavailable cannot remain invisible.
+            QueueRefresh(
+                rebuildWatchers: false,
+                requireFullReconciliation: true);
         }
     }
 
@@ -379,9 +556,12 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
             watcher.EnableRaisingEvents = false;
             watcher.Changed -= Watcher_OnChanged;
             watcher.Created -= Watcher_OnChanged;
+            watcher.Created -= Watcher_OnDirectoryChanged;
             watcher.Created -= Watcher_OnMissingRootChanged;
             watcher.Deleted -= Watcher_OnChanged;
+            watcher.Deleted -= Watcher_OnDirectoryChanged;
             watcher.Renamed -= Watcher_OnRenamed;
+            watcher.Renamed -= Watcher_OnDirectoryRenamed;
             watcher.Renamed -= Watcher_OnMissingRootRenamed;
             watcher.Error -= Watcher_OnError;
             watcher.Dispose();
@@ -391,25 +571,55 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
     }
 
     private void Watcher_OnChanged(object sender, FileSystemEventArgs eventArgs) =>
-        QueueRefresh(rebuildWatchers: false);
+        QueueRefresh(
+            rebuildWatchers: false,
+            requireFullReconciliation: false,
+            eventArgs.FullPath);
 
     private void Watcher_OnRenamed(object sender, RenamedEventArgs eventArgs) =>
-        QueueRefresh(rebuildWatchers: false);
+        QueueRefresh(
+            rebuildWatchers: false,
+            requireFullReconciliation: false,
+            eventArgs.OldFullPath,
+            eventArgs.FullPath);
+
+    private void Watcher_OnDirectoryChanged(
+        object sender,
+        FileSystemEventArgs eventArgs) =>
+        QueueRefresh(
+            rebuildWatchers: false,
+            requireFullReconciliation: true);
+
+    private void Watcher_OnDirectoryRenamed(
+        object sender,
+        RenamedEventArgs eventArgs) =>
+        QueueRefresh(
+            rebuildWatchers: false,
+            requireFullReconciliation: true);
 
     private void Watcher_OnMissingRootChanged(
         object sender,
         FileSystemEventArgs eventArgs) =>
-        QueueRefresh(rebuildWatchers: true);
+        QueueRefresh(
+            rebuildWatchers: true,
+            requireFullReconciliation: true);
 
     private void Watcher_OnMissingRootRenamed(
         object sender,
         RenamedEventArgs eventArgs) =>
-        QueueRefresh(rebuildWatchers: true);
+        QueueRefresh(
+            rebuildWatchers: true,
+            requireFullReconciliation: true);
 
     private void Watcher_OnError(object sender, ErrorEventArgs eventArgs) =>
-        QueueRefresh(rebuildWatchers: true);
+        QueueRefresh(
+            rebuildWatchers: true,
+            requireFullReconciliation: true);
 
-    private void QueueRefresh(bool rebuildWatchers)
+    private void QueueRefresh(
+        bool rebuildWatchers,
+        bool requireFullReconciliation,
+        params string[] changedPaths)
     {
         lock (_stateGate)
         {
@@ -418,6 +628,25 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
                 return;
             }
 
+            var sawChangedPath = false;
+            foreach (var path in changedPaths)
+            {
+                if (!string.IsNullOrWhiteSpace(path))
+                {
+                    _changedTranscriptPaths.Add(path);
+                    sawChangedPath = true;
+                }
+            }
+            if (sawChangedPath)
+            {
+                _changedPathsVersion++;
+            }
+
+            _rebuildWatchersPending |= rebuildWatchers;
+            if (requireFullReconciliation)
+            {
+                RequireFullReconciliationLocked();
+            }
             _debounceTimer?.Dispose();
             _debounceTimer = new Timer(
                 _ =>
@@ -430,16 +659,26 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
                             return;
                         }
 
-                        if (rebuildWatchers)
+                        if (_rebuildWatchersPending)
                         {
                             CreateWatchersLocked();
+                            _rebuildWatchersPending = false;
                         }
 
-                        request = BeginScanLocked(_selectedRange);
+                        if (_isScanning)
+                        {
+                            _drainPending = true;
+                            return;
+                        }
+
+                        request = BeginPendingScanLocked();
                     }
 
-                    Changed?.Invoke(this, EventArgs.Empty);
-                    _ = ScanAsync(request.Value);
+                    if (request is { } value)
+                    {
+                        Changed?.Invoke(this, EventArgs.Empty);
+                        _ = ScanAsync(value);
+                    }
                 },
                 null,
                 DebounceInterval,
@@ -486,18 +725,28 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
 
         try
         {
+            ScanRequest? followUp = null;
             var slices = new List<AgentTokenSlice>(_roots.Count);
             var scanTime = _now();
             foreach (var root in _roots)
             {
                 request.CancellationToken.ThrowIfCancellationRequested();
-                var usage = await _reader
-                    .RangeUsageAsync(
-                        root.Path,
-                        request.Range,
-                        scanTime,
-                        request.CancellationToken)
-                    .ConfigureAwait(false);
+                var usage = request.ChangedPaths is null
+                    ? await _reader
+                        .RangeUsageAsync(
+                            root.Path,
+                            request.Range,
+                            scanTime,
+                            request.CancellationToken)
+                        .ConfigureAwait(false)
+                    : await _reader
+                        .RefreshRangeAsync(
+                            root.Path,
+                            request.Range,
+                            request.ChangedPaths,
+                            scanTime,
+                            request.CancellationToken)
+                        .ConfigureAwait(false);
                 slices.Add(new AgentTokenSlice(root.Label, usage));
             }
 
@@ -526,9 +775,33 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
                 _lastError = null;
                 _hasLoaded = true;
                 _isScanning = false;
+                if (request.ChangedPaths is null &&
+                    request.FullReconciliationVersion ==
+                        _fullReconciliationVersion)
+                {
+                    _requiresFullReconciliation = false;
+                }
+
+                if (request.ChangedPathsVersion ==
+                    _changedPathsVersion)
+                {
+                    _changedTranscriptPaths.Clear();
+                }
+
+                _consecutiveScanFailures = 0;
+                _scanRetryTimer?.Dispose();
+                _scanRetryTimer = null;
+                if (_drainPending)
+                {
+                    followUp = BeginPendingScanLocked();
+                }
             }
 
             Changed?.Invoke(this, EventArgs.Empty);
+            if (followUp is { } value)
+            {
+                _ = ScanAsync(value);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -547,6 +820,11 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
                         ? exception.GetType().Name
                         : exception.Message;
                     _isScanning = false;
+                    RequireFullReconciliationLocked();
+                    _consecutiveScanFailures = Math.Min(
+                        _consecutiveScanFailures + 1,
+                        6);
+                    ScheduleScanRetryLocked();
                     publish = true;
                 }
             }
@@ -562,6 +840,50 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
         }
     }
 
+    private void ScheduleScanRetryLocked()
+    {
+        _scanRetryTimer?.Dispose();
+        var exponent = Math.Min(
+            Math.Max(_consecutiveScanFailures - 1, 0),
+            5);
+        var delaySeconds = Math.Min(
+            Math.Pow(2, exponent),
+            MaximumScanRetryInterval.TotalSeconds);
+        _scanRetryTimer = new Timer(
+            _ => RetryFailedScan(),
+            null,
+            TimeSpan.FromSeconds(delaySeconds),
+            Timeout.InfiniteTimeSpan);
+    }
+
+    private void RetryFailedScan()
+    {
+        ScanRequest? request;
+        lock (_stateGate)
+        {
+            _scanRetryTimer?.Dispose();
+            _scanRetryTimer = null;
+            if (!_isVisible || _disposed)
+            {
+                return;
+            }
+
+            if (_isScanning)
+            {
+                _drainPending = true;
+                return;
+            }
+
+            request = BeginPendingScanLocked();
+        }
+
+        if (request is { } value)
+        {
+            Changed?.Invoke(this, EventArgs.Empty);
+            _ = ScanAsync(value);
+        }
+    }
+
     private void ThrowIfDisposed()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -570,5 +892,8 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
     private readonly record struct ScanRequest(
         int Generation,
         TokenRange Range,
+        IReadOnlyList<string>? ChangedPaths,
+        long ChangedPathsVersion,
+        long FullReconciliationVersion,
         CancellationToken CancellationToken);
 }
