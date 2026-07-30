@@ -203,6 +203,125 @@ struct TranscriptCheckpointTests {
         #expect(continuedByModel[.unattributed] == nil)
     }
 
+    @Test func emptyModelAttributionKeepsItsExistingMeaningAcrossRestart() async throws {
+        let root = try TempTranscripts("checkpoint-empty-model")
+        let checkpoints = TempCheckpointDirectory("checkpoint-empty-model")
+        let name = "rollout.jsonl"
+        let file = root.url.appendingPathComponent(name)
+        try root.write(name, [
+            codexTokenCountLine(totalInput: 41, totalCached: 7, totalOutput: 25),
+            codexTurnContextLine(model: ""),
+        ])
+
+        let initialReader = makeReader(checkpoints)
+        let initial = await initialReader.readTranscript(at: file.path)
+        let initialByModel = await initialReader.breakdown(
+            underTranscriptRoot: root.path,
+            range: .today,
+            now: Date()
+        )
+
+        #expect(initial.statistics.checkpointWrites == 1)
+        #expect(initialByModel[.named("")] == initial.usage)
+        #expect(initialByModel[.unattributed] == nil)
+
+        let freshReader = makeReader(checkpoints)
+        let restored = await freshReader.readTranscript(at: file.path)
+        let restoredByModel = await freshReader.breakdown(
+            underTranscriptRoot: root.path,
+            range: .today,
+            now: Date()
+        )
+
+        #expect(restored.usage == initial.usage)
+        #expect(restored.statistics.checkpointLoads == 1)
+        #expect(restored.statistics.transcriptContentBytesRead == 0)
+        #expect(restoredByModel[.named("")] == restored.usage)
+        #expect(restoredByModel[.unattributed] == nil)
+    }
+
+    @Test func unusualCodexCountersKeepTheirExistingSafeMappingAcrossRestart() async throws {
+        let cases: [(String, String, TokenUsage)] = [
+            (
+                "cached-exceeds-input",
+                codexTokenCountLine(
+                    totalInput: 5,
+                    totalCached: 7,
+                    totalOutput: 3
+                ),
+                TokenUsage(
+                    inputTokens: 0,
+                    outputTokens: 3,
+                    cacheCreationTokens: 0,
+                    cacheReadTokens: 7,
+                    responseCount: 1
+                )
+            ),
+            (
+                "negative-input",
+                codexTokenCountLine(totalInput: -5, totalOutput: 3),
+                TokenUsage(
+                    inputTokens: 0,
+                    outputTokens: 3,
+                    cacheCreationTokens: 0,
+                    cacheReadTokens: 0,
+                    responseCount: 1
+                )
+            ),
+        ]
+
+        for (label, line, expected) in cases {
+            let root = try TempTranscripts("checkpoint-\(label)")
+            let checkpoints = TempCheckpointDirectory("checkpoint-\(label)")
+            let name = "rollout.jsonl"
+            let file = root.url.appendingPathComponent(name)
+            try root.write(name, [line])
+
+            let initial = await makeReader(checkpoints)
+                .readTranscript(at: file.path)
+            let restored = await makeReader(checkpoints)
+                .readTranscript(at: file.path)
+
+            #expect(initial.usage == expected, Comment(rawValue: label))
+            #expect(initial.statistics.checkpointWrites == 1)
+            #expect(restored.usage == expected, Comment(rawValue: label))
+            #expect(restored.statistics.checkpointLoads == 1)
+            #expect(restored.statistics.transcriptContentBytesRead == 0)
+        }
+    }
+
+    @Test func negativeClaudeCounterStillFailsOpenToSourceCounting() async throws {
+        let root = try TempTranscripts("checkpoint-negative-claude")
+        let checkpoints = TempCheckpointDirectory("checkpoint-negative-claude")
+        let name = "session.jsonl"
+        let file = root.url.appendingPathComponent(name)
+        let line = claudeUsageLine(
+            id: "negative-claude",
+            input: -1,
+            output: 10
+        )
+        try root.write(name, [line])
+        let expected = TokenUsage(
+            inputTokens: -1,
+            outputTokens: 10,
+            cacheCreationTokens: 0,
+            cacheReadTokens: 0,
+            responseCount: 1
+        )
+
+        let initial = await makeReader(checkpoints)
+            .readTranscript(at: file.path)
+        let fresh = await makeReader(checkpoints)
+            .readTranscript(at: file.path)
+
+        #expect(initial.usage == expected)
+        #expect(initial.usage?.totalTokens == 9)
+        #expect(initial.statistics.checkpointWrites == 0)
+        #expect(fresh.usage == expected)
+        #expect(fresh.statistics.checkpointLoads == 0)
+        #expect(fresh.statistics.transcriptContentBytesRead == encodedBytes([line]))
+    }
+
     @Test func anOrdinaryPartialTailIsRereadUntilItCommitsThenBecomesAZeroContentHit() async throws {
         let root = try TempTranscripts("checkpoint-partial")
         let checkpoints = TempCheckpointDirectory("checkpoint-partial")
@@ -434,7 +553,7 @@ struct TranscriptCheckpointTests {
         #expect(artifactText.contains(usageLine) == false)
     }
 
-    @Test func failedRestoreAndPublicationNeverDeleteThePreviousCheckpoint() async throws {
+    @Test func unavailableCacheReadAndPublicationNeverDeleteThePreviousCheckpoint() async throws {
         let root = try TempTranscripts("checkpoint-preservation")
         let name = "session.jsonl"
         let file = root.url.appendingPathComponent(name)
@@ -451,7 +570,7 @@ struct TranscriptCheckpointTests {
 
         #expect(result.usage?.totalTokens == 36)
         #expect(result.usage?.responseCount == 1)
-        #expect(result.statistics.checkpointInvalidations == 1)
+        #expect(result.statistics.checkpointInvalidations == 0)
         #expect(result.statistics.checkpointWrites == 0)
         #expect(store.counts.loads == 1)
         #expect(store.counts.publications == 1)

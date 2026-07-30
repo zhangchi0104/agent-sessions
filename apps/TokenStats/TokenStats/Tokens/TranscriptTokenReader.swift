@@ -30,14 +30,64 @@ nonisolated struct TokenUsage: Equatable, Sendable {
     /// (e.g. a transcript format this reader doesn't understand).
     var responseCount = 0
 
-    var totalTokens: Int { inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens }
+    private var tokenComponents: [Int] {
+        [
+            inputTokens,
+            outputTokens,
+            cacheCreationTokens,
+            cacheReadTokens,
+        ]
+    }
 
-    mutating func add(_ other: TokenUsage) {
-        inputTokens += other.inputTokens
-        outputTokens += other.outputTokens
-        cacheCreationTokens += other.cacheCreationTokens
-        cacheReadTokens += other.cacheReadTokens
-        responseCount += other.responseCount
+    private func summedTokens(saturatingOnOverflow: Bool) -> Int? {
+        var total = 0
+        for value in tokenComponents {
+            let next = total.addingReportingOverflow(value)
+            if next.overflow {
+                return saturatingOnOverflow
+                    ? (value >= 0 ? Int.max : Int.min)
+                    : nil
+            }
+            total = next.partialValue
+        }
+        return total
+    }
+
+    var totalTokens: Int {
+        summedTokens(saturatingOnOverflow: true) ?? 0
+    }
+
+    fileprivate var checkedTotalTokens: Int? {
+        summedTokens(saturatingOnOverflow: false)
+    }
+
+    @discardableResult
+    mutating func add(_ other: TokenUsage) -> Bool {
+        let input = inputTokens.addingReportingOverflow(other.inputTokens)
+        let output = outputTokens.addingReportingOverflow(other.outputTokens)
+        let cacheCreation = cacheCreationTokens.addingReportingOverflow(
+            other.cacheCreationTokens
+        )
+        let cacheRead = cacheReadTokens.addingReportingOverflow(
+            other.cacheReadTokens
+        )
+        let responses = responseCount.addingReportingOverflow(
+            other.responseCount
+        )
+        guard input.overflow == false,
+              output.overflow == false,
+              cacheCreation.overflow == false,
+              cacheRead.overflow == false,
+              responses.overflow == false
+        else {
+            return false
+        }
+        inputTokens = input.partialValue
+        outputTokens = output.partialValue
+        cacheCreationTokens = cacheCreation.partialValue
+        cacheReadTokens = cacheRead.partialValue
+        responseCount = responses.partialValue
+        return true
     }
 
     static func compact(_ count: Int) -> String {
@@ -69,9 +119,32 @@ actor TranscriptTokenReader {
     }
 
     nonisolated private struct SourceMetadata: Equatable {
+        let device: UInt64
+        let inode: UInt64
         let length: UInt64
         let lastWriteSeconds: Int64
         let lastWriteNanoseconds: Int64
+    }
+
+    nonisolated private enum TranscriptReadAttemptOutcome {
+        case completed(TokenUsage?, TranscriptContinuationSnapshot?)
+        case retry
+    }
+
+    nonisolated private enum CheckpointLoadOutcome {
+        case data(Data)
+        case miss
+        case invalid
+        case unavailable
+    }
+
+    nonisolated private enum CheckpointRestoreOutcome {
+        case restored(
+            TranscriptCheckpoint,
+            ValidatedFingerprintMaterial
+        )
+        case invalid
+        case unavailable
     }
 
     /// Raw fingerprint windows exist only for the duration of one validation.
@@ -80,6 +153,18 @@ actor TranscriptTokenReader {
     nonisolated private struct ValidatedFingerprintMaterial {
         let prefix: Data
         let oldEnd: Data
+    }
+
+    nonisolated private enum SourceValidationOutcome {
+        case valid(ValidatedFingerprintMaterial)
+        case mismatch
+        case unavailable
+    }
+
+    nonisolated private enum FingerprintReadOutcome {
+        case value(Data)
+        case mismatch
+        case unavailable
     }
 
     nonisolated private struct FingerprintAccumulator {
@@ -166,17 +251,35 @@ actor TranscriptTokenReader {
 
         init() {}
 
-        fileprivate init(_ reported: CodexRolloutLine.Payload.Info.Usage) {
+        fileprivate init?(
+            reported: CodexRolloutLine.Payload.Info.Usage
+        ) {
+            let input = reported.inputTokens ?? 0
             cacheRead = reported.cachedInputTokens ?? 0
-            directInput = max((reported.inputTokens ?? 0) - cacheRead, 0)
+            let direct = input.subtractingReportingOverflow(cacheRead)
+            guard direct.overflow == false else { return nil }
+            directInput = max(direct.partialValue, 0)
             output = reported.outputTokens ?? 0
         }
 
-        fileprivate func subtracting(_ other: CodexRunningTotal) -> CodexRunningTotal {
+        fileprivate func subtracting(
+            _ other: CodexRunningTotal
+        ) -> CodexRunningTotal? {
+            let direct = directInput.subtractingReportingOverflow(
+                other.directInput
+            )
+            let cached = cacheRead.subtractingReportingOverflow(other.cacheRead)
+            let emitted = output.subtractingReportingOverflow(other.output)
+            guard direct.overflow == false,
+                  cached.overflow == false,
+                  emitted.overflow == false
+            else {
+                return nil
+            }
             var result = CodexRunningTotal()
-            result.directInput = max(directInput - other.directInput, 0)
-            result.cacheRead = max(cacheRead - other.cacheRead, 0)
-            result.output = max(output - other.output, 0)
+            result.directInput = max(direct.partialValue, 0)
+            result.cacheRead = max(cached.partialValue, 0)
+            result.output = max(emitted.partialValue, 0)
             return result
         }
     }
@@ -295,13 +398,59 @@ actor TranscriptTokenReader {
     func readTranscript(at path: String) -> TranscriptReadResult {
         var readStatistics = TranscriptReadStatistics()
         defer { statistics.add(readStatistics) }
-        guard let handle = FileHandle(forReadingAtPath: path) else {
-            states[path] = nil
-            return TranscriptReadResult(usage: nil, continuation: nil, statistics: readStatistics)
+
+        for attempt in 0..<2 {
+            let outcome = readTranscriptAttempt(
+                at: path,
+                allowCheckpointLoad: attempt == 0,
+                forceCheckpointWrite: attempt > 0,
+                statistics: &readStatistics
+            )
+            switch outcome {
+            case .completed(let usage, let continuation):
+                return TranscriptReadResult(
+                    usage: usage,
+                    continuation: continuation,
+                    statistics: readStatistics
+                )
+            case .retry:
+                // Nothing parsed from an unstable source is allowed to become
+                // process state. Reopen the authoritative path once and cold
+                // rebuild against the identity now installed there.
+                states[path] = nil
+            }
         }
+
+        states[path] = nil
+        return TranscriptReadResult(
+            usage: nil,
+            continuation: nil,
+            statistics: readStatistics
+        )
+    }
+
+    private func readTranscriptAttempt(
+        at path: String,
+        allowCheckpointLoad: Bool,
+        forceCheckpointWrite: Bool,
+        statistics readStatistics: inout TranscriptReadStatistics
+    ) -> TranscriptReadAttemptOutcome {
+        let descriptor = Darwin.open(
+            path,
+            O_RDONLY | O_CLOEXEC | O_NONBLOCK
+        )
+        guard descriptor >= 0 else {
+            states[path] = nil
+            return .completed(nil, nil)
+        }
+        let handle = FileHandle(
+            fileDescriptor: descriptor,
+            closeOnDealloc: true
+        )
         defer { try? handle.close() }
         guard let metadata = sourceMetadata(for: handle) else {
-            return TranscriptReadResult(usage: nil, continuation: nil, statistics: readStatistics)
+            states[path] = nil
+            return .completed(nil, nil)
         }
 
         let accessedAt = nowProvider()
@@ -309,63 +458,89 @@ actor TranscriptTokenReader {
         var state = states[path] ?? ParseState(lastAccessed: accessedAt)
         state.lastAccessed = accessedAt
         var fingerprintMaterial: ValidatedFingerprintMaterial?
-        var shouldPersist = false
+        var shouldPersist = forceCheckpointWrite
 
-        if hadInMemoryState == false, let checkpointStore {
-            do {
-                if let data = try checkpointStore.loadCheckpoint(forTranscriptAt: path) {
-                    let checkpoint = try TranscriptCheckpointCodec.decode(
-                        data,
-                        transcriptPath: path,
-                        timeZoneIdentifier: timeZoneIdentifier
-                    )
-                    guard let material = validate(
-                        checkpoint.source,
-                        against: handle,
-                        metadata: metadata,
-                        statistics: &readStatistics
-                    ) else {
-                        throw TranscriptCheckpointCodingError.invalidEnvelope
+        if allowCheckpointLoad,
+           hadInMemoryState == false,
+           let checkpointStore
+        {
+            let loadOutcome = checkpointLoadOutcome(
+                from: checkpointStore,
+                transcriptPath: path
+            )
+
+            guard sourceMetadata(atPath: path) == metadata else {
+                switch loadOutcome {
+                case .data, .invalid:
+                    readStatistics.checkpointInvalidations += 1
+                case .miss, .unavailable:
+                    break
+                }
+                return .retry
+            }
+
+            switch loadOutcome {
+            case .miss:
+                readStatistics.checkpointMisses += 1
+                shouldPersist = true
+            case .invalid:
+                readStatistics.checkpointInvalidations += 1
+                shouldPersist = true
+            case .unavailable:
+                // Cache I/O is an optimization boundary. An unavailable cache
+                // is neither a miss nor corrupt parser state.
+                shouldPersist = true
+            case .data(let data):
+                let restoreOutcome = checkpointRestoreOutcome(
+                    from: data,
+                    transcriptPath: path,
+                    sourceHandle: handle,
+                    metadata: metadata,
+                    statistics: &readStatistics
+                )
+                switch restoreOutcome {
+                case .invalid:
+                    readStatistics.checkpointInvalidations += 1
+                    state = ParseState(lastAccessed: accessedAt)
+                    shouldPersist = true
+                case .unavailable:
+                    return .retry
+                case .restored(let checkpoint, let material):
+                    guard sourceMetadata(atPath: path) == metadata else {
+                        readStatistics.checkpointInvalidations += 1
+                        return .retry
                     }
 
                     state.continuation = checkpoint.continuation
                     state.sourceValidation = checkpoint.source
                     state.partialLine.removeAll(keepingCapacity: false)
-                    if checkpoint.continuation.isDiscardingOversizedLine {
-                        guard let discarded = checkpoint.continuation.discardedThroughBytes else {
-                            throw TranscriptCheckpointCodingError.invalidEnvelope
-                        }
-                        state.observedBytes = discarded
-                    } else {
-                        state.observedBytes = checkpoint.continuation.safeCommittedBytes
-                    }
+                    state.observedBytes = checkpoint.continuation
+                        .discardedThroughBytes
+                        ?? checkpoint.continuation.safeCommittedBytes
                     fingerprintMaterial = material
                     readStatistics.checkpointLoads += 1
-                } else {
-                    readStatistics.checkpointMisses += 1
-                    shouldPersist = true
                 }
-            } catch {
-                readStatistics.checkpointInvalidations += 1
-                state = ParseState(lastAccessed: accessedAt)
-                shouldPersist = true
             }
         }
 
         if let source = state.sourceValidation, fingerprintMaterial == nil {
-            if let material = validate(
+            let validation = validate(
                 source,
                 against: handle,
                 metadata: metadata,
                 statistics: &readStatistics
-            ) {
+            )
+            switch validation {
+            case .valid(let material):
                 fingerprintMaterial = material
-            } else {
+            case .mismatch:
                 if checkpointStore != nil {
                     readStatistics.checkpointInvalidations += 1
                 }
                 state = ParseState(lastAccessed: accessedAt)
                 shouldPersist = true
+            case .unavailable:
+                return .retry
             }
         }
 
@@ -407,7 +582,19 @@ actor TranscriptTokenReader {
                         startingAt: state.observedBytes
                     )
                     readStatistics.transcriptContentBytesRead += UInt64(chunk.count)
-                    ingest(chunk, into: &state, statistics: &readStatistics)
+                    guard ingest(
+                        chunk,
+                        into: &state,
+                        statistics: &readStatistics
+                    ) else {
+                        if state.sourceValidation != nil,
+                           checkpointStore != nil
+                        {
+                            readStatistics.checkpointInvalidations += 1
+                        }
+                        sourceReadSucceeded = false
+                        break
+                    }
                 }
             } catch {
                 sourceReadSucceeded = false
@@ -417,20 +604,13 @@ actor TranscriptTokenReader {
         guard sourceReadSucceeded,
               let finalMetadata = sourceMetadata(for: handle),
               finalMetadata == metadata,
+              sourceMetadata(atPath: path) == finalMetadata,
               state.observedBytes == metadata.length,
               let sourceValidation = fingerprintAccumulator.sourceValidation(
                   for: finalMetadata
               )
         else {
-            states[path] = state
-            let usage = state.continuation.usage.responseCount > 0
-                ? state.continuation.usage
-                : nil
-            return TranscriptReadResult(
-                usage: usage,
-                continuation: continuationSnapshot(for: state),
-                statistics: readStatistics
-            )
+            return .retry
         }
 
         state.sourceValidation = sourceValidation
@@ -459,19 +639,83 @@ actor TranscriptTokenReader {
         let usage = state.continuation.usage.responseCount > 0
             ? state.continuation.usage
             : nil
-        return TranscriptReadResult(
-            usage: usage,
-            continuation: continuationSnapshot(for: state),
-            statistics: readStatistics
-        )
+        return .completed(usage, continuationSnapshot(for: state))
+    }
+
+    private func checkpointLoadOutcome(
+        from store: any TranscriptCheckpointStoring,
+        transcriptPath: String
+    ) -> CheckpointLoadOutcome {
+        do {
+            guard let data = try store.loadCheckpoint(
+                forTranscriptAt: transcriptPath
+            ) else {
+                return .miss
+            }
+            return .data(data)
+        } catch TranscriptCheckpointStoreError.invalidEntry {
+            return .invalid
+        } catch {
+            return .unavailable
+        }
+    }
+
+    private func checkpointRestoreOutcome(
+        from data: Data,
+        transcriptPath: String,
+        sourceHandle: FileHandle,
+        metadata: SourceMetadata,
+        statistics: inout TranscriptReadStatistics
+    ) -> CheckpointRestoreOutcome {
+        let checkpoint: TranscriptCheckpoint
+        do {
+            checkpoint = try TranscriptCheckpointCodec.decode(
+                data,
+                transcriptPath: transcriptPath,
+                timeZoneIdentifier: timeZoneIdentifier
+            )
+        } catch {
+            return .invalid
+        }
+
+        switch validate(
+            checkpoint.source,
+            against: sourceHandle,
+            metadata: metadata,
+            statistics: &statistics
+        ) {
+        case .valid(let material):
+            return .restored(checkpoint, material)
+        case .mismatch:
+            return .invalid
+        case .unavailable:
+            return .unavailable
+        }
     }
 
     private func sourceMetadata(for handle: FileHandle) -> SourceMetadata? {
+        sourceMetadata(forDescriptor: handle.fileDescriptor)
+    }
+
+    private func sourceMetadata(atPath path: String) -> SourceMetadata? {
+        let descriptor = Darwin.open(
+            path,
+            O_RDONLY | O_CLOEXEC | O_NONBLOCK
+        )
+        guard descriptor >= 0 else { return nil }
+        defer { Darwin.close(descriptor) }
+        return sourceMetadata(forDescriptor: descriptor)
+    }
+
+    private func sourceMetadata(forDescriptor descriptor: Int32) -> SourceMetadata? {
         var status = stat()
-        guard fstat(handle.fileDescriptor, &status) == 0,
+        guard fstat(descriptor, &status) == 0,
+              (status.st_mode & S_IFMT) == S_IFREG,
               status.st_size >= 0
         else { return nil }
         return SourceMetadata(
+            device: UInt64(status.st_dev),
+            inode: UInt64(status.st_ino),
             length: UInt64(status.st_size),
             lastWriteSeconds: Int64(status.st_mtimespec.tv_sec),
             lastWriteNanoseconds: Int64(status.st_mtimespec.tv_nsec)
@@ -483,44 +727,69 @@ actor TranscriptTokenReader {
         against handle: FileHandle,
         metadata: SourceMetadata,
         statistics: inout TranscriptReadStatistics
-    ) -> ValidatedFingerprintMaterial? {
+    ) -> SourceValidationOutcome {
         guard metadata.length >= source.sourceLengthAtCheckpoint else {
-            return nil
+            return .mismatch
         }
         if metadata.length == source.sourceLengthAtCheckpoint {
             guard metadata.lastWriteSeconds == source.lastWriteSeconds,
                   metadata.lastWriteNanoseconds == source.lastWriteNanoseconds
-            else { return nil }
+            else { return .mismatch }
         }
 
-        guard let prefix = readFingerprintWindow(
+        let prefix: Data
+        switch readFingerprintWindow(
             source.prefixFingerprint,
             from: handle,
             statistics: &statistics
-        ),
-        let oldEnd = readFingerprintWindow(
+        ) {
+        case .value(let data):
+            prefix = data
+        case .mismatch:
+            return .mismatch
+        case .unavailable:
+            return .unavailable
+        }
+        let oldEnd: Data
+        switch readFingerprintWindow(
             source.oldEndFingerprint,
             from: handle,
             statistics: &statistics
-        ),
-        TranscriptHash.sha256Hex(prefix) == source.prefixFingerprint.sha256,
-        TranscriptHash.sha256Hex(oldEnd) == source.oldEndFingerprint.sha256,
-        sourceMetadata(for: handle) == metadata
-        else {
-            return nil
+        ) {
+        case .value(let data):
+            oldEnd = data
+        case .mismatch:
+            return .mismatch
+        case .unavailable:
+            return .unavailable
         }
-        return ValidatedFingerprintMaterial(prefix: prefix, oldEnd: oldEnd)
+        guard TranscriptHash.sha256Hex(prefix)
+                  == source.prefixFingerprint.sha256,
+              TranscriptHash.sha256Hex(oldEnd)
+                  == source.oldEndFingerprint.sha256
+        else {
+            return .mismatch
+        }
+        guard let finalMetadata = sourceMetadata(for: handle) else {
+            return .unavailable
+        }
+        guard finalMetadata == metadata else {
+            return .mismatch
+        }
+        return .valid(
+            ValidatedFingerprintMaterial(prefix: prefix, oldEnd: oldEnd)
+        )
     }
 
     private func readFingerprintWindow(
         _ fingerprint: TranscriptFingerprint,
         from handle: FileHandle,
         statistics: inout TranscriptReadStatistics
-    ) -> Data? {
+    ) -> FingerprintReadOutcome {
         guard fingerprint.length >= 0,
               fingerprint.length <= TranscriptCheckpointCodec.fingerprintWindowBytes,
               fingerprint.offset <= UInt64.max - UInt64(fingerprint.length)
-        else { return nil }
+        else { return .mismatch }
 
         do {
             try handle.seek(toOffset: fingerprint.offset)
@@ -529,13 +798,13 @@ actor TranscriptTokenReader {
                 let remaining = fingerprint.length - result.count
                 guard let chunk = try handle.read(upToCount: remaining),
                       chunk.isEmpty == false
-                else { return nil }
+                else { return .mismatch }
                 result.append(chunk)
                 statistics.fingerprintBytesRead += UInt64(chunk.count)
             }
-            return result
+            return .value(result)
         } catch {
-            return nil
+            return .unavailable
         }
     }
 
@@ -555,14 +824,14 @@ actor TranscriptTokenReader {
         _ appended: Data,
         into state: inout ParseState,
         statistics: inout TranscriptReadStatistics
-    ) {
+    ) -> Bool {
         var cursor = appended.startIndex
         while cursor < appended.endIndex {
             if state.continuation.isDiscardingOversizedLine {
                 guard let newline = appended[cursor...].firstIndex(of: 0x0A) else {
                     state.observedBytes += UInt64(appended.distance(from: cursor, to: appended.endIndex))
                     state.continuation.discardedThroughBytes = state.observedBytes
-                    return
+                    return true
                 }
                 let afterNewline = appended.index(after: newline)
                 state.observedBytes += UInt64(appended.distance(from: cursor, to: afterNewline))
@@ -587,21 +856,28 @@ actor TranscriptTokenReader {
                 } else {
                     state.continuation.isDiscardingOversizedLine = true
                     state.continuation.discardedThroughBytes = state.observedBytes
-                    return
+                    return true
                 }
                 continue
             }
 
             state.partialLine.append(contentsOf: appended[cursor..<segmentEnd])
             state.observedBytes += UInt64(segmentCount)
-            guard let newline else { return }
+            guard let newline else { return true }
 
-            parse(line: state.partialLine, into: &state, statistics: &statistics)
+            guard parse(
+                line: state.partialLine,
+                into: &state,
+                statistics: &statistics
+            ) else {
+                return false
+            }
             state.partialLine.removeAll(keepingCapacity: true)
             state.observedBytes += 1
             state.continuation.safeCommittedBytes = state.observedBytes
             cursor = appended.index(after: newline)
         }
+        return true
     }
 
     /// A line either carries usage — a Claude assistant message, or a Codex
@@ -611,7 +887,7 @@ actor TranscriptTokenReader {
         line: Data,
         into state: inout ParseState,
         statistics: inout TranscriptReadStatistics
-    ) {
+    ) -> Bool {
         let carriesUsage = line.range(of: Self.usageMarker) != nil
         // A line that carries usage never also names a Model — Codex declares
         // its Model on lines with no usage at all — so the two model markers
@@ -621,7 +897,7 @@ actor TranscriptTokenReader {
         let namesModel = carriesUsage == false
             && (line.range(of: Self.turnContextMarker) != nil
                 || line.range(of: Self.threadSettingsMarker) != nil)
-        guard carriesUsage || namesModel else { return }
+        guard carriesUsage || namesModel else { return true }
         statistics.jsonLinesSubmittedForDecoding += 1
 
         // Codex names its Model on `turn_context` and `thread_settings_applied`
@@ -632,10 +908,9 @@ actor TranscriptTokenReader {
         if namesModel,
            let entry = try? decoder.decode(CodexModelLine.self, from: line),
            let model = entry.payload?.model ?? entry.payload?.threadSettings?.model {
-            adopt(model: model, into: &state)
-            return
+            return adopt(model: model, into: &state)
         }
-        guard carriesUsage else { return }
+        guard carriesUsage else { return true }
 
         if let entry = try? decoder.decode(TranscriptLine.self, from: line),
            let message = entry.message,
@@ -643,7 +918,11 @@ actor TranscriptTokenReader {
             // Count each API response once, however many lines it spans.
             if let id = message.id {
                 let hash = TranscriptHash.sha256Hex(Data(id.utf8))
-                guard state.continuation.seenClaudeResponseHashes.insert(hash).inserted else { return }
+                guard state.continuation.seenClaudeResponseHashes
+                    .insert(hash).inserted
+                else {
+                    return true
+                }
             }
             var response = TokenUsage()
             response.inputTokens = usage.inputTokens ?? 0
@@ -651,8 +930,12 @@ actor TranscriptTokenReader {
             response.cacheCreationTokens = usage.cacheCreationInputTokens ?? 0
             response.cacheReadTokens = usage.cacheReadInputTokens ?? 0
             response.responseCount = 1
-            record(response, model: message.model.map(ModelName.named), timestamp: entry.timestamp, into: &state)
-            return
+            return record(
+                response,
+                model: message.model.map(ModelName.named),
+                timestamp: entry.timestamp,
+                into: &state
+            )
         }
 
         // Codex rollout: `total_token_usage` is the session's running total, so
@@ -666,13 +949,30 @@ actor TranscriptTokenReader {
         // comparable with Claude's (direct + cache read).
         if let entry = try? decoder.decode(CodexRolloutLine.self, from: line),
            entry.payload?.type == "token_count",
-           let running = entry.payload?.info?.totalTokenUsage {
-            let current = CodexRunningTotal(running)
+           let running = entry.payload?.info?.totalTokenUsage,
+           let current = CodexRunningTotal(reported: running)
+        {
             let previous = state.continuation.codexRunningTotal ?? openingBaseline(of: entry.payload?.info, at: current)
+            let directInput = current.directInput.subtractingReportingOverflow(
+                previous.directInput
+            )
+            let cacheRead = current.cacheRead.subtractingReportingOverflow(
+                previous.cacheRead
+            )
+            let output = current.output.subtractingReportingOverflow(
+                previous.output
+            )
+            guard directInput.overflow == false,
+                  cacheRead.overflow == false,
+                  output.overflow == false
+            else {
+                state.continuation.codexRunningTotal = current
+                return true
+            }
             var response = TokenUsage()
-            response.inputTokens = current.directInput - previous.directInput
-            response.cacheReadTokens = current.cacheRead - previous.cacheRead
-            response.outputTokens = current.output - previous.output
+            response.inputTokens = directInput.partialValue
+            response.cacheReadTokens = cacheRead.partialValue
+            response.outputTokens = output.partialValue
             guard response.inputTokens >= 0, response.cacheReadTokens >= 0, response.outputTokens >= 0 else {
                 // The running total went backwards — a reset, or a line this
                 // reader misread. Contribute nothing for this event, but adopt
@@ -681,13 +981,19 @@ actor TranscriptTokenReader {
                 // its previous high-water mark, silently under-counting the
                 // rest of the session instead of just this event.
                 state.continuation.codexRunningTotal = current
-                return
+                return true
             }
             state.continuation.codexRunningTotal = current
-            guard response.totalTokens > 0 else { return }
+            guard response.totalTokens > 0 else { return true }
             response.responseCount = 1
-            record(response, model: state.continuation.currentCodexModel, timestamp: entry.timestamp, into: &state)
+            return record(
+                response,
+                model: state.continuation.currentCodexModel,
+                timestamp: entry.timestamp,
+                into: &state
+            )
         }
+        return true
     }
 
     /// What a rollout's running total already held before its first event —
@@ -707,43 +1013,77 @@ actor TranscriptTokenReader {
         of info: CodexRolloutLine.Payload.Info?,
         at current: CodexRunningTotal
     ) -> CodexRunningTotal {
-        guard let last = info?.lastTokenUsage else { return CodexRunningTotal() }
-        let turn = CodexRunningTotal(last)
+        guard let last = info?.lastTokenUsage,
+              let turn = CodexRunningTotal(reported: last)
+        else {
+            return CodexRunningTotal()
+        }
         // An all-zero turn means the field is absent or unpopulated, not that
         // the turn spent nothing — a `token_count` event is only written
         // because something was spent. Reading it as a head would charge this
         // file nothing at all, so treat it as no information and start at zero.
         guard turn != CodexRunningTotal() else { return CodexRunningTotal() }
-        return current.subtracting(turn)
+        return current.subtracting(turn) ?? CodexRunningTotal()
     }
 
-    private func record(_ response: TokenUsage, model: ModelName?, timestamp: String?, into state: inout ParseState) {
+    private func record(
+        _ response: TokenUsage,
+        model: ModelName?,
+        timestamp: String?,
+        into state: inout ParseState
+    ) -> Bool {
         // A response that spent nothing is not a row. Claude writes `<synthetic>`
         // entries carrying an all-zero usage block, and counting them would put
         // a Model on screen whose every column is a dash.
-        guard response.totalTokens > 0 else { return }
-        state.continuation.usage.add(response)
-        guard let timestamp, let date = parseTimestamp(timestamp) else { return }
+        guard let responseTotal = response.checkedTotalTokens else {
+            return false
+        }
+        guard responseTotal > 0 else { return true }
+        var aggregate = state.continuation.usage
+        guard aggregate.add(response) else { return false }
+        guard let timestamp, let date = parseTimestamp(timestamp) else {
+            state.continuation.usage = aggregate
+            return true
+        }
+
         let day = dayKeyFormatter.string(from: date)
         if let model {
-            state.continuation.perDay[UsageKey(day: day, model: model), default: TokenUsage()].add(response)
+            let key = UsageKey(day: day, model: model)
+            var bucket = state.continuation.perDay[key] ?? TokenUsage()
+            guard bucket.add(response) else { return false }
+            state.continuation.usage = aggregate
+            state.continuation.perDay[key] = bucket
         } else {
             // No Model named yet. Hold it by day so a later declaration can
             // backfill it without losing which day it belonged to.
-            state.continuation.pendingByDay[day, default: TokenUsage()].add(response)
+            var bucket = state.continuation.pendingByDay[day] ?? TokenUsage()
+            guard bucket.add(response) else { return false }
+            state.continuation.usage = aggregate
+            state.continuation.pendingByDay[day] = bucket
         }
+        return true
     }
 
     /// Adopt the Model a line just named, and settle anything that streamed
     /// before it — the prefix belongs to this Model, not to `unknown`.
-    private func adopt(model: String, into state: inout ParseState) {
+    private func adopt(model: String, into state: inout ParseState) -> Bool {
         let model = ModelName.named(model)
-        state.continuation.currentCodexModel = model
-        guard state.continuation.pendingByDay.isEmpty == false else { return }
-        for (day, usage) in state.continuation.pendingByDay {
-            state.continuation.perDay[UsageKey(day: day, model: model), default: TokenUsage()].add(usage)
+        guard state.continuation.pendingByDay.isEmpty == false else {
+            state.continuation.currentCodexModel = model
+            return true
         }
+
+        var perDay = state.continuation.perDay
+        for (day, usage) in state.continuation.pendingByDay {
+            let key = UsageKey(day: day, model: model)
+            var bucket = perDay[key] ?? TokenUsage()
+            guard bucket.add(usage) else { return false }
+            perDay[key] = bucket
+        }
+        state.continuation.currentCodexModel = model
+        state.continuation.perDay = perDay
         state.continuation.pendingByDay.removeAll()
+        return true
     }
 
     /// Transcript timestamps are ISO 8601. Both agents write fractional seconds
