@@ -35,7 +35,8 @@ enum SignInStyle: Equatable {
 /// order, which one carries the emphasis, and the circular sizing that suits
 /// that many dials.
 struct GaugeLayout {
-    /// One slot in the row, in display order.
+    /// One fixed slot in the row, in display order. An empty list means the
+    /// agent's returned windows are the layout: only actual readings are drawn.
     struct Slot {
         let label: String
         var emphasized: Bool = false
@@ -49,9 +50,13 @@ struct GaugeLayout {
 
     /// The readings to draw for one snapshot: each slot filled from the window
     /// that matches it, or a neutral placeholder when the plan doesn't expose
-    /// that window.
+    /// that window. Agents with no fixed slots render the snapshot dynamically
+    /// instead, so a missing window does not create an invented placeholder.
     func items(for snapshot: UsageSnapshot) -> [GaugeContent] {
-        slots.map { slot in
+        guard !slots.isEmpty else {
+            return snapshot.windows.map { GaugeContent(window: $0) }
+        }
+        return slots.map { slot in
             snapshot.windows.first { $0.label == slot.label }
                 .map { GaugeContent(window: $0, emphasized: slot.emphasized) }
                 ?? .placeholder(title: slot.label, emphasized: slot.emphasized)

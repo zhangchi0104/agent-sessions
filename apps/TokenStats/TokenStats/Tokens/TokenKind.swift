@@ -13,7 +13,7 @@ import Foundation
 /// One of the four Token Kinds, in the order the table's columns and the
 /// segments of its proportion bar both run — which is what lets the column
 /// header double as the colour key.
-nonisolated enum TokenKind: CaseIterable, Hashable, Sendable {
+nonisolated enum TokenKind: String, CaseIterable, Codable, Hashable, Sendable {
     case directInput
     case output
     case cacheWrite
@@ -42,5 +42,51 @@ nonisolated extension TokenUsage {
         case .cacheWrite: cacheCreationTokens
         case .cacheRead: cacheReadTokens
         }
+    }
+
+    /// The table projection produced by the enabled Token Kind headings. This
+    /// deliberately does not replace `totalTokens`: the latter remains the raw
+    /// four-kind Token Odometer, while this figure drives only table subtotals,
+    /// ordering, composition percentages, and the filtered proportion bar.
+    func selectedTotal(_ selection: Set<TokenKind>) -> Int {
+        selection.reduce(into: 0) { total, kind in
+            total += amount(of: kind)
+        }
+    }
+
+    /// The objective token summary shared with Windows: direct input, cache
+    /// writes, and output. Cache reads stay in the raw Odometer and table but
+    /// are excluded from this specifically named presentation.
+    var billingTokens: Int {
+        inputTokens + cacheCreationTokens + outputTokens
+    }
+}
+
+/// Pure Token Kind cell formatting, shared by the table and its regression
+/// tests. Percentages are composition within the row's selected kinds, never a
+/// Usage Window or quota percentage.
+nonisolated enum TokenValueFormatting {
+    static func cell(
+        amount: Int,
+        selectedTotal: Int,
+        isSelected: Bool,
+        mode: TokenValueDisplayMode
+    ) -> String {
+        guard amount > 0 else { return "–" }
+        let value = TokenUsage.compact(amount)
+        guard isSelected else { return value }
+        let percentage = compositionPercentage(amount: amount, total: selectedTotal)
+        switch mode {
+        case .value: return value
+        case .percentage: return percentage
+        case .valueAndPercentage: return "\(value)\n(\(percentage))"
+        }
+    }
+
+    static func compositionPercentage(amount: Int, total: Int) -> String {
+        guard total > 0 else { return "–" }
+        let percentage = Double(amount) / Double(total) * 100
+        let oneDecimal = String(format: "%.1f", percentage)
+        return "\(oneDecimal.hasSuffix(".0") ? String(oneDecimal.dropLast(2)) : oneDecimal)%"
     }
 }

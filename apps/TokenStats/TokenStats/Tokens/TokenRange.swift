@@ -14,7 +14,7 @@
 
 import Foundation
 
-nonisolated enum TokenRange: CaseIterable, Hashable, Sendable {
+nonisolated enum TokenRange: String, CaseIterable, Codable, Hashable, Sendable {
     case today
     case sevenDays
     case thirtyDays

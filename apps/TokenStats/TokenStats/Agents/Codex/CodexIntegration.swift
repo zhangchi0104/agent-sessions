@@ -16,12 +16,12 @@ struct CodexIntegration: CodingAgentIntegration {
                            tint: Color(red: 0.04, green: 0.64, blue: 0.50))  // OpenAI green
     let signInStyle: SignInStyle = .selfCompleting
 
-    /// Two equal windows, no per-model meter. Sized as a deliberate two-up
-    /// pair, not Claude's three-slot row with the center missing: equal dials
-    /// larger than Claude's side dials, with wide spacing, centered in the
-    /// popover's 300pt content width (96+32+96 = 224).
+    /// Codex windows are duration-named and rendered dynamically because the
+    /// endpoint may expose only a weekly window. Empty fixed slots mean no
+    /// invented 5-hour placeholder; if a real short window returns later, the
+    /// parser supplies it and the same layout displays it automatically.
     let gaugeLayout = GaugeLayout(
-        slots: [.init(label: "5-hour"), .init(label: "Weekly")],
+        slots: [],
         sizing: GaugeSizing(sideDiameter: 96, centerDiameter: 96,
                             sideLineWidth: 6, centerLineWidth: 6, circularSpacing: 32)
     )

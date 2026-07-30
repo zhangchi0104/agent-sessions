@@ -4,8 +4,8 @@
 //
 //  The popover's Tokens tab: the Token Odometer for the selected range, as a
 //  table grouped by Coding Agent then Model, four Token Kinds to a row with a
-//  proportion bar tucked beneath. There is no combined total — per-agent
-//  subtotals carry that role.
+//  proportion bar tucked beneath. An objective Billing/API-equivalent summary
+//  leads the tab; filtered per-agent subtotals remain a separate projection.
 //
 //  The colour key rides in the column header rather than a legend block: a
 //  spelled-out legend measures 298pt against the 298pt this popover has, which
@@ -18,12 +18,16 @@ import AppKit
 
 struct TokensTabView: View {
     let odometer: TokenOdometerModel
+    @Bindable var appearance: AppearanceSettings
 
     /// How tall the table is allowed to grow before it scrolls instead. The
     /// popover has no height of its own — it is exactly as tall as its content
     /// — so without a ceiling a user with many Models gets a window taller
     /// than the screen. 11 Model rows measured ~539pt in the layout prototype.
-    private static let tableHeightCap: CGFloat = 460
+    // The summary hero and its selector add about 100pt over the original
+    // table-only layout. Lower the table cap by the same amount so the popover
+    // still fits a compact Mac display; additional Model rows scroll here.
+    private static let tableHeightCap: CGFloat = 360
 
     @State private var tableHeight: CGFloat = 0
 
@@ -34,6 +38,14 @@ struct TokensTabView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            summaryMetricPicker
+            TokenSummaryHero(
+                perAgent: odometer.perAgent,
+                metric: appearance.tokenSummaryMetric,
+                range: odometer.displayedRange,
+                hasLoaded: odometer.hasLoaded
+            )
+            .opacity(isScanning ? 0.6 : 1)
             rangePicker
             headingRow
             // The dim has to clear macOS's own disabled-text alpha: the rows it
@@ -48,10 +60,36 @@ struct TokensTabView: View {
         .task { await odometer.observeWhileVisible() }
     }
 
+    private var summaryMetricPicker: some View {
+        Picker("Tokens summary", selection: Binding(
+            get: { appearance.tokenSummaryMetric },
+            set: { metric in
+                // Switching between two different units must settle
+                // immediately. Value and range changes keep the v1 macOS
+                // numeric transition; this presentation switch does not.
+                var transaction = Transaction(animation: nil)
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    appearance.tokenSummaryMetric = metric
+                }
+            }
+        )) {
+            ForEach(TokenSummaryMetric.allCases) { metric in
+                Text(metric.title).tag(metric)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .accessibilityLabel("Tokens summary")
+    }
+
     private var rangePicker: some View {
         Picker("Range", selection: Binding(
             get: { odometer.selectedRange },
-            set: { odometer.select($0) }
+            set: { range in
+                appearance.selectedTokenRange = range
+                odometer.select(range)
+            }
         )) {
             ForEach(TokenRange.allCases, id: \.self) { range in
                 Text(range.label).tag(range)
@@ -75,7 +113,7 @@ struct TokensTabView: View {
     /// which is the one thing allowed to run ahead of the data.
     private var headingRow: some View {
         HStack(spacing: 6) {
-            Text(odometer.displayedRange.label)
+            Text(tableHeading)
                 .font(.system(size: 11, weight: .semibold))
                 .kerning(0.4)
             Spacer(minLength: 8)
@@ -87,6 +125,12 @@ struct TokensTabView: View {
         }
         .foregroundStyle(.secondary)
         .frame(height: 14)
+    }
+
+    private var tableHeading: String {
+        guard let usage = odometer.usage else { return odometer.displayedRange.label }
+        let selected = usage.selectedTotal(appearance.selectedTokenKinds)
+        return "\(odometer.displayedRange.label) · \(TokenUsage.compact(selected)) selected"
     }
 
     /// The table, clamped to `tableHeightCap` and scrolling past it. Measured
@@ -122,16 +166,21 @@ struct TokensTabView: View {
             Text("MODEL")
                 .frame(maxWidth: .infinity, alignment: .leading)
             ForEach(TokenKind.allCases, id: \.self) { kind in
-                HStack(spacing: 5) {
-                    RoundedRectangle(cornerRadius: 1.5)
-                        .fill(kind.color)
-                        .frame(width: 6, height: 6)
-                    Text(kind.abbreviation)
+                Toggle(isOn: tokenKindBinding(kind)) {
+                    HStack(spacing: 5) {
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(kind.color)
+                            .frame(width: 6, height: 6)
+                        Text(kind.abbreviation)
+                    }
+                    .foregroundStyle(kind.color)
+                    .frame(width: 42, alignment: .trailing)
                 }
-                .foregroundStyle(kind.color)
-                .frame(width: 42, alignment: .trailing)
-                .help(kind.name)
-                .accessibilityLabel(kind.name)
+                .toggleStyle(.button)
+                .buttonStyle(.plain)
+                .opacity(appearance.selectedTokenKinds.contains(kind) ? 1 : 0.38)
+                .help("\(appearance.selectedTokenKinds.contains(kind) ? "Exclude" : "Include") \(kind.name.lowercased()) in the selected total")
+                .accessibilityLabel("Include \(kind.name.lowercased()) tokens")
             }
         }
         .font(.system(size: 9.5, weight: .semibold))
@@ -139,17 +188,28 @@ struct TokensTabView: View {
         .foregroundStyle(.secondary)
     }
 
+    private func tokenKindBinding(_ kind: TokenKind) -> Binding<Bool> {
+        Binding(
+            get: { appearance.selectedTokenKinds.contains(kind) },
+            set: { isSelected in
+                if !appearance.setTokenKind(kind, isSelected: isSelected) {
+                    NSSound.beep()
+                }
+            }
+        )
+    }
+
     @ViewBuilder private func agentGroup(_ agent: TokenOdometerModel.AgentTokens) -> some View {
+        let selectedTotal = agent.usage.selectedTotal(appearance.selectedTokenKinds)
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(agent.label.uppercased())
                 Spacer()
                 if agent.byModel.isEmpty == false {
-                    Text(TokenUsage.compact(agent.usage.totalTokens))
+                    Text(TokenUsage.compact(selectedTotal))
                         .monospacedDigit()
-                        // The compacted subtotal rounds two agents 4% apart to
-                        // the same figure; the exact one belongs within reach.
-                        .help(agent.usage.totalTokens.formatted())
+                        .help("\(selectedTotal.formatted()) selected tokens of "
+                              + "\(agent.usage.totalTokens.formatted()) across all four kinds")
                 }
             }
             .font(.system(size: 12, weight: .semibold))
@@ -157,7 +217,7 @@ struct TokensTabView: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(agent.byModel.isEmpty
                                 ? Text(agent.label)
-                                : Text("\(agent.label), \(agent.usage.totalTokens.formatted()) tokens"))
+                                : Text("\(agent.label), \(selectedTotal.formatted()) selected tokens"))
 
             if agent.byModel.isEmpty {
                 // An ordinary state, not an error: an agent with nothing in the
@@ -166,15 +226,27 @@ struct TokensTabView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(agent.byModel, id: \.model) { row in
+                ForEach(sortedRows(agent.byModel), id: \.model) { row in
                     modelRow(row)
                 }
             }
         }
     }
 
+    private func sortedRows(
+        _ rows: [TokenOdometerModel.ModelTokens]
+    ) -> [TokenOdometerModel.ModelTokens] {
+        rows.sorted { left, right in
+            let leftTotal = left.usage.selectedTotal(appearance.selectedTokenKinds)
+            let rightTotal = right.usage.selectedTotal(appearance.selectedTokenKinds)
+            if leftTotal != rightTotal { return leftTotal > rightTotal }
+            return left.model < right.model
+        }
+    }
+
     private func modelRow(_ row: TokenOdometerModel.ModelTokens) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        let selectedTotal = row.usage.selectedTotal(appearance.selectedTokenKinds)
+        return VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 5) {
                 Text(row.model.displayName)
                     .lineLimit(1)
@@ -183,21 +255,33 @@ struct TokensTabView: View {
                     .foregroundStyle(.secondary)
                 ForEach(TokenKind.allCases, id: \.self) { kind in
                     let amount = row.usage.amount(of: kind)
-                    // The figures are the interface here, so they are the one
-                    // thing in the tab drawn at full strength.
-                    Text(amount > 0 ? TokenUsage.compact(amount) : "–")
+                    let isSelected = appearance.selectedTokenKinds.contains(kind)
+                    Text(TokenValueFormatting.cell(
+                        amount: amount,
+                        selectedTotal: selectedTotal,
+                        isSelected: isSelected,
+                        mode: appearance.tokenValueDisplay
+                    ))
+                        // Only the two-line value-plus-percentage cell needs the
+                        // smaller face. Model names and disabled raw values keep
+                        // the table's normal 12pt reading size.
+                        .font(.system(
+                            size: isSelected && appearance.tokenValueDisplay == .valueAndPercentage
+                                ? 9.5 : 12
+                        ))
                         .frame(width: 42, alignment: .trailing)
                         .foregroundStyle(amount > 0 ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
+                        .opacity(isSelected ? 1 : 0.32)
                 }
             }
             .font(.system(size: 12))
             .monospacedDigit()
 
-            ProportionBar(usage: row.usage)
+            ProportionBar(usage: row.usage, selection: appearance.selectedTokenKinds)
         }
-        .help(Self.rowTooltip(row))
+        .help(rowTooltip(row))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(Self.rowTooltip(row).replacingOccurrences(of: "\n", with: ", ")))
+        .accessibilityLabel(Text(rowTooltip(row).replacingOccurrences(of: "\n", with: ", ")))
     }
 
     /// Exact figures, plus the Model's full name — the column truncates it and
@@ -206,10 +290,17 @@ struct TokensTabView: View {
     /// A kind with no figure prints a dash rather than a zero. Codex reports no
     /// cache-write field at all, so "Cache write 0" would assert a measurement
     /// nobody made; CONTEXT.md calls that absence structural.
-    private static func rowTooltip(_ row: TokenOdometerModel.ModelTokens) -> String {
+    private func rowTooltip(_ row: TokenOdometerModel.ModelTokens) -> String {
+        let selectedTotal = row.usage.selectedTotal(appearance.selectedTokenKinds)
         let figures = TokenKind.allCases.map { kind -> String in
             let amount = row.usage.amount(of: kind)
-            return "\(kind.name) \(amount > 0 ? amount.formatted() : "—")"
+            guard amount > 0 else { return "\(kind.name) —" }
+            if appearance.selectedTokenKinds.contains(kind) {
+                return "\(kind.name) \(amount.formatted()) "
+                    + "(\(TokenValueFormatting.compositionPercentage(amount: amount, total: selectedTotal)) "
+                    + "of selected kinds)"
+            }
+            return "\(kind.name) \(amount.formatted()); excluded from composition percentages"
         }
         return ([row.model.displayName] + figures).joined(separator: "\n")
     }
@@ -268,11 +359,12 @@ extension TokenKind {
 /// which is how the absence becomes legible without prior knowledge.
 private struct ProportionBar: View {
     let usage: TokenUsage
+    let selection: Set<TokenKind>
 
     var body: some View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
-                ForEach(TokenKind.allCases, id: \.self) { kind in
+                ForEach(TokenKind.allCases.filter(selection.contains), id: \.self) { kind in
                     let amount = usage.amount(of: kind)
                     if amount > 0 {
                         kind.color.frame(width: width(of: amount, in: geometry.size.width))
@@ -286,10 +378,11 @@ private struct ProportionBar: View {
     }
 
     private func width(of amount: Int, in total: CGFloat) -> CGFloat {
-        guard usage.totalTokens > 0 else { return 0 }
+        let selectedTotal = usage.selectedTotal(selection)
+        guard selectedTotal > 0 else { return 0 }
         // A kind that is present but tiny still gets a visible sliver. Letting
         // it round to nothing would draw it exactly like a kind that is absent,
         // and telling those two apart is the whole reason this bar is here.
-        return max(total * CGFloat(amount) / CGFloat(usage.totalTokens), 1.5)
+        return max(total * CGFloat(amount) / CGFloat(selectedTotal), 1.5)
     }
 }

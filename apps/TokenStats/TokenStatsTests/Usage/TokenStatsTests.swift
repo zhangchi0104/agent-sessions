@@ -113,12 +113,16 @@ struct AppearanceSettingsTests {
     }
 
     @MainActor
-    @Test func defaultsArePrimaryClaudeAndDialStyle() {
+    @Test func defaultsArePrimaryClaudeDialAndUnfilteredTodayValues() {
         withDefaults { defaults in
             let settings = AppearanceSettings(defaults: defaults)
             #expect(settings.primaryAgent == .claudeCode)
             #expect(settings.gaugeStyle == .arc270)
             #expect(Set(settings.order) == Set(CodingAgentID.allCases))
+            #expect(settings.tokenSummaryMetric == .billingTokens)
+            #expect(settings.selectedTokenKinds == Set(TokenKind.allCases))
+            #expect(settings.tokenValueDisplay == .value)
+            #expect(settings.selectedTokenRange == .today)
         }
     }
 
@@ -128,14 +132,54 @@ struct AppearanceSettingsTests {
             let settings = AppearanceSettings(defaults: defaults)
             settings.primaryAgent = .codex
             settings.gaugeStyle = .bar
+            settings.tokenSummaryMetric = .apiEquivalent
+            #expect(settings.setTokenKind(.cacheRead, isSelected: false))
+            settings.tokenValueDisplay = .valueAndPercentage
+            settings.selectedTokenRange = .thirtyDays
             let codexIndex = settings.order.firstIndex(of: .codex)!
             settings.move(fromOffsets: IndexSet(integer: codexIndex), toOffset: 0)
 
             let reloaded = AppearanceSettings(defaults: defaults)
             #expect(reloaded.primaryAgent == .codex)
             #expect(reloaded.gaugeStyle == .bar)
+            #expect(reloaded.tokenSummaryMetric == .apiEquivalent)
+            #expect(reloaded.selectedTokenKinds == Set([.directInput, .output, .cacheWrite]))
+            #expect(reloaded.tokenValueDisplay == .valueAndPercentage)
+            #expect(reloaded.selectedTokenRange == .thirtyDays)
             #expect(reloaded.order.first == .codex)
             #expect(reloaded.displayOrder == [.codex, .claudeCode])
+        }
+    }
+
+    @MainActor
+    @Test func theLastTokenKindCannotBeDisabled() {
+        withDefaults { defaults in
+            let settings = AppearanceSettings(defaults: defaults)
+            #expect(settings.setTokenKind(.output, isSelected: false))
+            #expect(settings.setTokenKind(.cacheWrite, isSelected: false))
+            #expect(settings.setTokenKind(.cacheRead, isSelected: false))
+
+            #expect(settings.selectedTokenKinds == [.directInput])
+            #expect(!settings.setTokenKind(.directInput, isSelected: false))
+            #expect(settings.selectedTokenKinds == [.directInput])
+
+            let reloaded = AppearanceSettings(defaults: defaults)
+            #expect(reloaded.selectedTokenKinds == [.directInput])
+        }
+    }
+
+    @MainActor
+    @Test func invalidStoredTokenPreferencesFallBackSafely() {
+        withDefaults { defaults in
+            defaults.set(["future-kind"], forKey: "appearance.selectedTokenKinds")
+            defaults.set("future-mode", forKey: "appearance.tokenValueDisplay")
+            defaults.set("future-range", forKey: "appearance.selectedTokenRange")
+
+            let settings = AppearanceSettings(defaults: defaults)
+
+            #expect(settings.selectedTokenKinds == Set(TokenKind.allCases))
+            #expect(settings.tokenValueDisplay == .value)
+            #expect(settings.selectedTokenRange == .today)
         }
     }
 }

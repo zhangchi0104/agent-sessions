@@ -47,14 +47,14 @@ final class TokenOdometerModel {
     /// ordinary state, and the tab says so in words instead of dropping a row.
     private(set) var perAgent: [AgentTokens] = []
 
-    /// The range the user has asked for. Deliberately not persisted: a
-    /// remembered 30-day selection would be read as today's figure on the next
-    /// opening.
-    private(set) var selectedRange: TokenRange = .today
+    /// The range the user has asked for. Its initial value comes from the
+    /// persisted Appearance preference, and the view writes every later
+    /// selection back there.
+    private(set) var selectedRange: TokenRange
     /// The range the rows on screen were computed for. It trails `selectedRange`
     /// while a longer scan runs, so the heading and the per-agent subtotals
     /// never label one range's numbers with another range's name.
-    private(set) var displayedRange: TokenRange = .today
+    private(set) var displayedRange: TokenRange
     /// The range being scanned right now, if the displayed rows are stale.
     var pendingRange: TokenRange? { selectedRange == displayedRange ? nil : selectedRange }
     /// False until the first scan of this appearance lands, so the very first
@@ -85,9 +85,12 @@ final class TokenOdometerModel {
 
     init(reader: TranscriptTokenReader,
          roots: [TranscriptRoot],
+         initialRange: TokenRange = .today,
          changeSource: TranscriptChangeSource? = nil) {
         self.reader = reader
         self.roots = roots
+        self.selectedRange = initialRange
+        self.displayedRange = initialRange
         self.changeSource = changeSource ?? FSEventsTranscriptChangeSource(paths: roots.map(\.path))
     }
 
@@ -149,19 +152,17 @@ final class TokenOdometerModel {
             .map(\.element)
     }
 
-    /// Seed today's totals, then re-read whenever the watched transcript files
-    /// change. Drive from a SwiftUI `.task`, which cancels this when the
-    /// popover closes (ADR-0003: watch only while visible).
+    /// Seed the persisted range's totals, then re-read whenever the watched
+    /// transcript files change. Drive from a SwiftUI `.task`, which cancels
+    /// this when the popover closes (ADR-0003: watch only while visible).
     func observeWhileVisible() async {
-        // Each appearance starts on Today. The model outlives the popover, so
-        // without this a 30-day selection would be waiting on the next opening
-        // and its figure read as today's — and the rows must be dropped with
-        // it, or a month's numbers and subtotals render for the whole seed
-        // scan beneath a heading that now reads "Today".
+        // The selection survives tab and process restarts. Rows are still
+        // dropped on each appearance because the watcher sleeps while hidden;
+        // a fresh seed makes the first displayed reading current and prevents
+        // stale rows from looking live during a longer-range scan.
         appearance += 1
         let epoch = appearance
-        selectedRange = .today
-        displayedRange = .today
+        displayedRange = selectedRange
         perAgent = []
         hasLoaded = false
         // Only tear down a scan this appearance started: SwiftUI can run the

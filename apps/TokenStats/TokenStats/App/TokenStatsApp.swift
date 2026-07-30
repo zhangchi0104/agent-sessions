@@ -67,9 +67,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Both models are driven by the registered Coding Agents: the usage
         // model refreshes one per agent, and the Token Odometer scans one
         // transcript root per agent.
-        model = UsageModel(appearance: AppearanceSettings())
+        let appearance = AppearanceSettings()
+        model = UsageModel(appearance: appearance)
         odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                      roots: CodingAgentRegistry.transcriptRoots)
+                                      roots: CodingAgentRegistry.transcriptRoots,
+                                      initialRange: appearance.selectedTokenRange)
         super.init()
     }
 

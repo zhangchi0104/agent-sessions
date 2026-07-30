@@ -6,7 +6,7 @@ Kinds: direct input, output, cache write, and cache read. macOS holds parse
 state in memory; ADR-0007 permits Windows to persist disposable per-file parse
 checkpoints solely to accelerate reconciliation.
 
-The Windows client additionally derives two optional summaries from the same
+Both native clients additionally derive two optional summaries from the same
 records: Billing tokens excludes cache read, while API equivalent applies the
 recorded Model's standard list prices to all four Token Kinds. Unknown Models
 remain unpriced and make the estimate partial. These summaries do not redefine
@@ -79,9 +79,17 @@ parse-checkpoint persistence boundary.
 
 **The scope line moved tabs.** It read "the Usage tab's Tokens Today loop only". The combined figure has since been deleted from the Usage tab, which now shows Usage Window gauges and nothing else, and the watch is armed by the **Tokens tab** instead. The "watch only while visible" property is unaffected — SwiftUI arms the `.task` when that tab appears and cancels it when the tab or the popover goes away — and the Sessions tab the original scope line contrasted against no longer exists at all.
 
-**What the ranges did *not* change.** On macOS, a 7- or 30-day range re-reads more files on the first pass but adds no persistence: the reader's per-file parse state is still in-memory, and states untouched for 48 hours are still dropped — on the next scan, since eviction runs inside the scan and the scan only runs while the tab is visible. ADR-0007 later allows Windows to retain disposable per-file checkpoints across launches.
+**What the ranges did *not* change.** On macOS, a 7- or 30-day range
+re-reads more files on the first pass but adds no parsed-data persistence: the
+reader's per-file parse state remains in-memory, and states untouched for 48
+hours are still dropped — on the next scan, since eviction runs inside the scan
+and the scan only runs while the tab is visible. The selected range is a
+presentation preference and may survive a restart; transcript records and
+aggregate readings do not. A process that never sees the Tokens tab again holds
+what it has. ADR-0007 later allows Windows to retain disposable per-file
+checkpoints across launches.
 
-**What the ranges did change.** The first-open cost is no longer one figure. Measured on the research corpus with a **warm page cache**: a full 30-day scan across both roots is **~4.1s**, and the whole corpus ~5.0s; once every file's parse state is current, a re-scan is the **6–25ms** it takes to enumerate and stat the tree. A genuinely cold, post-reboot figure was never measured — `purge` needs sudo — so the 4.1s is a floor, not a worst case. The "consequences" note above still holds for Today, which is what a popover opens on; a 30-day range is a deliberate switch, and it is the range that pays.
+**What the ranges did change.** The first-open cost is no longer one figure. Measured on the research corpus with a **warm page cache**: a full 30-day scan across both roots is **~4.1s**, and the whole corpus ~5.0s; once every file's parse state is current, a re-scan is the **6–25ms** it takes to enumerate and stat the tree. A genuinely cold, post-reboot figure was never measured — `purge` needs sudo — so the 4.1s is a floor, not a worst case. The "consequences" note above still holds for Today. If another range is persisted, that range is scanned the next time the Tokens tab appears and it is the range that pays.
 
 ## Amendment — 2026-07-29
 
@@ -143,3 +151,13 @@ daemon, no SQLite table, no IPC protocol, and no second source of truth.
   selected total is only a table projection and must be labelled as such in UI,
   accessibility text, tests, and documentation; it must not alter the objective
   Billing/API-equivalent summary.
+
+### macOS interaction parity
+
+macOS now persists the selected Today, 7-day, or 30-day range and Token Kind
+selection as presentation preferences. It also exposes the selected-total
+projection and the objective Billing/API-equivalent summary in the Tokens tab.
+This does not persist parsed records or aggregate readings, and it does not
+extend the FSEvents watch beyond the Tokens tab's visible lifetime. When the tab
+next appears, the in-memory reader scans the persisted range before resuming its
+event-driven updates.

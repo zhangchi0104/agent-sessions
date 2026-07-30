@@ -3,14 +3,14 @@
 //  TokenStats
 //
 //  Settings → Appearance: pick the primary subscription, reorder the Coding
-//  Agents, and choose how each Usage Window is drawn.
+//  Agents, and choose how Token and Usage readings are presented.
 //
 
 import SwiftUI
 
 /// Appearance: pick the primary subscription, reorder agents, and choose how
-/// each Usage Window is drawn. Edits write straight through to the persisted,
-/// observable `AppearanceSettings`, so the popover updates live.
+/// Token and Usage readings are drawn. Edits write straight through to the
+/// persisted, observable `AppearanceSettings`, so the popover updates live.
 struct AppearancePane: View {
     @Bindable var appearance: AppearanceSettings
 
@@ -60,6 +60,44 @@ struct AppearancePane: View {
             }
 
             Section {
+                Picker("Tokens summary", selection: $appearance.tokenSummaryMetric) {
+                    ForEach(TokenSummaryMetric.allCases) { metric in
+                        Text(metric.title).tag(metric)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            } header: {
+                Text("Tokens summary")
+            } footer: {
+                Text("Billing tokens count direct input, cache writes, and output. "
+                     + "API equivalent estimates standard list-price cost from the "
+                     + "Models recorded in local transcripts. Token Kind filters "
+                     + "change neither summary.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section {
+                Picker("Token values", selection: $appearance.tokenValueDisplay) {
+                    ForEach(TokenValueDisplayMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            } header: {
+                Text("Token values")
+            } footer: {
+                Text("Enabled Token Kinds use this format. Disabled kinds keep "
+                     + "a dimmed raw value and are excluded from composition percentages.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section {
                 Picker("Display mode", selection: $appearance.gaugeStyle) {
                     ForEach(GaugeStyle.allCases) { style in
                         Label(style.title, systemImage: style.icon).tag(style)
@@ -72,7 +110,7 @@ struct AppearancePane: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 4)
             } header: {
-                Text("Display mode")
+                Text("Usage Window style")
             } footer: {
                 Text("Choose how each Usage Window is drawn.")
                     .font(.callout)
