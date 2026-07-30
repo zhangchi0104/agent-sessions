@@ -57,8 +57,8 @@ final class TokenOdometerModel {
     private(set) var displayedRange: TokenRange = .today
     /// The range being scanned right now, if the displayed rows are stale.
     var pendingRange: TokenRange? { selectedRange == displayedRange ? nil : selectedRange }
-    /// False until the first scan of this appearance lands, so the very first
-    /// render shows a progress cue rather than a bare column header.
+    /// False until the first scan of this appearance lands, allowing the view
+    /// to reveal a progress cue if that initial scan outlasts its delay.
     private(set) var hasLoaded = false
 
     private let reader: TranscriptTokenReader

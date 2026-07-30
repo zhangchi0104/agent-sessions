@@ -24,13 +24,29 @@ struct TokensTabView: View {
     /// — so without a ceiling a user with many Models gets a window taller
     /// than the screen. 11 Model rows measured ~539pt in the layout prototype.
     private static let tableHeightCap: CGFloat = 460
+    /// Warm scans usually finish in a few milliseconds. Showing the progress
+    /// treatment for those paints one dim frame and reads as a flicker rather
+    /// than useful feedback; a cold scan still gets a cue after this delay.
+    private static let scanningCueDelay: Duration = .milliseconds(150)
 
     @State private var tableHeight: CGFloat = 0
+    @State private var revealedScanningCueRange: TokenRange?
 
-    /// Dimmed while a scan is in flight — either the first of this appearance,
-    /// or a longer range the user switched to — so the tab shows a cue rather
-    /// than a bare column header or a table that empties for several seconds.
+    /// Raw scan state. Its visual treatment is delayed below so a warm scan
+    /// does not dim and restore the table across adjacent frames.
     private var isScanning: Bool { odometer.pendingRange != nil || odometer.hasLoaded == false }
+    /// Restarts the delay when a rapid second selection changes the range being
+    /// read, instead of carrying the first selection's elapsed delay forward.
+    private var scanningCueRange: TokenRange? {
+        guard isScanning else { return nil }
+        return odometer.pendingRange ?? odometer.selectedRange
+    }
+    /// Matching the revealed target to the current one hides synchronously when
+    /// a scan completes or a rapid second selection changes the target.
+    private var shouldShowScanningCue: Bool {
+        guard let scanningCueRange else { return false }
+        return revealedScanningCueRange == scanningCueRange
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -40,12 +56,27 @@ struct TokensTabView: View {
             // covers are already drawn below full strength, and the two
             // multiply. Held rows are meant to read as *last* range's numbers,
             // not as a table that has gone blank.
-            scrollingTable.opacity(isScanning ? 0.6 : 1)
+            scrollingTable.opacity(shouldShowScanningCue ? 0.6 : 1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         // Watches transcripts only while the Tokens tab is showing them;
         // SwiftUI cancels this when the tab (or the popover) goes away.
         .task { await odometer.observeWhileVisible() }
+        // A pending warm scan can begin and end between adjacent renders. Delay
+        // its visual treatment, and let SwiftUI cancel this task when the scan,
+        // requested range, or view lifetime changes.
+        .task(id: scanningCueRange) {
+            revealedScanningCueRange = nil
+            guard let range = scanningCueRange else { return }
+            do {
+                try await Task.sleep(for: Self.scanningCueDelay)
+            } catch {
+                return
+            }
+            guard Task.isCancelled == false, scanningCueRange == range else { return }
+            revealedScanningCueRange = range
+        }
+        .onDisappear { revealedScanningCueRange = nil }
     }
 
     private var rangePicker: some View {
@@ -79,7 +110,7 @@ struct TokensTabView: View {
                 .font(.system(size: 11, weight: .semibold))
                 .kerning(0.4)
             Spacer(minLength: 8)
-            if isScanning {
+            if shouldShowScanningCue {
                 ProgressView().controlSize(.small).scaleEffect(0.7)
                 Text("Reading \((odometer.pendingRange ?? odometer.selectedRange).label.lowercased())…")
                     .font(.system(size: 11))
