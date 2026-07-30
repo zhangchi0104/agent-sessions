@@ -14,7 +14,7 @@ The checkpoint mechanism is:
 
 1. Enumerate transcript metadata and derive a non-reversible cache key from source identity.
 2. Validate a versioned/checksummed envelope, source metadata, time-zone context, bounds, and small bounded source fingerprints.
-3. If valid, hydrate aggregates and provider continuation state at the last safe complete-record boundary.
+3. If valid, hydrate aggregates and parser continuation state at the last safe complete-record boundary.
 4. Read and parse only bytes appended after that boundary.
 5. Publish the replacement entry atomically; if publication fails, keep correct in-memory results and the prior valid entry.
 6. If any validation step fails, discard the whole checkpoint state and rebuild from the transcript.
@@ -286,7 +286,7 @@ This two-phase gate is the full milestone gate; a post-commit invariant is never
 - Tickets:
   - [#54 Hydrate unchanged transcripts from native macOS checkpoints](https://github.com/zhangchi0104/agent-sessions/issues/54)
   - [#55 Resume appended Claude and Codex transcripts across restarts](https://github.com/zhangchi0104/agent-sessions/issues/55)
-- Deliverables: store/schema/default path/key/checksum/privacy/atomic publication, unchanged-file hydration, exact append continuation, and provider-specific restart state.
+- Deliverables: store/schema/default path/key/checksum/privacy/atomic publication, unchanged-file hydration, exact append continuation, and parser-specific restart state.
 - Retires: S3.
 - Gate: S1–S3, then the full pre/post-commit invariant protocol above.
 - Commit: `feat(TokenStats): persist macOS transcript checkpoints`
@@ -320,7 +320,7 @@ This two-phase gate is the full milestone gate; a post-commit invariant is never
 7. Cache read/write/delete failures are non-fatal. They cannot erase correct in-memory totals or destroy the last valid entry before a replacement is durable.
 8. “Fingerprint bytes” are bounded source-validation reads. “Transcript-content bytes” are bytes submitted to continuation parsing. `jsonLinesSubmittedForDecoding` increments once per candidate JSON line, not once per decoder-internal attempt.
 9. Inject time into reader/store tests. Do not move clock or time-zone ownership into the app model.
-10. Encode provider model state through checkpoint DTOs. Do not modify `ModelName.swift`.
+10. Encode Coding-Agent-specific Model state through checkpoint DTOs. Do not modify `ModelName.swift`.
 11. Production data lives below the macOS Caches directory; tests use temporary cache roots. Fixtures and persisted envelopes contain no real transcript data, raw path, partial content, credential, or raw response ID.
 12. Use deterministic counters and structural equality for performance claims. Do not add wall-clock performance thresholds.
 13. Make exactly one commit per milestone after its full gate passes. Individual tickets inside a milestone do not commit.

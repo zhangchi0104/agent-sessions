@@ -277,7 +277,7 @@ struct TranscriptCheckpointInvalidationTests {
             let usage: [String: Any] = [
                 "inputTokens": NSNumber(value: Int.max),
                 "outputTokens": 0,
-                "cacheCreationTokens": 0,
+                "cacheWriteTokens": 0,
                 "cacheReadTokens": 0,
                 "responseCount": 1,
             ]
@@ -465,7 +465,7 @@ private enum InvalidEnvelopeState: String, CaseIterable {
                 first["usage"] = [
                     "inputTokens": 0,
                     "outputTokens": 0,
-                    "cacheCreationTokens": 0,
+                    "cacheWriteTokens": 0,
                     "cacheReadTokens": 0,
                     "responseCount": 1,
                 ]

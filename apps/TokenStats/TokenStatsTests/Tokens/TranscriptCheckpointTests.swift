@@ -544,6 +544,8 @@ struct TranscriptCheckpointTests {
         #expect(envelope["timeZoneIdentifier"] as? String == TimeZone.current.identifier)
         #expect(envelope["transcriptKey"] as? String == expectedKey)
         #expect(isSHA256Hex(checksum))
+        #expect(artifactText.contains(#""cacheWriteTokens":"#))
+        #expect(artifactText.contains(#""cacheCreationTokens":"#) == false)
         #expect(artifact.path.contains(file.lastPathComponent) == false)
         #expect(artifactText.contains(file.path) == false)
         #expect(artifactText.contains(root.path) == false)

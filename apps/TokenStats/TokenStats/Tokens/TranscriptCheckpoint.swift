@@ -623,14 +623,14 @@ nonisolated enum TranscriptCheckpointCodec {
     private struct UsageDTO: Codable {
         let inputTokens: Int
         let outputTokens: Int
-        let cacheCreationTokens: Int
+        let cacheWriteTokens: Int
         let cacheReadTokens: Int
         let responseCount: Int
 
         init(_ value: TokenUsage) {
             inputTokens = value.inputTokens
             outputTokens = value.outputTokens
-            cacheCreationTokens = value.cacheCreationTokens
+            cacheWriteTokens = value.cacheCreationTokens
             cacheReadTokens = value.cacheReadTokens
             responseCount = value.responseCount
         }
@@ -639,7 +639,7 @@ nonisolated enum TranscriptCheckpointCodec {
             TokenUsage(
                 inputTokens: inputTokens,
                 outputTokens: outputTokens,
-                cacheCreationTokens: cacheCreationTokens,
+                cacheCreationTokens: cacheWriteTokens,
                 cacheReadTokens: cacheReadTokens,
                 responseCount: responseCount
             )
