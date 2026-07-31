@@ -7,3 +7,6 @@ build/
 # Xcode per-user state
 xcuserdata/
 *.xcuserstate
+
+# Per-checkout development signing. Copy the tracked example and edit locally.
+/Config/Signing.local.xcconfig

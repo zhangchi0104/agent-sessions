@@ -25,10 +25,11 @@ same changes to a stable release. Beta numbers increment per push to `dev`
    - On `dev` the result carries a `-beta.N` suffix.
    - No release-worthy commits → nothing happens.
 3. The workflow runs on the `macos-26` image and explicitly selects Xcode 26.6.
-   `scripts/build-dmg.sh <version>` builds the app at that version and rejects
-   artifacts whose `DTXcode` metadata is older than `2660` before it codesigns
-   with **Developer ID Application** (hardened runtime), packages a `.dmg`,
-   codesigns the dmg, **notarizes** it with Apple, and staples the ticket.
+   `scripts/build-dmg.sh <version>` builds the app unsigned with any local
+   development Team/profile cleared, rejects artifacts whose `DTXcode` metadata
+   is older than `2660`, then codesigns with **Developer ID Application**
+   (hardened runtime), packages a `.dmg`, codesigns the dmg, **notarizes** it
+   with Apple, and staples the ticket.
 4. semantic-release creates the git tag `tokenstats-v<version>`, a GitHub
    Release with generated notes, and attaches `dist/TokenStats-<version>.dmg`.
 
@@ -56,14 +57,15 @@ Set these under **Settings → Secrets and variables → Actions**:
 
 ### Signing certificate (`MACOS_CERT_*`)
 
-Requires Account Holder or Admin on the signing team (`472VSX7V86`, already set
-in the Xcode project).
+Requires Account Holder or Admin on the release signing team. The team is
+determined by the Developer ID certificate imported into CI; the shared Xcode
+project intentionally contains no development Team ID.
 
 1. Xcode → Settings → Accounts → select the team → Manage Certificates → `+` →
    **Developer ID Application**. (Or issue it manually from a CSR at
    <https://developer.apple.com/account/resources/certificates>.)
 2. Keychain Access → *My Certificates* → right-click
-   `Developer ID Application: … (472VSX7V86)` → **Export**, save as `.p12` and
+   `Developer ID Application: …` → **Export**, save as `.p12` and
    set a password — that password is `MACOS_CERT_PASSWORD`. Export the
    certificate row (which carries the private key with it), not the bare private
    key: without the key, `security import` succeeds in CI but codesign finds no
@@ -114,7 +116,8 @@ npm run test:release-toolchain
 
 You can dry-run the packaging step without semantic-release, provided your login
 keychain holds a Developer ID Application identity and you export the notary env
-vars:
+vars. `Config/Signing.local.xcconfig` is only for local development and is
+explicitly excluded from the unsigned release build:
 
 ```sh
 cd apps/TokenStats

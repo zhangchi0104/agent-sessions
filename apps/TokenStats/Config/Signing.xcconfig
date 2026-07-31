@@ -1,0 +1,9 @@
+// Shared development-signing defaults. These keep a fresh checkout buildable
+// without an Apple Developer account. Personal settings belong only in the
+// optional, gitignored file included below.
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+PROVISIONING_PROFILE_SPECIFIER =
+
+#include? "Signing.local.xcconfig"
