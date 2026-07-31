@@ -25,24 +25,29 @@ concurrency:
 
 jobs:
   test:
-    runs-on: macos-15 # needs Xcode 26 (project objectVersion 77 / macOS 26 SDK)
+    runs-on: macos-26 # matches the release runner and its required Xcode toolchain
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
 
-      - name: Select Xcode 26
+      - name: Select Xcode 26.6
         run: |
           set -euo pipefail
-          echo "Available Xcodes:"; ls -d /Applications/Xcode*.app
-          # The project is a macOS 26 / Xcode 26 format; the image default (16.x)
-          # can't read it. Pick the newest installed Xcode 26.
-          # `|| true` matters: under `set -e` + `pipefail`, a no-match `ls`
-          # fails the whole assignment and kills the step before the fallback.
-          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1 || true)
-          [ -n "$XC" ] || XC=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
-          echo "Selecting $XC"
+          XC=/Applications/Xcode_26.6.app
+          if [[ ! -d "$XC" ]]; then
+            echo "error: required Xcode is unavailable at $XC" >&2
+            exit 1
+          fi
           sudo xcode-select -switch "$XC"
+          XCODE_VERSION="$(xcodebuild -version | awk 'NR == 1 { print $2 }')"
+          case "$XCODE_VERSION" in
+            26.6|26.6.*) ;;
+            *)
+              echo "error: expected Xcode 26.6.x, got ${XCODE_VERSION}" >&2
+              exit 1
+              ;;
+          esac
           xcodebuild -version
 
       - name: Test
