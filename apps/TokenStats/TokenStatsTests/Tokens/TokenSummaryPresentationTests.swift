@@ -96,6 +96,27 @@ struct TokenSummaryPresentationTests {
         #expect(summary.numericValue == 5)
     }
 
+    @Test func tokensProjectionExcludesHiddenAgentsFromTheSummary() {
+        let claude = agent(.claudeCode, model: "claude-opus-5", usage: tokens(input: 10))
+        let codexUsage = tokens(input: 20, output: 30)
+        let codex = agent(.codex, model: "gpt-5.6-sol", usage: codexUsage)
+
+        let visible = TokenAgentProjection.visible(
+            [claude, codex], inOrder: [.codex]
+        )
+        let usage = TokenAgentProjection.usage(of: visible)
+        let summary = TokenSummaryPresentation.make(
+            perAgent: visible,
+            metric: .billingTokens,
+            range: .today,
+            hasLoaded: true
+        )
+
+        #expect(visible.map(\.id) == [.codex])
+        #expect(usage?.billingTokens == codexUsage.billingTokens)
+        #expect(summary.value == "50")
+    }
+
     @Test func unknownModelsStayExplicitlyUnpriced() {
         let usage = tokens(output: 400)
         let summary = TokenSummaryPresentation.make(

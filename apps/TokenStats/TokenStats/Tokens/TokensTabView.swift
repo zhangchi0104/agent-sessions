@@ -36,11 +36,24 @@ struct TokensTabView: View {
     /// than a bare column header or a table that empties for several seconds.
     private var isScanning: Bool { odometer.pendingRange != nil || odometer.hasLoaded == false }
 
+    /// The Odometer continues to retain every agent's raw reading so changing
+    /// this presentation preference never starts or cancels a transcript scan.
+    /// This projection is the single filtered list shared by the hero, heading,
+    /// and table, keeping every Tokens total on the same agent set.
+    private var visibleAgents: [TokenOdometerModel.AgentTokens] {
+        TokenAgentProjection.visible(odometer.perAgent,
+                                    inOrder: appearance.tokensDisplayOrder)
+    }
+
+    private var visibleUsage: TokenUsage? {
+        TokenAgentProjection.usage(of: visibleAgents)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             summaryMetricPicker
             TokenSummaryHero(
-                perAgent: odometer.perAgent,
+                perAgent: visibleAgents,
                 metric: appearance.tokenSummaryMetric,
                 range: odometer.displayedRange,
                 hasLoaded: odometer.hasLoaded
@@ -128,7 +141,7 @@ struct TokensTabView: View {
     }
 
     private var tableHeading: String {
-        guard let usage = odometer.usage else { return odometer.displayedRange.label }
+        guard let usage = visibleUsage else { return odometer.displayedRange.label }
         let selected = usage.selectedTotal(appearance.selectedTokenKinds)
         return "\(odometer.displayedRange.label) · \(TokenUsage.compact(selected)) selected"
     }
@@ -155,7 +168,7 @@ struct TokensTabView: View {
     @ViewBuilder private var table: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
-            ForEach(odometer.perAgent, id: \.label) { agent in
+            ForEach(visibleAgents, id: \.id) { agent in
                 agentGroup(agent)
             }
         }
@@ -303,6 +316,26 @@ struct TokensTabView: View {
             return "\(kind.name) \(amount.formatted()); excluded from composition percentages"
         }
         return ([row.model.displayName] + figures).joined(separator: "\n")
+    }
+}
+
+/// Pure Tokens-tab projection shared by the view and tests. The Odometer keeps
+/// all agent slices; the selected surface order decides which slices take part
+/// in the visible table and its objective summaries.
+@MainActor
+enum TokenAgentProjection {
+    static func visible(
+        _ agents: [TokenOdometerModel.AgentTokens],
+        inOrder order: [CodingAgentID]
+    ) -> [TokenOdometerModel.AgentTokens] {
+        let byID = Dictionary(uniqueKeysWithValues: agents.map { ($0.id, $0) })
+        return order.compactMap { byID[$0] }
+    }
+
+    static func usage(of agents: [TokenOdometerModel.AgentTokens]) -> TokenUsage? {
+        var total = TokenUsage()
+        for agent in agents { total.add(agent.usage) }
+        return total.responseCount > 0 ? total : nil
     }
 }
 

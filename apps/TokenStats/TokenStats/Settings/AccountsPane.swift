@@ -15,6 +15,9 @@ struct AccountsPane: View {
 
     var body: some View {
         Form {
+            // Accounts remains an unfiltered management surface: hiding an
+            // agent elsewhere must never hide the controls needed to sign in
+            // again or turn that agent's presentation back on.
             ForEach(model.appearance.displayOrder, id: \.self) { id in
                 AccountSection(model: model, id: id)
             }

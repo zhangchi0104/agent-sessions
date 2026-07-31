@@ -79,7 +79,7 @@ final class UsageModel {
 
     /// Menu-bar readings in the user's display order (primary first).
     var menuBarSummaries: [CodingAgentUsageSummary] {
-        appearance.displayOrder.map { id in
+        appearance.menuBarDisplayOrder.map { id in
             CodingAgentUsageSummary(shortLabel: id.integration.shortLabel, state: agentStates[id])
         }
     }

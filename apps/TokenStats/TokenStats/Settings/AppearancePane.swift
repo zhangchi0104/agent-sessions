@@ -19,6 +19,7 @@ struct AppearancePane: View {
     /// total there's a single follower, so dragging is a no-op — we disable it
     /// and explain why rather than offer a control that does nothing.
     private var canReorder: Bool { appearance.order.count > 2 }
+    private static let surfaceColumnWidth: CGFloat = 80
 
     var body: some View {
         Form {
@@ -58,6 +59,8 @@ struct AppearancePane: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+
+            agentVisibilitySection
 
             Section {
                 Picker("Tokens summary", selection: $appearance.tokenSummaryMetric) {
@@ -120,6 +123,87 @@ struct AppearancePane: View {
         .formStyle(.grouped)
         .navigationTitle("Appearance")
     }
+
+    private var agentVisibilitySection: some View {
+        Section {
+            Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 10) {
+                GridRow {
+                    Text("Agent")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    visibilityHeader(.usage)
+                    visibilityHeader(.tokens)
+                    visibilityHeader(.menuBar)
+                }
+
+                ForEach(appearance.displayOrder, id: \.self) { id in
+                    GridRow {
+                        HStack(spacing: 10) {
+                            AgentIconBadge(id: id)
+                            Text(id.integration.displayName)
+                            if appearance.primaryAgent == id {
+                                Text("Primary")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(.tint)
+                            }
+                        }
+                        .frame(minWidth: 180, alignment: .leading)
+
+                        visibilityToggle(for: id, on: .usage)
+                        visibilityToggle(for: id, on: .tokens)
+                        visibilityToggle(for: id, on: .menuBar)
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+        } header: {
+            Text("Agent visibility")
+        } footer: {
+            Text("Each row is an agent. Choose the surfaces where it appears; "
+                 + "Tokens excludes unchecked agents from all summaries and totals. "
+                 + "At least one agent must remain visible in each column.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func visibilityHeader(_ surface: AgentDisplaySurface) -> some View {
+        Text(surface.columnTitle)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(width: Self.surfaceColumnWidth)
+            .multilineTextAlignment(.center)
+    }
+
+    private func visibilityToggle(for id: CodingAgentID,
+                                  on surface: AgentDisplaySurface) -> some View {
+        Toggle("", isOn: visibilityBinding(for: id, on: surface))
+            .labelsHidden()
+            .controlSize(.small)
+            .frame(width: Self.surfaceColumnWidth)
+            .disabled(appearance.isVisible(id, on: surface)
+                      && !appearance.canHide(id, on: surface))
+            .help(appearance.isVisible(id, on: surface)
+                  ? "Hide \(id.integration.displayName) from \(surface.helpSurfaceName)"
+                  : "Show \(id.integration.displayName) in \(surface.helpSurfaceName)")
+            .accessibilityLabel("\(id.integration.displayName), \(surface.columnTitle)")
+            .accessibilityValue(appearance.isVisible(id, on: surface) ? "Shown" : "Hidden")
+            .accessibilityHint(appearance.isVisible(id, on: surface)
+                               && !appearance.canHide(id, on: surface)
+                               ? "At least one agent must remain visible."
+                               : "")
+    }
+
+    private func visibilityBinding(for id: CodingAgentID,
+                                   on surface: AgentDisplaySurface) -> Binding<Bool> {
+        Binding(
+            get: { appearance.isVisible(id, on: surface) },
+            set: { isVisible in
+                _ = appearance.setVisible(id, on: surface, isVisible: isVisible)
+            }
+        )
+    }
 }
 
 /// One agent row: icon, name, and (for the primary) a badge. When the list is
@@ -180,4 +264,23 @@ private struct GaugeStylePreview: View {
                                          circularSpacing: 16))
             .frame(maxWidth: style == .bar ? 260 : .infinity)
     }
+}
+
+private extension AgentDisplaySurface {
+    var columnTitle: String {
+        switch self {
+        case .usage: "Usage"
+        case .tokens: "Tokens"
+        case .menuBar: "Menu bar"
+        }
+    }
+
+    var helpSurfaceName: String {
+        switch self {
+        case .usage: "Usage"
+        case .tokens: "Tokens and its totals"
+        case .menuBar: "the menu bar"
+        }
+    }
+
 }

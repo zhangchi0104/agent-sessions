@@ -93,16 +93,36 @@ enum AgentDisplayOrder {
     }
 }
 
+/// The three independent surfaces whose agent visibility can be customized.
+/// Visibility is presentation-only: it never disconnects an account or stops
+/// the background usage/transcript work for that agent.
+nonisolated enum AgentDisplaySurface: String, CaseIterable, Codable, Identifiable {
+    case usage
+    case tokens
+    case menuBar
+
+    var id: Self { self }
+}
+
 /// The Appearance preferences, observable so the popover/menu bar re-render on
 /// change and persisted so the choices stick. Construction reads any saved
 /// values; every mutation writes back.
 @MainActor
 @Observable
 final class AppearanceSettings {
-    /// The primary Coding Agent — shown first and badged in the popover.
+    /// The primary Coding Agent — shown first and badged wherever it is visible.
     var primaryAgent: CodingAgentID { didSet { persist() } }
-    /// The saved order of the non-primary agents (see `displayOrder`).
+    /// The saved order of all agents. Per-surface orders filter this list without
+    /// removing hidden agents, so re-enabling one restores its prior position.
     var order: [CodingAgentID] { didSet { persist() } }
+    /// Agents shown in the Usage tab. At least one agent always remains visible.
+    private(set) var usageVisibleAgents: Set<CodingAgentID>
+    /// Agents included in the Tokens projection. At least one agent always
+    /// remains visible/included.
+    private(set) var tokensVisibleAgents: Set<CodingAgentID>
+    /// Agents included in the menu-bar summary. At least one agent always
+    /// remains visible.
+    private(set) var menuBarVisibleAgents: Set<CodingAgentID>
     /// The shape every Usage Window is drawn with.
     var gaugeStyle: GaugeStyle { didSet { persist() } }
     /// The objective summary shown above the Token Odometer.
@@ -118,6 +138,9 @@ final class AppearanceSettings {
     @ObservationIgnored private let defaults: UserDefaults
     private static let primaryKey = "appearance.primaryAgent"
     private static let orderKey = "appearance.order"
+    private static let usageVisibleAgentsKey = "appearance.usageVisibleAgents"
+    private static let tokensVisibleAgentsKey = "appearance.tokensVisibleAgents"
+    private static let menuBarVisibleAgentsKey = "appearance.menuBarVisibleAgents"
     private static let styleKey = "appearance.gaugeStyle"
     private static let tokenSummaryMetricKey = "appearance.tokenSummaryMetric"
     private static let selectedTokenKindsKey = "appearance.selectedTokenKinds"
@@ -138,6 +161,16 @@ final class AppearanceSettings {
         var order = savedOrder
         for id in CodingAgentID.allCases where !order.contains(id) { order.append(id) }
         self.order = order
+
+        self.usageVisibleAgents = Self.loadVisibleAgents(
+            defaults: defaults, key: Self.usageVisibleAgentsKey
+        )
+        self.tokensVisibleAgents = Self.loadVisibleAgents(
+            defaults: defaults, key: Self.tokensVisibleAgentsKey
+        )
+        self.menuBarVisibleAgents = Self.loadVisibleAgents(
+            defaults: defaults, key: Self.menuBarVisibleAgentsKey
+        )
 
         let savedStyle = (defaults.string(forKey: Self.styleKey))
             .flatMap(GaugeStyle.init(rawValue:))
@@ -164,6 +197,66 @@ final class AppearanceSettings {
     /// The resolved order for display: primary first, then the saved order.
     var displayOrder: [CodingAgentID] {
         AgentDisplayOrder.resolve(primary: primaryAgent, order: order)
+    }
+
+    /// The resolved order for one surface, with hidden agents removed.
+    func displayOrder(for surface: AgentDisplaySurface) -> [CodingAgentID] {
+        let visible = visibleAgents(on: surface)
+        return displayOrder.filter(visible.contains)
+    }
+
+    var usageDisplayOrder: [CodingAgentID] {
+        displayOrder(for: .usage)
+    }
+
+    var tokensDisplayOrder: [CodingAgentID] {
+        displayOrder(for: .tokens)
+    }
+
+    var menuBarDisplayOrder: [CodingAgentID] {
+        displayOrder(for: .menuBar)
+    }
+
+    func isVisible(_ id: CodingAgentID, on surface: AgentDisplaySurface) -> Bool {
+        visibleAgents(on: surface).contains(id)
+    }
+
+    /// Whether turning this agent off is allowed without leaving a surface
+    /// empty. The UI uses this to disable the final visible toggle and the
+    /// mutation API repeats the guard for non-UI callers.
+    func canHide(_ id: CodingAgentID, on surface: AgentDisplaySurface) -> Bool {
+        isVisible(id, on: surface) && visibleAgents(on: surface).count > 1
+    }
+
+    /// Shows or hides one agent on one surface. The preference is deliberately
+    /// independent of sign-in state: hiding preserves credentials and all
+    /// background refresh/transcript work, while re-enabling reveals the latest
+    /// already-available state immediately.
+    ///
+    /// - Returns: `false` only when hiding `id` would leave the surface empty.
+    @discardableResult
+    func setVisible(_ id: CodingAgentID,
+                    on surface: AgentDisplaySurface,
+                    isVisible: Bool) -> Bool {
+        var next = visibleAgents(on: surface)
+        if isVisible {
+            next.insert(id)
+        } else {
+            next.remove(id)
+        }
+        guard !next.isEmpty else { return false }
+        guard next != visibleAgents(on: surface) else { return true }
+
+        switch surface {
+        case .usage:
+            usageVisibleAgents = next
+        case .tokens:
+            tokensVisibleAgents = next
+        case .menuBar:
+            menuBarVisibleAgents = next
+        }
+        persist()
+        return true
     }
 
     /// Reorder agents from a native SwiftUI `.onMove` drag. Mirrors the
@@ -201,9 +294,50 @@ final class AppearanceSettings {
         return true
     }
 
+    private func visibleAgents(on surface: AgentDisplaySurface) -> Set<CodingAgentID> {
+        switch surface {
+        case .usage: usageVisibleAgents
+        case .tokens: tokensVisibleAgents
+        case .menuBar: menuBarVisibleAgents
+        }
+    }
+
+    private static func loadVisibleAgents(defaults: UserDefaults,
+                                          key: String) -> Set<CodingAgentID> {
+        // A missing key is a migration-safe default: preserve the current
+        // all-agents presentation for existing installations.
+        guard defaults.object(forKey: key) != nil else {
+            return Set(CodingAgentID.allCases)
+        }
+
+        let saved = (defaults.array(forKey: key) as? [String] ?? [])
+            .compactMap(CodingAgentID.init(rawValue:))
+        guard !saved.isEmpty else {
+            // A present-but-empty or otherwise corrupt value must not violate
+            // the non-empty surface invariant. Claude is the existing default
+            // primary and the stable repair target.
+            let fallback: Set<CodingAgentID> = [.claudeCode]
+            defaults.set([CodingAgentID.claudeCode.rawValue], forKey: key)
+            return fallback
+        }
+        return Set(saved)
+    }
+
     private func persist() {
         defaults.set(primaryAgent.rawValue, forKey: Self.primaryKey)
         defaults.set(order.map(\.rawValue), forKey: Self.orderKey)
+        defaults.set(
+            CodingAgentID.allCases.filter(usageVisibleAgents.contains).map(\.rawValue),
+            forKey: Self.usageVisibleAgentsKey
+        )
+        defaults.set(
+            CodingAgentID.allCases.filter(tokensVisibleAgents.contains).map(\.rawValue),
+            forKey: Self.tokensVisibleAgentsKey
+        )
+        defaults.set(
+            CodingAgentID.allCases.filter(menuBarVisibleAgents.contains).map(\.rawValue),
+            forKey: Self.menuBarVisibleAgentsKey
+        )
         defaults.set(gaugeStyle.rawValue, forKey: Self.styleKey)
         defaults.set(tokenSummaryMetric.rawValue, forKey: Self.tokenSummaryMetricKey)
         defaults.set(
