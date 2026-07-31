@@ -20,6 +20,9 @@ publish/
 .DS_Store
 *.pem
 
+# Local Codex workspace metadata
+/.codex/
+
 # Code-signing / notarization material — never commit. Provide via CI secrets.
 *.p12
 *.p8
