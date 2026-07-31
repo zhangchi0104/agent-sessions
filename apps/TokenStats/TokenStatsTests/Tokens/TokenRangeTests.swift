@@ -26,8 +26,9 @@ struct TokenRangeTests {
 
     /// The model outlives the popover — it is a `let` on the app delegate — so
     /// retaining a selection has to work on the same instance when the Tokens
-    /// tab comes back. Rows are cleared because the watcher slept while hidden,
-    /// but both range labels must continue to describe the requested month.
+    /// tab comes back. A fresh scan must also include a transcript discovered
+    /// while the watcher was stopped, and both range labels must continue to
+    /// describe the requested month.
     @Test func theSameModelKeepsItsRangeOnTheNextAppearance() async throws {
         let root = try TempTranscripts("claude")
         try root.write("a.jsonl", [
@@ -48,19 +49,20 @@ struct TokenRangeTests {
         try? await Task.sleep(for: .milliseconds(50))
         #expect(odometer.selectedRange == .thirtyDays)
 
-        // …and comes back. `observeWhileVisible` clears stale rows before its
-        // first await, but retains the persisted selection and its label.
+        // …and comes back. A file written while hidden must be included by the
+        // next visible scan rather than leaving the old rows as the result.
+        try root.write("b.jsonl", [
+            claudeUsageLine(id: "new", input: 10, output: 5),
+        ])
         let second = Task { await odometer.observeWhileVisible() }
         defer { second.cancel() }
-        await Task.yield()
 
         #expect(odometer.selectedRange == .thirtyDays)
         #expect(odometer.displayedRange == .thirtyDays)
-        #expect(odometer.hasLoaded == false)
-        #expect(odometer.perAgent.isEmpty)
-
-        #expect(await waitUntil { odometer.hasLoaded })
-        #expect(odometer.usage?.totalTokens == 150 + 1_998)
+        #expect(await waitUntil {
+            odometer.hasLoaded
+                && odometer.usage?.totalTokens == 150 + 1_998 + 15
+        })
     }
 
     @Test func aPersistedRangeCanSeedANewModel() async throws {

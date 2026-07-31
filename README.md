@@ -40,6 +40,22 @@ npm run dev      # build Debug and launch the app
 npm run build    # build Release
 ```
 
+Debug and local Release builds use ad-hoc signing by default, so a fresh
+checkout needs no Apple Developer account. To use your own stable Apple
+Development identity, copy the example and edit the local file by hand:
+
+```sh
+cp Config/Signing.local.xcconfig.example Config/Signing.local.xcconfig
+```
+
+Set `DEVELOPMENT_TEAM` in `Config/Signing.local.xcconfig` to your Team ID. The
+local file is ignored by Git, so pulls and commits neither overwrite nor share
+it. Do not persist your team with Xcode's **Signing & Capabilities → Team**
+picker: that writes the personal value into the tracked Xcode project. The
+checked-in defaults remain ad-hoc, and `npm test` explicitly uses ad-hoc
+signing regardless of the local file. Like any ignored file, the local config
+can be removed by destructive cleanup such as `git clean -fdx`.
+
 The [`Test TokenStats`](.github/workflows/test-tokenstats.yml) workflow runs the
 same `npm test` on every pull request.
 
