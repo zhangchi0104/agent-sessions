@@ -19,6 +19,7 @@ struct AppearancePane: View {
     /// total there's a single follower, so dragging is a no-op — we disable it
     /// and explain why rather than offer a control that does nothing.
     private var canReorder: Bool { appearance.order.count > 2 }
+    private static let surfaceColumnWidth: CGFloat = 80
 
     var body: some View {
         Form {
@@ -59,9 +60,7 @@ struct AppearancePane: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            visibilitySection(.usage)
-            visibilitySection(.tokens)
-            visibilitySection(.menuBar)
+            agentVisibilitySection
 
             Section {
                 Picker("Tokens summary", selection: $appearance.tokenSummaryMetric) {
@@ -125,34 +124,75 @@ struct AppearancePane: View {
         .navigationTitle("Appearance")
     }
 
-    @ViewBuilder
-    private func visibilitySection(_ surface: AgentDisplaySurface) -> some View {
+    private var agentVisibilitySection: some View {
         Section {
-            ForEach(appearance.displayOrder, id: \.self) { id in
-                Toggle(isOn: visibilityBinding(for: id, on: surface)) {
-                    HStack(spacing: 10) {
-                        AgentIconBadge(id: id)
-                        Text(id.integration.displayName)
+            Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 10) {
+                GridRow {
+                    Text("Agent")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    visibilityHeader(.usage)
+                    visibilityHeader(.tokens)
+                    visibilityHeader(.menuBar)
+                }
+
+                ForEach(appearance.displayOrder, id: \.self) { id in
+                    GridRow {
+                        HStack(spacing: 10) {
+                            AgentIconBadge(id: id)
+                            Text(id.integration.displayName)
+                            if appearance.primaryAgent == id {
+                                Text("Primary")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(.tint)
+                            }
+                        }
+                        .frame(minWidth: 180, alignment: .leading)
+
+                        visibilityToggle(for: id, on: .usage)
+                        visibilityToggle(for: id, on: .tokens)
+                        visibilityToggle(for: id, on: .menuBar)
                     }
                 }
-                .disabled(appearance.isVisible(id, on: surface)
-                          && !appearance.canHide(id, on: surface))
-                .help(appearance.isVisible(id, on: surface)
-                      ? "Hide \(id.integration.displayName) from \(surface.helpSurfaceName)"
-                      : "Show \(id.integration.displayName) in \(surface.helpSurfaceName)")
-                .accessibilityHint(appearance.isVisible(id, on: surface)
-                                   && !appearance.canHide(id, on: surface)
-                                   ? "At least one agent must remain visible."
-                                   : "")
             }
+            .padding(.vertical, 4)
         } header: {
-            Text(surface.title)
+            Text("Agent visibility")
         } footer: {
-            Text(surface.footer)
+            Text("Each row is an agent. Choose the surfaces where it appears; "
+                 + "Tokens excludes unchecked agents from all summaries and totals. "
+                 + "At least one agent must remain visible in each column.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private func visibilityHeader(_ surface: AgentDisplaySurface) -> some View {
+        Text(surface.columnTitle)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(width: Self.surfaceColumnWidth)
+            .multilineTextAlignment(.center)
+    }
+
+    private func visibilityToggle(for id: CodingAgentID,
+                                  on surface: AgentDisplaySurface) -> some View {
+        Toggle("", isOn: visibilityBinding(for: id, on: surface))
+            .labelsHidden()
+            .controlSize(.small)
+            .frame(width: Self.surfaceColumnWidth)
+            .disabled(appearance.isVisible(id, on: surface)
+                      && !appearance.canHide(id, on: surface))
+            .help(appearance.isVisible(id, on: surface)
+                  ? "Hide \(id.integration.displayName) from \(surface.helpSurfaceName)"
+                  : "Show \(id.integration.displayName) in \(surface.helpSurfaceName)")
+            .accessibilityLabel("\(id.integration.displayName), \(surface.columnTitle)")
+            .accessibilityValue(appearance.isVisible(id, on: surface) ? "Shown" : "Hidden")
+            .accessibilityHint(appearance.isVisible(id, on: surface)
+                               && !appearance.canHide(id, on: surface)
+                               ? "At least one agent must remain visible."
+                               : "")
     }
 
     private func visibilityBinding(for id: CodingAgentID,
@@ -227,11 +267,11 @@ private struct GaugeStylePreview: View {
 }
 
 private extension AgentDisplaySurface {
-    var title: String {
+    var columnTitle: String {
         switch self {
-        case .usage: "Usage agents"
-        case .tokens: "Tokens agents"
-        case .menuBar: "Menu bar agents"
+        case .usage: "Usage"
+        case .tokens: "Tokens"
+        case .menuBar: "Menu bar"
         }
     }
 
@@ -243,15 +283,4 @@ private extension AgentDisplaySurface {
         }
     }
 
-    var footer: String {
-        switch self {
-        case .usage:
-            "Choose which agents appear in the Usage tab. At least one agent must remain visible."
-        case .tokens:
-            "Choose which agents appear in Tokens and contribute to its summaries and totals. "
-                + "At least one agent must remain included."
-        case .menuBar:
-            "Choose which agents appear in the menu bar summary. At least one agent must remain visible."
-        }
-    }
 }

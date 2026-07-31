@@ -9,6 +9,6 @@
     "test:signing-isolation": "./scripts/test-signing-isolation.sh",
     "test:release-toolchain": "./scripts/test-verify-release-toolchain.sh",
     "build": "xcodebuild -project TokenStats.xcodeproj -scheme TokenStats -configuration Release -derivedDataPath build build",
-    "dev": "xcodebuild -project TokenStats.xcodeproj -scheme TokenStats -configuration Debug -derivedDataPath build build && open build/Build/Products/Debug/TokenStats.app"
+    "dev": "bash scripts/dev.sh"
   }
 }
