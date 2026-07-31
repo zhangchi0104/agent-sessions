@@ -37,6 +37,14 @@ Publication creates it lazily before writing. Each filename is the lowercase
 SHA-256 of the normalized absolute transcript path followed by `.json`; neither
 the filename nor payload stores the raw path.
 
+The application composition root explicitly injects the native store. A
+reader constructed without a store remains persistence-free, which keeps
+tests and non-production callers independent of ambient XCTest detection.
+The collection-level actor owns only enumeration, per-file state, statistics,
+and eviction. One atomic per-file module owns stable source reads, checkpoint
+restore/publication, bounded fingerprints, and cold retry; a separate JSONL
+parser owns framing and Coding-Agent-specific continuation.
+
 The current envelope has cache-schema version `1` and parser-semantics version
 `1`. It repeats the transcript key and local time-zone identifier, contains one
 coherent source-validation and parser-continuation entry, and carries a
@@ -159,8 +167,10 @@ power-loss durability guarantee for the renamed directory entry.
 Loads reject symlinks, non-regular files, empty or oversized entries,
 short/long reads, and files that change while being read. A missing entry is a
 normal miss. Corrupt or incompatible data is a whole-entry invalidation.
-Generic cache read, write, or delete failures mean the optimization is
-unavailable; they are non-fatal and cannot suppress a cold parse.
+Generic cache read or write failures mean the optimization is unavailable;
+they are non-fatal and cannot suppress a cold parse. There is no per-entry
+deletion seam: orphan entries are inert, and deleting the cache directory
+remains the supported way to discard the optimization.
 
 If the source itself changes during an attempt, no mixed state is committed.
 The reader clears that attempt, reopens the authoritative path once, and cold

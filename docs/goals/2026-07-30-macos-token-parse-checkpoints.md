@@ -3,12 +3,15 @@
 - Execution branch: `feat/macos-tokens-storage`
 - Repository root: `/Users/alexzhang/code/github.com/zhangchi0104/agent-sessions`
 - Frozen baseline: `a0290d59e21849f727976c42155833e744c8fe01`
+- Post-delivery maintainability amendment: on 2026-07-31 the user authorized
+  fixing every finding from the thermo-nuclear code-quality review. M5 records
+  that refactor without changing the accepted checkpoint behavior.
 
 ## 1. End state
 
 **A newly launched macOS TokenStats process can restore a valid, disposable, versioned checkpoint for each Claude or Codex transcript, report the same daily token totals as a cold scan, and resume only from the last safely committed record without rereading committed transcript content.**
 
-The cache is an optimization, never authoritative history. Missing, stale, corrupt, incompatible, or unpublished entries cause a fail-open cold rebuild from the source transcript. Windows behavior, app lifecycle and UI wiring, Xcode project membership, and package scripts stay unchanged.
+The cache is an optimization, never authoritative history. Missing, stale, corrupt, incompatible, or unpublished entries cause a fail-open cold rebuild from the source transcript. Windows behavior, app lifecycle and UI/model ownership, Xcode project membership, and package scripts stay unchanged. The sole macOS composition root explicitly injects the native store into an otherwise persistence-free reader default.
 
 The checkpoint mechanism is:
 
@@ -39,7 +42,7 @@ rg -q \
 
 ```zsh
 rg -q 'safeCommittedBytes' \
-  apps/TokenStats/TokenStats/Tokens/TranscriptTokenReader.swift &&
+  apps/TokenStats/TokenStats/Tokens --glob '*.swift' &&
 rg -q 'struct TranscriptReadStatistics' \
   apps/TokenStats/TokenStats/Tokens --glob '*.swift' &&
 rg -q 'jsonLinesSubmittedForDecoding' \
@@ -209,22 +212,23 @@ test -z "$(
   git diff --name-only \
     a0290d59e21849f727976c42155833e744c8fe01 -- |
   rg -v \
-    '^(apps/TokenStats/(CONTEXT\.md|TokenStats/Tokens/(TranscriptTokenReader|TranscriptCheckpoint[^/]*)\.swift|TokenStatsTests/Tokens/(TranscriptFixtures|TranscriptContinuationTests|TranscriptCheckpoint[^/]*)\.swift|docs/adr/000(3-tokens-today-stays-an-in-process-estimate|7-local-token-parse-cache|8-[^/]+)\.md)|docs/goals/2026-07-30-macos-token-parse-checkpoints\.md)$' ||
+    '^(apps/TokenStats/(CONTEXT\.md|TokenStats/App/TokenStatsApp\.swift|TokenStats/Tokens/Transcript(TokenReader|ParseState|JSONLParser|FileReader|Checkpoint[^/]*)\.swift|TokenStatsTests/Tokens/(TranscriptFixtures|TranscriptContinuationTests|TranscriptCheckpoint[^/]*)\.swift|docs/adr/000(3-tokens-today-stays-an-in-process-estimate|7-local-token-parse-cache|8-[^/]+)\.md)|docs/goals/2026-07-30-macos-token-parse-checkpoints\.md)$' ||
   true
 )"
 ```
 
-### I5 — App lifecycle, UI/model ownership, and Xcode membership remain unchanged
+### I5 — App lifecycle, UI/model ownership, and Xcode membership remain unchanged; production persistence is explicit
 
 ```zsh
 git diff --exit-code \
   a0290d59e21849f727976c42155833e744c8fe01 -- \
   apps/TokenStats/TokenStats.xcodeproj/project.pbxproj \
-  apps/TokenStats/TokenStats/App/TokenStatsApp.swift \
   apps/TokenStats/TokenStats/Tokens/ModelName.swift \
   apps/TokenStats/TokenStats/Tokens/TokenOdometerModel.swift \
   apps/TokenStats/TokenStats/Tokens/TranscriptChangeSource.swift \
-  apps/TokenStats/TokenStats/Tokens/TokensTabView.swift
+  apps/TokenStats/TokenStats/Tokens/TokensTabView.swift &&
+rg -q 'checkpointStore: TranscriptCheckpointStore\(\)' \
+  apps/TokenStats/TokenStats/App/TokenStatsApp.swift
 ```
 
 ### I6 — Windows implementation remains byte-for-byte unchanged
@@ -309,15 +313,30 @@ This two-phase gate is the full milestone gate; a post-commit invariant is never
 - Gate: S1–S6, then the full pre/post-commit invariant protocol above.
 - Commit: `docs(TokenStats): record macOS checkpoint contract`
 
+### M5 — Deepen the checkpoint implementation after strict review
+
+- Trigger: the user-authorized 2026-07-31 thermo-nuclear code-quality review.
+- Deliverables: a small collection-level actor; an atomic per-file read
+  transaction; an isolated JSONL parser; top-level durable/runtime state with
+  mutually exclusive tail and attribution cases; explicit production store
+  injection; removal of the unused checkpoint-deletion seam and test-only
+  environment detection; and shared, split checkpoint test support.
+- Behavior boundary: retain the version-1 wire format, cache path, token
+  counting, fail-open semantics, visibility lifecycle, 48-hour memory
+  eviction, and every S1–S6 observation.
+- Gate: S1–S6, then I1–I6 and I8. Apply I7 to this milestone when the user asks
+  to commit it.
+- Commit: `refactor(TokenStats): deepen transcript checkpoint modules`
+
 ## 5. Standing decision rules
 
 1. New Swift files under the synchronized source and test groups are discovered automatically. Never edit `project.pbxproj` for this work.
 2. Run repository commands from the root with `npm --prefix apps/TokenStats ...`. If the execution sandbox prevents Xcode from writing DerivedData, rerun the same command with the required host permission; do not redirect project outputs or weaken the test.
 3. Keep one production seam from `TranscriptTokenReader` to the checkpoint store. Fault injection may be internal to that seam; do not add a second cross-module cache abstraction.
-4. Preserve the sole production reader construction and existing model/lifecycle ownership. The reader may construct its default live store; tests inject isolated stores and clocks.
+4. Preserve the sole production reader construction and existing model/lifecycle ownership. The composition root explicitly injects the live native store; the reader default is persistence-free, and tests inject isolated stores and clocks where needed.
 5. Treat persisted `sourceLengthAtCheckpoint` validation metadata separately from continuation cursors. Restore ordinary parsing from the safe committed complete-record position. While an oversized record is deliberately being discarded, a separately validated `discardedThroughBytes` cursor may resume that discard without representing committed aggregate state; clear it at the terminating newline.
 6. Treat schema version, checksum, bounds, or source validation mismatch as a whole-entry miss. Do not add checkpoint migration in this delivery.
-7. Cache read/write/delete failures are non-fatal. They cannot erase correct in-memory totals or destroy the last valid entry before a replacement is durable.
+7. Cache read/write failures are non-fatal. They cannot erase correct in-memory totals or destroy the last valid entry before a replacement is durable. Do not expose a per-entry deletion API unless a real production lifecycle owns it.
 8. “Fingerprint bytes” are bounded source-validation reads. “Transcript-content bytes” are bytes submitted to continuation parsing. `jsonLinesSubmittedForDecoding` increments once per candidate JSON line, not once per decoder-internal attempt.
 9. Inject time into reader/store tests. Do not move clock or time-zone ownership into the app model.
 10. Encode Coding-Agent-specific Model state through checkpoint DTOs. Do not modify `ModelName.swift`.
@@ -331,7 +350,7 @@ Stop and return to the user before changing scope when any condition is met:
 
 1. The pre-milestone full suite is red for a reason other than the two accepted actor-isolation warnings, or the observed baseline is no longer 119 tests in 17 suites before feature tests are added.
 2. The initial worktree differs from the exact baseline in §8, or user-owned `.claude/` content would need to be read, modified, staged, or removed.
-3. Correct implementation appears to require changing app construction, model/watch/UI files, `project.pbxproj`, Windows sources, or `package.json`.
+3. Correct implementation appears to require changing model/watch/UI files, `project.pbxproj`, Windows sources, or `package.json`. The sole production construction may change only to make native-store injection explicit.
 4. An unchanged warm restore cannot reach zero transcript-content bytes and zero candidate JSON lines while validation remains bounded to an 8 KiB fingerprint.
 5. Exact continuation appears to require persisting a raw transcript path, raw content, partial line, credential, raw response ID, or whole-file content hash.
 6. Injected atomic-publication failures cannot preserve the previous valid checkpoint while keeping source-derived totals correct.

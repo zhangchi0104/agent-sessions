@@ -125,33 +125,3 @@ struct TranscriptContinuationTests {
         #expect(store.counts == .zero)
     }
 }
-
-private final class RecordingCheckpointStore: TranscriptCheckpointStoring, @unchecked Sendable {
-    struct Counts: Equatable {
-        var loads = 0
-        var publications = 0
-        var removals = 0
-
-        static let zero = Counts()
-    }
-
-    private let lock = NSLock()
-    private var storedCounts = Counts()
-
-    var counts: Counts {
-        lock.withLock { storedCounts }
-    }
-
-    func loadCheckpoint(forTranscriptAt path: String) throws -> Data? {
-        lock.withLock { storedCounts.loads += 1 }
-        return nil
-    }
-
-    func publishCheckpoint(_ data: Data, forTranscriptAt path: String) throws {
-        lock.withLock { storedCounts.publications += 1 }
-    }
-
-    func removeCheckpoint(forTranscriptAt path: String) throws {
-        lock.withLock { storedCounts.removals += 1 }
-    }
-}

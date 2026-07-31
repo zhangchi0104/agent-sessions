@@ -93,7 +93,7 @@ struct TranscriptCheckpointStoreTests {
             )
             #expect(failedPublication.statistics.checkpointWrites == 0)
             #expect(try Data(contentsOf: checkpointURL) == previousEntry)
-            #expect(try temporaryFiles(in: cacheRoot).isEmpty)
+            #expect(try checkpointTemporaryFiles(in: cacheRoot).isEmpty)
 
             // The prior checkpoint remains loadable. It resumes the same append
             // and replaces itself once publication is available again.
@@ -158,7 +158,7 @@ struct TranscriptCheckpointStoreTests {
                 FileManager.default.fileExists(atPath: checkpointURL.path)
                     == false
             )
-            #expect(try temporaryFiles(in: cacheRoot).isEmpty)
+            #expect(try checkpointTemporaryFiles(in: cacheRoot).isEmpty)
 
             let recovered = await nativeReader(cacheRoot)
                 .readTranscript(at: transcript.path)
@@ -232,7 +232,7 @@ struct TranscriptCheckpointStoreTests {
             now: Date.init,
             timeZone: .current
         ).readTranscript(at: transcript.path)
-        let sourceBytes = try storeFileSize(transcript)
+        let sourceBytes = try fileSize(transcript)
 
         #expect(rebuilt.usage?.totalTokens == 36)
         #expect(rebuilt.usage?.responseCount == 1)
@@ -300,7 +300,7 @@ struct TranscriptCheckpointStoreTests {
 
         #expect(afterDeletion.isEmpty)
         #expect(await freshReader.statistics == TranscriptReadStatistics())
-        #expect(try regularFiles(in: cacheRoot).count == 1)
+        #expect(try checkpointRegularFiles(in: cacheRoot).count == 1)
     }
 
     @Test func aRenameIsAColdNewPathAndNeverDoubleCountsTheOldKey() async throws {
@@ -325,14 +325,14 @@ struct TranscriptCheckpointStoreTests {
             now: Date()
         )
         let statistics = await freshReader.statistics
-        let renamedBytes = try storeFileSize(renamed)
+        let renamedBytes = try fileSize(renamed)
 
         #expect(result[.named("claude-opus-5")]?.totalTokens == 84)
         #expect(result[.named("claude-opus-5")]?.responseCount == 1)
         #expect(statistics.checkpointMisses == 1)
         #expect(statistics.checkpointLoads == 0)
         #expect(statistics.transcriptContentBytesRead == renamedBytes)
-        #expect(try regularFiles(in: cacheRoot).count == 2)
+        #expect(try checkpointRegularFiles(in: cacheRoot).count == 2)
     }
 
     @Test func aNewTranscriptIsDiscoveredAlongsideExistingWarmEntries() async throws {
@@ -358,7 +358,7 @@ struct TranscriptCheckpointStoreTests {
             now: Date()
         )
         let statistics = await freshReader.statistics
-        let newSourceBytes = try storeFileSize(newURL)
+        let newSourceBytes = try fileSize(newURL)
 
         #expect(result[.named("claude-opus-5")]?.totalTokens == 100)
         #expect(result[.named("claude-opus-5")]?.responseCount == 2)
@@ -372,7 +372,7 @@ struct TranscriptCheckpointStoreTests {
         let root = try TempTranscripts("lifecycle-visible")
         let name = "session.jsonl"
         try root.write(name, [claudeUsageLine(id: "visible", input: 11, output: 13)])
-        let store = CountingStore()
+        let store = RecordingCheckpointStore()
         let reader = TranscriptTokenReader(
             checkpointStore: store,
             now: Date.init,
@@ -456,7 +456,7 @@ struct TranscriptCheckpointStoreTests {
         try FileManager.default.removeItem(at: cacheRoot)
 
         let rebuilt = await nativeReader(cacheRoot).readTranscript(at: transcript.path)
-        let sourceBytes = try storeFileSize(transcript)
+        let sourceBytes = try fileSize(transcript)
 
         #expect(rebuilt.usage == first.usage)
         #expect(rebuilt.statistics.checkpointMisses == 1)
@@ -484,98 +484,4 @@ private final class LoadFailingStore: TranscriptCheckpointStoring, @unchecked Se
     func publishCheckpoint(_ data: Data, forTranscriptAt path: String) throws {
         try base.publishCheckpoint(data, forTranscriptAt: path)
     }
-
-    func removeCheckpoint(forTranscriptAt path: String) throws {
-        try base.removeCheckpoint(forTranscriptAt: path)
-    }
-}
-
-private final class CountingStore: TranscriptCheckpointStoring, @unchecked Sendable {
-    struct Counts: Equatable {
-        var loads = 0
-        var publications = 0
-        var removals = 0
-
-        static let zero = Counts()
-    }
-
-    private let lock = NSLock()
-    private var storedCounts = Counts()
-
-    var counts: Counts {
-        lock.withLock { storedCounts }
-    }
-
-    func loadCheckpoint(forTranscriptAt path: String) throws -> Data? {
-        lock.withLock { storedCounts.loads += 1 }
-        return nil
-    }
-
-    func publishCheckpoint(_ data: Data, forTranscriptAt path: String) throws {
-        lock.withLock { storedCounts.publications += 1 }
-    }
-
-    func removeCheckpoint(forTranscriptAt path: String) throws {
-        lock.withLock { storedCounts.removals += 1 }
-    }
-}
-
-private final class TestClock: @unchecked Sendable {
-    private let lock = NSLock()
-    private var storedNow: Date
-
-    init(_ now: Date) {
-        storedNow = now
-    }
-
-    var now: Date {
-        lock.withLock { storedNow }
-    }
-
-    func advance(by interval: TimeInterval) {
-        lock.withLock {
-            storedNow = storedNow.addingTimeInterval(interval)
-        }
-    }
-}
-
-private func nativeReader(_ cacheRoot: URL) -> TranscriptTokenReader {
-    TranscriptTokenReader(
-        checkpointStore: TranscriptCheckpointStore(cacheRoot: cacheRoot),
-        now: Date.init,
-        timeZone: .current
-    )
-}
-
-private func temporaryCacheRoot(_ label: String) -> URL {
-    FileManager.default.temporaryDirectory
-        .appendingPathComponent("store-\(label)-\(UUID().uuidString)")
-        .appendingPathComponent("token-reader-v1")
-}
-
-private func storeFileSize(_ url: URL) throws -> UInt64 {
-    let handle = try FileHandle(forReadingFrom: url)
-    defer { try? handle.close() }
-    var status = stat()
-    guard fstat(handle.fileDescriptor, &status) == 0, status.st_size >= 0 else {
-        throw POSIXError(.EIO)
-    }
-    return UInt64(status.st_size)
-}
-
-private func regularFiles(in root: URL) throws -> [URL] {
-    guard let enumerator = FileManager.default.enumerator(
-        at: root,
-        includingPropertiesForKeys: [.isRegularFileKey]
-    ) else { return [] }
-    return enumerator.compactMap { item in
-        guard let url = item as? URL,
-              (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
-        else { return nil }
-        return url
-    }
-}
-
-private func temporaryFiles(in root: URL) throws -> [URL] {
-    try regularFiles(in: root).filter { $0.pathExtension == "tmp" }
 }

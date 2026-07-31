@@ -4,7 +4,7 @@
 //
 //  Native macOS persistence for disposable transcript parse checkpoints.
 //  Construction is inert; directories and files are touched only when a
-//  transcript read asks the store to load, publish, or remove one entry.
+//  transcript read asks the store to load or publish one entry.
 //
 
 import Darwin
@@ -38,24 +38,12 @@ nonisolated final class TranscriptCheckpointStore: TranscriptCheckpointStoring, 
             .appendingPathComponent("token-reader-v1", isDirectory: true)
     }
 
-    /// Unit-test hosts construct the production AppDelegate too. Default
-    /// persistence is disabled there so unrelated tests never write fixture
-    /// checkpoints into the developer's real cache; checkpoint tests inject an
-    /// isolated native store explicitly.
-    static var productionDefault: (any TranscriptCheckpointStoring)? {
-        let environment = ProcessInfo.processInfo.environment
-        let isTesting = environment["XCTestConfigurationFilePath"] != nil
-            || environment["XCTestBundlePath"] != nil
-            || NSClassFromString("XCTestCase") != nil
-        return isTesting ? nil : TranscriptCheckpointStore(cacheRoot: defaultCacheRoot)
-    }
-
     let cacheRoot: URL
     private let fileManager: FileManager
     private let publicationFault: (@Sendable (PublicationPhase) throws -> Void)?
 
     init(
-        cacheRoot: URL,
+        cacheRoot: URL = TranscriptCheckpointStore.defaultCacheRoot,
         fileManager: FileManager = .default,
         publicationFault: (@Sendable (PublicationPhase) throws -> Void)? = nil
     ) {
@@ -179,14 +167,6 @@ nonisolated final class TranscriptCheckpointStore: TranscriptCheckpointStoring, 
             try? handle?.close()
             try? fileManager.removeItem(at: temporary)
             throw error
-        }
-    }
-
-    func removeCheckpoint(forTranscriptAt path: String) throws {
-        let url = try checkpointURL(forTranscriptAt: path)
-        guard Darwin.unlink(url.path) == 0 else {
-            if errno == ENOENT { return }
-            throw TranscriptCheckpointStoreError.unavailable
         }
     }
 }

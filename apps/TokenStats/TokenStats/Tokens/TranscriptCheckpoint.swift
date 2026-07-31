@@ -10,13 +10,12 @@
 import CryptoKit
 import Foundation
 
-/// The only reader-to-storage boundary. The reader owns checkpoint semantics
-/// and encoding; a store only loads, atomically publishes, or removes one
-/// opaque entry for a transcript.
+/// The only reader-to-storage seam. The reader owns checkpoint semantics and
+/// encoding; a store only loads or atomically publishes one opaque entry for a
+/// transcript.
 nonisolated protocol TranscriptCheckpointStoring: Sendable {
     func loadCheckpoint(forTranscriptAt path: String) throws -> Data?
     func publishCheckpoint(_ data: Data, forTranscriptAt path: String) throws
-    func removeCheckpoint(forTranscriptAt path: String) throws
 }
 
 /// Deterministic work counters for one transcript read.
@@ -55,20 +54,6 @@ nonisolated struct TranscriptReadResult: Equatable, Sendable {
     let usage: TokenUsage?
     let continuation: TranscriptContinuationSnapshot?
     let statistics: TranscriptReadStatistics
-}
-
-/// Parser state that is safe to restore in a new process. It contains aggregate
-/// facts and validated cursors, never a raw path, response id, or source bytes.
-nonisolated struct TranscriptDurableContinuation: Equatable, Sendable {
-    var safeCommittedBytes: UInt64 = 0
-    var discardedThroughBytes: UInt64?
-    var isDiscardingOversizedLine = false
-    var seenClaudeResponseHashes: Set<String> = []
-    var usage = TokenUsage()
-    var perDay: [TranscriptTokenReader.UsageKey: TokenUsage] = [:]
-    var currentCodexModel: ModelName?
-    var pendingByDay: [String: TokenUsage] = [:]
-    var codexRunningTotal: TranscriptTokenReader.CodexRunningTotal?
 }
 
 /// The source facts a checkpoint's parser state was derived from. Fingerprints
@@ -136,7 +121,6 @@ nonisolated enum TranscriptCheckpointCodec {
     static let maximumDailyEntries = 100_000
     private static let maximumModelCharacters = 1_024
     private static let maximumTimeZoneBytes = 1_024
-    private static let maximumUncommittedLineBytes = UInt64(16 * 1024 * 1024)
 
     static func encode(
         _ checkpoint: TranscriptCheckpoint,
@@ -229,26 +213,17 @@ nonisolated enum TranscriptCheckpointCodec {
                   == source.sourceLengthAtCheckpoint - UInt64(expectedLength),
               isSHA256Hex(source.prefixFingerprint.sha256),
               isSHA256Hex(source.oldEndFingerprint.sha256),
-              continuation.safeCommittedBytes <= source.sourceLengthAtCheckpoint,
               continuation.seenClaudeResponseHashes.count <= maximumResponseHashes,
               continuation.perDay.count <= maximumDailyEntries,
-              continuation.pendingByDay.count <= maximumDailyEntries,
               continuation.seenClaudeResponseHashes.allSatisfy(isSHA256Hex),
               isValid(continuation.usage),
               continuation.perDay.allSatisfy({
                   isValid(day: $0.key.day)
-                      && isValid(model: $0.key.model, allowUnattributed: false)
+                      && isValid(model: $0.key.model)
                       && isValid($0.value)
               }),
-              continuation.pendingByDay.allSatisfy({
-                  isValid(day: $0.key) && isValid($0.value)
-              }),
-              continuation.currentCodexModel.map({
-                  isValid(model: $0, allowUnattributed: false)
-              }) ?? true,
-              continuation.codexRunningTotal.map(isValid(_:)) ?? true,
-              continuation.currentCodexModel == nil
-                  || continuation.pendingByDay.isEmpty
+              isValid(continuation.attribution),
+              continuation.codexRunningTotal.map(isValid(_:)) ?? true
         else {
             return false
         }
@@ -269,7 +244,7 @@ nonisolated enum TranscriptCheckpointCodec {
         for usage in continuation.perDay.values {
             guard bucketTotal.add(usage) else { return false }
         }
-        for usage in continuation.pendingByDay.values {
+        for usage in continuation.attribution.pendingByDay.values {
             guard bucketTotal.add(usage) else { return false }
         }
         guard bucketTotal.inputTokens <= continuation.usage.inputTokens,
@@ -282,19 +257,23 @@ nonisolated enum TranscriptCheckpointCodec {
             return false
         }
 
-        if continuation.isDiscardingOversizedLine {
-            guard let discarded = continuation.discardedThroughBytes,
-                  discarded == source.sourceLengthAtCheckpoint,
-                  discarded > continuation.safeCommittedBytes,
-                  discarded - continuation.safeCommittedBytes
-                      > maximumUncommittedLineBytes
-            else { return false }
-        } else {
-            guard continuation.discardedThroughBytes == nil,
-                  source.sourceLengthAtCheckpoint
-                      - continuation.safeCommittedBytes
-                      <= maximumUncommittedLineBytes
-            else { return false }
+        let maximumLineBytes = UInt64(
+            TranscriptParsingLimits.maximumLineBytes
+        )
+        switch continuation.tail {
+        case .committed(let through):
+            guard through <= source.sourceLengthAtCheckpoint,
+                  source.sourceLengthAtCheckpoint - through <= maximumLineBytes
+            else {
+                return false
+            }
+        case .discarding(let committedThrough, let observedThrough):
+            guard observedThrough == source.sourceLengthAtCheckpoint,
+                  committedThrough < observedThrough,
+                  observedThrough - committedThrough > maximumLineBytes
+            else {
+                return false
+            }
         }
         return true
     }
@@ -324,7 +303,7 @@ nonisolated enum TranscriptCheckpointCodec {
             && usage.responseCount <= total
     }
 
-    private static func isValid(_ total: TranscriptTokenReader.CodexRunningTotal) -> Bool {
+    private static func isValid(_ total: CodexRunningTotal) -> Bool {
         guard total.directInput >= 0,
               total.cacheRead >= 0,
               total.output >= 0
@@ -334,6 +313,20 @@ nonisolated enum TranscriptCheckpointCodec {
         let input = total.directInput.addingReportingOverflow(total.cacheRead)
         guard input.overflow == false else { return false }
         return input.partialValue.addingReportingOverflow(total.output).overflow == false
+    }
+
+    private static func isValid(
+        _ attribution: TranscriptAttributionState
+    ) -> Bool {
+        switch attribution {
+        case .pendingUntilModel(let pending):
+            return pending.count <= maximumDailyEntries
+                && pending.allSatisfy {
+                    isValid(day: $0.key) && isValid($0.value)
+                }
+        case .model(let model):
+            return isValid(model: model)
+        }
     }
 
     private static func isValid(day: String) -> Bool {
@@ -364,16 +357,8 @@ nonisolated enum TranscriptCheckpointCodec {
         return dayOfMonth >= 1 && dayOfMonth <= daysInMonth[month - 1]
     }
 
-    private static func isValid(
-        model: ModelName,
-        allowUnattributed: Bool
-    ) -> Bool {
-        switch model {
-        case .named(let name):
-            return name.count <= maximumModelCharacters
-        case .unattributed:
-            return allowUnattributed
-        }
+    private static func isValid(model: String) -> Bool {
+        model.count <= maximumModelCharacters
     }
 
     private static func isValid(timeZoneIdentifier: String) -> Bool {
@@ -465,20 +450,34 @@ nonisolated enum TranscriptCheckpointCodec {
         }
 
         init(_ value: TranscriptDurableContinuation) {
-            safeCommittedBytes = value.safeCommittedBytes
-            discardedThroughBytes = value.discardedThroughBytes
-            isDiscardingOversizedLine = value.isDiscardingOversizedLine
+            safeCommittedBytes = value.tail.safeCommittedBytes
+            discardedThroughBytes = value.tail.discardedThroughBytes
+            isDiscardingOversizedLine = value.tail
+                .isDiscardingOversizedLine
             seenClaudeResponseHashes = value.seenClaudeResponseHashes.sorted()
             usage = UsageDTO(value.usage)
             perDay = value.perDay.map {
-                DailyUsageDTO(day: $0.key.day, model: ModelDTO($0.key.model), usage: UsageDTO($0.value))
+                DailyUsageDTO(
+                    day: $0.key.day,
+                    model: ModelDTO($0.key.model),
+                    usage: UsageDTO($0.value)
+                )
             }.sorted {
                 ($0.day, $0.model.sortKey) < ($1.day, $1.model.sortKey)
             }
-            currentCodexModel = value.currentCodexModel.map(ModelDTO.init)
-            pendingByDay = value.pendingByDay.map {
-                PendingUsageDTO(day: $0.key, usage: UsageDTO($0.value))
-            }.sorted { $0.day < $1.day }
+            switch value.attribution {
+            case .pendingUntilModel(let pending):
+                currentCodexModel = nil
+                pendingByDay = pending.map {
+                    PendingUsageDTO(
+                        day: $0.key,
+                        usage: UsageDTO($0.value)
+                    )
+                }.sorted { $0.day < $1.day }
+            case .model(let model):
+                currentCodexModel = ModelDTO(model)
+                pendingByDay = []
+            }
             codexRunningTotal = value.codexRunningTotal.map(CodexRunningTotalDTO.init)
         }
 
@@ -543,15 +542,27 @@ nonisolated enum TranscriptCheckpointCodec {
                 throw TranscriptCheckpointCodingError.invalidEnvelope
             }
 
-            var daily: [TranscriptTokenReader.UsageKey: TokenUsage] = [:]
+            let tail: TranscriptDurableTail
+            switch (
+                isDiscardingOversizedLine,
+                discardedThroughBytes
+            ) {
+            case (false, nil):
+                tail = .committed(through: safeCommittedBytes)
+            case (true, .some(let observedThrough)):
+                tail = .discarding(
+                    committedThrough: safeCommittedBytes,
+                    observedThrough: observedThrough
+                )
+            default:
+                throw TranscriptCheckpointCodingError.invalidEnvelope
+            }
+
+            var daily: [TranscriptUsageKey: TokenUsage] = [:]
             for item in perDay {
-                let model = try item.model.value()
-                guard case .named = model else {
-                    throw TranscriptCheckpointCodingError.invalidEnvelope
-                }
-                let key = TranscriptTokenReader.UsageKey(
+                let key = TranscriptUsageKey(
                     day: item.day,
-                    model: model
+                    model: item.model.name
                 )
                 guard daily.updateValue(item.usage.value, forKey: key) == nil else {
                     throw TranscriptCheckpointCodingError.invalidEnvelope
@@ -565,23 +576,24 @@ nonisolated enum TranscriptCheckpointCodec {
                 }
             }
 
-            var continuation = TranscriptDurableContinuation()
-            continuation.safeCommittedBytes = safeCommittedBytes
-            continuation.discardedThroughBytes = discardedThroughBytes
-            continuation.isDiscardingOversizedLine = isDiscardingOversizedLine
-            continuation.seenClaudeResponseHashes = hashes
-            continuation.usage = usage.value
-            continuation.perDay = daily
+            let attribution: TranscriptAttributionState
             if let currentCodexModel {
-                let model = try currentCodexModel.value()
-                guard case .named = model else {
+                guard pending.isEmpty else {
                     throw TranscriptCheckpointCodingError.invalidEnvelope
                 }
-                continuation.currentCodexModel = model
+                attribution = .model(currentCodexModel.name)
+            } else {
+                attribution = .pendingUntilModel(pending)
             }
-            continuation.pendingByDay = pending
-            continuation.codexRunningTotal = codexRunningTotal?.value
-            return continuation
+
+            return TranscriptDurableContinuation(
+                tail: tail,
+                seenClaudeResponseHashes: hashes,
+                usage: usage.value,
+                perDay: daily,
+                attribution: attribution,
+                codexRunningTotal: codexRunningTotal?.value
+            )
         }
 
         private static func decodeBoundedArray<Element: Decodable>(
@@ -648,31 +660,28 @@ nonisolated enum TranscriptCheckpointCodec {
 
     private struct ModelDTO: Codable {
         let kind: String
-        let name: String?
+        let name: String
 
-        init(_ value: ModelName) {
-            switch value {
-            case .named(let name):
-                kind = "named"
-                self.name = name
-            case .unattributed:
-                kind = "unattributed"
-                name = nil
-            }
+        init(_ name: String) {
+            kind = "named"
+            self.name = name
         }
 
-        var sortKey: String { "\(kind):\(name ?? "")" }
+        private enum CodingKeys: String, CodingKey {
+            case kind
+            case name
+        }
 
-        func value() throws -> ModelName {
-            switch (kind, name) {
-            case ("named", .some(let name)):
-                return .named(name)
-            case ("unattributed", .none):
-                return .unattributed
-            default:
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            kind = try container.decode(String.self, forKey: .kind)
+            name = try container.decode(String.self, forKey: .name)
+            guard kind == "named" else {
                 throw TranscriptCheckpointCodingError.invalidEnvelope
             }
         }
+
+        var sortKey: String { "\(kind):\(name)" }
     }
 
     private struct DailyUsageDTO: Codable {
@@ -691,18 +700,18 @@ nonisolated enum TranscriptCheckpointCodec {
         let cacheRead: Int
         let output: Int
 
-        init(_ value: TranscriptTokenReader.CodexRunningTotal) {
+        init(_ value: CodexRunningTotal) {
             directInput = value.directInput
             cacheRead = value.cacheRead
             output = value.output
         }
 
-        var value: TranscriptTokenReader.CodexRunningTotal {
-            var total = TranscriptTokenReader.CodexRunningTotal()
-            total.directInput = directInput
-            total.cacheRead = cacheRead
-            total.output = output
-            return total
+        var value: CodexRunningTotal {
+            CodexRunningTotal(
+                directInput: directInput,
+                cacheRead: cacheRead,
+                output: output
+            )
         }
     }
 }

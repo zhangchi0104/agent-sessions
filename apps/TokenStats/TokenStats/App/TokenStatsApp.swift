@@ -68,8 +68,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // model refreshes one per agent, and the Token Odometer scans one
         // transcript root per agent.
         model = UsageModel(appearance: AppearanceSettings())
-        odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                      roots: CodingAgentRegistry.transcriptRoots)
+        odometer = TokenOdometerModel(
+            reader: TranscriptTokenReader(
+                checkpointStore: TranscriptCheckpointStore()
+            ),
+            roots: CodingAgentRegistry.transcriptRoots
+        )
         super.init()
     }
 

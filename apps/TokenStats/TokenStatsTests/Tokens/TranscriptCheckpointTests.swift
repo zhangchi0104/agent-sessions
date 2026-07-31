@@ -7,7 +7,6 @@
 //  only the platform cache root is redirected into a temporary directory.
 //
 
-import CryptoKit
 import Foundation
 import Testing
 @testable import TokenStats
@@ -522,7 +521,8 @@ struct TranscriptCheckpointTests {
         #expect(result.statistics.checkpointWrites == 1)
 
         let artifacts = try checkpoints.regularFiles()
-        let artifact = try #require(artifacts.only)
+        try #require(artifacts.count == 1)
+        let artifact = try #require(artifacts.first)
         let expectedKey = sha256Hex(file.path)
         let artifactText = try String(contentsOf: artifact, encoding: .utf8)
         let envelope = try #require(
@@ -562,7 +562,10 @@ struct TranscriptCheckpointTests {
         try root.write(name, [
             claudeUsageLine(id: "preserved", input: 17, output: 19),
         ])
-        let store = UnavailableCheckpointStore()
+        let store = RecordingCheckpointStore(
+            loadAccess: .unavailable,
+            publicationAccess: .unavailable
+        )
 
         let result = await TranscriptTokenReader(
             checkpointStore: store,
@@ -576,12 +579,14 @@ struct TranscriptCheckpointTests {
         #expect(result.statistics.checkpointWrites == 0)
         #expect(store.counts.loads == 1)
         #expect(store.counts.publications == 1)
-        #expect(store.counts.removals == 0)
     }
 
     @Test func anUnavailableSourceNeverDeletesItsCheckpointSpeculatively() async throws {
         let root = try TempTranscripts("checkpoint-source-unavailable")
-        let store = UnavailableCheckpointStore()
+        let store = RecordingCheckpointStore(
+            loadAccess: .unavailable,
+            publicationAccess: .unavailable
+        )
         let missingPath = root.url.appendingPathComponent("missing.jsonl").path
 
         let result = await TranscriptTokenReader(
@@ -594,93 +599,5 @@ struct TranscriptCheckpointTests {
         #expect(result.continuation == nil)
         #expect(store.counts.loads == 0)
         #expect(store.counts.publications == 0)
-        #expect(store.counts.removals == 0)
-    }
-}
-
-private struct TempCheckpointDirectory {
-    let url: URL
-
-    init(_ label: String) {
-        url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(label)-\(UUID().uuidString)")
-            .appendingPathComponent("token-reader-v1")
-    }
-
-    func regularFiles() throws -> [URL] {
-        guard let enumerator = FileManager.default.enumerator(
-            at: url,
-            includingPropertiesForKeys: [.isRegularFileKey]
-        ) else { return [] }
-
-        return enumerator.compactMap { item in
-            guard let file = item as? URL,
-                  (try? file.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
-            else { return nil }
-            return file
-        }
-    }
-}
-
-private func makeReader(_ checkpoints: TempCheckpointDirectory) -> TranscriptTokenReader {
-    TranscriptTokenReader(
-        checkpointStore: TranscriptCheckpointStore(cacheRoot: checkpoints.url),
-        now: Date.init,
-        timeZone: .current
-    )
-}
-
-private func encodedBytes(_ lines: [String]) -> UInt64 {
-    UInt64(lines.joined(separator: "\n").utf8.count + 1)
-}
-
-private func sha256Hex(_ value: String) -> String {
-    SHA256.hash(data: Data(value.utf8))
-        .map { String(format: "%02x", $0) }
-        .joined()
-}
-
-private func isSHA256Hex(_ value: String) -> Bool {
-    value.utf8.count == 64 && value.utf8.allSatisfy {
-        ($0 >= 0x30 && $0 <= 0x39) || ($0 >= 0x61 && $0 <= 0x66)
-    }
-}
-
-private final class UnavailableCheckpointStore: TranscriptCheckpointStoring, @unchecked Sendable {
-    struct Counts {
-        var loads = 0
-        var publications = 0
-        var removals = 0
-    }
-
-    enum Failure: Error {
-        case unavailable
-    }
-
-    private let lock = NSLock()
-    private var storedCounts = Counts()
-
-    var counts: Counts {
-        lock.withLock { storedCounts }
-    }
-
-    func loadCheckpoint(forTranscriptAt path: String) throws -> Data? {
-        lock.withLock { storedCounts.loads += 1 }
-        throw Failure.unavailable
-    }
-
-    func publishCheckpoint(_ data: Data, forTranscriptAt path: String) throws {
-        lock.withLock { storedCounts.publications += 1 }
-        throw Failure.unavailable
-    }
-
-    func removeCheckpoint(forTranscriptAt path: String) throws {
-        lock.withLock { storedCounts.removals += 1 }
-    }
-}
-
-private extension Collection {
-    var only: Element? {
-        count == 1 ? first : nil
     }
 }
