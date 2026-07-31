@@ -14,7 +14,7 @@
     ShowInTaskbar="True"
     Style="{StaticResource {x:Type Window}}"
     WindowStartupLocation="CenterScreen">
-    <Grid>
+    <Grid x:Name="AppearanceRoot">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="1" />
@@ -22,6 +22,11 @@
             <RowDefinition Height="1" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
+
+        <Border
+            Grid.RowSpan="5"
+            Background="{DynamicResource AppBackgroundImageBrush}"
+            IsHitTestVisible="False" />
 
         <StackPanel Margin="28,24,28,18">
             <TextBlock

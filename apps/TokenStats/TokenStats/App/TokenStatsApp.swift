@@ -69,9 +69,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // transcript root per agent.
         let appearance = AppearanceSettings()
         model = UsageModel(appearance: appearance)
-        odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                      roots: CodingAgentRegistry.transcriptRoots,
-                                      initialRange: appearance.selectedTokenRange)
+        odometer = TokenOdometerModel(
+            reader: TranscriptTokenReader(
+                checkpointStore: TranscriptCheckpointStore()
+            ),
+            roots: CodingAgentRegistry.transcriptRoots,
+            initialRange: appearance.selectedTokenRange
+        )
         super.init()
     }
 

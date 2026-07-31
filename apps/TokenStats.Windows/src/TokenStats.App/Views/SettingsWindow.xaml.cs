@@ -2,20 +2,45 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Threading;
+using Microsoft.Win32;
 using TokenStats.App.Controls;
 using TokenStats.App.Infrastructure;
 using TokenStats.App.Services;
 using TokenStats.Core;
+using Forms = System.Windows.Forms;
 
 namespace TokenStats.App.Views;
 
 public partial class SettingsWindow : Window
 {
+    private static readonly ColorOption[] ColorOptions =
+    [
+        new(nameof(ThemeColorOverrides.WindowBackground), "Window", "WindowBackgroundBrush"),
+        new(nameof(ThemeColorOverrides.CardBackground), "Cards", "CardBackgroundBrush"),
+        new(nameof(ThemeColorOverrides.SubtleBackground), "Subtle surface", "SubtleBackgroundBrush"),
+        new(nameof(ThemeColorOverrides.ControlBackground), "Controls", "ControlBackgroundBrush"),
+        new(nameof(ThemeColorOverrides.PrimaryText), "Primary text", "PrimaryTextBrush"),
+        new(nameof(ThemeColorOverrides.SecondaryText), "Secondary text", "SecondaryTextBrush"),
+        new(nameof(ThemeColorOverrides.Border), "Borders", "BorderBrush"),
+        new(nameof(ThemeColorOverrides.Accent), "Accent", "AccentBrush"),
+        new(nameof(ThemeColorOverrides.Danger), "Danger", "DangerBrush"),
+        new(nameof(ThemeColorOverrides.Warning), "Warning", "WarningBrush"),
+        new(nameof(ThemeColorOverrides.TokenInput), "Input tokens", "TokenInputBrush"),
+        new(nameof(ThemeColorOverrides.TokenOutput), "Output tokens", "TokenOutputBrush"),
+        new(nameof(ThemeColorOverrides.TokenCacheWrite), "Cache write", "TokenCacheWriteBrush"),
+        new(nameof(ThemeColorOverrides.TokenCacheRead), "Cache read", "TokenCacheReadBrush"),
+    ];
     private readonly UsageCoordinator _coordinator;
     private readonly AppSettingsStore _settings;
     private readonly Action _runSetupAgain;
     private readonly HashSet<AgentId> _loginBusy = [];
     private readonly Dictionary<AgentId, string> _pastedCodes = [];
+    private readonly DispatcherTimer _appearanceSaveTimer = new()
+    {
+        Interval = TimeSpan.FromMilliseconds(180),
+    };
+    private VisualAppearancePreferences? _pendingVisualAppearance;
     private bool _isRendering;
 
     public SettingsWindow(
@@ -26,23 +51,32 @@ public partial class SettingsWindow : Window
         _coordinator = coordinator;
         _settings = settings;
         _runSetupAgain = runSetupAgain;
+        _isRendering = true;
         InitializeComponent();
         WindowsThemeService.Attach(this);
+        _appearanceSaveTimer.Tick += AppearanceSaveTimer_OnTick;
 
         PrimaryAgentCombo.ItemsSource = AgentRegistry.All;
+        FontFamilyCombo.ItemsSource = BuildFontChoices(_settings.VisualAppearance.FontFamily);
         VersionText.Text = $"Version {Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "—"}";
         _coordinator.Changed += Coordinator_OnChanged;
         WindowsThemeService.ThemeChanged += WindowsThemeService_OnThemeChanged;
+        Closing += SettingsWindow_OnClosing;
         Closed += SettingsWindow_OnClosed;
         SourceInitialized += (_, _) => ConstrainToWorkArea();
         LocationChanged += (_, _) => ConstrainToWorkArea();
         Render();
     }
 
+    private VisualAppearancePreferences EditingVisualAppearance =>
+        _pendingVisualAppearance ?? _settings.VisualAppearance;
+
     private void ConstrainToWorkArea()
     {
-        WindowSizing.ConstrainToCurrentWorkArea(this, 480, 320);
-        NavigationColumn.Width = new GridLength(MaxWidth < 620 ? 150 : 190);
+        var scale = EditingVisualAppearance.InterfaceScale;
+        WindowSizing.ConstrainToCurrentWorkArea(this, 480 * scale, 320 * scale);
+        NavigationColumn.Width = new GridLength(
+            MaxWidth < 620 * scale ? 150 : 190);
     }
 
     private void Render()
@@ -52,6 +86,14 @@ public partial class SettingsWindow : Window
             Dispatcher.BeginInvoke(Render);
             return;
         }
+
+        var visualAppearance = EditingVisualAppearance;
+        WindowAppearanceService.Apply(
+            this,
+            AppearanceRoot,
+            visualAppearance,
+            AppearanceWindowKind.Settings);
+        ConstrainToWorkArea();
 
         _isRendering = true;
         try
@@ -89,6 +131,7 @@ public partial class SettingsWindow : Window
             }
 
             RenderGaugePreview(appearance.GaugeStyle);
+            RenderVisualAppearance(visualAppearance);
         }
         finally
         {
@@ -341,6 +384,7 @@ public partial class SettingsWindow : Window
         // the later page fields, so the first event can legitimately arrive
         // before those named elements exist.
         if (AccountsPage is null ||
+            DisplayPage is null ||
             AppearancePage is null ||
             AboutPage is null ||
             Navigation.SelectedItem is not ListBoxItem item)
@@ -350,6 +394,9 @@ public partial class SettingsWindow : Window
 
         var selected = item.Tag as string;
         AccountsPage.Visibility = selected == "accounts"
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        DisplayPage.Visibility = selected == "display"
             ? Visibility.Visible
             : Visibility.Collapsed;
         AppearancePage.Visibility = selected == "appearance"
@@ -450,6 +497,484 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private void RenderVisualAppearance(VisualAppearancePreferences appearance)
+    {
+        SelectTaggedItem(ThemeModeCombo, appearance.ThemeMode.ToString());
+        FontFamilyCombo.SelectedValue = appearance.FontFamily;
+        BackgroundImagePathText.Text = appearance.BackgroundImagePath ??
+                                       "No image selected";
+        ClearBackgroundImageButton.IsEnabled =
+            !string.IsNullOrWhiteSpace(appearance.BackgroundImagePath);
+        SelectTaggedItem(
+            BackgroundPlacementCombo,
+            appearance.BackgroundImagePlacement.ToString());
+        SelectTaggedItem(
+            BackgroundPositionCombo,
+            appearance.BackgroundImagePosition.ToString());
+        BackgroundImageOpacitySlider.Value =
+            appearance.BackgroundImageOpacity * 100;
+        FlyoutOpacitySlider.Value = appearance.FlyoutOpacity * 100;
+        FlyoutWidthSlider.Value = appearance.FlyoutWidth;
+        InterfaceScaleSlider.Value = appearance.InterfaceScale * 100;
+        BackgroundImageOpacityValue.Text =
+            PercentText(appearance.BackgroundImageOpacity);
+        FlyoutOpacityValue.Text = PercentText(appearance.FlyoutOpacity);
+        FlyoutWidthValue.Text = $"{appearance.FlyoutWidth:0} px";
+        InterfaceScaleValue.Text = PercentText(appearance.InterfaceScale);
+        RenderColorOptions(appearance.Colors);
+    }
+
+    private void RenderColorOptions(ThemeColorOverrides colors)
+    {
+        ColorOverridesPanel.Children.Clear();
+        foreach (var option in ColorOptions)
+        {
+            var row = new Grid { Margin = new Thickness(0, 0, 8, 8) };
+            row.ColumnDefinitions.Add(new ColumnDefinition());
+            row.ColumnDefinitions.Add(
+                new ColumnDefinition { Width = GridLength.Auto });
+
+            var choose = new Button
+            {
+                Padding = new Thickness(9, 6, 7, 6),
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                ToolTip = $"Choose the {option.Label.ToLowerInvariant()} color",
+            };
+            var content = new Grid();
+            content.ColumnDefinitions.Add(
+                new ColumnDefinition { Width = GridLength.Auto });
+            content.ColumnDefinitions.Add(new ColumnDefinition());
+            content.ColumnDefinitions.Add(
+                new ColumnDefinition { Width = GridLength.Auto });
+            content.Children.Add(new Border
+            {
+                Width = 18,
+                Height = 18,
+                Margin = new Thickness(0, 0, 8, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Background = FindBrush(option.ResourceKey),
+                BorderBrush = FindBrush("BorderBrush"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+            });
+            var label = new TextBlock
+            {
+                Text = option.Label,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Grid.SetColumn(label, 1);
+            content.Children.Add(label);
+            var resolvedValue = new TextBlock
+            {
+                Text = BrushHex(option.ResourceKey),
+                Margin = new Thickness(8, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = FindBrush("SecondaryTextBrush"),
+                FontSize = 11,
+            };
+            Grid.SetColumn(resolvedValue, 2);
+            content.Children.Add(resolvedValue);
+            choose.Content = content;
+            choose.Click += (_, _) => ChooseColor(option);
+            row.Children.Add(choose);
+
+            var reset = new Button
+            {
+                Content = "↺",
+                Width = 30,
+                MinHeight = 30,
+                Margin = new Thickness(5, 0, 0, 0),
+                Padding = new Thickness(0),
+                ToolTip = $"Use the theme default for {option.Label.ToLowerInvariant()}",
+                IsEnabled = GetColorOverride(colors, option.Key) is not null,
+            };
+            reset.Click += (_, _) => ResetColor(option);
+            Grid.SetColumn(reset, 1);
+            row.Children.Add(reset);
+            ColorOverridesPanel.Children.Add(row);
+        }
+    }
+
+    private void ThemeModeCombo_OnSelectionChanged(
+        object sender,
+        SelectionChangedEventArgs eventArgs)
+    {
+        if (_isRendering ||
+            ThemeModeCombo.SelectedItem is not ComboBoxItem { Tag: string value } ||
+            !Enum.TryParse<AppThemeMode>(value, out var mode))
+        {
+            return;
+        }
+
+        TrySaveVisualAppearance(
+            EditingVisualAppearance with { ThemeMode = mode });
+    }
+
+    private void FontFamilyCombo_OnSelectionChanged(
+        object sender,
+        SelectionChangedEventArgs eventArgs)
+    {
+        if (_isRendering || FontFamilyCombo.SelectedValue is not string value)
+        {
+            return;
+        }
+
+        TrySaveVisualAppearance(
+            EditingVisualAppearance with { FontFamily = value });
+    }
+
+    private void BackgroundPlacementCombo_OnSelectionChanged(
+        object sender,
+        SelectionChangedEventArgs eventArgs)
+    {
+        if (_isRendering ||
+            BackgroundPlacementCombo.SelectedItem is not ComboBoxItem
+            {
+                Tag: string value,
+            } ||
+            !Enum.TryParse<BackgroundImagePlacement>(value, out var placement))
+        {
+            return;
+        }
+
+        TrySaveVisualAppearance(
+            EditingVisualAppearance with
+            {
+                BackgroundImagePlacement = placement,
+            });
+    }
+
+    private void BackgroundPositionCombo_OnSelectionChanged(
+        object sender,
+        SelectionChangedEventArgs eventArgs)
+    {
+        if (_isRendering ||
+            BackgroundPositionCombo.SelectedItem is not ComboBoxItem
+            {
+                Tag: string value,
+            } ||
+            !Enum.TryParse<BackgroundImagePosition>(value, out var position))
+        {
+            return;
+        }
+
+        TrySaveVisualAppearance(
+            EditingVisualAppearance with
+            {
+                BackgroundImagePosition = position,
+            });
+    }
+
+    private void ChooseBackgroundImage_OnClick(
+        object sender,
+        RoutedEventArgs eventArgs)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Choose a TokenStats background image",
+            Filter = "Image files|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files|*.*",
+            CheckFileExists = true,
+            Multiselect = false,
+        };
+        if (dialog.ShowDialog(this) == true)
+        {
+            TrySaveVisualAppearance(
+                EditingVisualAppearance with
+                {
+                    BackgroundImagePath = dialog.FileName,
+                });
+        }
+    }
+
+    private void ClearBackgroundImage_OnClick(
+        object sender,
+        RoutedEventArgs eventArgs) =>
+        TrySaveVisualAppearance(
+            EditingVisualAppearance with { BackgroundImagePath = null });
+
+    private void BackgroundImageOpacity_OnValueChanged(
+        object sender,
+        RoutedPropertyChangedEventArgs<double> eventArgs)
+    {
+        if (_isRendering)
+        {
+            return;
+        }
+
+        var opacity = eventArgs.NewValue / 100;
+        BackgroundImageOpacityValue.Text = PercentText(opacity);
+        SaveSliderVisualAppearance(
+            sender,
+            EditingVisualAppearance with
+            {
+                BackgroundImageOpacity = opacity,
+            });
+    }
+
+    private void FlyoutOpacity_OnValueChanged(
+        object sender,
+        RoutedPropertyChangedEventArgs<double> eventArgs)
+    {
+        if (_isRendering)
+        {
+            return;
+        }
+
+        var opacity = eventArgs.NewValue / 100;
+        FlyoutOpacityValue.Text = PercentText(opacity);
+        SaveSliderVisualAppearance(
+            sender,
+            EditingVisualAppearance with
+            {
+                FlyoutOpacity = opacity,
+            });
+    }
+
+    private void FlyoutWidth_OnValueChanged(
+        object sender,
+        RoutedPropertyChangedEventArgs<double> eventArgs)
+    {
+        if (_isRendering)
+        {
+            return;
+        }
+
+        FlyoutWidthValue.Text = $"{eventArgs.NewValue:0} px";
+        SaveSliderVisualAppearance(
+            sender,
+            EditingVisualAppearance with { FlyoutWidth = eventArgs.NewValue });
+    }
+
+    private void InterfaceScale_OnValueChanged(
+        object sender,
+        RoutedPropertyChangedEventArgs<double> eventArgs)
+    {
+        if (_isRendering)
+        {
+            return;
+        }
+
+        var scale = eventArgs.NewValue / 100;
+        InterfaceScaleValue.Text = PercentText(scale);
+        SaveSliderVisualAppearance(
+            sender,
+            EditingVisualAppearance with
+            {
+                InterfaceScale = scale,
+            });
+    }
+
+    private void ResetColors_OnClick(object sender, RoutedEventArgs eventArgs) =>
+        TrySaveVisualAppearance(
+            EditingVisualAppearance with { Colors = ThemeColorOverrides.Empty });
+
+    private void ResetAppearance_OnClick(
+        object sender,
+        RoutedEventArgs eventArgs) =>
+        TrySaveVisualAppearance(VisualAppearancePreferences.Default);
+
+    private void ChooseColor(ColorOption option)
+    {
+        var brush = FindBrush(option.ResourceKey) as SolidColorBrush;
+        var initial = brush?.Color ?? Colors.Gray;
+        using var dialog = new Forms.ColorDialog
+        {
+            FullOpen = true,
+            AnyColor = true,
+            Color = System.Drawing.Color.FromArgb(
+                initial.R,
+                initial.G,
+                initial.B),
+        };
+        if (dialog.ShowDialog() != Forms.DialogResult.OK)
+        {
+            return;
+        }
+
+        var color = dialog.Color;
+        var value = $"#FF{color.R:X2}{color.G:X2}{color.B:X2}";
+        TrySaveVisualAppearance(
+            EditingVisualAppearance with
+            {
+                Colors = SetColorOverride(
+                    EditingVisualAppearance.Colors,
+                    option.Key,
+                    value),
+            });
+    }
+
+    private void ResetColor(ColorOption option) =>
+        TrySaveVisualAppearance(
+            EditingVisualAppearance with
+            {
+                Colors = SetColorOverride(
+                    EditingVisualAppearance.Colors,
+                    option.Key,
+                    null),
+            });
+
+    private void SaveSliderVisualAppearance(
+        object sender,
+        VisualAppearancePreferences appearance)
+    {
+        if (sender is Slider { IsMouseCaptureWithin: true })
+        {
+            _pendingVisualAppearance = appearance;
+            _appearanceSaveTimer.Stop();
+            _appearanceSaveTimer.Start();
+            return;
+        }
+
+        TrySaveVisualAppearance(appearance);
+    }
+
+    private void AppearanceSaveTimer_OnTick(
+        object? sender,
+        EventArgs eventArgs) =>
+        CommitPendingVisualAppearance();
+
+    private void CommitPendingVisualAppearance()
+    {
+        if (_pendingVisualAppearance is not { } pending)
+        {
+            _appearanceSaveTimer.Stop();
+            return;
+        }
+
+        _pendingVisualAppearance = null;
+        _appearanceSaveTimer.Stop();
+        TrySaveVisualAppearance(pending);
+    }
+
+    private bool TrySaveVisualAppearance(VisualAppearancePreferences appearance)
+    {
+        _appearanceSaveTimer.Stop();
+        _pendingVisualAppearance = null;
+        try
+        {
+            _settings.SaveVisualAppearance(appearance);
+            var saved = _settings.VisualAppearance;
+            if (WindowsThemeService.CurrentAppearance != saved &&
+                System.Windows.Application.Current is { } application)
+            {
+                WindowsThemeService.ApplyAppearance(
+                    application.Resources,
+                    saved);
+            }
+
+            return true;
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(
+                this,
+                $"Could not save TokenStats appearance settings.\n\n{exception.Message}",
+                "TokenStats",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            Render();
+            return false;
+        }
+    }
+
+    private static void SelectTaggedItem(ComboBox comboBox, string value)
+    {
+        foreach (var item in comboBox.Items.OfType<ComboBoxItem>())
+        {
+            if (string.Equals(item.Tag as string, value, StringComparison.Ordinal))
+            {
+                comboBox.SelectedItem = item;
+                return;
+            }
+        }
+    }
+
+    private static IReadOnlyList<FontChoice> BuildFontChoices(string current)
+    {
+        var choices = new List<FontChoice>
+        {
+            new("System default", VisualAppearancePreferences.DefaultFontFamily),
+        };
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            VisualAppearancePreferences.DefaultFontFamily,
+        };
+        if (!string.IsNullOrWhiteSpace(current) && seen.Add(current))
+        {
+            choices.Add(new FontChoice(current, current));
+        }
+
+        choices.AddRange(
+            Fonts.SystemFontFamilies
+                .Select(font => font.Source)
+                .Where(seen.Add)
+                .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
+                .Select(name => new FontChoice(name, name)));
+        return choices;
+    }
+
+    private static string? GetColorOverride(
+        ThemeColorOverrides colors,
+        string key) =>
+        key switch
+        {
+            nameof(ThemeColorOverrides.WindowBackground) => colors.WindowBackground,
+            nameof(ThemeColorOverrides.CardBackground) => colors.CardBackground,
+            nameof(ThemeColorOverrides.SubtleBackground) => colors.SubtleBackground,
+            nameof(ThemeColorOverrides.ControlBackground) => colors.ControlBackground,
+            nameof(ThemeColorOverrides.PrimaryText) => colors.PrimaryText,
+            nameof(ThemeColorOverrides.SecondaryText) => colors.SecondaryText,
+            nameof(ThemeColorOverrides.Border) => colors.Border,
+            nameof(ThemeColorOverrides.Accent) => colors.Accent,
+            nameof(ThemeColorOverrides.Danger) => colors.Danger,
+            nameof(ThemeColorOverrides.Warning) => colors.Warning,
+            nameof(ThemeColorOverrides.TokenInput) => colors.TokenInput,
+            nameof(ThemeColorOverrides.TokenOutput) => colors.TokenOutput,
+            nameof(ThemeColorOverrides.TokenCacheWrite) => colors.TokenCacheWrite,
+            nameof(ThemeColorOverrides.TokenCacheRead) => colors.TokenCacheRead,
+            _ => null,
+        };
+
+    private static ThemeColorOverrides SetColorOverride(
+        ThemeColorOverrides colors,
+        string key,
+        string? value) =>
+        key switch
+        {
+            nameof(ThemeColorOverrides.WindowBackground) =>
+                colors with { WindowBackground = value },
+            nameof(ThemeColorOverrides.CardBackground) =>
+                colors with { CardBackground = value },
+            nameof(ThemeColorOverrides.SubtleBackground) =>
+                colors with { SubtleBackground = value },
+            nameof(ThemeColorOverrides.ControlBackground) =>
+                colors with { ControlBackground = value },
+            nameof(ThemeColorOverrides.PrimaryText) =>
+                colors with { PrimaryText = value },
+            nameof(ThemeColorOverrides.SecondaryText) =>
+                colors with { SecondaryText = value },
+            nameof(ThemeColorOverrides.Border) => colors with { Border = value },
+            nameof(ThemeColorOverrides.Accent) => colors with { Accent = value },
+            nameof(ThemeColorOverrides.Danger) => colors with { Danger = value },
+            nameof(ThemeColorOverrides.Warning) => colors with { Warning = value },
+            nameof(ThemeColorOverrides.TokenInput) =>
+                colors with { TokenInput = value },
+            nameof(ThemeColorOverrides.TokenOutput) =>
+                colors with { TokenOutput = value },
+            nameof(ThemeColorOverrides.TokenCacheWrite) =>
+                colors with { TokenCacheWrite = value },
+            nameof(ThemeColorOverrides.TokenCacheRead) =>
+                colors with { TokenCacheRead = value },
+            _ => colors,
+        };
+
+    private static string BrushHex(string resourceKey) =>
+        FindBrush(resourceKey) is SolidColorBrush brush
+            ? $"#{brush.Color.R:X2}{brush.Color.G:X2}{brush.Color.B:X2}"
+            : "—";
+
+    private static string PercentText(double value) => $"{value * 100:0}%";
+
     private void StartWithWindows_OnChanged(object sender, RoutedEventArgs eventArgs)
     {
         if (_isRendering)
@@ -482,8 +1007,15 @@ public partial class SettingsWindow : Window
     private void Coordinator_OnChanged(object? sender, EventArgs eventArgs) =>
         Dispatcher.BeginInvoke(Render);
 
+    private void SettingsWindow_OnClosing(
+        object? sender,
+        System.ComponentModel.CancelEventArgs eventArgs) =>
+        CommitPendingVisualAppearance();
+
     private void SettingsWindow_OnClosed(object? sender, EventArgs eventArgs)
     {
+        _appearanceSaveTimer.Stop();
+        _appearanceSaveTimer.Tick -= AppearanceSaveTimer_OnTick;
         _coordinator.Changed -= Coordinator_OnChanged;
         WindowsThemeService.ThemeChanged -= WindowsThemeService_OnThemeChanged;
     }
@@ -501,6 +1033,13 @@ public partial class SettingsWindow : Window
             Dispatcher.BeginInvoke(Render);
         }
     }
+
+    private sealed record ColorOption(
+        string Key,
+        string Label,
+        string ResourceKey);
+
+    private sealed record FontChoice(string Label, string Value);
 
     private static Border BrandBadge(AgentDefinition definition)
     {

@@ -39,7 +39,7 @@ The cache is a disposable performance aid:
   source of truth. Deleting it is always safe and causes a rebuild.
 - The in-process transcript reader still owns parsing and publishes one
   reconciled in-memory result. No other consumer reads the cache directly.
-- macOS behavior is unchanged.
+- At this decision's date, macOS retained process-only parse state.
 
 Each entry is named by a SHA-256 key over the normalized absolute transcript
 path, which also captures the Coding Agent root and root-relative path without
@@ -125,3 +125,14 @@ coalesced, or process-offline events.
   and both fingerprint windows.
 - Parser or day-bucketing changes must intentionally advance the applicable
   version and rebuild the cache rather than attempt a lossy migration.
+
+## Amendment — 2026-07-31
+
+[ADR-0008](0008-macos-transcript-parse-checkpoints.md) supersedes the earlier
+exclusion of macOS from disposable checkpoint persistence. macOS now follows
+the same source-authority, bounded-validation, privacy, atomic-publication, and
+fail-open safety contract through an independent Swift `Codable` format and
+Tokens-tab-visible lifecycle.
+
+This does not change the Windows cache path or schema, startup reconciliation,
+resident `FileSystemWatcher`, targeted event handling, or any Windows source.
