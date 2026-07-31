@@ -59,6 +59,10 @@ struct AppearancePane: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            visibilitySection(.usage)
+            visibilitySection(.tokens)
+            visibilitySection(.menuBar)
+
             Section {
                 Picker("Tokens summary", selection: $appearance.tokenSummaryMetric) {
                     ForEach(TokenSummaryMetric.allCases) { metric in
@@ -120,6 +124,46 @@ struct AppearancePane: View {
         .formStyle(.grouped)
         .navigationTitle("Appearance")
     }
+
+    @ViewBuilder
+    private func visibilitySection(_ surface: AgentDisplaySurface) -> some View {
+        Section {
+            ForEach(appearance.displayOrder, id: \.self) { id in
+                Toggle(isOn: visibilityBinding(for: id, on: surface)) {
+                    HStack(spacing: 10) {
+                        AgentIconBadge(id: id)
+                        Text(id.integration.displayName)
+                    }
+                }
+                .disabled(appearance.isVisible(id, on: surface)
+                          && !appearance.canHide(id, on: surface))
+                .help(appearance.isVisible(id, on: surface)
+                      ? "Hide \(id.integration.displayName) from \(surface.helpSurfaceName)"
+                      : "Show \(id.integration.displayName) in \(surface.helpSurfaceName)")
+                .accessibilityHint(appearance.isVisible(id, on: surface)
+                                   && !appearance.canHide(id, on: surface)
+                                   ? "At least one agent must remain visible."
+                                   : "")
+            }
+        } header: {
+            Text(surface.title)
+        } footer: {
+            Text(surface.footer)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func visibilityBinding(for id: CodingAgentID,
+                                   on surface: AgentDisplaySurface) -> Binding<Bool> {
+        Binding(
+            get: { appearance.isVisible(id, on: surface) },
+            set: { isVisible in
+                _ = appearance.setVisible(id, on: surface, isVisible: isVisible)
+            }
+        )
+    }
 }
 
 /// One agent row: icon, name, and (for the primary) a badge. When the list is
@@ -179,5 +223,35 @@ private struct GaugeStylePreview: View {
                                          sideLineWidth: 5, centerLineWidth: 6,
                                          circularSpacing: 16))
             .frame(maxWidth: style == .bar ? 260 : .infinity)
+    }
+}
+
+private extension AgentDisplaySurface {
+    var title: String {
+        switch self {
+        case .usage: "Usage agents"
+        case .tokens: "Tokens agents"
+        case .menuBar: "Menu bar agents"
+        }
+    }
+
+    var helpSurfaceName: String {
+        switch self {
+        case .usage: "Usage"
+        case .tokens: "Tokens and its totals"
+        case .menuBar: "the menu bar"
+        }
+    }
+
+    var footer: String {
+        switch self {
+        case .usage:
+            "Choose which agents appear in the Usage tab. At least one agent must remain visible."
+        case .tokens:
+            "Choose which agents appear in Tokens and contribute to its summaries and totals. "
+                + "At least one agent must remain included."
+        case .menuBar:
+            "Choose which agents appear in the menu bar summary. At least one agent must remain visible."
+        }
     }
 }

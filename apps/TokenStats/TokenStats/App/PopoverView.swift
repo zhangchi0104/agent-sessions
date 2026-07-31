@@ -52,7 +52,7 @@ struct PopoverView: View {
     /// order. Usage Window gauges and nothing else.
     @ViewBuilder private var usage: some View {
         VStack(alignment: .leading, spacing: 16) {
-            ForEach(Array(model.appearance.displayOrder.enumerated()), id: \.element) { index, id in
+            ForEach(Array(model.appearance.usageDisplayOrder.enumerated()), id: \.element) { index, id in
                 if index > 0 { Divider() }
                 AgentSection(model: model, id: id)
             }

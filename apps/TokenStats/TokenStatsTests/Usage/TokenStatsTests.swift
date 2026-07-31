@@ -119,10 +119,84 @@ struct AppearanceSettingsTests {
             #expect(settings.primaryAgent == .claudeCode)
             #expect(settings.gaugeStyle == .arc270)
             #expect(Set(settings.order) == Set(CodingAgentID.allCases))
+            #expect(settings.usageVisibleAgents == Set(CodingAgentID.allCases))
+            #expect(settings.tokensVisibleAgents == Set(CodingAgentID.allCases))
+            #expect(settings.menuBarVisibleAgents == Set(CodingAgentID.allCases))
             #expect(settings.tokenSummaryMetric == .billingTokens)
             #expect(settings.selectedTokenKinds == Set(TokenKind.allCases))
             #expect(settings.tokenValueDisplay == .value)
             #expect(settings.selectedTokenRange == .today)
+        }
+    }
+
+    @MainActor
+    @Test func agentVisibilityPersistsIndependentlyPerSurface() {
+        withDefaults { defaults in
+            let settings = AppearanceSettings(defaults: defaults)
+            #expect(settings.setVisible(.codex, on: .usage, isVisible: false))
+            #expect(settings.setVisible(.claudeCode, on: .tokens, isVisible: false))
+            #expect(settings.setVisible(.codex, on: .menuBar, isVisible: false))
+
+            let reloaded = AppearanceSettings(defaults: defaults)
+            #expect(reloaded.usageVisibleAgents == [.claudeCode])
+            #expect(reloaded.tokensVisibleAgents == [.codex])
+            #expect(reloaded.menuBarVisibleAgents == [.claudeCode])
+            #expect(reloaded.usageDisplayOrder == [.claudeCode])
+            #expect(reloaded.tokensDisplayOrder == [.codex])
+            #expect(reloaded.menuBarDisplayOrder == [.claudeCode])
+        }
+    }
+
+    @MainActor
+    @Test func hidingTheLastAgentIsRejectedAndRepeatedChangesAreIdempotent() {
+        withDefaults { defaults in
+            let settings = AppearanceSettings(defaults: defaults)
+
+            #expect(settings.setVisible(.codex, on: .usage, isVisible: false))
+            #expect(settings.setVisible(.codex, on: .usage, isVisible: false))
+            #expect(!settings.setVisible(.claudeCode, on: .usage, isVisible: false))
+            #expect(settings.usageVisibleAgents == [.claudeCode])
+
+            #expect(settings.setVisible(.claudeCode, on: .tokens, isVisible: true))
+            #expect(settings.setVisible(.codex, on: .tokens, isVisible: false))
+            #expect(!settings.setVisible(.claudeCode, on: .tokens, isVisible: false))
+            #expect(settings.tokensVisibleAgents == [.claudeCode])
+        }
+    }
+
+    @MainActor
+    @Test func reenabledAgentReturnsToTheSavedOrderAndPrimaryMayBeSurfaceHidden() {
+        withDefaults { defaults in
+            let settings = AppearanceSettings(defaults: defaults)
+            settings.primaryAgent = .codex
+
+            #expect(settings.setVisible(.codex, on: .usage, isVisible: false))
+            #expect(settings.usageDisplayOrder == [.claudeCode])
+            #expect(settings.setVisible(.codex, on: .usage, isVisible: true))
+            #expect(settings.usageDisplayOrder == [.codex, .claudeCode])
+
+            // The global Primary preference is unchanged by a per-surface
+            // visibility choice.
+            #expect(settings.primaryAgent == .codex)
+        }
+    }
+
+    @MainActor
+    @Test func corruptVisibleAgentPreferenceRepairsToClaude() {
+        withDefaults { defaults in
+            defaults.set([], forKey: "appearance.usageVisibleAgents")
+            defaults.set(["future-agent"], forKey: "appearance.tokensVisibleAgents")
+            defaults.set(["codex", "future-agent"], forKey: "appearance.menuBarVisibleAgents")
+
+            let settings = AppearanceSettings(defaults: defaults)
+
+            #expect(settings.usageVisibleAgents == [.claudeCode])
+            #expect(settings.tokensVisibleAgents == [.claudeCode])
+            #expect(settings.menuBarVisibleAgents == [.codex])
+            #expect(defaults.array(forKey: "appearance.usageVisibleAgents") as? [String]
+                    == ["claudeCode"])
+            #expect(defaults.array(forKey: "appearance.tokensVisibleAgents") as? [String]
+                    == ["claudeCode"])
         }
     }
 
