@@ -52,7 +52,12 @@ struct TokenRangeTests {
         // first await, but retains the persisted selection and its label.
         let second = Task { await odometer.observeWhileVisible() }
         defer { second.cancel() }
-        await Task.yield()
+
+        // Task scheduling is cooperative: one yield does not guarantee that
+        // the new observation task has reached its synchronous reset yet.
+        #expect(await waitUntil {
+            odometer.hasLoaded == false && odometer.perAgent.isEmpty
+        })
 
         #expect(odometer.selectedRange == .thirtyDays)
         #expect(odometer.displayedRange == .thirtyDays)
