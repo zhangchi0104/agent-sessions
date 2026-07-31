@@ -24,7 +24,9 @@ same changes to a stable release. Beta numbers increment per push to `dev`
    - `fix:` → patch, `feat:` → minor, breaking → major.
    - On `dev` the result carries a `-beta.N` suffix.
    - No release-worthy commits → nothing happens.
-3. `scripts/build-dmg.sh <version>` builds the app at that version, codesigns it
+3. The workflow runs on the `macos-26` image and explicitly selects Xcode 26.6.
+   `scripts/build-dmg.sh <version>` builds the app at that version and rejects
+   artifacts whose `DTXcode` metadata is older than `2660` before it codesigns
    with **Developer ID Application** (hardened runtime), packages a `.dmg`,
    codesigns the dmg, **notarizes** it with Apple, and staples the ticket.
 4. semantic-release creates the git tag `tokenstats-v<version>`, a GitHub
@@ -101,6 +103,14 @@ openssl rand -base64 24 | pbcopy
 ```
 
 ## Testing the build locally
+
+The fast release-toolchain regression check is part of `npm test` and can also
+be run on its own:
+
+```sh
+cd apps/TokenStats
+npm run test:release-toolchain
+```
 
 You can dry-run the packaging step without semantic-release, provided your login
 keychain holds a Developer ID Application identity and you export the notary env

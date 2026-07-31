@@ -54,6 +54,9 @@ xcodebuild \
 
 test -d "$APP_PATH" || { echo "error: build produced no app at $APP_PATH" >&2; exit 1; }
 
+echo "==> Verifying release toolchain"
+./scripts/verify-release-toolchain.sh "$APP_PATH"
+
 # Resolve the Developer ID Application identity.
 SIGN_IDENTITY="${MACOS_SIGN_IDENTITY:-$(security find-identity -v -p codesigning \
   | awk -F'"' '/Developer ID Application/{print $2; exit}')}"
