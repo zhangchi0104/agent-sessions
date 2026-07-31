@@ -40,7 +40,8 @@ Response shape (`RateLimitStatusPayload`; values below are **illustrative**, not
 }
 ```
 
-- `rate_limit.primary_window` → the **5-hour Usage Window** (primary gauge); `rate_limit.secondary_window` → the **weekly Usage Window** (secondary). The window length comes from `limit_window_seconds`.
+- `primary_window` and `secondary_window` are transport slots, not durable labels. TokenStats derives each **Usage Window** label from `limit_window_seconds` and renders the windows actually returned. Today `18000` identifies a **5-hour** window and `604800` identifies a **Weekly** window; either duration may arrive in either slot. A missing short-term window therefore does not create a synthetic 5-hour gauge.
+- Older payloads that omit duration metadata remain compatible: TokenStats falls back to **5-hour** for the primary slot and **Weekly** for the secondary slot. Compatible duration aliases are also accepted, but malformed optional duration metadata does not discard an otherwise valid window.
 - This maps cleanly onto the **Usage Window** concept (rolling consumption + reset timing), the same normalized shape used for Claude Code's `five_hour`/`seven_day`.
 - **Field encodings differ from Claude Code — the Codex parser cannot reuse Claude's:**
   - `used_percent` is an **integer percent (0–100)**. (Claude's `utilization` is a float percent.)

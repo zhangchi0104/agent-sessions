@@ -40,7 +40,7 @@ private let expectedAgents: [AgentFacts] = [
                displayName: "Codex",
                shortLabel: "X",
                signInStyle: .selfCompleting,
-               windowLabels: ["5-hour", "Weekly"],
+               windowLabels: [],
                emphasizedWindow: nil,
                transcriptSubpath: "/.codex/sessions"),
 ]
@@ -86,8 +86,8 @@ struct CodingAgentRegistryTests {
 
     @Test(arguments: expectedAgents)
     func gaugeLayoutFillsEveryDeclaredSlotEvenWhenTheWindowIsMissing(_ expected: AgentFacts) {
-        // A plan that doesn't expose one of the windows must still get a slot,
-        // so an absent window leaves a placeholder rather than collapsing the row.
+        // Fixed layouts retain their declared geometry when a plan omits one
+        // of those windows. Dynamic layouts declare no fixed slots.
         let layout = CodingAgentRegistry.agent(expected.id).gaugeLayout
         let empty = UsageSnapshot(windows: [], fetchedAt: Date())
 
@@ -99,6 +99,24 @@ struct CodingAgentRegistryTests {
         #expect(titles == expected.windowLabels)
         #expect(enabled == titles.map { _ in false })
         #expect(emphasized == [expected.emphasizedWindow].compactMap { $0 })
+    }
+
+    @Test func codexGaugeLayoutUsesOnlyReturnedWindows() {
+        let layout = CodingAgentRegistry.agent(.codex).gaugeLayout
+        let weekly = UsageWindow(label: "Weekly", percentConsumed: 18,
+                                 resetAt: Date(timeIntervalSince1970: 1717300000))
+
+        let weeklyOnly = layout.items(for: UsageSnapshot(windows: [weekly], fetchedAt: Date()))
+
+        #expect(weeklyOnly.map(\.title) == ["Weekly"])
+        #expect(weeklyOnly.allSatisfy { $0.isEnabled })
+
+        let short = UsageWindow(label: "5-hour", percentConsumed: 42,
+                                resetAt: Date(timeIntervalSince1970: 1716800000))
+        let both = layout.items(for: UsageSnapshot(windows: [short, weekly], fetchedAt: Date()))
+
+        #expect(both.map(\.title) == ["5-hour", "Weekly"])
+        #expect(both.allSatisfy { $0.isEnabled })
     }
 
     @Test(arguments: expectedAgents)

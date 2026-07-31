@@ -145,3 +145,27 @@ behavior:
    This revises the watcher lifetime from ADR-0003. ADR-0007 later revises the
    strictly in-memory parse-state boundary, while the no-daemon, no-database,
    and no-IPC architecture remains accepted.
+
+## Amendment — 2026-07-29: macOS interaction parity
+
+The switchable objective Token summary, Token Kind filters, composition
+percentages, and Token value presentation are no longer Windows-only behavior.
+The macOS Tokens tab implements the same domain semantics independently in
+Swift and persists its selected Token Kinds and range across restarts. These
+presentation preferences do not alter the four-kind Token Odometer, objective
+summary, or transcript records.
+
+macOS deliberately does not port the WPF per-digit rolling control. Token and
+API-equivalent summary changes use the original macOS v1 SwiftUI numeric
+transition with Reduce Motion support. Switching summary units settles
+immediately so a dollar value is never animated from a token count. The macOS
+hero keeps a fixed 42-point value slot while the content-sized table and popover
+change height. Values too wide for that slot use a compact suffix; their exact
+value remains in the tooltip and accessibility label.
+
+The platform lifecycle distinction remains intentional: Windows keeps its
+watcher resident because its tray tooltip consumes the summary while the flyout
+is closed; macOS arms FSEvents only while the Tokens tab is visible. Both
+clients normalize Codex Usage Window labels from the returned duration and
+render only the windows actually returned, while retaining primary/secondary
+fallback labels for older payloads that omit duration metadata.

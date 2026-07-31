@@ -48,6 +48,87 @@ struct CodexUsageSnapshotParserTests {
         #expect(windows[0].percentConsumed == 30)
     }
 
+    @Test func namesAWeeklyWindowFromDurationEvenWhenItMovesToPrimary() throws {
+        let json = Data("""
+        {
+          "rate_limit": {
+            "primary_window": {
+              "used_percent": 18,
+              "limit_window_seconds": 604800,
+              "reset_at": 1717300000
+            }
+          }
+        }
+        """.utf8)
+
+        let windows = try CodexUsageSnapshotParser.parse(json)
+
+        #expect(windows.map(\.label) == ["Weekly"])
+        #expect(windows[0].percentConsumed == 18)
+    }
+
+    @Test func restoresARealFiveHourWindowWhenItsDurationReturns() throws {
+        let json = Data("""
+        {
+          "rate_limit": {
+            "primary_window": {
+              "used_percent": 42,
+              "limit_window_seconds": 18000,
+              "reset_at": 1716800000
+            },
+            "secondary_window": {
+              "used_percent": 18,
+              "limit_window_seconds": 604800,
+              "reset_at": 1717300000
+            }
+          }
+        }
+        """.utf8)
+
+        let windows = try CodexUsageSnapshotParser.parse(json)
+
+        #expect(windows.map(\.label) == ["5-hour", "Weekly"])
+    }
+
+    @Test func describesOtherDurationsRatherThanTrustingTheirSlots() throws {
+        let json = Data("""
+        {
+          "rate_limit": {
+            "primary_window": {
+              "used_percent": 11,
+              "limit_window_seconds": 7200
+            },
+            "secondary_window": {
+              "used_percent": 22,
+              "limit_window_seconds": 259200
+            }
+          }
+        }
+        """.utf8)
+
+        let windows = try CodexUsageSnapshotParser.parse(json)
+
+        #expect(windows.map(\.label) == ["2-hour", "3-day"])
+    }
+
+    @Test func fallsBackToTheSlotWhenAnOptionalDurationIsMalformed() throws {
+        let json = Data("""
+        {
+          "rate_limit": {
+            "primary_window": {
+              "used_percent": 30,
+              "limit_window_seconds": "unknown"
+            }
+          }
+        }
+        """.utf8)
+
+        let windows = try CodexUsageSnapshotParser.parse(json)
+
+        #expect(windows.map(\.label) == ["5-hour"])
+        #expect(windows[0].percentConsumed == 30)
+    }
+
     @Test func returnsEmptyWhenRateLimitIsNull() throws {
         // A usage-based/credits plan can report no rate-limit windows. The
         // provider treats an empty result as "no Usage Windows".

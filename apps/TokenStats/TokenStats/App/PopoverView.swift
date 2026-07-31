@@ -32,7 +32,7 @@ struct PopoverView: View {
             case .usage:
                 usage
             case .tokens:
-                TokensTabView(odometer: odometer)
+                TokensTabView(odometer: odometer, appearance: model.appearance)
                     .onAppear { odometer.displayOrder = model.appearance.displayOrder }
             }
 

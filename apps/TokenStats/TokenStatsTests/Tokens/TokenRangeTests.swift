@@ -2,11 +2,11 @@
 //  TokenRangeTests.swift
 //  TokenStatsTests
 //
-//  The Token Odometer's range control. Today is effectively instant, so it is
-//  the default and a popover never waits on opening; the longer ranges are
-//  always a deliberate switch. While one is scanning the table keeps the rows
-//  it has — and keeps the range they belong to, so it never labels one range's
-//  numbers with another range's name.
+//  The Token Odometer's persisted range control. Today is the default; once the
+//  user chooses a longer range, later tab appearances and a reconstructed model
+//  restore it. While a change is scanning the table keeps the rows it has —
+//  and keeps the range they belong to, so it never labels one range's numbers
+//  with another range's name.
 //
 
 import Foundation
@@ -25,15 +25,10 @@ struct TokenRangeTests {
     }
 
     /// The model outlives the popover — it is a `let` on the app delegate — so
-    /// "not persisted" has to mean the *same* model reverts to Today when the
-    /// tab is shown again. Constructing a second model and checking its default
-    /// would pass no matter what the app does.
-    ///
-    /// The rows have to go with the range. Leaving a month's figures in place
-    /// while the heading resets to Today is precisely the mislabelling the
-    /// trailing `displayedRange` exists to prevent, just at the other end of
-    /// the appearance.
-    @Test func theSameModelRevertsToTodayOnTheNextAppearance() async throws {
+    /// retaining a selection has to work on the same instance when the Tokens
+    /// tab comes back. Rows are cleared because the watcher slept while hidden,
+    /// but both range labels must continue to describe the requested month.
+    @Test func theSameModelKeepsItsRangeOnTheNextAppearance() async throws {
         let root = try TempTranscripts("claude")
         try root.write("a.jsonl", [
             claudeUsageLine(id: "m1", input: 100, output: 50),
@@ -51,23 +46,43 @@ struct TokenRangeTests {
         // The tab goes away…
         first.cancel()
         try? await Task.sleep(for: .milliseconds(50))
-        #expect(odometer.selectedRange == .thirtyDays) // the model kept it
+        #expect(odometer.selectedRange == .thirtyDays)
 
-        // …and comes back. `observeWhileVisible` resets before its first await,
-        // and the main actor runs it in order, so one yield is enough to land
-        // exactly in the interval the bug lived in: after the reset, before any
-        // scan could have replaced the rows.
+        // …and comes back. `observeWhileVisible` clears stale rows before its
+        // first await, but retains the persisted selection and its label.
         let second = Task { await odometer.observeWhileVisible() }
         defer { second.cancel() }
         await Task.yield()
 
-        #expect(odometer.selectedRange == .today)
-        #expect(odometer.displayedRange == .today)
+        #expect(odometer.selectedRange == .thirtyDays)
+        #expect(odometer.displayedRange == .thirtyDays)
         #expect(odometer.hasLoaded == false)
-        #expect(odometer.perAgent.isEmpty) // not a month's figures under "Today"
+        #expect(odometer.perAgent.isEmpty)
 
         #expect(await waitUntil { odometer.hasLoaded })
-        #expect(odometer.usage?.totalTokens == 150)
+        #expect(odometer.usage?.totalTokens == 150 + 1_998)
+    }
+
+    @Test func aPersistedRangeCanSeedANewModel() async throws {
+        let root = try TempTranscripts("claude")
+        try root.write("a.jsonl", [
+            claudeUsageLine(id: "today", input: 100, output: 50),
+            claudeUsageLine(id: "old", input: 999, output: 999, daysAgo: 10),
+        ])
+
+        let odometer = TokenOdometerModel(
+            reader: TranscriptTokenReader(),
+            roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)],
+            initialRange: .thirtyDays
+        )
+        let task = Task { await odometer.observeWhileVisible() }
+        defer { task.cancel() }
+
+        #expect(odometer.selectedRange == .thirtyDays)
+        #expect(await waitUntil {
+            odometer.displayedRange == .thirtyDays
+                && odometer.usage?.totalTokens == 150 + 1_998
+        })
     }
 
     /// The rows on screen carry the range they were computed for, which is what

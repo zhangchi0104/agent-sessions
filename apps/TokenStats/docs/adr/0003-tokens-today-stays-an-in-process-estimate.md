@@ -7,7 +7,7 @@ parse ownership in process. ADR-0007 permits Windows to persist disposable
 per-file parse checkpoints, and ADR-0008 permits the equivalent optimization
 on macOS. Neither cache changes the source-of-truth boundary.
 
-The Windows client additionally derives two optional summaries from the same
+Both native clients additionally derive two optional summaries from the same
 records: Billing tokens excludes cache read, while API equivalent applies the
 recorded Model's standard list prices to all four Token Kinds. Unknown Models
 remain unpriced and make the estimate partial. These summaries do not redefine
@@ -81,9 +81,16 @@ platform-local parse-checkpoint persistence boundaries.
 
 **The scope line moved tabs.** It read "the Usage tab's Tokens Today loop only". The combined figure has since been deleted from the Usage tab, which now shows Usage Window gauges and nothing else, and the watch is armed by the **Tokens tab** instead. The "watch only while visible" property is unaffected — SwiftUI arms the `.task` when that tab appears and cancels it when the tab or the popover goes away — and the Sessions tab the original scope line contrasted against no longer exists at all.
 
-**What the ranges did *not* change.** On macOS, a 7- or 30-day range re-reads more files on the first pass. The reader's active per-file parse state is still in-memory, and states untouched for 48 hours are still dropped — on the next scan, since eviction runs inside the scan and the scan only runs while the tab is visible. ADR-0008 later permits those files to hydrate from disposable disk checkpoints after memory eviction or process restart; ADR-0007 permits the equivalent optimization on Windows.
+**What the ranges did *not* change.** On macOS, a 7- or 30-day range
+does not persist transcript records or app-level aggregate readings, and it
+does not extend the Tokens tab's visibility-gated scan lifecycle. The selected
+range is a presentation preference and may survive a restart. The reader's
+active per-file parse state remains in memory, and states untouched for 48
+hours are still dropped on a later visible scan. ADR-0008 permits those files
+to hydrate from disposable disk checkpoints after memory eviction or process
+restart; ADR-0007 permits the equivalent optimization on Windows.
 
-**What the ranges did change.** The first-open cost is no longer one figure. Measured on the research corpus with a **warm page cache**: a full 30-day scan across both roots is **~4.1s**, and the whole corpus ~5.0s; once every file's parse state is current, a re-scan is the **6–25ms** it takes to enumerate and stat the tree. A genuinely cold, post-reboot figure was never measured — `purge` needs sudo — so the 4.1s is a floor, not a worst case. The "consequences" note above still holds for Today, which is what a popover opens on; a 30-day range is a deliberate switch, and it is the range that pays.
+**What the ranges did change.** The first-open cost is no longer one figure. Measured on the research corpus with a **warm page cache**: a full 30-day scan across both roots is **~4.1s**, and the whole corpus ~5.0s; once every file's parse state is current, a re-scan is the **6–25ms** it takes to enumerate and stat the tree. A genuinely cold, post-reboot figure was never measured — `purge` needs sudo — so the 4.1s is a floor, not a worst case. The "consequences" note above still holds for Today. If another range is persisted, that range is scanned the next time the Tokens tab appears and it is the range that pays.
 
 ## Amendment — 2026-07-29
 
@@ -146,3 +153,15 @@ daemon, no SQLite table, no IPC protocol, and no second source of truth.
   selected total is only a table projection and must be labelled as such in UI,
   accessibility text, tests, and documentation; it must not alter the objective
   Billing/API-equivalent summary.
+
+### macOS interaction parity
+
+macOS now persists the selected Today, 7-day, or 30-day range and Token Kind
+selection as presentation preferences. It also exposes the selected-total
+projection and the objective Billing/API-equivalent summary in the Tokens tab.
+The presentation preferences do not persist transcript records or app-level
+aggregate readings, and they do not extend the FSEvents watch beyond the Tokens
+tab's visible lifetime. ADR-0008 separately permits bounded, disposable parser
+checkpoints. When the tab next appears, the reader scans the authoritative
+files for the persisted range, restoring valid checkpoints where available,
+before resuming its event-driven updates.
