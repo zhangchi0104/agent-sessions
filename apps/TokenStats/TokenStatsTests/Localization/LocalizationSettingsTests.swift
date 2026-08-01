@@ -13,7 +13,11 @@ struct LocalizationSettingsTests {
     @Test func defaultsToSystemAndHasNoPendingRestart() {
         withDefaults { defaults in
             let systemLocale = Locale(identifier: "en-US")
-            let settings = LocalizationSettings(defaults: defaults, systemLocale: systemLocale)
+            let settings = LocalizationSettings(
+                defaults: defaults,
+                systemLocale: systemLocale,
+                appPreferredLocalization: "en"
+            )
 
             #expect(settings.preferredLanguage == .system)
             #expect(settings.effectiveLanguage == .system)
@@ -26,7 +30,8 @@ struct LocalizationSettingsTests {
         withDefaults { defaults in
             let settings = LocalizationSettings(
                 defaults: defaults,
-                systemLocale: Locale(identifier: "en-US")
+                systemLocale: Locale(identifier: "en-US"),
+                appPreferredLocalization: "en"
             )
 
             settings.preferredLanguage = .simplifiedChinese
@@ -39,7 +44,8 @@ struct LocalizationSettingsTests {
 
             let relaunched = LocalizationSettings(
                 defaults: defaults,
-                systemLocale: Locale(identifier: "en-US")
+                systemLocale: Locale(identifier: "en-US"),
+                appPreferredLocalization: "en"
             )
             #expect(relaunched.effectiveLanguage == .simplifiedChinese)
             #expect(relaunched.effectiveLocale.language.languageCode == .chinese)
@@ -53,7 +59,8 @@ struct LocalizationSettingsTests {
             defaults.set(AppLanguage.english.rawValue, forKey: LocalizationSettings.persistenceKey)
             let settings = LocalizationSettings(
                 defaults: defaults,
-                systemLocale: Locale(identifier: "de-DE")
+                systemLocale: Locale(identifier: "de-DE"),
+                appPreferredLocalization: "zh-Hans"
             )
 
             settings.preferredLanguage = .simplifiedChinese
@@ -62,6 +69,12 @@ struct LocalizationSettingsTests {
             settings.preferredLanguage = .english
             #expect(!settings.needsRestart)
             #expect(settings.effectiveLanguage == .english)
+            #expect(settings.effectiveLocale.language.languageCode == .english)
+            #expect(
+                Locale.Components(locale: settings.effectiveLocale)
+                    .languageComponents.script == nil
+            )
+            #expect(settings.effectiveLocale.region == Locale.Region("DE"))
         }
     }
 
@@ -71,7 +84,8 @@ struct LocalizationSettingsTests {
 
             let settings = LocalizationSettings(
                 defaults: defaults,
-                systemLocale: Locale(identifier: "en-GB")
+                systemLocale: Locale(identifier: "en-GB"),
+                appPreferredLocalization: "en"
             )
 
             #expect(settings.preferredLanguage == .system)
@@ -87,7 +101,8 @@ struct LocalizationSettingsTests {
 
             let settings = LocalizationSettings(
                 defaults: defaults,
-                systemLocale: Locale(identifier: "en-GB")
+                systemLocale: Locale(identifier: "en-GB"),
+                appPreferredLocalization: "en"
             )
 
             #expect(settings.preferredLanguage == .system)
@@ -123,6 +138,50 @@ struct LocalizationSettingsTests {
         let chinese = AppLanguage.simplifiedChinese.locale(basedOn: systemLocale)
         #expect(chinese.language.languageCode == .chinese)
         #expect(chinese.language.script == .hanSimplified)
+    }
+
+    @Test func followSystemUsesTheAppsPreferredLocalizationAndPreservesRegionalComponents() {
+        withDefaults { defaults in
+            var components = Locale.Components(identifier: "en-US")
+            components.calendar = .gregorian
+            components.currency = Locale.Currency("USD")
+            components.numberingSystem = Locale.NumberingSystem("latn")
+            components.hourCycle = .oneToTwelve
+            components.measurementSystem = .us
+            let systemLocale = Locale(components: components)
+
+            let settings = LocalizationSettings(
+                defaults: defaults,
+                systemLocale: systemLocale,
+                appPreferredLocalization: "zh-Hans-CN"
+            )
+
+            #expect(settings.effectiveLanguage == .system)
+            #expect(settings.effectiveLocale.language.languageCode == .chinese)
+            #expect(
+                Locale.Components(locale: settings.effectiveLocale)
+                    .languageComponents.script == .hanSimplified
+            )
+            #expect(settings.effectiveLocale.region == systemLocale.region)
+            #expect(settings.effectiveLocale.calendar.identifier == systemLocale.calendar.identifier)
+            #expect(settings.effectiveLocale.currency == systemLocale.currency)
+            #expect(settings.effectiveLocale.numberingSystem == systemLocale.numberingSystem)
+            #expect(settings.effectiveLocale.hourCycle == systemLocale.hourCycle)
+            #expect(settings.effectiveLocale.measurementSystem == systemLocale.measurementSystem)
+        }
+    }
+
+    @Test func followSystemFallsBackWhenTheBundleHasNoLanguageLocalization() {
+        let systemLocale = Locale(identifier: "en-US-u-hc-h23")
+
+        for appPreferredLocalization in [nil, "Base"] as [String?] {
+            let effectiveLocale = AppLanguage.system.locale(
+                basedOn: systemLocale,
+                appPreferredLocalization: appPreferredLocalization
+            )
+
+            #expect(effectiveLocale == systemLocale)
+        }
     }
 
     @Test func expectedLanguageRegionCombinationsRemainIndependent() {

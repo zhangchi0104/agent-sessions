@@ -31,7 +31,13 @@ final class LocalizationSettings {
 
     static let persistenceKey = "localization.preferredLanguage"
 
-    init(defaults: UserDefaults = .standard, systemLocale: Locale = .current) {
+    init(
+        defaults: UserDefaults = .standard,
+        systemLocale: Locale = .current,
+        // Bundle preference honors macOS's per-app language without borrowing
+        // its region, which continues to come from the system Locale above.
+        appPreferredLocalization: String? = Bundle.main.preferredLocalizations.first
+    ) {
         self.defaults = defaults
 
         let storedObject = defaults.object(forKey: Self.persistenceKey)
@@ -46,7 +52,10 @@ final class LocalizationSettings {
 
         preferredLanguage = startupLanguage
         effectiveLanguage = startupLanguage
-        effectiveLocale = startupLanguage.locale(basedOn: systemLocale)
+        effectiveLocale = startupLanguage.locale(
+            basedOn: systemLocale,
+            appPreferredLocalization: appPreferredLocalization
+        )
     }
 
     /// True only while the saved preference differs from what this process is

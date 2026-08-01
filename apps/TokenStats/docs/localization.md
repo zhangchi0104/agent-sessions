@@ -18,7 +18,7 @@ The app language setting offers **Follow System**, **English**, and **简体中�
 4. **Restart Now** opens a new app instance through `NSWorkspace.OpenConfiguration` with `createsNewApplicationInstance = true`. The old instance terminates only after the open succeeds; a failed open leaves it running and presents a localized error.
 5. **Later** keeps the current process entirely in its current language. The saved choice applies at the next launch.
 
-The UI Locale starts from the current system Locale and replaces only its language/script components. Region, calendar, numbering system, and hour-cycle preferences remain the system values. Consequently, `zh-Hans-US` uses Simplified Chinese copy with US formatting, while `en-DE` uses English copy with German regional formatting. System-owned macOS UI remains controlled by macOS.
+The UI Locale starts from the current system Locale and replaces only its language/script components. An explicit in-app language supplies those components; **Follow System** uses `Bundle.main.preferredLocalizations` so it also honors macOS's per-app language setting. Region, calendar, numbering system, and hour-cycle preferences remain the system values. Consequently, `zh-Hans-US` uses Simplified Chinese copy with US formatting, while `en-DE` uses English copy with German regional formatting. System-owned macOS UI remains controlled by macOS.
 
 ## Catalog keys and source usage
 

@@ -15,7 +15,7 @@ final class TokenStatsUITests: XCTestCase {
         let app = launch(language: "en")
         let title = app.staticTexts["onboarding.welcome.title"]
         XCTAssertTrue(title.waitForExistence(timeout: 5))
-        XCTAssertEqual(title.label, "Welcome to TokenStats")
+        XCTAssertEqual(title.value as? String, "Welcome to TokenStats")
     }
 
     @MainActor
@@ -23,7 +23,7 @@ final class TokenStatsUITests: XCTestCase {
         let app = launch(language: "zh-Hans")
         let title = app.staticTexts["onboarding.welcome.title"]
         XCTAssertTrue(title.waitForExistence(timeout: 5))
-        XCTAssertEqual(title.label, "欢迎使用 TokenStats")
+        XCTAssertEqual(title.value as? String, "欢迎使用 TokenStats")
     }
 
     @MainActor

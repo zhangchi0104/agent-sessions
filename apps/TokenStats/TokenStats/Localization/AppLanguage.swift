@@ -30,16 +30,32 @@ nonisolated enum AppLanguage: String, CaseIterable, Codable, Identifiable, Senda
         }
     }
 
-    /// Builds the UI locale from the system locale. Only language and script
-    /// are replaced, preserving region, calendar, numbering system, hour cycle,
-    /// measurement system, currency, and the rest of the user's format choices.
-    func locale(basedOn systemLocale: Locale) -> Locale {
-        guard self != .system else { return systemLocale }
-
+    /// Builds the UI locale from the system's regional locale. Only language
+    /// and script are replaced, preserving region, calendar, numbering system,
+    /// hour cycle, measurement system, currency, and the rest of the user's
+    /// format choices. Follow System uses the localization macOS selected for
+    /// this app, which can differ from the language in `Locale.current`.
+    func locale(
+        basedOn systemLocale: Locale,
+        appPreferredLocalization: String? = nil
+    ) -> Locale {
         var components = Locale.Components(locale: systemLocale)
         switch self {
         case .system:
-            break
+            guard let appPreferredLocalization,
+                  appPreferredLocalization.caseInsensitiveCompare("Base") != .orderedSame
+            else { return systemLocale }
+
+            let preferredLanguage = Locale.Components(
+                identifier: appPreferredLocalization
+            ).languageComponents
+            guard let languageCode = preferredLanguage.languageCode else { return systemLocale }
+            if components.languageComponents.languageCode == languageCode,
+               components.languageComponents.script == preferredLanguage.script {
+                return systemLocale
+            }
+            components.languageComponents.languageCode = languageCode
+            components.languageComponents.script = preferredLanguage.script
         case .english:
             components.languageComponents.languageCode = .english
             components.languageComponents.script = nil
