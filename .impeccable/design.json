@@ -1,0 +1,476 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-01T01:58:42Z",
+  "title": "Design System: TokenStats",
+  "extensions": {
+    "colorMeta": {
+      "instrument-teal-light": {
+        "role": "primary",
+        "displayName": "Instrument Teal Light",
+        "canonical": "#08866D",
+        "tonalRamp": [
+          "oklch(15% 0.04 170)",
+          "oklch(25% 0.07 170)",
+          "oklch(35% 0.09 170)",
+          "oklch(45% 0.11 170)",
+          "oklch(55% 0.11 170)",
+          "oklch(68% 0.10 170)",
+          "oklch(82% 0.07 170)",
+          "oklch(95% 0.02 170)"
+        ]
+      },
+      "instrument-teal-dark": {
+        "role": "primary",
+        "displayName": "Instrument Teal Dark",
+        "canonical": "#45D0AD",
+        "tonalRamp": [
+          "oklch(15% 0.04 170)",
+          "oklch(25% 0.07 170)",
+          "oklch(35% 0.09 170)",
+          "oklch(45% 0.11 170)",
+          "oklch(55% 0.11 170)",
+          "oklch(68% 0.10 170)",
+          "oklch(82% 0.07 170)",
+          "oklch(95% 0.02 170)"
+        ]
+      },
+      "paper-white": {
+        "role": "neutral",
+        "displayName": "Paper White",
+        "canonical": "#F9FAFB",
+        "tonalRamp": [
+          "#17191C",
+          "#202225",
+          "#2B2E32",
+          "#464A50",
+          "#62676F",
+          "#989DA4",
+          "#D9DCE1",
+          "#F9FAFB"
+        ]
+      },
+      "quiet-surface-light": {
+        "role": "neutral",
+        "displayName": "Quiet Surface",
+        "canonical": "#F1F3F5",
+        "tonalRamp": [
+          "#17191C",
+          "#25282C",
+          "#303439",
+          "#464A50",
+          "#62676F",
+          "#989DA4",
+          "#DDE2E7",
+          "#F1F3F5"
+        ]
+      },
+      "graphite-black": {
+        "role": "neutral",
+        "displayName": "Graphite Black",
+        "canonical": "#17191C",
+        "tonalRamp": [
+          "#17191C",
+          "#202225",
+          "#2B2E32",
+          "#464A50",
+          "#62676F",
+          "#989DA4",
+          "#D9DCE1",
+          "#F9FAFB"
+        ]
+      },
+      "graphite-secondary": {
+        "role": "neutral",
+        "displayName": "Graphite Secondary",
+        "canonical": "#62676F",
+        "tonalRamp": [
+          "#17191C",
+          "#202225",
+          "#2B2E32",
+          "#464A50",
+          "#62676F",
+          "#989DA4",
+          "#D9DCE1",
+          "#F9FAFB"
+        ]
+      },
+      "divider-light": {
+        "role": "neutral",
+        "displayName": "Divider Gray",
+        "canonical": "#D9DCE1",
+        "tonalRamp": [
+          "#17191C",
+          "#202225",
+          "#2B2E32",
+          "#464A50",
+          "#62676F",
+          "#989DA4",
+          "#D9DCE1",
+          "#F9FAFB"
+        ]
+      },
+      "night-panel": {
+        "role": "neutral",
+        "displayName": "Night Panel",
+        "canonical": "#202225",
+        "tonalRamp": [
+          "#17191C",
+          "#202225",
+          "#25282C",
+          "#2B2E32",
+          "#464A50",
+          "#7D838B",
+          "#B3B8C0",
+          "#F3F4F5"
+        ]
+      },
+      "night-surface": {
+        "role": "neutral",
+        "displayName": "Night Surface",
+        "canonical": "#2B2E32",
+        "tonalRamp": [
+          "#17191C",
+          "#202225",
+          "#25282C",
+          "#2B2E32",
+          "#464A50",
+          "#7D838B",
+          "#B3B8C0",
+          "#F3F4F5"
+        ]
+      },
+      "night-secondary": {
+        "role": "neutral",
+        "displayName": "Night Secondary",
+        "canonical": "#B3B8C0",
+        "tonalRamp": [
+          "#17191C",
+          "#202225",
+          "#25282C",
+          "#2B2E32",
+          "#464A50",
+          "#7D838B",
+          "#B3B8C0",
+          "#F3F4F5"
+        ]
+      },
+      "divider-dark": {
+        "role": "neutral",
+        "displayName": "Dark Divider",
+        "canonical": "#464A50",
+        "tonalRamp": [
+          "#17191C",
+          "#202225",
+          "#25282C",
+          "#2B2E32",
+          "#464A50",
+          "#7D838B",
+          "#B3B8C0",
+          "#F3F4F5"
+        ]
+      },
+      "input-signal-blue-light": {
+        "role": "secondary",
+        "displayName": "Input Signal Blue Light",
+        "canonical": "#216BC7",
+        "tonalRamp": [
+          "oklch(15% 0.07 255)",
+          "oklch(25% 0.11 255)",
+          "oklch(35% 0.14 255)",
+          "oklch(45% 0.16 255)",
+          "oklch(55% 0.15 255)",
+          "oklch(68% 0.12 255)",
+          "oklch(82% 0.08 255)",
+          "oklch(95% 0.025 255)"
+        ]
+      },
+      "input-signal-blue-dark": {
+        "role": "secondary",
+        "displayName": "Input Signal Blue Dark",
+        "canonical": "#4A99F0",
+        "tonalRamp": [
+          "oklch(15% 0.07 255)",
+          "oklch(25% 0.11 255)",
+          "oklch(35% 0.14 255)",
+          "oklch(45% 0.16 255)",
+          "oklch(55% 0.15 255)",
+          "oklch(68% 0.12 255)",
+          "oklch(82% 0.08 255)",
+          "oklch(95% 0.025 255)"
+        ]
+      },
+      "output-flow-green-light": {
+        "role": "secondary",
+        "displayName": "Output Flow Green Light",
+        "canonical": "#177859",
+        "tonalRamp": [
+          "oklch(15% 0.045 160)",
+          "oklch(25% 0.075 160)",
+          "oklch(35% 0.10 160)",
+          "oklch(45% 0.12 160)",
+          "oklch(55% 0.12 160)",
+          "oklch(68% 0.10 160)",
+          "oklch(82% 0.07 160)",
+          "oklch(95% 0.02 160)"
+        ]
+      },
+      "output-flow-green-dark": {
+        "role": "secondary",
+        "displayName": "Output Flow Green Dark",
+        "canonical": "#38AD87",
+        "tonalRamp": [
+          "oklch(15% 0.045 160)",
+          "oklch(25% 0.075 160)",
+          "oklch(35% 0.10 160)",
+          "oklch(45% 0.12 160)",
+          "oklch(55% 0.12 160)",
+          "oklch(68% 0.10 160)",
+          "oklch(82% 0.07 160)",
+          "oklch(95% 0.02 160)"
+        ]
+      },
+      "cache-write-amber-light": {
+        "role": "secondary",
+        "displayName": "Cache Write Amber Light",
+        "canonical": "#9E6B0F",
+        "tonalRamp": [
+          "oklch(15% 0.045 75)",
+          "oklch(25% 0.075 75)",
+          "oklch(35% 0.10 75)",
+          "oklch(45% 0.12 75)",
+          "oklch(55% 0.13 75)",
+          "oklch(68% 0.12 75)",
+          "oklch(82% 0.08 75)",
+          "oklch(95% 0.025 75)"
+        ]
+      },
+      "cache-write-amber-dark": {
+        "role": "secondary",
+        "displayName": "Cache Write Amber Dark",
+        "canonical": "#D99E38",
+        "tonalRamp": [
+          "oklch(15% 0.045 75)",
+          "oklch(25% 0.075 75)",
+          "oklch(35% 0.10 75)",
+          "oklch(45% 0.12 75)",
+          "oklch(55% 0.13 75)",
+          "oklch(68% 0.12 75)",
+          "oklch(82% 0.08 75)",
+          "oklch(95% 0.025 75)"
+        ]
+      },
+      "cache-read-violet-light": {
+        "role": "secondary",
+        "displayName": "Cache Read Violet Light",
+        "canonical": "#665C9E",
+        "tonalRamp": [
+          "oklch(15% 0.035 295)",
+          "oklch(25% 0.055 295)",
+          "oklch(35% 0.075 295)",
+          "oklch(45% 0.09 295)",
+          "oklch(55% 0.09 295)",
+          "oklch(68% 0.075 295)",
+          "oklch(82% 0.05 295)",
+          "oklch(95% 0.018 295)"
+        ]
+      },
+      "cache-read-violet-dark": {
+        "role": "secondary",
+        "displayName": "Cache Read Violet Dark",
+        "canonical": "#8F85BF",
+        "tonalRamp": [
+          "oklch(15% 0.035 295)",
+          "oklch(25% 0.055 295)",
+          "oklch(35% 0.075 295)",
+          "oklch(45% 0.09 295)",
+          "oklch(55% 0.09 295)",
+          "oklch(68% 0.075 295)",
+          "oklch(82% 0.05 295)",
+          "oklch(95% 0.018 295)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Hero Reading",
+        "purpose": "One dominant API-equivalent or Billing-token value."
+      },
+      "headline": {
+        "displayName": "Window Headline",
+        "purpose": "Product name and major flyout heading."
+      },
+      "title": {
+        "displayName": "Section Title",
+        "purpose": "Agent groups and settings sections."
+      },
+      "body": {
+        "displayName": "Native Body",
+        "purpose": "Controls, descriptions, and ordinary labels."
+      },
+      "label": {
+        "displayName": "Telemetry Label",
+        "purpose": "Compact uppercase table and Token Kind keys."
+      },
+      "numeric": {
+        "displayName": "Tabular Numeric",
+        "purpose": "Stable totals, percentages, countdowns, and aligned cells."
+      }
+    },
+    "shadows": [
+      {
+        "name": "desktop-flyout",
+        "value": "0 4px 18px rgba(0, 0, 0, 0.44)",
+        "purpose": "Only for the top-level Windows notification-area flyout."
+      }
+    ],
+    "motion": [
+      {
+        "name": "selection-puck",
+        "value": "280ms snappy",
+        "purpose": "macOS primary tab selection; disabled under Reduce Motion."
+      },
+      {
+        "name": "onboarding-step",
+        "value": "250ms snappy",
+        "purpose": "macOS onboarding content and step-indicator transitions."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Compact native action with clear hover, press, and keyboard-focus states.",
+      "html": "<button class=\"ds-btn-primary\">Refresh all</button>",
+      "css": ".ds-btn-primary { min-height: 30px; padding: 4px 12px; border: 0; border-radius: 6px; background: #08866D; color: #FFFFFF; font: 400 13px/1.35 -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\", sans-serif; cursor: pointer; transition: opacity 120ms ease, box-shadow 120ms ease; } .ds-btn-primary:hover { opacity: .82; } .ds-btn-primary:active { opacity: .65; } .ds-btn-primary:focus-visible { outline: 1.5px solid #17191C; outline-offset: -3px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Flat bordered action for ordinary commands inside cards and settings.",
+      "html": "<button class=\"ds-btn-secondary\">Settings</button>",
+      "css": ".ds-btn-secondary { min-height: 30px; padding: 4px 12px; border: 1px solid #D9DCE1; border-radius: 6px; background: #FFFFFF; color: #17191C; font: 400 13px/1.35 -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\", sans-serif; cursor: pointer; transition: background 120ms ease, box-shadow 120ms ease; } .ds-btn-secondary:hover { background: #EAEDF0; } .ds-btn-secondary:active { background: #DDE2E7; } .ds-btn-secondary:focus-visible { outline: 1.5px solid #17191C; outline-offset: -3px; }"
+    },
+    {
+      "name": "Icon Button",
+      "kind": "button",
+      "refersTo": "button-icon",
+      "description": "A transparent 32px utility action that gains only a tonal hover plate.",
+      "html": "<button class=\"ds-icon-button\" aria-label=\"Refresh all\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7\"/></svg></button>",
+      "css": ".ds-icon-button { width: 32px; height: 32px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: #62676F; cursor: pointer; transition: background 120ms ease, color 120ms ease; } .ds-icon-button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; } .ds-icon-button:hover { background: #EAEDF0; color: #17191C; } .ds-icon-button:active { background: #DDE2E7; } .ds-icon-button:focus-visible { outline: 1.5px solid #17191C; outline-offset: -3px; }"
+    },
+    {
+      "name": "Primary Tab Switcher",
+      "kind": "nav",
+      "refersTo": "segment-selected",
+      "description": "Equal-width Usage and Tokens navigation in one quiet capsule.",
+      "html": "<nav class=\"ds-tabs\" aria-label=\"Popover section\"><button>Usage</button><button class=\"is-selected\" aria-current=\"page\">Tokens</button></nav>",
+      "css": ".ds-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 3px; border: 1px solid #D9DCE1; border-radius: 999px; background: #F1F3F5; } .ds-tabs button { min-height: 34px; border: 0; border-radius: 999px; background: transparent; color: #62676F; font: 600 13px/1.25 -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\", sans-serif; cursor: pointer; transition: background 180ms ease, color 180ms ease; } .ds-tabs button:hover { color: #17191C; background: #EAEDF0; } .ds-tabs button.is-selected { background: #08866D; color: #FFFFFF; } .ds-tabs button:focus-visible { outline: 1.5px solid #17191C; outline-offset: -3px; }"
+    },
+    {
+      "name": "Compact Range Segments",
+      "kind": "nav",
+      "description": "A smaller segmented control for Today, 7-day, and 30-day ranges.",
+      "html": "<div class=\"ds-range\" role=\"radiogroup\" aria-label=\"Token Odometer range\"><button class=\"is-selected\" role=\"radio\" aria-checked=\"true\">Today</button><button role=\"radio\" aria-checked=\"false\">7 days</button><button role=\"radio\" aria-checked=\"false\">30 days</button></div>",
+      "css": ".ds-range { display: grid; grid-template-columns: repeat(3, 1fr); padding: 3px; border: 1px solid #D9DCE1; border-radius: 8px; background: #F1F3F5; } .ds-range button { min-height: 28px; padding: 3px 7px; border: 0; border-radius: 6px; background: transparent; color: #62676F; font: 400 11.5px/1.25 -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\", sans-serif; cursor: pointer; } .ds-range button:hover { background: #EAEDF0; color: #17191C; } .ds-range button.is-selected { background: #08866D; color: #FFFFFF; } .ds-range button:focus-visible { outline: 1.5px solid #17191C; outline-offset: -3px; }"
+    },
+    {
+      "name": "Token Kind Toggle",
+      "kind": "chip",
+      "description": "A color-keyed data filter that remains visible when disabled.",
+      "html": "<button class=\"ds-token-kind\" aria-pressed=\"true\"><span></span>IN</button>",
+      "css": ".ds-token-kind { width: 64px; height: 28px; display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; padding: 0 6px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #216BC7; font: 600 10.5px/1.2 -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\", sans-serif; letter-spacing: .04em; cursor: pointer; } .ds-token-kind span { width: 6px; height: 6px; border-radius: 2px; background: currentColor; } .ds-token-kind:hover { background: #EAEDF0; } .ds-token-kind[aria-pressed=\"true\"] { border-color: #216BC7; background: color-mix(in srgb, #216BC7 12%, transparent); } .ds-token-kind[aria-pressed=\"false\"] { opacity: .38; } .ds-token-kind:focus-visible { outline: 1.5px solid #17191C; outline-offset: -3px; }"
+    },
+    {
+      "name": "Instrument Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A flat tonal group with a fine border and no internal shadow.",
+      "html": "<section class=\"ds-card\"><h3>Codex</h3><p>Usage Window</p></section>",
+      "css": ".ds-card { padding: 14px; border: 1px solid #D9DCE1; border-radius: 10px; background: #FFFFFF; color: #17191C; font: 400 13px/1.35 -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\", sans-serif; } .ds-card h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; } .ds-card p { margin: 0; color: #62676F; } .ds-card:focus-within { border-color: #08866D; }"
+    },
+    {
+      "name": "Native Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Compact credential or code field with a structural accent focus.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Paste code\" />",
+      "css": ".ds-input { min-height: 32px; padding: 5px 8px; border: 1px solid #D9DCE1; border-radius: 6px; background: #FFFFFF; color: #17191C; font: 400 13px/1.35 -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\", sans-serif; transition: border-color 120ms ease, box-shadow 120ms ease; } .ds-input:hover { border-color: #989DA4; } .ds-input:focus { border-color: #08866D; box-shadow: 0 0 0 1px #08866D; outline: 0; } .ds-input:disabled { color: #989DA4; background: #F1F3F5; }"
+    },
+    {
+      "name": "Usage Gauge",
+      "kind": "custom",
+      "description": "A calibrated open dial with neutral numerics and status-colored meter.",
+      "html": "<div class=\"ds-gauge\" role=\"img\" aria-label=\"5 hour, 68 percent left\"><svg viewBox=\"0 0 120 120\" aria-hidden=\"true\"><path class=\"track\" d=\"M27 93 A47 47 0 1 1 93 93\"/><path class=\"value\" d=\"M27 93 A47 47 0 1 1 101 68\"/></svg><strong>68%</strong><small>left</small><span>5 hour</span></div>",
+      "css": ".ds-gauge { width: 120px; position: relative; display: grid; justify-items: center; color: #17191C; font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\", sans-serif; } .ds-gauge svg { width: 104px; height: 104px; } .ds-gauge path { fill: none; stroke-width: 7; stroke-linecap: round; } .ds-gauge .track { stroke: color-mix(in srgb, #08866D 16%, transparent); } .ds-gauge .value { stroke: #08866D; } .ds-gauge strong { position: absolute; top: 35px; font-size: 23px; font-weight: 600; font-variant-numeric: tabular-nums; } .ds-gauge small { position: absolute; top: 62px; color: #62676F; font-size: 10px; font-weight: 500; } .ds-gauge span { margin-top: 2px; font-size: 13px; font-weight: 600; }"
+    },
+    {
+      "name": "Token Odometer Row",
+      "kind": "custom",
+      "description": "A compact tabular model row with a three-pixel data-composition rule.",
+      "html": "<div class=\"ds-token-row\"><div class=\"name\">gpt-5.6-sol</div><div>133K</div><div>13K</div><div>—</div><div>3.1M</div><div class=\"mix\"><i></i><b></b><em></em></div></div>",
+      "css": ".ds-token-row { display: grid; grid-template-columns: minmax(120px, 1fr) repeat(4, 42px); gap: 5px; align-items: end; color: #17191C; font: 400 12px/1.2 -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\", sans-serif; font-variant-numeric: tabular-nums; text-align: right; } .ds-token-row .name { overflow: hidden; color: #62676F; text-align: left; text-overflow: ellipsis; white-space: nowrap; } .ds-token-row .mix { grid-column: 1 / -1; height: 3px; display: flex; overflow: hidden; border-radius: 1px; background: #D9DCE1; } .ds-token-row .mix i { width: 4%; background: #216BC7; } .ds-token-row .mix b { width: 1%; background: #177859; } .ds-token-row .mix em { flex: 1; background: #665C9E; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Native Instrument Panel / 原生仪表台",
+    "overview": "TokenStats should feel like a precision readout the operating system happened to ship: compact, restrained, exact, and immediately trustworthy. The interface stays quiet until a value or state needs attention; hierarchy comes from native typography, measured spacing, and clear numeric alignment rather than decorative chrome.\n\nThe visual system is adaptive rather than identical across platforms. macOS uses system materials, SF typography, Liquid Glass where the OS provides it, and the user's accent color; Windows uses Segoe UI Variable, explicit light and dark resources, Instrument Teal, and Windows system colors in High Contrast. Both clients preserve the same information hierarchy and data-color semantics without forcing the same shell.\n\nAvoid the density of an enterprise analytics dashboard, the spectacle of a gamified quota meter, and a cross-platform skin that ignores native controls. The app icon's expressive gradient is a brand asset, not permission to turn the working interface into a gradient field.",
+    "keyCharacteristics": [
+      "Native first, with platform-specific materials and controls",
+      "Compact telemetry organized around one glanceable reading",
+      "Restrained neutral surfaces with rare, purposeful accent",
+      "Tabular numerics and redundant non-color status cues",
+      "Structural layering instead of decorative depth"
+    ],
+    "rules": [
+      {
+        "name": "The Platform Accent Rule",
+        "body": "macOS follows the user's system tint, Windows uses Instrument Teal, and High Contrast uses Windows system colors; never force one accent implementation across every OS.",
+        "section": "colors"
+      },
+      {
+        "name": "The Data Key Rule",
+        "body": "Input Signal Blue, Output Flow Green, Cache Write Amber, and Cache Read Violet always appear in that order and only identify Token Kind data.",
+        "section": "colors"
+      },
+      {
+        "name": "The App Icon Exception Rule",
+        "body": "The teal-blue-graphite gradient and warm needle belong to the app icon; working surfaces remain tonal and restrained.",
+        "section": "colors"
+      },
+      {
+        "name": "The Native Voice Rule",
+        "body": "Use the platform system family and semantic sizes; do not introduce a custom display font into the utility chrome.",
+        "section": "typography"
+      },
+      {
+        "name": "The Figure-First Rule",
+        "body": "In a data row, the number is the strongest element; labels and metadata step back to secondary color before the figure loses contrast.",
+        "section": "typography"
+      },
+      {
+        "name": "The Structural Layer Rule",
+        "body": "Use tone, border, divider, and native material first; reserve authored shadow for a surface that genuinely floats above the desktop.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do preserve native macOS and Windows materials, controls, focus behavior, and system accessibility settings.",
+      "Do give one reading clear visual priority and keep supporting telemetry compact.",
+      "Do keep Token Kind hues in the established Input / Output / Cache Write / Cache Read order.",
+      "Do pair color with labels, figures, dashes, or warning glyphs.",
+      "Do use tabular digits for totals, percentages, countdowns, and aligned token columns.",
+      "Do reveal depth through native material, tonal contrast, fine borders, and dividers before adding shadow."
+    ],
+    "donts": [
+      "Don't turn the flyout into a dense enterprise analytics dashboard.",
+      "Don't gamify usage with spectacle, celebration, or alarmist meter treatments.",
+      "Don't force macOS and Windows into an identical cross-platform shell.",
+      "Don't reuse Token Kind colors as generic brand accents or decorative chart colors.",
+      "Don't use the app icon gradient as a general window or card background.",
+      "Don't hide unavailable or disabled data when a dimmed value, dash, or explicit state can preserve the table's meaning."
+    ]
+  }
+}
