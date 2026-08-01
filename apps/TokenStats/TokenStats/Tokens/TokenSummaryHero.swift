@@ -18,21 +18,31 @@ struct TokenSummaryPresentation: Equatable {
     /// The semantic number behind `value`, used only by SwiftUI's native
     /// numeric transition. Nil means the reading is unavailable.
     let numericValue: Double?
+    /// Identifies the semantic unit behind `numericValue`. A changed identity
+    /// replaces the value with a short crossfade instead of rolling digits
+    /// between unrelated units such as tokens, USD, and CNY.
+    let transitionIdentity: String
 
     static func make(
         perAgent: [TokenOdometerModel.AgentTokens],
         metric: TokenSummaryMetric,
         range: TokenRange,
         hasLoaded: Bool,
-        pricingDate: Date = Date()
+        pricingDate: Date = Date(),
+        currencyContext: CurrencyDisplayContext = .usd
     ) -> TokenSummaryPresentation {
+        let transitionIdentity = transitionIdentity(
+            metric: metric,
+            currencyContext: currencyContext
+        )
         guard hasLoaded else {
             return TokenSummaryPresentation(
                 value: "—",
                 label: "Reading \(range.label.lowercased())…",
                 help: "Reading token usage for \(range.label).",
                 accessibilityLabel: "Reading token usage for \(range.label)",
-                numericValue: nil
+                numericValue: nil,
+                transitionIdentity: transitionIdentity
             )
         }
 
@@ -57,7 +67,8 @@ struct TokenSummaryPresentation: Equatable {
             return apiEquivalentPresentation(
                 usage: usage,
                 estimate: estimate,
-                range: range
+                range: range,
+                currencyContext: currencyContext
             )
         }
     }
@@ -72,7 +83,8 @@ struct TokenSummaryPresentation: Equatable {
                 label: "billing tokens · \(range.label)",
                 help: "No billing token usage for \(range.label).",
                 accessibilityLabel: "No billing token usage for \(range.label)",
-                numericValue: nil
+                numericValue: nil,
+                transitionIdentity: TokenSummaryMetric.billingTokens.rawValue
             )
         }
 
@@ -98,22 +110,33 @@ struct TokenSummaryPresentation: Equatable {
                 + "from this total. Token Kind filters do not change this objective summary.",
             accessibilityLabel: "\(count.formatted()) billing tokens for \(range.label); "
                 + "cache reads excluded",
-            numericValue: Double(count)
+            numericValue: Double(count),
+            transitionIdentity: TokenSummaryMetric.billingTokens.rawValue
         )
     }
 
     private static func apiEquivalentPresentation(
         usage: TokenUsage?,
         estimate: ApiCostEstimate,
-        range: TokenRange
+        range: TokenRange,
+        currencyContext: CurrencyDisplayContext
     ) -> TokenSummaryPresentation {
+        let label = apiEquivalentLabel(
+            range: range,
+            currencyContext: currencyContext
+        )
+        let transitionIdentity = transitionIdentity(
+            metric: .apiEquivalent,
+            currencyContext: currencyContext
+        )
         guard usage != nil else {
             return TokenSummaryPresentation(
                 value: "—",
-                label: "API-equivalent · \(range.label)",
+                label: label,
                 help: "No API-equivalent usage for \(range.label).",
                 accessibilityLabel: "No API-equivalent usage for \(range.label)",
-                numericValue: nil
+                numericValue: nil,
+                transitionIdentity: transitionIdentity
             )
         }
 
@@ -126,48 +149,142 @@ struct TokenSummaryPresentation: Equatable {
             + "-" + String(format: "%02d", ApiPricingCatalog.lastReviewed.day)
         let help = "Standard API-equivalent estimate by recorded Model; includes all "
             + "four Token Kinds at list rates regardless of the display filters. "
-            + "The final total is rounded upward to the nearest cent. Claude cache "
+            + "The exact USD aggregate is converted before the displayed total is "
+            + "rounded upward once to the target currency's minor unit. Claude cache "
             + "writes without TTL detail use the default 5-minute rate. "
             + "Prices reviewed \(reviewed)." + unpriced
+        let currencyDisclosure = currencyDisclosure(currencyContext)
 
         guard estimate.isAvailable else {
             return TokenSummaryPresentation(
                 value: "—",
-                label: "API-equivalent · \(range.label)",
-                help: help,
+                label: label,
+                help: help + " " + currencyDisclosure,
                 accessibilityLabel: "API-equivalent usage unavailable because the "
-                    + "transcript Model is unknown",
-                numericValue: nil
+                    + "transcript Model is unknown. " + currencyDisclosure + unpriced,
+                numericValue: nil,
+                transitionIdentity: transitionIdentity
             )
         }
 
-        let displayedCost = compactCurrency(
-            estimate.roundedCostUSD,
-            exact: estimate.formattedCost
-        )
+        // Convert the exact aggregate. Rounding the USD amount first and then
+        // converting would compound presentation rounding in the local value.
+        let amount = currencyContext.amount(forUSD: estimate.costUSD)
+        // Compact notation is only a width escape hatch for seven-figure
+        // totals. Ordinary values keep the currency's full minor-unit detail.
+        let shouldCompact = amount.roundedValue >= 1_000_000
+        let fullLocalCost = amount.currencyCode == .usd
+            ? estimate.formattedCostUSD
+            : amount.formatted(compact: false)
+        let displayedCost = shouldCompact
+            ? compactDisplay(amount)
+            : fullLocalCost
+        let unpricedAccessibility = estimate.isPartial
+            ? " Unpriced models: \(estimate.unpricedModels.joined(separator: ", ")), "
+                + "\(estimate.unpricedTokens.formatted()) tokens."
+            : ""
         return TokenSummaryPresentation(
             value: displayedCost,
-            label: "API-equivalent · \(range.label)",
-            help: "Exact estimate \(estimate.formattedCost). " + help,
-            accessibilityLabel: "\(estimate.formattedCost) estimated API-equivalent "
-                + "usage for \(range.label)",
-            numericValue: NSDecimalNumber(decimal: estimate.roundedCostUSD).doubleValue
+            label: label,
+            help: "Displayed estimate \(fullLocalCost). Original USD estimate "
+                + "\(estimate.formattedCostUSD). \(currencyDisclosure) " + help,
+            accessibilityLabel: "\(fullLocalCost) estimated API-equivalent usage for "
+                + "\(range.label). Original USD estimate \(estimate.formattedCostUSD). "
+                + currencyDisclosure + unpricedAccessibility,
+            numericValue: amount.numericValue,
+            transitionIdentity: transitionIdentity
         )
     }
 
-    /// Keep the API summary in the same fixed 42pt slot if an unusually large
-    /// local corpus crosses seven figures. Ordinary estimates remain exact.
-    private static func compactCurrency(_ amount: Decimal, exact: String) -> String {
-        let value = NSDecimalNumber(decimal: amount).doubleValue
-        let units: [(Double, String)] = [(1e9, "B"), (1e6, "M")]
-        guard let (unit, suffix) = units.first(where: { value >= $0.0 }) else {
-            return exact
+    private static func apiEquivalentLabel(
+        range: TokenRange,
+        currencyContext: CurrencyDisplayContext
+    ) -> String {
+        let code = currencyContext.currencyCode.rawValue
+        let currency = currencyContext.isFallback ? "\(code) fallback" : code
+        return "API-equivalent · \(currency) · \(range.label)"
+    }
+
+    private static func compactDisplay(_ amount: CurrencyDisplayAmount) -> String {
+        let formatted = amount.formatted(compact: true)
+        guard amount.currencyCode == .usd else { return formatted }
+        // Foundation's POSIX currency style inserts a non-breaking space,
+        // unlike the pre-existing compact USD hero. Preserve the established
+        // `$5M` spelling for the base/fallback currency.
+        return formatted.replacingOccurrences(of: "\u{00A0}", with: "")
+    }
+
+    private static func transitionIdentity(
+        metric: TokenSummaryMetric,
+        currencyContext: CurrencyDisplayContext
+    ) -> String {
+        guard metric == .apiEquivalent else { return metric.rawValue }
+        return [
+            metric.rawValue,
+            currencyContext.requestedCode.rawValue,
+            currencyContext.currencyCode.rawValue,
+            currencyContext.isFallback ? "fallback" : "converted",
+        ].joined(separator: ":")
+    }
+
+    private static func currencyDisclosure(
+        _ context: CurrencyDisplayContext
+    ) -> String {
+        let effectiveCode = context.currencyCode.rawValue
+        let requestedCode = context.requestedCode.rawValue
+
+        if context.isFallback {
+            var parts = [
+                "No usable \(requestedCode) exchange rate was available.",
+                "No FX conversion was applied; showing the original USD estimate.",
+            ]
+            if let fetchedAt = context.fetchedAt {
+                parts.append("Last rate table fetched: \(ISO8601DateFormatter().string(from: fetchedAt)).")
+            }
+            return parts.joined(separator: " ")
         }
-        let scaled = value / unit
-        let text = scaled < 9.95
-            ? String(format: "%.1f", scaled)
-            : String(format: "%.0f", scaled)
-        return "$\(text)\(suffix)"
+
+        var parts = [
+            "Exchange rate: 1 USD = \(formatRate(context.rate)) \(effectiveCode).",
+        ]
+
+        if effectiveCode == CurrencyCode.usd.rawValue {
+            parts.append("USD is the pricing currency; no FX rate date or fetch time applies.")
+        } else {
+            if let rateDate = context.rateDate {
+                parts.append("Rate date: \(formatRateDate(rateDate)).")
+            } else {
+                parts.append("Rate date unavailable.")
+            }
+            if let fetchedAt = context.fetchedAt {
+                parts.append("Fetched: \(ISO8601DateFormatter().string(from: fetchedAt)).")
+            } else {
+                parts.append("Fetch time unavailable.")
+            }
+            parts.append(context.isStale ? "Rate status: stale cached rate." : "Rate status: current.")
+        }
+
+        return parts.joined(separator: " ")
+    }
+
+    private static func formatRateDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+
+    private static func formatRate(_ rate: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = false
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 8
+        return formatter.string(from: NSDecimalNumber(decimal: rate))
+            ?? NSDecimalNumber(decimal: rate).stringValue
     }
 }
 
@@ -183,11 +300,26 @@ struct TokenSummaryHero: View {
     let metric: TokenSummaryMetric
     let range: TokenRange
     let hasLoaded: Bool
+    let currencyContext: CurrencyDisplayContext
+
+    init(
+        perAgent: [TokenOdometerModel.AgentTokens],
+        metric: TokenSummaryMetric,
+        range: TokenRange,
+        hasLoaded: Bool,
+        currencyContext: CurrencyDisplayContext = .usd
+    ) {
+        self.perAgent = perAgent
+        self.metric = metric
+        self.range = range
+        self.hasLoaded = hasLoaded
+        self.currencyContext = currencyContext
+    }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// `nil` until this view has settled its first presentation. That first
     /// value appears immediately, matching v1's conditionally inserted hero.
-    @State private var presentedMetric: TokenSummaryMetric?
+    @State private var presentedIdentity: String?
     @State private var hasPresentedNumber = false
 
     private var presentation: TokenSummaryPresentation {
@@ -195,39 +327,51 @@ struct TokenSummaryHero: View {
             perAgent: perAgent,
             metric: metric,
             range: range,
-            hasLoaded: hasLoaded
+            hasLoaded: hasLoaded,
+            currencyContext: currencyContext
         )
     }
 
     private var shouldAnimate: Bool {
         !reduceMotion
             && hasPresentedNumber
-            && presentedMetric == metric
+            && presentedIdentity == presentation.transitionIdentity
             && presentation.numericValue != nil
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(presentation.value)
-                // This is the v1 macOS animation: SwiftUI owns the per-digit
-                // motion and its platform feel. Windows' hand-drawn rolling
-                // control is deliberately not shared.
-                .font(.system(size: Self.valueFontSize, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .lineLimit(1)
-                .contentTransition(
-                    .numericText(value: presentation.numericValue ?? 0)
-                )
-                .animation(
-                    shouldAnimate ? .snappy(duration: 0.6) : nil,
-                    value: presentation.numericValue
-                )
-                .frame(
-                    maxWidth: .infinity,
-                    minHeight: Self.valueSlotHeight,
-                    maxHeight: Self.valueSlotHeight,
-                    alignment: .bottomLeading
-                )
+            ZStack(alignment: .bottomLeading) {
+                Text(presentation.value)
+                    // SwiftUI owns the same-unit per-digit motion. Changing
+                    // metric or currency replaces this child instead.
+                    .font(.system(size: Self.valueFontSize, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .contentTransition(
+                        .numericText(value: presentation.numericValue ?? 0)
+                    )
+                    .animation(
+                        shouldAnimate ? .snappy(duration: 0.6) : nil,
+                        value: presentation.numericValue
+                    )
+                    .id(presentation.transitionIdentity)
+                    .transition(
+                        reduceMotion
+                            ? .identity
+                            : .opacity.combined(with: .scale(scale: 0.98))
+                    )
+            }
+            .animation(
+                reduceMotion ? nil : .easeInOut(duration: 0.25),
+                value: presentation.transitionIdentity
+            )
+            .frame(
+                maxWidth: .infinity,
+                minHeight: Self.valueSlotHeight,
+                maxHeight: Self.valueSlotHeight,
+                alignment: .bottomLeading
+            )
             Text(presentation.label)
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -243,12 +387,12 @@ struct TokenSummaryHero: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
         .onAppear {
-            presentedMetric = metric
+            presentedIdentity = presentation.transitionIdentity
             hasPresentedNumber = presentation.numericValue != nil
         }
-        .onChange(of: metric) { _, newMetric in
+        .onChange(of: presentation.transitionIdentity) { _, newIdentity in
             // Units changed, so settle rather than implying a numeric delta.
-            presentedMetric = newMetric
+            presentedIdentity = newIdentity
             hasPresentedNumber = presentation.numericValue != nil
         }
         .onChange(of: presentation.numericValue) { _, newValue in

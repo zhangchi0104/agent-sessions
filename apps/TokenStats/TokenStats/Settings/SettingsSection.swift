@@ -10,7 +10,8 @@ import SwiftUI
 /// The sidebar sections. Add a case here (plus a detail pane) to grow Settings.
 enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
     case accounts
-    case appearance
+    case display
+    case tokens
     case about
 
     var id: Self { self }
@@ -18,7 +19,8 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
     var title: String {
         switch self {
         case .accounts: return "Accounts"
-        case .appearance: return "Appearance"
+        case .display: return "Display"
+        case .tokens: return "Tokens"
         case .about: return "About"
         }
     }
@@ -26,7 +28,8 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
     var icon: String {
         switch self {
         case .accounts: return "person.crop.circle.fill"
-        case .appearance: return "paintbrush.fill"
+        case .display: return "rectangle.grid.1x2.fill"
+        case .tokens: return "dollarsign.circle.fill"
         case .about: return "info"
         }
     }
@@ -35,7 +38,8 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
     var tint: Color {
         switch self {
         case .accounts: return .blue
-        case .appearance: return .purple
+        case .display: return .purple
+        case .tokens: return .green
         case .about: return .gray
         }
     }

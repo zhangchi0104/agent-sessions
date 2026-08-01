@@ -19,6 +19,17 @@ import AppKit
 struct TokensTabView: View {
     let odometer: TokenOdometerModel
     @Bindable var appearance: AppearanceSettings
+    let currencyContext: CurrencyDisplayContext
+
+    init(
+        odometer: TokenOdometerModel,
+        appearance: AppearanceSettings,
+        currencyContext: CurrencyDisplayContext = .usd
+    ) {
+        self.odometer = odometer
+        self.appearance = appearance
+        self.currencyContext = currencyContext
+    }
 
     /// How tall the table is allowed to grow before it scrolls instead. The
     /// popover has no height of its own — it is exactly as tall as its content
@@ -56,7 +67,8 @@ struct TokensTabView: View {
                 perAgent: visibleAgents,
                 metric: appearance.tokenSummaryMetric,
                 range: odometer.displayedRange,
-                hasLoaded: odometer.hasLoaded
+                hasLoaded: odometer.hasLoaded,
+                currencyContext: currencyContext
             )
             .opacity(isScanning ? 0.6 : 1)
             rangePicker
@@ -77,14 +89,10 @@ struct TokensTabView: View {
         Picker("Tokens summary", selection: Binding(
             get: { appearance.tokenSummaryMetric },
             set: { metric in
-                // Switching between two different units must settle
-                // immediately. Value and range changes keep the v1 macOS
-                // numeric transition; this presentation switch does not.
-                var transaction = Transaction(animation: nil)
-                transaction.disablesAnimations = true
-                withTransaction(transaction) {
-                    appearance.tokenSummaryMetric = metric
-                }
+                // The hero owns the unit-aware transition: metric switches
+                // crossfade, while value changes within one unit keep the
+                // native numeric transition.
+                appearance.tokenSummaryMetric = metric
             }
         )) {
             ForEach(TokenSummaryMetric.allCases) { metric in

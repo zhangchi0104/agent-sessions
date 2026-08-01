@@ -19,9 +19,14 @@ struct OnboardingDisclosureStep: View {
                 row("key.fill", "Tokens stay in your Keychain",
                     "Signing in opens your browser to approve TokenStats. The access "
                     + "tokens are saved in your macOS Keychain and used only to read your usage.")
-                row("network", "Only your providers are contacted",
-                    "Usage is fetched directly from Claude and OpenAI. Your tokens and "
-                    + "usage are never sent to any other server.")
+                row("network", "Usage and public exchange rates",
+                    "Usage is fetched directly from Claude and OpenAI. TokenStats can "
+                    + "automatically request the public USD exchange-rate table from "
+                    + "Frankfurter at most once every 24 hours; retrying an error in "
+                    + "Settings sends one additional request. That fixed request "
+                    + "contains no account, token, usage, transcript, cost, or region "
+                    + "data; like any network service, "
+                    + "Frankfurter receives ordinary connection metadata such as your IP address.")
                 row("internaldrive.fill", "Nothing about your work leaves your Mac",
                     "Your token counts are read from your agents' transcript files "
                     + "on this Mac. TokenStats reads them and uploads nothing.")

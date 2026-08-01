@@ -92,8 +92,130 @@ struct TokenSummaryPresentationTests {
         )
 
         #expect(summary.value == "$5.00")
-        #expect(summary.label == "API-equivalent · 7 days")
+        #expect(summary.label == "API-equivalent · USD · 7 days")
         #expect(summary.numericValue == 5)
+        #expect(summary.help.contains("Original USD estimate $5.00"))
+        #expect(summary.help.contains("1 USD = 1 USD"))
+    }
+
+    @Test func cnyConversionUsesExactUSDInsteadOfTheRoundedUSDPresentation() {
+        let summary = apiEquivalentSummary(
+            inputTokens: 1_000,
+            currencyContext: context(
+                requested: "CNY",
+                effective: "CNY",
+                rate: Decimal(string: "7.2")!
+            )
+        )
+
+        // USD is $0.005 before presentation rounding. Converting that exact
+        // aggregate yields CNY 0.036 -> 0.04, rather than $0.01 -> CNY 0.08.
+        #expect(summary.numericValue == 0.04)
+        #expect(summary.label == "API-equivalent · CNY · Today")
+        #expect(summary.help.contains("Original USD estimate $0.01"))
+        #expect(summary.help.contains("1 USD = 7.2 CNY"))
+        #expect(summary.accessibilityLabel.contains("Original USD estimate $0.01"))
+    }
+
+    @Test func jpyConversionRoundsUpOnceAtTheTargetMinorUnit() {
+        let summary = apiEquivalentSummary(
+            inputTokens: 1_000,
+            currencyContext: context(
+                requested: "JPY",
+                effective: "JPY",
+                rate: Decimal(string: "150")!
+            )
+        )
+
+        #expect(summary.numericValue == 1)
+        #expect(summary.label == "API-equivalent · JPY · Today")
+        #expect(summary.help.contains("1 USD = 150 JPY"))
+    }
+
+    @Test func kwdConversionUsesThreeTargetCurrencyFractionDigits() {
+        let summary = apiEquivalentSummary(
+            inputTokens: 1_000,
+            currencyContext: context(
+                requested: "KWD",
+                effective: "KWD",
+                rate: Decimal(string: "0.30715")!
+            )
+        )
+
+        #expect(summary.numericValue == 0.002)
+        #expect(summary.label == "API-equivalent · KWD · Today")
+        #expect(summary.help.contains("1 USD = 0.30715 KWD"))
+    }
+
+    @Test func unavailableRequestedRateFallsBackToUSDExplicitly() {
+        let summary = apiEquivalentSummary(
+            inputTokens: 1_000_000,
+            currencyContext: context(
+                requested: "CNY",
+                effective: "USD",
+                rate: 1,
+                isFallback: true
+            )
+        )
+
+        #expect(summary.value == "$5.00")
+        #expect(summary.numericValue == 5)
+        #expect(summary.label == "API-equivalent · USD fallback · Today")
+        #expect(summary.help.contains("No usable CNY exchange rate"))
+        #expect(summary.help.contains("No FX conversion was applied"))
+        #expect(!summary.help.contains("Exchange rate: 1 USD = 1 USD"))
+        #expect(!summary.help.contains("Rate status: current"))
+        #expect(summary.accessibilityLabel.contains("showing the original USD estimate"))
+    }
+
+    @Test func staleRateDisclosesRateDateFetchTimeAndStatus() {
+        let summary = apiEquivalentSummary(
+            inputTokens: 1_000_000,
+            currencyContext: context(
+                requested: "CNY",
+                effective: "CNY",
+                rate: Decimal(string: "7.2")!,
+                rateDate: isoDate("2026-07-31T00:00:00Z"),
+                fetchedAt: isoDate("2026-08-01T08:30:00Z"),
+                isStale: true
+            )
+        )
+
+        #expect(summary.help.contains("Rate date: 2026-07-31"))
+        #expect(summary.help.contains("Fetched: 2026-08-01T08:30:00Z"))
+        #expect(summary.help.contains("Rate status: stale cached rate"))
+        #expect(summary.accessibilityLabel.contains("Rate date: 2026-07-31"))
+        #expect(summary.accessibilityLabel.contains("stale cached rate"))
+    }
+
+    @Test func transitionIdentityChangesAcrossUnitsButNotAcrossRatesForOneCurrency() {
+        let firstCNY = apiEquivalentSummary(
+            inputTokens: 1_000,
+            currencyContext: context(
+                requested: "CNY",
+                effective: "CNY",
+                rate: Decimal(string: "7.1")!
+            )
+        )
+        let updatedCNY = apiEquivalentSummary(
+            inputTokens: 2_000,
+            currencyContext: context(
+                requested: "CNY",
+                effective: "CNY",
+                rate: Decimal(string: "7.2")!
+            )
+        )
+        let jpy = apiEquivalentSummary(
+            inputTokens: 1_000,
+            currencyContext: context(
+                requested: "JPY",
+                effective: "JPY",
+                rate: 150
+            )
+        )
+
+        #expect(firstCNY.transitionIdentity == updatedCNY.transitionIdentity)
+        #expect(firstCNY.transitionIdentity != jpy.transitionIdentity)
     }
 
     @Test func tokensProjectionExcludesHiddenAgentsFromTheSummary() {
@@ -130,6 +252,52 @@ struct TokenSummaryPresentationTests {
         #expect(summary.numericValue == nil)
         #expect(summary.help.contains("Codex: codex-auto-review"))
         #expect(summary.accessibilityLabel.contains("unavailable"))
+        #expect(summary.accessibilityLabel.contains("Unpriced"))
+    }
+
+    private func apiEquivalentSummary(
+        inputTokens: Int,
+        currencyContext: CurrencyDisplayContext
+    ) -> TokenSummaryPresentation {
+        TokenSummaryPresentation.make(
+            perAgent: [
+                agent(
+                    .codex,
+                    model: "gpt-5.6-sol",
+                    usage: tokens(input: inputTokens)
+                ),
+            ],
+            metric: .apiEquivalent,
+            range: .today,
+            hasLoaded: true,
+            pricingDate: isoDate("2026-07-31T00:00:00Z"),
+            currencyContext: currencyContext
+        )
+    }
+
+    private func context(
+        requested: String,
+        effective: String,
+        rate: Decimal,
+        rateDate: Date? = nil,
+        fetchedAt: Date? = nil,
+        isStale: Bool = false,
+        isFallback: Bool = false
+    ) -> CurrencyDisplayContext {
+        CurrencyDisplayContext(
+            requestedCode: CurrencyCode(requested)!,
+            currencyCode: CurrencyCode(effective)!,
+            rate: rate,
+            rateDate: rateDate,
+            fetchedAt: fetchedAt,
+            isStale: isStale,
+            isFallback: isFallback,
+            localeIdentifier: "en_US_POSIX"
+        )
+    }
+
+    private func isoDate(_ value: String) -> Date {
+        ISO8601DateFormatter().date(from: value)!
     }
 
     private func agent(

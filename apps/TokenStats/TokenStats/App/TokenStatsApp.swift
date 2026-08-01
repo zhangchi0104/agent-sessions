@@ -27,7 +27,8 @@ struct TokenStatsApp: App {
     var body: some Scene {
         MenuBarExtra {
             PopoverView(model: appDelegate.model,
-                        odometer: appDelegate.odometer)
+                        odometer: appDelegate.odometer,
+                        currencyModel: appDelegate.currencyModel)
         } label: {
             // Monochrome icon + per-agent percent — no threshold colors (PRD).
             Image(systemName: "gauge.with.dots.needle.33percent")
@@ -40,9 +41,10 @@ struct TokenStatsApp: App {
         // native Settings surface.
         Window("Settings", id: TokenStatsWindowID.settings) {
             SettingsView(model: appDelegate.model,
+                         currencyModel: appDelegate.currencyModel,
                          onRunSetupAgain: { appDelegate.showOnboarding() })
         }
-        .defaultSize(width: 700, height: 380)
+        .defaultSize(width: 720, height: 460)
         .windowResizability(.contentMinSize)
         // Full-size content with no opaque title strip, so the sidebar runs to
         // the top of the window and the traffic lights float over it.
@@ -60,6 +62,7 @@ struct TokenStatsApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model: UsageModel
     let odometer: TokenOdometerModel
+    let currencyModel: CurrencyModel
     let onboarding = OnboardingSettings()
     private var onboardingController: OnboardingWindowController?
 
@@ -76,6 +79,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             roots: CodingAgentRegistry.transcriptRoots,
             initialRange: appearance.selectedTokenRange
         )
+        currencyModel = CurrencyModel()
         super.init()
     }
 
@@ -97,14 +101,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Tests construct the models they need directly.
         guard !Self.isRunningUnitTests else { return }
         model.start()
-        if !onboarding.completed { showOnboarding() }
+        if onboarding.completed {
+            currencyModel.start()
+        } else {
+            // Frankfurter is the only connection that does not require an
+            // account first. Let a new user read (or skip) the disclosure
+            // before the first automatic rate-table request leaves the Mac.
+            showOnboarding()
+        }
     }
 
     /// Present (or re-present) the first-run onboarding flow. Reused for both the
     /// automatic first-launch prompt and the "Run setup again" action in Settings.
     func showOnboarding() {
         if onboardingController == nil {
-            onboardingController = OnboardingWindowController(model: model, onboarding: onboarding)
+            onboardingController = OnboardingWindowController(
+                model: model,
+                onboarding: onboarding,
+                onComplete: { [weak self] in self?.currencyModel.start() }
+            )
         }
         onboardingController?.show()
     }

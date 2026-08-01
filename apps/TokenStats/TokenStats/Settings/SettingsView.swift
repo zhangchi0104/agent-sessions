@@ -13,6 +13,7 @@ import AppKit
 /// The top-level Settings window: a sidebar of sections with a detail pane.
 struct SettingsView: View {
     let model: UsageModel
+    let currencyModel: CurrencyModel
     /// Re-presents the first-run onboarding flow (the About pane's "Run setup
     /// again"). Defaults to a no-op so previews and tests can omit it.
     var onRunSetupAgain: () -> Void = {}
@@ -31,21 +32,23 @@ struct SettingsView: View {
             Group {
                 switch selection ?? .accounts {
                 case .accounts: AccountsPane(model: model)
-                case .appearance: AppearancePane(appearance: model.appearance)
+                case .display: DisplayPane(appearance: model.appearance)
+                case .tokens:
+                    TokensPane(appearance: model.appearance, currencyModel: currencyModel)
                 case .about: AboutPane(onRunSetupAgain: onRunSetupAgain)
                 }
             }
             // Pin the detail column's size so a greedy detail pane (e.g. the
             // centered About content) can't starve the sidebar column at
             // render time — which previously blanked the sidebar labels.
-            .frame(minWidth: 462, maxWidth: .infinity, minHeight: 360, maxHeight: .infinity)
+            .frame(minWidth: 462, maxWidth: .infinity, minHeight: 400, maxHeight: .infinity)
         }
         .navigationSplitViewStyle(.balanced)
         .background(SettingsWindowChrome())
         // A minimum keeps the two columns legible; a flexible maximum lets the
         // user resize the window freely (an exact width/height would pin it).
-        .frame(minWidth: 700, idealWidth: 700, maxWidth: .infinity,
-               minHeight: 380, idealHeight: 380, maxHeight: .infinity)
+        .frame(minWidth: 700, idealWidth: 720, maxWidth: .infinity,
+               minHeight: 420, idealHeight: 460, maxHeight: .infinity)
     }
 
     // The native System Settings sidebar: a standard `.sidebar` list whose rows
