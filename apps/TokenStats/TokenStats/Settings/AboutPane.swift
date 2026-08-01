@@ -19,34 +19,55 @@ struct AboutPane: View {
                 .foregroundStyle(.tint)
                 .padding(.bottom, 2)
 
-            Text("TokenStats").font(.title.weight(.semibold))
+            // i18n-ignore: TokenStats is the invariant product brand.
+            Text(verbatim: "TokenStats").font(.title.weight(.semibold))
             Text(versionLine).font(.callout).foregroundStyle(.secondary)
 
-            Text("A menu-bar gauge for your Coding Agents — see how much of each "
-                 + "Usage Window is left and when it resets.")
+            Text(AboutCopy.description)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 340)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Link("View on GitHub",
-                 destination: URL(string: "https://github.com/zhangchi0104/TokenStats")!)
+            Link(destination: URL(string: "https://github.com/zhangchi0104/TokenStats")!) {
+                Text(AboutCopy.githubLink)
+            }
                 .font(.callout)
                 .padding(.top, 2)
 
-            Button("Run setup again", action: onRunSetupAgain)
+            Button(action: onRunSetupAgain) {
+                Text(AboutCopy.runSetupAgainButton)
+            }
                 .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
-        .navigationTitle("About")
+        .navigationTitle(Text(AboutCopy.title))
     }
 
-    private var versionLine: String {
+    private var versionLine: LocalizedStringResource {
         func value(_ key: String) -> String {
+            // i18n-ignore: Universal missing-value glyph, not natural-language copy.
             Bundle.main.object(forInfoDictionaryKey: key) as? String ?? "—"
         }
-        return "Version \(value("CFBundleShortVersionString")) (\(value("CFBundleVersion")))"
+        return AboutCopy.version(
+            shortVersion: value("CFBundleShortVersionString"),
+            buildVersion: value("CFBundleVersion")
+        )
     }
+}
+
+private enum AboutCopy {
+    static let title = LocalizedStringResource.settingsAboutTitle
+
+    static func version(shortVersion: String, buildVersion: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsAboutVersion(shortVersion, buildVersion)
+    }
+
+    static let description = LocalizedStringResource.settingsAboutDescription
+
+    static let githubLink = LocalizedStringResource.settingsAboutGithubLink
+
+    static let runSetupAgainButton = LocalizedStringResource.settingsAboutRunSetupAgainButton
 }

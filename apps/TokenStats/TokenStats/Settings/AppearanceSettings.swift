@@ -25,11 +25,14 @@ enum GaugeStyle: String, CaseIterable, Codable, Identifiable {
     var id: Self { self }
 
     /// Picker label.
-    var title: String {
+    var title: LocalizedStringResource {
         switch self {
-        case .arc270: return "Dial"
-        case .ring: return "Ring"
-        case .bar: return "Bar"
+        case .arc270:
+            return LocalizedStringResource.settingsAppearanceGaugeStyleDial
+        case .ring:
+            return LocalizedStringResource.settingsAppearanceGaugeStyleRing
+        case .bar:
+            return LocalizedStringResource.settingsAppearanceGaugeStyleBar
         }
     }
 
@@ -54,10 +57,12 @@ nonisolated enum TokenSummaryMetric: String, CaseIterable, Codable, Identifiable
 
     var id: Self { self }
 
-    var title: String {
+    var title: LocalizedStringResource {
         switch self {
-        case .apiEquivalent: "API equivalent"
-        case .billingTokens: "Billing tokens"
+        case .apiEquivalent:
+            LocalizedStringResource.tokensSummaryMetricApiEquivalent
+        case .billingTokens:
+            LocalizedStringResource.tokensSummaryMetricBillingTokens
         }
     }
 }
@@ -71,11 +76,14 @@ nonisolated enum TokenValueDisplayMode: String, CaseIterable, Codable, Identifia
 
     var id: Self { self }
 
-    var title: String {
+    var title: LocalizedStringResource {
         switch self {
-        case .value: "Value"
-        case .percentage: "Percentage"
-        case .valueAndPercentage: "Value (percentage)"
+        case .value:
+            LocalizedStringResource.settingsAppearanceTokenValueValue
+        case .percentage:
+            LocalizedStringResource.settingsAppearanceTokenValuePercentage
+        case .valueAndPercentage:
+            LocalizedStringResource.settingsAppearanceTokenValueValueAndPercentage
         }
     }
 }

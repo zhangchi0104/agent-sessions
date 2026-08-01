@@ -13,9 +13,9 @@ enum UsageSnapshotParser {
     static func parse(_ data: Data) throws -> [UsageWindow] {
         let raw = try JSONDecoder().decode(RawSnapshot.self, from: data)
         let meteredWindows = [
-            raw.five_hour?.window(label: "5-hour"),
-            raw.seven_day?.window(label: "Weekly"),
-            raw.fableWeekly?.window(label: "Fable"),
+            raw.five_hour?.window(identity: .shortTerm),
+            raw.seven_day?.window(identity: .weekly),
+            raw.fableWeekly?.window(identity: .modelWeekly(model: "Fable")),
         ].compactMap { $0 }
         return meteredWindows
     }
@@ -73,13 +73,13 @@ enum UsageSnapshotParser {
 
         /// Same rules as a top-level window: an explicit null reset time keeps
         /// the window with unknown timing, an unparseable one drops it.
-        func window(label: String) -> UsageWindow? {
+        func window(identity: UsageWindowIdentity) -> UsageWindow? {
             guard let percent else { return nil }
             guard let resets_at else {
-                return UsageWindow(label: label, percentConsumed: percent, resetAt: nil)
+                return UsageWindow(identity: identity, percentConsumed: percent, resetAt: nil)
             }
             guard let resetAt = UsageSnapshotParser.parseTimestamp(resets_at) else { return nil }
-            return UsageWindow(label: label, percentConsumed: percent, resetAt: resetAt)
+            return UsageWindow(identity: identity, percentConsumed: percent, resetAt: resetAt)
         }
     }
 
@@ -105,13 +105,13 @@ enum UsageSnapshotParser {
         }
 
         /// nil when the reset timestamp can't be parsed — drop just this window.
-        func window(label: String) -> UsageWindow? {
+        func window(identity: UsageWindowIdentity) -> UsageWindow? {
             guard hasResetTimestampField else { return nil }
             guard let resetTimestamp else {
-                return UsageWindow(label: label, percentConsumed: utilization, resetAt: nil)
+                return UsageWindow(identity: identity, percentConsumed: utilization, resetAt: nil)
             }
             guard let resetAt = UsageSnapshotParser.parseTimestamp(resetTimestamp) else { return nil }
-            return UsageWindow(label: label, percentConsumed: utilization, resetAt: resetAt)
+            return UsageWindow(identity: identity, percentConsumed: utilization, resetAt: resetAt)
         }
     }
 

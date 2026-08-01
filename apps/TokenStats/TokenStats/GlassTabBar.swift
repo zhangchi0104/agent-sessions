@@ -36,8 +36,14 @@ struct GlassTabBar: View {
     @available(macOS 26.0, *)
     private var glassBar: some View {
         HStack(spacing: 2) {
-            segment(.usage, "Usage")
-            segment(.tokens, "Tokens")
+            segment(
+                .usage,
+                LocalizedStringResource.popoverTabUsage
+            )
+            segment(
+                .tokens,
+                LocalizedStringResource.popoverTabTokens
+            )
         }
         .padding(3)
         // The whole bar shares a single glass surface — one floating slab,
@@ -46,7 +52,7 @@ struct GlassTabBar: View {
     }
 
     @available(macOS 26.0, *)
-    private func segment(_ value: PopoverTab, _ title: String) -> some View {
+    private func segment(_ value: PopoverTab, _ title: LocalizedStringResource) -> some View {
         let isSelected = selection == value
         return Button {
             // Under Reduce Motion the puck jumps to the new segment instead of
@@ -87,13 +93,22 @@ struct GlassTabBar: View {
     /// also a segmented picker, and at matching sizes the two read as one
     /// nested control rather than as navigation above content.
     private var segmentedPicker: some View {
-        Picker("View", selection: $selection) {
-            Text("Usage").tag(PopoverTab.usage)
-            Text("Tokens").tag(PopoverTab.tokens)
+        Picker(
+            LocalizedStringResource.popoverTabPickerTitle,
+            selection: $selection
+        ) {
+            Text(
+                LocalizedStringResource.popoverTabUsage
+            ).tag(PopoverTab.usage)
+            Text(
+                LocalizedStringResource.popoverTabTokens
+            ).tag(PopoverTab.tokens)
         }
         .pickerStyle(.segmented)
         .controlSize(.large)
         .labelsHidden()
-        .accessibilityLabel("Popover section")
+        .accessibilityLabel(
+            LocalizedStringResource.popoverTabPickerAccessibility
+        )
     }
 }

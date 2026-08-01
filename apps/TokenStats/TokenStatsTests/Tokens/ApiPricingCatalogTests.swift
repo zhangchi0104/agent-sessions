@@ -182,7 +182,7 @@ struct ApiPricingCatalogTests {
         let estimate = ApiPricingCatalog.estimate(rows, on: date)
 
         #expect(estimate.costUSD == decimal("5"))
-        #expect(estimate.formattedCost == "$5.00")
+        #expect(estimate.formattedCost(locale: Locale(identifier: "en-US")) == "$5.00")
     }
 
     @Test func unknownAndUnattributedModelsMakeTheEstimatePartial() {
@@ -214,8 +214,8 @@ struct ApiPricingCatalogTests {
         #expect(estimate.isPartial)
         #expect(
             estimate.unpricedModels == [
-                "Claude Code: unknown model",
-                "Codex: codex-auto-review",
+                .model(agent: .claudeCode, model: .unattributed),
+                .model(agent: .codex, model: .named("codex-auto-review")),
             ]
         )
     }
@@ -237,7 +237,7 @@ struct ApiPricingCatalogTests {
 
         #expect(estimate.pricedTokens == 100)
         #expect(estimate.unpricedTokens == 75)
-        #expect(estimate.unpricedModels == ["unknown transcript model"])
+        #expect(estimate.unpricedModels == [.transcriptUnattributed])
     }
 
     @Test func kindSelectionFiltersBothCostAndDisclosure() {
@@ -308,7 +308,7 @@ struct ApiPricingCatalogTests {
             costUSD: decimal("0"),
             pricedTokens: 0,
             unpricedTokens: 10,
-            unpricedModels: ["unknown transcript model"]
+            unpricedModels: [.transcriptUnattributed]
         )
         #expect(unavailable.formattedCostUSD == "—")
     }

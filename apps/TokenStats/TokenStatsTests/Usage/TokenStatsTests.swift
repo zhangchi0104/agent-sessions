@@ -11,6 +11,12 @@ import Foundation
 
 struct TokenStatsTests {
 
+    private let englishLocale = Locale(identifier: "en-US")
+
+    private var englishLocalizer: AppLocalizer {
+        AppLocalizer(locale: englishLocale)
+    }
+
     private func snapshot(percent: Double = 24) -> UsageSnapshot {
         UsageSnapshot(
             windows: [UsageWindow(label: "5-hour", percentConsumed: percent,
@@ -20,36 +26,48 @@ struct TokenStatsTests {
     }
 
     @Test func claudeOnlyMenuBarSummaryShowsRemainingPercentage() {
-        let text = MenuBarSummary.text(for: [
-            CodingAgentUsageSummary(shortLabel: "C", state: .fresh(snapshot(percent: 24))),
-        ])
+        let text = MenuBarSummary.text(
+            for: [
+                CodingAgentUsageSummary(shortLabel: "C", state: .fresh(snapshot(percent: 24))),
+            ],
+            locale: englishLocale
+        )
 
         #expect(text == "76%")
     }
 
     @Test func multipleMenuBarSummariesRenderSeparateAgentReadings() {
-        let text = MenuBarSummary.text(for: [
-            CodingAgentUsageSummary(shortLabel: "C", state: .fresh(snapshot(percent: 24))),
-            CodingAgentUsageSummary(shortLabel: "X", state: .fresh(snapshot(percent: 12))),
-        ])
+        let text = MenuBarSummary.text(
+            for: [
+                CodingAgentUsageSummary(shortLabel: "C", state: .fresh(snapshot(percent: 24))),
+                CodingAgentUsageSummary(shortLabel: "X", state: .fresh(snapshot(percent: 12))),
+            ],
+            locale: englishLocale
+        )
 
         #expect(text == "C: 76% X: 88%")
     }
 
     @Test func signedOutAgentDoesNotReserveMenuBarSlot() {
-        let text = MenuBarSummary.text(for: [
-            CodingAgentUsageSummary(shortLabel: "C", state: .fresh(snapshot(percent: 24))),
-            CodingAgentUsageSummary(shortLabel: "X", state: .signedOut),
-        ])
+        let text = MenuBarSummary.text(
+            for: [
+                CodingAgentUsageSummary(shortLabel: "C", state: .fresh(snapshot(percent: 24))),
+                CodingAgentUsageSummary(shortLabel: "X", state: .signedOut),
+            ],
+            locale: englishLocale
+        )
 
         #expect(text == "76%")
     }
 
     @Test func allSignedOutAgentsUseNeutralMenuBarPlaceholder() {
-        let text = MenuBarSummary.text(for: [
-            CodingAgentUsageSummary(shortLabel: "C", state: .signedOut),
-            CodingAgentUsageSummary(shortLabel: "X", state: .signedOut),
-        ])
+        let text = MenuBarSummary.text(
+            for: [
+                CodingAgentUsageSummary(shortLabel: "C", state: .signedOut),
+                CodingAgentUsageSummary(shortLabel: "X", state: .signedOut),
+            ],
+            locale: englishLocale
+        )
 
         #expect(text == "—")
     }
@@ -58,29 +76,47 @@ struct TokenStatsTests {
         let now = Date(timeIntervalSince1970: 0)
         let resetAt = now.addingTimeInterval((2 * 24 + 3) * 3600)
 
-        #expect(UsageFormatting.resetCountdown(to: resetAt, now: now) == "resets in 2d 3h")
+        #expect(
+            UsageFormatting.resetCountdown(
+                to: resetAt,
+                now: now,
+                localizer: englishLocalizer
+            ) == "resets in 2 days, 3 hours"
+        )
     }
 
     @Test func resetCountdownUsesHoursAndMinutesUnderADay() {
         let now = Date(timeIntervalSince1970: 0)
         let resetAt = now.addingTimeInterval(4 * 3600 + 12 * 60)
 
-        #expect(UsageFormatting.resetCountdown(to: resetAt, now: now) == "resets in 4h 12m")
+        #expect(
+            UsageFormatting.resetCountdown(
+                to: resetAt,
+                now: now,
+                localizer: englishLocalizer
+            ) == "resets in 4 hours, 12 minutes"
+        )
     }
 
     @Test func resetCountdownReadsResetsNowOncePast() {
         let now = Date(timeIntervalSince1970: 60)
         let resetAt = Date(timeIntervalSince1970: 0)
 
-        #expect(UsageFormatting.resetCountdown(to: resetAt, now: now) == "resets now")
+        #expect(
+            UsageFormatting.resetCountdown(
+                to: resetAt,
+                now: now,
+                localizer: englishLocalizer
+            ) == "resets now"
+        )
     }
 
     @Test func remainingPercentTextFloorsSoItNeverOverstatesWhatsLeft() {
         // 29.9% left must not round up to a reassuring "30%"; a hair under full
         // must read "99%", matching a not-quite-complete arc.
-        #expect(UsageFormatting.remainingPercentText(29.9) == "29%")
-        #expect(UsageFormatting.remainingPercentText(99.6) == "99%")
-        #expect(UsageFormatting.remainingPercentText(100) == "100%")
+        #expect(UsageFormatting.remainingPercentText(29.9, locale: englishLocale) == "29%")
+        #expect(UsageFormatting.remainingPercentText(99.6, locale: englishLocale) == "99%")
+        #expect(UsageFormatting.remainingPercentText(100, locale: englishLocale) == "100%")
     }
 
 }

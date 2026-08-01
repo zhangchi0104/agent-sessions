@@ -16,11 +16,13 @@ import SwiftUI
 final class OnboardingWindowController: NSObject, NSWindowDelegate {
     private let model: UsageModel
     private let onboarding: OnboardingSettings
+    private let locale: Locale
     private var window: NSWindow?
 
-    init(model: UsageModel, onboarding: OnboardingSettings) {
+    init(model: UsageModel, onboarding: OnboardingSettings, locale: Locale) {
         self.model = model
         self.onboarding = onboarding
+        self.locale = locale
         super.init()
     }
 
@@ -36,8 +38,12 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         let root = OnboardingView(model: model) { [weak self] in
             self?.window?.close()
         }
+        .environment(\.locale, locale)
         let hosting = NSHostingController(rootView: root)
         let window = NSWindow(contentViewController: hosting)
+        window.title = AppLocalizer(locale: locale).localized(
+            LocalizedStringResource.windowOnboardingTitle
+        )
         // Full-size content with a transparent, hidden title strip — the same
         // chrome the Settings window uses, with the traffic lights floating over
         // the content. Only the close button stays (no minimize/zoom on a dialog).

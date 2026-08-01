@@ -38,15 +38,37 @@ protocol AgentAuthSession: AnyObject {
     /// finished when this returns; a `.pasteCode` agent's returns as soon as the
     /// browser is open, and finishes in `completeSignIn(pastedCode:)`.
     func beginSignIn() async throws
+    /// Locale-aware entry point used by the app. Existing test doubles and
+    /// integrations can rely on the default bridge to `beginSignIn()`.
+    func beginSignIn(localizer: AppLocalizer) async throws
     /// Exchange the code the user pasted back for tokens.
     func completeSignIn(pastedCode: String) async throws
+    /// Locale-aware entry point used by the app for paste-code validation and
+    /// unsupported-flow errors.
+    func completeSignIn(pastedCode: String, localizer: AppLocalizer) async throws
 }
 
 extension AgentAuthSession {
+    func beginSignIn(localizer: AppLocalizer) async throws {
+        try await beginSignIn()
+    }
+
     /// Agents that don't use the paste-a-code flow never see a pasted code —
     /// the UI only offers the field to the ones whose `signInStyle` asks for it.
     func completeSignIn(pastedCode: String) async throws {
-        throw UsageError.loginFailed("This agent does not sign in with a pasted code.")
+        throw UsageError.loginFailed(
+            AppLocalizer(locale: .current).localized(
+                LocalizedStringResource.accountSignInErrorPastedCodeUnsupported
+            )
+        )
+    }
+
+    func completeSignIn(pastedCode: String, localizer: AppLocalizer) async throws {
+        throw UsageError.loginFailed(
+            localizer.localized(
+                LocalizedStringResource.accountSignInErrorPastedCodeUnsupported
+            )
+        )
     }
 
     func accountID() -> String? { nil }

@@ -37,7 +37,11 @@ final class CodexAuthSession: AgentAuthSession {
     /// redirect, exchange the code, and store the tokens. Unlike the
     /// paste-a-code flow, this returns only once sign-in is complete.
     func beginSignIn() async throws {
-        let listener = try LoopbackAuthListener()
+        try await beginSignIn(localizer: AppLocalizer(locale: .current))
+    }
+
+    func beginSignIn(localizer: AppLocalizer) async throws {
+        let listener = try LoopbackAuthListener(localizer: localizer)
         defer { listener.cancel() }
         let port = try await listener.start()
         let redirectURI = CodexOAuthFlow.redirectURI(port: port)
@@ -47,7 +51,9 @@ final class CodexAuthSession: AgentAuthSession {
         client.openAuthorizePage(pkce: pkce, state: state, redirectURI: redirectURI)
         let callback = try await listener.waitForCallback()
         guard callback.state == state else {
-            throw UsageError.loginFailed("State mismatch — possible interference; try again.")
+            throw UsageError.loginFailed(localizer.localized(
+                LocalizedStringResource.accountSignInErrorStateMismatch
+            ))
         }
         let tokens = try await client.exchangeCode(
             callback.code, verifier: pkce.verifier, redirectURI: redirectURI
@@ -56,7 +62,9 @@ final class CodexAuthSession: AgentAuthSession {
         // short-lived access token; surface that now instead of appearing
         // signed in and silently failing on the first refresh.
         guard !tokens.refreshToken.isEmpty else {
-            throw UsageError.loginFailed("Sign-in did not return a refresh token; cannot stay signed in.")
+            throw UsageError.loginFailed(localizer.localized(
+                LocalizedStringResource.accountSignInErrorMissingRefreshToken
+            ))
         }
         try cache.adopt(tokens)
     }

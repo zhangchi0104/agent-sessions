@@ -30,6 +30,9 @@ struct TokensTabView: View {
     private static let tableHeightCap: CGFloat = 360
 
     @State private var tableHeight: CGFloat = 0
+    @Environment(\.locale) private var locale
+
+    private var localizer: AppLocalizer { AppLocalizer(locale: locale) }
 
     /// Dimmed while a scan is in flight — either the first of this appearance,
     /// or a longer range the user switched to — so the tab shows a cue rather
@@ -74,7 +77,9 @@ struct TokensTabView: View {
     }
 
     private var summaryMetricPicker: some View {
-        Picker("Tokens summary", selection: Binding(
+        Picker(
+            LocalizedStringResource.tokensSummaryPickerTitle,
+            selection: Binding(
             get: { appearance.tokenSummaryMetric },
             set: { metric in
                 // Switching between two different units must settle
@@ -93,11 +98,15 @@ struct TokensTabView: View {
         }
         .pickerStyle(.segmented)
         .labelsHidden()
-        .accessibilityLabel("Tokens summary")
+        .accessibilityLabel(
+            LocalizedStringResource.tokensSummaryPickerAccessibility
+        )
     }
 
     private var rangePicker: some View {
-        Picker("Range", selection: Binding(
+        Picker(
+            LocalizedStringResource.tokensRangePickerTitle,
+            selection: Binding(
             get: { odometer.selectedRange },
             set: { range in
                 appearance.selectedTokenRange = range
@@ -105,7 +114,7 @@ struct TokensTabView: View {
             }
         )) {
             ForEach(TokenRange.allCases, id: \.self) { range in
-                Text(range.label).tag(range)
+                Text(range.title).tag(range)
             }
         }
         .pickerStyle(.segmented)
@@ -116,7 +125,9 @@ struct TokensTabView: View {
         // segments exactly this wide, so there is nothing to be gained by
         // measuring. It sits narrower than the table below it by design.
         .frame(maxWidth: .infinity)
-        .accessibilityLabel("Token Odometer range")
+        .accessibilityLabel(
+            LocalizedStringResource.tokensRangePickerAccessibility
+        )
     }
 
     /// The heading names the range the rows below actually describe — never the
@@ -132,7 +143,7 @@ struct TokensTabView: View {
             Spacer(minLength: 8)
             if isScanning {
                 ProgressView().controlSize(.small).scaleEffect(0.7)
-                Text("Reading \((odometer.pendingRange ?? odometer.selectedRange).label.lowercased())…")
+                Text(readingRangeText)
                     .font(.system(size: 11))
             }
         }
@@ -141,9 +152,21 @@ struct TokensTabView: View {
     }
 
     private var tableHeading: String {
-        guard let usage = visibleUsage else { return odometer.displayedRange.label }
+        let rangeHeading = odometer.displayedRange.localizedHeadingForm(using: localizer)
+        guard let usage = visibleUsage else { return rangeHeading }
         let selected = usage.selectedTotal(appearance.selectedTokenKinds)
-        return "\(odometer.displayedRange.label) · \(TokenUsage.compact(selected)) selected"
+        let compact = TokenUsage.compact(selected, locale: locale)
+        return localizer.localized(
+            LocalizedStringResource.tokensTableHeadingSelected(rangeHeading, compact)
+        )
+    }
+
+    private var readingRangeText: String {
+        let rangeSentenceForm = (odometer.pendingRange ?? odometer.selectedRange)
+            .localizedSentenceForm(using: localizer)
+        return localizer.localized(
+            LocalizedStringResource.tokensTableReadingRange(rangeSentenceForm)
+        )
     }
 
     /// The table, clamped to `tableHeightCap` and scrolling past it. Measured
@@ -176,7 +199,9 @@ struct TokensTabView: View {
 
     private var header: some View {
         HStack(spacing: 5) {
-            Text("MODEL")
+            Text(
+                LocalizedStringResource.tokensTableColumnModel
+            )
                 .frame(maxWidth: .infinity, alignment: .leading)
             ForEach(TokenKind.allCases, id: \.self) { kind in
                 Toggle(isOn: tokenKindBinding(kind)) {
@@ -192,8 +217,8 @@ struct TokensTabView: View {
                 .toggleStyle(.button)
                 .buttonStyle(.plain)
                 .opacity(appearance.selectedTokenKinds.contains(kind) ? 1 : 0.38)
-                .help("\(appearance.selectedTokenKinds.contains(kind) ? "Exclude" : "Include") \(kind.name.lowercased()) in the selected total")
-                .accessibilityLabel("Include \(kind.name.lowercased()) tokens")
+                .help(tokenKindHelp(kind))
+                .accessibilityLabel(tokenKindAccessibilityLabel(kind))
             }
         }
         .font(.system(size: 9.5, weight: .semibold))
@@ -212,6 +237,18 @@ struct TokensTabView: View {
         )
     }
 
+    private func tokenKindHelp(_ kind: TokenKind) -> String {
+        TokenKindPresentation.help(
+            for: kind,
+            isSelected: appearance.selectedTokenKinds.contains(kind),
+            using: localizer
+        )
+    }
+
+    private func tokenKindAccessibilityLabel(_ kind: TokenKind) -> String {
+        TokenKindPresentation.accessibilityLabel(for: kind, using: localizer)
+    }
+
     @ViewBuilder private func agentGroup(_ agent: TokenOdometerModel.AgentTokens) -> some View {
         let selectedTotal = agent.usage.selectedTotal(appearance.selectedTokenKinds)
         VStack(alignment: .leading, spacing: 4) {
@@ -219,10 +256,9 @@ struct TokensTabView: View {
                 Text(agent.label.uppercased())
                 Spacer()
                 if agent.byModel.isEmpty == false {
-                    Text(TokenUsage.compact(selectedTotal))
+                    Text(TokenUsage.compact(selectedTotal, locale: locale))
                         .monospacedDigit()
-                        .help("\(selectedTotal.formatted()) selected tokens of "
-                              + "\(agent.usage.totalTokens.formatted()) across all four kinds")
+                        .help(agentSelectedTotalHelp(agent, selectedTotal: selectedTotal))
                 }
             }
             .font(.system(size: 12, weight: .semibold))
@@ -230,12 +266,17 @@ struct TokensTabView: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(agent.byModel.isEmpty
                                 ? Text(agent.label)
-                                : Text("\(agent.label), \(selectedTotal.formatted()) selected tokens"))
+                                : Text(agentSelectedTotalAccessibilityLabel(
+                                    agent,
+                                    selectedTotal: selectedTotal
+                                )))
 
             if agent.byModel.isEmpty {
                 // An ordinary state, not an error: an agent with nothing in the
                 // selected range says so rather than leaving a bare heading.
-                Text("No usage in this range")
+                Text(
+                    LocalizedStringResource.tokensTableEmptyRange
+                )
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
@@ -244,6 +285,25 @@ struct TokensTabView: View {
                 }
             }
         }
+    }
+
+    private func agentSelectedTotalHelp(
+        _ agent: TokenOdometerModel.AgentTokens,
+        selectedTotal: Int
+    ) -> String {
+        let total = agent.usage.totalTokens.formatted(.number.locale(locale))
+        return localizer.localized(
+            LocalizedStringResource.tokensAgentSelectedTotalHelp(selectedTotal, total)
+        )
+    }
+
+    private func agentSelectedTotalAccessibilityLabel(
+        _ agent: TokenOdometerModel.AgentTokens,
+        selectedTotal: Int
+    ) -> String {
+        return localizer.localized(
+            LocalizedStringResource.tokensAgentSelectedTotalAccessibility(selectedTotal, agent.label)
+        )
     }
 
     private func sortedRows(
@@ -259,9 +319,10 @@ struct TokensTabView: View {
 
     private func modelRow(_ row: TokenOdometerModel.ModelTokens) -> some View {
         let selectedTotal = row.usage.selectedTotal(appearance.selectedTokenKinds)
+        let modelName = row.model.localizedDisplayName(using: localizer)
         return VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 5) {
-                Text(row.model.displayName)
+                Text(modelName)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -273,7 +334,8 @@ struct TokensTabView: View {
                         amount: amount,
                         selectedTotal: selectedTotal,
                         isSelected: isSelected,
-                        mode: appearance.tokenValueDisplay
+                        mode: appearance.tokenValueDisplay,
+                        locale: locale
                     ))
                         // Only the two-line value-plus-percentage cell needs the
                         // smaller face. Model names and disabled raw values keep
@@ -305,17 +367,132 @@ struct TokensTabView: View {
     /// nobody made; CONTEXT.md calls that absence structural.
     private func rowTooltip(_ row: TokenOdometerModel.ModelTokens) -> String {
         let selectedTotal = row.usage.selectedTotal(appearance.selectedTokenKinds)
+        let modelName = row.model.localizedDisplayName(using: localizer)
         let figures = TokenKind.allCases.map { kind -> String in
             let amount = row.usage.amount(of: kind)
-            guard amount > 0 else { return "\(kind.name) —" }
-            if appearance.selectedTokenKinds.contains(kind) {
-                return "\(kind.name) \(amount.formatted()) "
-                    + "(\(TokenValueFormatting.compositionPercentage(amount: amount, total: selectedTotal)) "
-                    + "of selected kinds)"
+            guard amount > 0 else {
+                return TokenKindPresentation.unavailableRow(
+                    for: kind,
+                    using: localizer
+                )
             }
-            return "\(kind.name) \(amount.formatted()); excluded from composition percentages"
+            let formattedAmount = amount.formatted(.number.locale(locale))
+            if appearance.selectedTokenKinds.contains(kind) {
+                let percentage = TokenValueFormatting.compositionPercentage(
+                    amount: amount,
+                    total: selectedTotal,
+                    locale: locale
+                )
+                return TokenKindPresentation.selectedRow(
+                    for: kind,
+                    formattedAmount: formattedAmount,
+                    percentage: percentage,
+                    using: localizer
+                )
+            }
+            return TokenKindPresentation.excludedRow(
+                for: kind,
+                formattedAmount: formattedAmount,
+                using: localizer
+            )
         }
-        return ([row.model.displayName] + figures).joined(separator: "\n")
+        return ([modelName] + figures).joined(separator: "\n")
+    }
+}
+
+@MainActor
+enum TokenKindPresentation {
+    static func help(
+        for kind: TokenKind,
+        isSelected: Bool,
+        using localizer: AppLocalizer
+    ) -> String {
+        let kindForm = kind.localizedActionForm(using: localizer)
+        return localizer.localized(
+            isSelected
+                ? LocalizedStringResource.tokensKindExcludeHelp(kindForm)
+                : LocalizedStringResource.tokensKindIncludeHelp(kindForm)
+        )
+    }
+
+    static func accessibilityLabel(
+        for kind: TokenKind,
+        using localizer: AppLocalizer
+    ) -> String {
+        localizer.localized(
+            LocalizedStringResource.tokensKindIncludeAccessibility(
+                kind.localizedActionForm(using: localizer)
+            )
+        )
+    }
+
+    static func unavailableRow(
+        for kind: TokenKind,
+        using localizer: AppLocalizer
+    ) -> String {
+        localizer.localized(
+            LocalizedStringResource.tokensRowKindUnavailable(
+                kind.localizedRowPrefix(using: localizer)
+            )
+        )
+    }
+
+    static func selectedRow(
+        for kind: TokenKind,
+        formattedAmount: String,
+        percentage: String,
+        using localizer: AppLocalizer
+    ) -> String {
+        localizer.localized(
+            LocalizedStringResource.tokensRowKindSelected(
+                kind.localizedRowPrefix(using: localizer),
+                formattedAmount,
+                percentage
+            )
+        )
+    }
+
+    static func excludedRow(
+        for kind: TokenKind,
+        formattedAmount: String,
+        using localizer: AppLocalizer
+    ) -> String {
+        localizer.localized(
+            LocalizedStringResource.tokensRowKindExcluded(
+                kind.localizedRowPrefix(using: localizer),
+                formattedAmount
+            )
+        )
+    }
+}
+
+private extension TokenKind {
+    func localizedActionForm(using localizer: AppLocalizer) -> String {
+        let resource: LocalizedStringResource = switch self {
+        case .directInput:
+            .tokensKindDirectInputActionForm
+        case .output:
+            .tokensKindOutputActionForm
+        case .cacheWrite:
+            .tokensKindCacheWriteActionForm
+        case .cacheRead:
+            .tokensKindCacheReadActionForm
+        }
+        return localizer.localized(resource)
+    }
+
+    func localizedRowPrefix(using localizer: AppLocalizer) -> String {
+        let resource: LocalizedStringResource = switch self {
+        case .directInput:
+            .tokensKindDirectInputRowPrefix
+        case .output:
+            .tokensKindOutputRowPrefix
+        case .cacheWrite:
+            .tokensKindCacheWriteRowPrefix
+        case .cacheRead:
+            .tokensKindCacheReadRowPrefix
+        }
+        return localizer.localized(resource)
     }
 }
 
@@ -351,12 +528,16 @@ private struct TableHeightKey: PreferenceKey {
 extension TokenKind {
     /// The column header's label. The full name rides in the header tooltip,
     /// which is what makes `C·W` discoverable.
-    var abbreviation: String {
+    var abbreviation: LocalizedStringResource {
         switch self {
-        case .directInput: "IN"
-        case .output: "OUT"
-        case .cacheWrite: "C·W"
-        case .cacheRead: "C·R"
+        case .directInput:
+            LocalizedStringResource.tokensKindDirectInputAbbreviation
+        case .output:
+            LocalizedStringResource.tokensKindOutputAbbreviation
+        case .cacheWrite:
+            LocalizedStringResource.tokensKindCacheWriteAbbreviation
+        case .cacheRead:
+            LocalizedStringResource.tokensKindCacheReadAbbreviation
         }
     }
 

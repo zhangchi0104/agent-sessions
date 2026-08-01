@@ -56,8 +56,9 @@ struct OnboardingView: View {
             Image(systemName: "gauge.with.dots.needle.33percent")
                 .font(.system(size: 40))
                 .foregroundStyle(.tint)
-            Text("Welcome to TokenStats")
+            Text(OnboardingCopy.welcomeTitle)
                 .font(.title2.weight(.semibold))
+                .accessibilityIdentifier("onboarding.welcome.title")
             StepIndicator(current: step)
         }
         .frame(maxWidth: .infinity)
@@ -67,14 +68,20 @@ struct OnboardingView: View {
 
     private var footer: some View {
         HStack {
-            Button("Skip", action: onClose)
+            Button(action: onClose) {
+                Text(OnboardingCopy.skipButton)
+            }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
             Spacer()
             if step.previous != nil {
-                Button("Back", action: back)
+                Button(action: back) {
+                    Text(OnboardingCopy.backButton)
+                }
             }
-            Button(step == .done ? "Finish" : "Continue", action: next)
+            Button(action: next) {
+                Text(step == .done ? OnboardingCopy.finishButton : OnboardingCopy.continueButton)
+            }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
         }
@@ -125,10 +132,10 @@ private struct StepIndicator: View {
 
 /// The title-and-subtitle pair that opens a step's content.
 struct OnboardingStepHeading: View {
-    let title: String
-    let subtitle: String
+    let title: LocalizedStringResource
+    let subtitle: LocalizedStringResource
 
-    init(_ title: String, _ subtitle: String) {
+    init(_ title: LocalizedStringResource, _ subtitle: LocalizedStringResource) {
         self.title = title
         self.subtitle = subtitle
     }
@@ -142,4 +149,16 @@ struct OnboardingStepHeading: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
+}
+
+private enum OnboardingCopy {
+    static let welcomeTitle = LocalizedStringResource.onboardingWelcomeTitle
+
+    static let skipButton = LocalizedStringResource.onboardingNavigationSkipButton
+
+    static let backButton = LocalizedStringResource.onboardingNavigationBackButton
+
+    static let continueButton = LocalizedStringResource.onboardingNavigationContinueButton
+
+    static let finishButton = LocalizedStringResource.onboardingNavigationFinishButton
 }

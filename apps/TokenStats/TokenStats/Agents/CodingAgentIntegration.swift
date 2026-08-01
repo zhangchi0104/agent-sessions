@@ -38,7 +38,7 @@ struct GaugeLayout {
     /// One fixed slot in the row, in display order. An empty list means the
     /// agent's returned windows are the layout: only actual readings are drawn.
     struct Slot {
-        let label: String
+        let identity: UsageWindowIdentity
         var emphasized: Bool = false
     }
 
@@ -52,14 +52,26 @@ struct GaugeLayout {
     /// that matches it, or a neutral placeholder when the plan doesn't expose
     /// that window. Agents with no fixed slots render the snapshot dynamically
     /// instead, so a missing window does not create an invented placeholder.
-    func items(for snapshot: UsageSnapshot) -> [GaugeContent] {
+    func items(
+        for snapshot: UsageSnapshot,
+        localizer: AppLocalizer
+    ) -> [GaugeContent] {
         guard !slots.isEmpty else {
-            return snapshot.windows.map { GaugeContent(window: $0) }
+            return snapshot.windows.map { GaugeContent(window: $0, localizer: localizer) }
         }
         return slots.map { slot in
-            snapshot.windows.first { $0.label == slot.label }
-                .map { GaugeContent(window: $0, emphasized: slot.emphasized) }
-                ?? .placeholder(title: slot.label, emphasized: slot.emphasized)
+            snapshot.windows.first { $0.identity == slot.identity }
+                .map {
+                    GaugeContent(
+                        window: $0,
+                        emphasized: slot.emphasized,
+                        localizer: localizer
+                    )
+                }
+                ?? .placeholder(identity: slot.identity,
+                                title: slot.identity.localizedTitle(using: localizer),
+                                emphasized: slot.emphasized,
+                                localizer: localizer)
         }
     }
 }

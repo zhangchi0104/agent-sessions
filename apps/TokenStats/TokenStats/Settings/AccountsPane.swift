@@ -26,15 +26,14 @@ struct AccountsPane: View {
             // (a footer renders as plain secondary text), so it no longer
             // competes with the tappable account cards above it.
             Section {} footer: {
-                Text("TokenStats stores each account's tokens in your Keychain "
-                     + "and never sends them anywhere else.")
+                Text(AccountsCopy.keychainPrivacyFooter)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .formStyle(.grouped)
-        .navigationTitle("Accounts")
+        .navigationTitle(Text(AccountsCopy.title))
     }
 }
 
@@ -57,7 +56,9 @@ private struct AccountSection: View {
                     }
                     ConnectionStatusLabel(status: status)
                     if isConnected {
-                        Button("Sign out", role: .destructive) { model.signOut(id) }
+                        Button(role: .destructive, action: { model.signOut(id) }) {
+                            Text(AccountsCopy.signOutButton)
+                        }
                     }
                 }
             } label: {
@@ -72,9 +73,10 @@ private struct AccountSection: View {
             }
 
             if let error = model.loginError[id] {
-                Label(error, systemImage: "exclamationmark.triangle.fill")
-                    .font(.callout)
-                    .foregroundStyle(.red)
+                ErrorDiagnosticsDisclosure(
+                    summary: error,
+                    diagnostics: model.diagnostics[id]
+                )
             }
         }
     }
@@ -84,4 +86,12 @@ private struct AccountSection: View {
     private var status: ConnectionStatus {
         ConnectionStatus(state: model.agentStates[id], awaitingCode: model.isAwaitingCode(id))
     }
+}
+
+private enum AccountsCopy {
+    static let title = LocalizedStringResource.settingsAccountsTitle
+
+    static let keychainPrivacyFooter = LocalizedStringResource.settingsAccountsKeychainPrivacyFooter
+
+    static let signOutButton = LocalizedStringResource.settingsAccountsSignOutButton
 }
