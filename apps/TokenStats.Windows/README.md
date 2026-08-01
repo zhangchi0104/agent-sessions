@@ -20,8 +20,9 @@ both subscription Usage Windows and local transcript tokens.
 
 ## Tokens and API-equivalent estimates
 
-The Tokens tab retains a Windows-specific summary mode over the selected time
-range:
+The Tokens tab shows two Windows-specific summaries together for the selected
+reporting range. Billing tokens is the primary reading, while Estimated API
+value is a quieter reference beneath it:
 
 - **Billing tokens** is `direct input + cache writes + output`. Cache reads
   remain visible in the Odometer table but are deliberately excluded from this
@@ -49,8 +50,8 @@ The Odometer table itself always uses the cross-platform raw definition:
 On Windows, the four column headings can be toggled independently. The
 **selected total** is the sum of the enabled Token Kinds over the selected
 range; it drives table subtotals, model ordering, and composition percentages.
-It does not change the Billing tokens/API-equivalent summary, rewrite transcript
-records, or redefine the raw four-kind Token Odometer total.
+It does not change either summary, rewrite transcript records, or redefine the
+raw four-kind Token Odometer total.
 
 The **Display** Settings page controls whether each enabled Token Kind is shown
 as a numeric value, its percentage of that row's selected total, or both as

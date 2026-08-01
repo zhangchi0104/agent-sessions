@@ -27,7 +27,6 @@ public partial class FlyoutWindow : Window
     private FlyoutTab _selectedTab = FlyoutTab.Usage;
     private System.Drawing.Point _notificationAreaAnchor;
     private DispatcherOperation? _repositionOperation;
-    private TodayMetricMode? _presentedTokenSummaryMetric;
     private bool _allowClose;
     private bool _refreshInFlight;
     private bool _hasNotificationAreaAnchor;
@@ -143,39 +142,13 @@ public partial class FlyoutWindow : Window
         RenderTokenOdometer();
     }
 
-    private void ApiMetricButton_OnChecked(
+    private async void TokenRangeComboBox_OnSelectionChanged(
         object sender,
-        RoutedEventArgs eventArgs)
-    {
-        if (_updatingControls || !IsInitialized)
-        {
-            return;
-        }
-
-        TrySaveDisplayPreferences(
-            _settings.Appearance with { TodayMetric = TodayMetricMode.Usage });
-    }
-
-    private void BillingMetricButton_OnChecked(
-        object sender,
-        RoutedEventArgs eventArgs)
-    {
-        if (_updatingControls || !IsInitialized)
-        {
-            return;
-        }
-
-        TrySaveDisplayPreferences(
-            _settings.Appearance with { TodayMetric = TodayMetricMode.Token });
-    }
-
-    private async void RangeButton_OnChecked(
-        object sender,
-        RoutedEventArgs eventArgs)
+        SelectionChangedEventArgs eventArgs)
     {
         if (_updatingControls ||
             !IsInitialized ||
-            sender is not RadioButton { Tag: string rangeName } ||
+            sender is not ComboBox { SelectedValue: string rangeName } ||
             !Enum.TryParse<TokenRange>(rangeName, out var range))
         {
             return;
@@ -328,14 +301,7 @@ public partial class FlyoutWindow : Window
         var selection = preferences.SelectedTokenKinds;
         var selectedRange = _tokenOdometer.SelectedRange;
         _updatingControls = true;
-        ApiMetricButton.IsChecked =
-            preferences.TodayMetric == TodayMetricMode.Usage;
-        BillingMetricButton.IsChecked =
-            preferences.TodayMetric == TodayMetricMode.Token;
-        TodayRangeButton.IsChecked = selectedRange == TokenRange.Today;
-        SevenDaysRangeButton.IsChecked = selectedRange == TokenRange.SevenDays;
-        ThirtyDaysRangeButton.IsChecked =
-            selectedRange == TokenRange.ThirtyDays;
+        TokenRangeComboBox.SelectedValue = selectedRange.ToString();
         DirectInputKindButton.IsChecked =
             selection.Includes(TokenKind.DirectInput);
         OutputKindButton.IsChecked =
@@ -361,10 +327,12 @@ public partial class FlyoutWindow : Window
             {
                 SetTokenSummaryValue(
                     "—",
-                    preferences.TodayMetric,
                     readingRange);
                 TokenSummaryLabel.Text =
                     $"Couldn't read {readingRange.Label()}";
+                ApiEstimateValue.Text = "—";
+                ApiEstimatePanel.ToolTip =
+                    $"Token usage could not be read: {scanError}";
                 TokenSummaryPanel.ToolTip =
                     $"Token usage could not be read: {scanError}";
                 AutomationProperties.SetName(
@@ -375,9 +343,11 @@ public partial class FlyoutWindow : Window
             {
                 SetTokenSummaryValue(
                     "—",
-                    preferences.TodayMetric,
                     readingRange);
                 TokenSummaryLabel.Text = $"Reading {readingRange.Label()}…";
+                ApiEstimateValue.Text = "—";
+                ApiEstimatePanel.ToolTip =
+                    $"Reading token usage for {readingRange.Label()}.";
                 TokenSummaryPanel.ToolTip =
                     $"Reading token usage for {readingRange.Label()}.";
                 AutomationProperties.SetName(
@@ -385,13 +355,10 @@ public partial class FlyoutWindow : Window
                     $"Reading token usage for {readingRange.Label()}");
             }
         }
-        else if (preferences.TodayMetric == TodayMetricMode.Usage)
-        {
-            RenderApiEquivalent(usage, displayedRange);
-        }
         else
         {
             RenderBillingTokens(usage, displayedRange);
+            RenderApiEstimate(usage, displayedRange);
         }
 
         OdometerProgress.Visibility = _tokenOdometer.IsScanning
@@ -459,7 +426,6 @@ public partial class FlyoutWindow : Window
     {
         SetTokenSummaryValue(
             usage?.BillableTokens.ToString("N0") ?? "—",
-            TodayMetricMode.Token,
             displayedRange,
             usage?.BillableTokens);
         TokenSummaryLabel.Text =
@@ -478,22 +444,17 @@ public partial class FlyoutWindow : Window
                   $"{displayedRange.Label()}; cache reads excluded");
     }
 
-    private void RenderApiEquivalent(
+    private void RenderApiEstimate(
         TokenUsage? usage,
         TokenRange displayedRange)
     {
         if (usage is null)
         {
-            SetTokenSummaryValue(
-                "—",
-                TodayMetricMode.Usage,
-                displayedRange);
-            TokenSummaryLabel.Text =
-                $"API-equivalent · {displayedRange.Label()}";
-            TokenSummaryPanel.ToolTip =
+            ApiEstimateValue.Text = "—";
+            ApiEstimatePanel.ToolTip =
                 $"No API-equivalent usage for {displayedRange.Label()}.";
             AutomationProperties.SetName(
-                TokenSummaryPanel,
+                ApiEstimatePanel,
                 $"No API-equivalent usage for {displayedRange.Label()}");
             return;
         }
@@ -502,13 +463,7 @@ public partial class FlyoutWindow : Window
         var estimate = ApiPricingCatalog.Estimate(
             usage,
             pricingDate);
-        SetTokenSummaryValue(
-            UsageFormatting.ApiEquivalentCost(estimate),
-            TodayMetricMode.Usage,
-            displayedRange,
-            estimate.IsAvailable ? estimate.CostUsd : null);
-        TokenSummaryLabel.Text =
-            $"API-equivalent · {displayedRange.Label()}";
+        ApiEstimateValue.Text = UsageFormatting.ApiEquivalentCost(estimate);
         var unpriced = estimate.IsPartial
             ? $" Unpriced: {string.Join(", ", estimate.UnpricedModels)} " +
               $"({estimate.UnpricedTokens:N0} tokens)."
@@ -518,7 +473,7 @@ public partial class FlyoutWindow : Window
             usage.ModelUsage
                 .Select(item => item.Model ?? "unknown model")
                 .Distinct(StringComparer.OrdinalIgnoreCase));
-        TokenSummaryPanel.ToolTip =
+        ApiEstimatePanel.ToolTip =
             "Standard API-equivalent estimate by recorded model; includes all " +
             "four Token Kinds at list rates regardless of the display toggles. " +
             "The final total is rounded upward to the nearest cent. " +
@@ -527,32 +482,26 @@ public partial class FlyoutWindow : Window
             $"Prices reviewed {ApiPricingCatalog.LastReviewed:yyyy-MM-dd}." +
             unpriced;
         AutomationProperties.SetName(
-            TokenSummaryPanel,
+            ApiEstimatePanel,
             estimate.IsAvailable
-                ? $"{UsageFormatting.ApiEquivalentCost(estimate)} estimated " +
-                  $"API-equivalent usage for {displayedRange.Label()}"
+                ? $"Estimated API value {UsageFormatting.ApiEquivalentCost(estimate)} " +
+                  $"for {displayedRange.Label()}"
                 : "API-equivalent usage unavailable because the transcript " +
                   "model is unknown");
     }
 
     private void SetTokenSummaryValue(
         string text,
-        TodayMetricMode metric,
         TokenRange displayedRange,
         decimal? numericValue = null)
     {
-        var metricChanged =
-            _presentedTokenSummaryMetric is { } previousMetric &&
-            previousMetric != metric;
-        _presentedTokenSummaryMetric = metric;
         TokenSummaryValue.SetAnimatedValue(
             text,
             numericValue,
-            new TokenSummaryTransitionKey(metric, displayedRange),
+            displayedRange,
             animate:
                 numericValue.HasValue &&
-                _selectedTab == FlyoutTab.Tokens &&
-                !metricChanged);
+                _selectedTab == FlyoutTab.Tokens);
     }
 
     private FrameworkElement BuildTokenAgentSection(
@@ -1319,10 +1268,6 @@ public partial class FlyoutWindow : Window
         Usage,
         Tokens,
     }
-
-    private readonly record struct TokenSummaryTransitionKey(
-        TodayMetricMode Metric,
-        TokenRange Range);
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr window);

@@ -293,7 +293,7 @@
     "typographyMeta": {
       "display": {
         "displayName": "Hero Reading",
-        "purpose": "One dominant API-equivalent or Billing-token value."
+        "purpose": "One dominant Billing-token value with Estimated API value as a secondary reference."
       },
       "headline": {
         "displayName": "Window Headline",
@@ -370,11 +370,11 @@
       "css": ".ds-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 3px; border: 1px solid #D9DCE1; border-radius: 999px; background: #F1F3F5; } .ds-tabs button { min-height: 34px; border: 0; border-radius: 999px; background: transparent; color: #62676F; font: 600 13px/1.25 -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\", sans-serif; cursor: pointer; transition: background 180ms ease, color 180ms ease; } .ds-tabs button:hover { color: #17191C; background: #EAEDF0; } .ds-tabs button.is-selected { background: #08866D; color: #FFFFFF; } .ds-tabs button:focus-visible { outline: 1.5px solid #17191C; outline-offset: -3px; }"
     },
     {
-      "name": "Compact Range Segments",
-      "kind": "nav",
-      "description": "A smaller segmented control for Today, 7-day, and 30-day ranges.",
-      "html": "<div class=\"ds-range\" role=\"radiogroup\" aria-label=\"Token Odometer range\"><button class=\"is-selected\" role=\"radio\" aria-checked=\"true\">Today</button><button role=\"radio\" aria-checked=\"false\">7 days</button><button role=\"radio\" aria-checked=\"false\">30 days</button></div>",
-      "css": ".ds-range { display: grid; grid-template-columns: repeat(3, 1fr); padding: 3px; border: 1px solid #D9DCE1; border-radius: 8px; background: #F1F3F5; } .ds-range button { min-height: 28px; padding: 3px 7px; border: 0; border-radius: 6px; background: transparent; color: #62676F; font: 400 11.5px/1.25 -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\", sans-serif; cursor: pointer; } .ds-range button:hover { background: #EAEDF0; color: #17191C; } .ds-range button.is-selected { background: #08866D; color: #FFFFFF; } .ds-range button:focus-visible { outline: 1.5px solid #17191C; outline-offset: -3px; }"
+      "name": "Reporting Range Menu",
+      "kind": "input",
+      "description": "A compact menu above every Tokens reading that scopes the summary and table together.",
+      "html": "<label class=\"ds-range\"><span>Reporting range</span><select aria-label=\"Reporting range\"><option>Today</option><option>7 days</option><option>30 days</option></select></label>",
+      "css": ".ds-range { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #62676F; font: 400 13px/1.35 -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\", sans-serif; } .ds-range select { min-width: 112px; min-height: 32px; padding: 4px 30px 4px 9px; border: 1px solid #D9DCE1; border-radius: 6px; background: #FFFFFF; color: #17191C; font: inherit; } .ds-range select:focus-visible { outline: 1.5px solid #08866D; outline-offset: -2px; }"
     },
     {
       "name": "Token Kind Toggle",

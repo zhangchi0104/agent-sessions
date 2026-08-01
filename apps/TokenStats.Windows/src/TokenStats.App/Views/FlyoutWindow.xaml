@@ -113,39 +113,31 @@
                     VerticalScrollBarVisibility="Auto"
                     Visibility="Collapsed">
                     <StackPanel>
-                        <Border
-                            Padding="3"
-                            Background="{DynamicResource SubtleBackgroundBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <RadioButton
-                                    x:Name="ApiMetricButton"
-                                    Grid.Column="0"
-                                    Style="{StaticResource CompactSegmentButton}"
-                                    GroupName="TokenSummaryMetric"
-                                    AutomationProperties.Name="API equivalent summary"
-                                    Checked="ApiMetricButton_OnChecked"
-                                    Content="API equivalent" />
-                                <RadioButton
-                                    x:Name="BillingMetricButton"
-                                    Grid.Column="1"
-                                    Style="{StaticResource CompactSegmentButton}"
-                                    GroupName="TokenSummaryMetric"
-                                    AutomationProperties.Name="Billing tokens summary"
-                                    Checked="BillingMetricButton_OnChecked"
-                                    Content="Billing tokens" />
-                            </Grid>
-                        </Border>
+                        <Grid Margin="0,4,0,18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Style="{StaticResource SecondaryText}"
+                                Text="Reporting range" />
+                            <ComboBox
+                                x:Name="TokenRangeComboBox"
+                                Grid.Column="1"
+                                Width="112"
+                                AutomationProperties.Name="Reporting range"
+                                SelectedValuePath="Tag"
+                                SelectionChanged="TokenRangeComboBox_OnSelectionChanged">
+                                <ComboBoxItem Content="Today" Tag="Today" />
+                                <ComboBoxItem Content="7 days" Tag="SevenDays" />
+                                <ComboBoxItem Content="30 days" Tag="ThirtyDays" />
+                            </ComboBox>
+                        </Grid>
 
                         <Border
                             x:Name="TokenSummaryPanel"
-                            Margin="0,12,0,12"
+                            Margin="0,0,0,18"
                             Background="Transparent"
                             ToolTipService.ShowDuration="30000">
                             <StackPanel>
@@ -162,53 +154,29 @@
                                     x:Name="TokenSummaryLabel"
                                     Margin="1,-2,0,0"
                                     Style="{StaticResource SecondaryText}"
-                                    Text="API-equivalent · Today" />
+                                    Text="Billing tokens · Today" />
+                                <Grid
+                                    x:Name="ApiEstimatePanel"
+                                    Margin="1,10,0,0"
+                                    ToolTipService.ShowDuration="30000">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock
+                                        Style="{StaticResource SecondaryText}"
+                                        Text="Estimated API value" />
+                                    <TextBlock
+                                        x:Name="ApiEstimateValue"
+                                        Grid.Column="1"
+                                        FontWeight="SemiBold"
+                                        Foreground="{DynamicResource SecondaryTextBrush}"
+                                        Text="—" />
+                                </Grid>
                             </StackPanel>
                         </Border>
 
-                        <Border
-                            Padding="3"
-                            Background="{DynamicResource SubtleBackgroundBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <RadioButton
-                                    x:Name="TodayRangeButton"
-                                    Grid.Column="0"
-                                    Style="{StaticResource CompactSegmentButton}"
-                                    GroupName="TokenRange"
-                                    Tag="Today"
-                                    AutomationProperties.Name="Today token range"
-                                    Checked="RangeButton_OnChecked"
-                                    Content="Today" />
-                                <RadioButton
-                                    x:Name="SevenDaysRangeButton"
-                                    Grid.Column="1"
-                                    Style="{StaticResource CompactSegmentButton}"
-                                    GroupName="TokenRange"
-                                    Tag="SevenDays"
-                                    AutomationProperties.Name="Seven day token range"
-                                    Checked="RangeButton_OnChecked"
-                                    Content="7 days" />
-                                <RadioButton
-                                    x:Name="ThirtyDaysRangeButton"
-                                    Grid.Column="2"
-                                    Style="{StaticResource CompactSegmentButton}"
-                                    GroupName="TokenRange"
-                                    Tag="ThirtyDays"
-                                    AutomationProperties.Name="Thirty day token range"
-                                    Checked="RangeButton_OnChecked"
-                                    Content="30 days" />
-                            </Grid>
-                        </Border>
-
-                        <Grid Margin="0,14,0,6">
+                        <Grid Margin="0,0,0,6">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />

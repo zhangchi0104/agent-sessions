@@ -184,7 +184,7 @@ The machine-readable frontmatter records both Windows light and dark values wher
 
 ### Hierarchy
 
-- **Display** (700, 38px, 1): Windows API-equivalent or Billing-token hero value; one dominant reading per surface.
+- **Display** (700, 38px, 1): Windows Billing-token hero value; Estimated API value stays a smaller secondary reference, never a competing tab.
 - **Headline** (600, 16px, 1.25): product title and major flyout heading.
 - **Title** (600, 14px, 1.25): settings sections and agent-level group headings.
 - **Body** (400, 13px, 1.35): controls, descriptions, and ordinary labels.
@@ -201,7 +201,7 @@ The machine-readable frontmatter records both Windows light and dark values wher
 
 TokenStats uses a single compact vertical flow rather than a dashboard grid. The header, primary tab switcher, active reading, supporting table or gauges, and footer form one scanning axis.
 
-The macOS popover is 332pt wide with 16pt outer padding and 16pt section spacing. Its primary tab bar spans the available width; the Token Odometer table keeps compact 42pt value columns and scrolls only after reaching its measured height cap. The Windows flyout is 424 device-independent pixels wide, capped at 760px high, with a 12px outer shadow margin, 16px surface inset, and 14px housing radius. Its Token Kind columns are 64px each. Both layouts grow with real content and introduce vertical scrolling only when content cannot fit the available work area.
+The macOS popover is 332pt wide with 16pt outer padding and 16pt section spacing. Its primary tab bar spans the available width; the Token Odometer table keeps compact 42pt value columns and scrolls only after reaching its measured height cap. The Windows flyout is 424 device-independent pixels wide, capped at 760px high, with a 12px outer shadow margin, 16px surface inset, and 14px housing radius. Its Reporting range menu sits above both the Billing-token summary and Odometer table so its scope is unambiguous; the API estimate appears as secondary text beneath the primary reading. Token Kind columns are 64px each. Both layouts grow with real content and introduce vertical scrolling only when content cannot fit the available work area.
 
 Settings can become roomier without losing the native hierarchy: macOS uses a 210–240pt System Settings-style sidebar and a detail pane with a 462pt minimum; onboarding uses a focused 540 × 600pt window with 28pt content insets. Dense information remains grouped by Coding Agent, then Model, then Token Kind.
 
@@ -263,6 +263,7 @@ Components are quietly tactile and native: their states are clear, their silhoue
 ### Navigation
 
 - **Style:** the two primary tabs occupy equal width. macOS 26 uses one Liquid Glass capsule with a tinted sliding puck; earlier macOS uses a large native segmented picker. Windows uses an 8px tonal container with compact native-style segments.
+- **Range:** Windows uses one compact Reporting range menu above all Tokens data instead of a second segmented control. The selected range scopes the summary and table together.
 - **States:** selected text must remain contrast-safe against the actual accent. macOS uses AppKit's alternate selected-control text color rather than assuming white.
 - **Motion:** the macOS puck uses a 0.28-second snappy transition and jumps instantly under Reduce Motion.
 
