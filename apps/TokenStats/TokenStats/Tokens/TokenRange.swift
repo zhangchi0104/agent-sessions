@@ -28,12 +28,19 @@ nonisolated enum TokenRange: String, CaseIterable, Codable, Hashable, Sendable {
         }
     }
 
-    var label: String {
+    var title: LocalizedStringResource {
         switch self {
-        case .today: "Today"
-        case .sevenDays: "7 days"
-        case .thirtyDays: "30 days"
+        case .today:
+            LocalizedStringResource.tokensRangeToday
+        case .sevenDays:
+            LocalizedStringResource.tokensRangeSevenDays
+        case .thirtyDays:
+            LocalizedStringResource.tokensRangeThirtyDays
         }
+    }
+
+    func localizedTitle(using localizer: AppLocalizer) -> String {
+        localizer.localized(title)
     }
 
     /// Local midnight at the start of the range, measured back from `now`.

@@ -89,4 +89,50 @@ struct CodexOAuthFlowTests {
         #expect(LoopbackAuthListener.parseCallback(httpRequest: request) == nil)
         #expect(LoopbackAuthListener.parseCallback(httpRequest: "garbage") == nil)
     }
+
+    @Test func loopbackCallbackHTMLDeclaresLanguageAndLocalizesCompleteCopy() {
+        let fixtures: [(String, Bool, String, String, String)] = [
+            (
+                "en-US",
+                true,
+                "en",
+                "Signed in to Codex",
+                "You can close this tab and return to TokenStats."
+            ),
+            (
+                "en-US",
+                false,
+                "en",
+                "Sign-in failed",
+                "No authorization code was found. Return to TokenStats and try again."
+            ),
+            (
+                "zh-Hans-CN",
+                true,
+                "zh-Hans",
+                "已登录 Codex",
+                "你可以关闭此标签页并返回 TokenStats。"
+            ),
+            (
+                "zh-Hans-CN",
+                false,
+                "zh-Hans",
+                "登录失败",
+                "未找到授权码。请返回 TokenStats 后重试。"
+            ),
+        ]
+
+        for (localeIdentifier, succeeded, language, heading, body) in fixtures {
+            let html = LoopbackAuthListener.callbackHTML(
+                succeeded: succeeded,
+                localizer: AppLocalizer(locale: Locale(identifier: localeIdentifier))
+            )
+
+            #expect(html.contains(#"<html lang="\#(language)">"#))
+            #expect(html.contains("<title>TokenStats</title>"))
+            #expect(html.contains("<h2>\(heading)</h2>"))
+            #expect(html.contains("<p>\(body)</p>"))
+            #expect(html.contains("account.sign_in.callback") == false)
+        }
+    }
 }

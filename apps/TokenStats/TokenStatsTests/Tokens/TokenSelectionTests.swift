@@ -7,10 +7,13 @@
 //  objective raw or Billing-token readings.
 //
 
+import Foundation
 import Testing
 @testable import TokenStats
 
 struct TokenSelectionTests {
+    private let englishLocale = Locale(identifier: "en-US")
+
     private let usage = TokenUsage(
         inputTokens: 10,
         outputTokens: 20,
@@ -38,7 +41,8 @@ struct TokenSelectionTests {
                 amount: 10,
                 selectedTotal: 30,
                 isSelected: true,
-                mode: .value
+                mode: .value,
+                locale: englishLocale
             ) == "10"
         )
         #expect(
@@ -46,7 +50,8 @@ struct TokenSelectionTests {
                 amount: 10,
                 selectedTotal: 30,
                 isSelected: true,
-                mode: .percentage
+                mode: .percentage,
+                locale: englishLocale
             ) == "33.3%"
         )
         #expect(
@@ -54,7 +59,8 @@ struct TokenSelectionTests {
                 amount: 10,
                 selectedTotal: 30,
                 isSelected: true,
-                mode: .valueAndPercentage
+                mode: .valueAndPercentage,
+                locale: englishLocale
             ) == "10\n(33.3%)"
         )
     }
@@ -66,7 +72,8 @@ struct TokenSelectionTests {
                     amount: 40,
                     selectedTotal: 60,
                     isSelected: false,
-                    mode: mode
+                    mode: mode,
+                    locale: englishLocale
                 ) == "40"
             )
         }
@@ -75,7 +82,8 @@ struct TokenSelectionTests {
                 amount: 0,
                 selectedTotal: 60,
                 isSelected: true,
-                mode: .percentage
+                mode: .percentage,
+                locale: englishLocale
             ) == "–"
         )
     }

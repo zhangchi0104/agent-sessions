@@ -13,10 +13,12 @@ import AppKit
 /// The top-level Settings window: a sidebar of sections with a detail pane.
 struct SettingsView: View {
     let model: UsageModel
+    let localization: LocalizationSettings
+    let relauncher: AppRelauncher
     /// Re-presents the first-run onboarding flow (the About pane's "Run setup
     /// again"). Defaults to a no-op so previews and tests can omit it.
     var onRunSetupAgain: () -> Void = {}
-    @State private var selection: SettingsSection? = .accounts
+    @State private var selection: SettingsSection? = .general
     private static let sidebarWidth: CGFloat = 218
 
     var body: some View {
@@ -29,7 +31,9 @@ struct SettingsView: View {
                 .toolbar(removing: .sidebarToggle)
         } detail: {
             Group {
-                switch selection ?? .accounts {
+                switch selection ?? .general {
+                case .general:
+                    GeneralPane(localization: localization, relauncher: relauncher)
                 case .accounts: AccountsPane(model: model)
                 case .appearance: AppearancePane(appearance: model.appearance)
                 case .about: AboutPane(onRunSetupAgain: onRunSetupAgain)

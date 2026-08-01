@@ -5,7 +5,8 @@
   "author": "Alex Zhang",
   "private": true,
   "scripts": {
-    "test": "npm run test:signing-isolation && npm run test:release-toolchain && xcodebuild test -project TokenStats.xcodeproj -scheme TokenStats -destination 'platform=macOS' CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER=",
+    "test": "npm run test:localization && npm run test:signing-isolation && npm run test:release-toolchain && xcodebuild test -project TokenStats.xcodeproj -scheme TokenStats -destination 'platform=macOS' CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER=",
+    "test:localization": "./scripts/test-check-localization.sh && ./scripts/check-localization.sh",
     "test:signing-isolation": "./scripts/test-signing-isolation.sh",
     "test:release-toolchain": "./scripts/test-verify-release-toolchain.sh",
     "build": "xcodebuild -project TokenStats.xcodeproj -scheme TokenStats -configuration Release -derivedDataPath build build",

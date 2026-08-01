@@ -21,9 +21,9 @@ struct AgentFacts: Sendable {
     let shortLabel: String
     let signInStyle: SignInStyle
     /// Gauge slots in display order.
-    let windowLabels: [String]
+    let windowIdentities: [UsageWindowIdentity]
     /// The slot drawn larger, or nil when every window is equal.
-    let emphasizedWindow: String?
+    let emphasizedWindow: UsageWindowIdentity?
     /// Appended to the user's home directory.
     let transcriptSubpath: String
 }
@@ -33,20 +33,24 @@ private let expectedAgents: [AgentFacts] = [
                displayName: "Claude Code",
                shortLabel: "C",
                signInStyle: .pasteCode,
-               windowLabels: ["Weekly", "5-hour", "Fable"],
-               emphasizedWindow: "5-hour",
+               windowIdentities: [.weekly, .shortTerm, .modelWeekly(model: "Fable")],
+               emphasizedWindow: .shortTerm,
                transcriptSubpath: "/.claude/projects"),
     AgentFacts(id: .codex,
                displayName: "Codex",
                shortLabel: "X",
                signInStyle: .selfCompleting,
-               windowLabels: [],
+               windowIdentities: [],
                emphasizedWindow: nil,
                transcriptSubpath: "/.codex/sessions"),
 ]
 
 @MainActor
 struct CodingAgentRegistryTests {
+
+    private var englishLocalizer: AppLocalizer {
+        AppLocalizer(locale: Locale(identifier: "en-US"))
+    }
 
     @Test func registryCoversEveryCodingAgentExactlyOnce() {
         let registered = CodingAgentRegistry.all.map(\.id)
@@ -77,10 +81,10 @@ struct CodingAgentRegistryTests {
     @Test(arguments: expectedAgents)
     func agentPublishesItsGaugeLayout(_ expected: AgentFacts) {
         let layout = CodingAgentRegistry.agent(expected.id).gaugeLayout
-        let labels = layout.slots.map(\.label)
-        let emphasized = layout.slots.filter(\.emphasized).map(\.label)
+        let identities = layout.slots.map(\.identity)
+        let emphasized = layout.slots.filter(\.emphasized).map(\.identity)
 
-        #expect(labels == expected.windowLabels)
+        #expect(identities == expected.windowIdentities)
         #expect(emphasized == [expected.emphasizedWindow].compactMap { $0 })
     }
 
@@ -91,63 +95,96 @@ struct CodingAgentRegistryTests {
         let layout = CodingAgentRegistry.agent(expected.id).gaugeLayout
         let empty = UsageSnapshot(windows: [], fetchedAt: Date())
 
-        let items = layout.items(for: empty)
+        let items = layout.items(for: empty, localizer: englishLocalizer)
         let titles = items.map(\.title)
         let enabled = items.map(\.isEnabled)
-        let emphasized = items.filter(\.emphasized).map(\.title)
+        let emphasized = items.filter(\.emphasized).map(\.identity)
 
-        #expect(titles == expected.windowLabels)
+        #expect(items.map(\.identity) == expected.windowIdentities)
+        #expect(titles == expected.windowIdentities.map(\.fallbackTitle))
         #expect(enabled == titles.map { _ in false })
         #expect(emphasized == [expected.emphasizedWindow].compactMap { $0 })
     }
 
     @Test func codexGaugeLayoutUsesOnlyReturnedWindows() {
         let layout = CodingAgentRegistry.agent(.codex).gaugeLayout
-        let weekly = UsageWindow(label: "Weekly", percentConsumed: 18,
+        let weekly = UsageWindow(identity: .weekly, percentConsumed: 18,
                                  resetAt: Date(timeIntervalSince1970: 1717300000))
 
-        let weeklyOnly = layout.items(for: UsageSnapshot(windows: [weekly], fetchedAt: Date()))
+        let weeklyOnly = layout.items(
+            for: UsageSnapshot(windows: [weekly], fetchedAt: Date()),
+            localizer: englishLocalizer
+        )
 
         #expect(weeklyOnly.map(\.title) == ["Weekly"])
         #expect(weeklyOnly.allSatisfy { $0.isEnabled })
 
-        let short = UsageWindow(label: "5-hour", percentConsumed: 42,
+        let short = UsageWindow(identity: .shortTerm, percentConsumed: 42,
                                 resetAt: Date(timeIntervalSince1970: 1716800000))
-        let both = layout.items(for: UsageSnapshot(windows: [short, weekly], fetchedAt: Date()))
+        let both = layout.items(
+            for: UsageSnapshot(windows: [short, weekly], fetchedAt: Date()),
+            localizer: englishLocalizer
+        )
 
         #expect(both.map(\.title) == ["5-hour", "Weekly"])
         #expect(both.allSatisfy { $0.isEnabled })
     }
 
     @Test(arguments: expectedAgents)
-    func gaugeLayoutReadsEachWindowFromTheSnapshotByLabel(_ expected: AgentFacts) {
-        // A distinct, label-keyed figure per window, so a slot that picked the
+    func gaugeLayoutReadsEachWindowFromTheSnapshotByIdentity(_ expected: AgentFacts) {
+        // A distinct, identity-keyed figure per window, so a slot that picked the
         // wrong window shows up as the wrong number rather than passing.
-        func consumed(for label: String) -> Double {
-            Double(((expected.windowLabels.firstIndex(of: label) ?? 0) * 10) + 5)
+        func consumed(for identity: UsageWindowIdentity) -> Double {
+            Double(((expected.windowIdentities.firstIndex(of: identity) ?? 0) * 10) + 5)
         }
         // Deliberately REVERSED, i.e. not in slot order — the real parsers don't
         // emit it that way (Claude Code's yields 5-hour, Weekly, Fable while its
         // layout draws Weekly, 5-hour, Fable), and a fixture in slot order would
         // pass even for an implementation that ignored slots entirely and mapped
         // the snapshot straight through.
-        let windows = expected.windowLabels.reversed().map { label in
-            UsageWindow(label: label, percentConsumed: consumed(for: label),
+        let windows = expected.windowIdentities.reversed().map { identity in
+            UsageWindow(identity: identity, percentConsumed: consumed(for: identity),
                         resetAt: Date(timeIntervalSince1970: 1716800000))
         }
         let layout = CodingAgentRegistry.agent(expected.id).gaugeLayout
 
-        let items = layout.items(for: UsageSnapshot(windows: windows, fetchedAt: Date()))
-        let titles = items.map(\.title)
+        let items = layout.items(
+            for: UsageSnapshot(windows: windows, fetchedAt: Date()),
+            localizer: englishLocalizer
+        )
         let enabled = items.map(\.isEnabled)
         // Slot order is the layout's, not the snapshot's, and each slot carries
-        // the figure belonging to its own label.
+        // the figure belonging to its own semantic identity.
         let remaining = items.map(\.percentRemaining)
-        let expectedRemaining = expected.windowLabels.map { 100 - consumed(for: $0) }
+        let expectedRemaining = expected.windowIdentities.map { 100 - consumed(for: $0) }
 
-        #expect(titles == expected.windowLabels)
-        #expect(enabled == titles.map { _ in true })
+        #expect(items.map(\.identity) == expected.windowIdentities)
+        #expect(items.map(\.title) == expected.windowIdentities.map(\.fallbackTitle))
+        #expect(enabled == expected.windowIdentities.map { _ in true })
         #expect(remaining == expectedRemaining)
+    }
+
+    @Test func fixedGaugeLayoutDoesNotMatchByFallbackTitle() throws {
+        let layout = CodingAgentRegistry.agent(.claudeCode).gaugeLayout
+        // Both identities currently fall back to the same English title. Only
+        // the semantic short-term identity may fill Claude's center slot.
+        let sameTitleDifferentIdentity = UsageWindow(
+            identity: .duration(seconds: 5 * 60 * 60),
+            percentConsumed: 42,
+            resetAt: nil
+        )
+
+        let items = layout.items(
+            for: UsageSnapshot(
+                windows: [sameTitleDifferentIdentity],
+                fetchedAt: Date()
+            ),
+            localizer: englishLocalizer
+        )
+        let shortTerm = try #require(items.first { $0.identity == .shortTerm })
+
+        #expect(shortTerm.title == "5-hour")
+        #expect(shortTerm.isEnabled == false)
     }
 
     @Test func shortLabelsAreDistinctSoTheMenuBarStaysReadable() {

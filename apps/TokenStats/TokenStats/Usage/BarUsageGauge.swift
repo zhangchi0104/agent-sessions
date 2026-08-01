@@ -32,7 +32,9 @@ struct BarUsageGauge: View {
                     .font(.system(.body, design: .rounded).weight(.semibold).monospacedDigit())
                     .foregroundStyle(.primary)
                 if content.isEnabled {
-                    Text("left")
+                    Text(
+                        LocalizedStringResource.usageGaugeRemainingSuffix
+                    )
                         .font(.callout.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
@@ -68,7 +70,8 @@ struct BarUsageGauge: View {
         case .text(let text):
             Text(text).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
         case .unavailable:
-            Text("—").font(.callout).foregroundStyle(.tertiary)
+            // i18n-ignore: Universal unavailable-value glyph, not natural-language copy.
+            Text(verbatim: "—").font(.callout).foregroundStyle(.tertiary)
         }
     }
 }

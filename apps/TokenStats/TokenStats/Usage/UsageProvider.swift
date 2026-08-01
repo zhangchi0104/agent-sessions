@@ -32,16 +32,29 @@ enum UsageError: Error {
 
 extension UsageError {
     /// A short, user-facing explanation for the popover diagnostics line.
-    var displayText: String {
+    func displayText(using localizer: AppLocalizer) -> String {
         switch self {
         case .notSignedIn:
-            return "Not signed in."
+            return localizer.localized(
+                LocalizedStringResource.usageErrorNotSignedInDetail
+            )
         case .badResponse(let status, let body):
-            return "HTTP \(status). \(body.prefix(200))"
+            return localizer.localized(
+                LocalizedStringResource.usageErrorHttpResponseDetail(
+                    status,
+                    String(body.prefix(200))
+                )
+            )
         case .noWindows(let body):
-            return "Got data but no Usage Windows recognized. \(body.prefix(200))"
+            return localizer.localized(
+                LocalizedStringResource.usageErrorNoWindowsDetail(
+                    String(body.prefix(200))
+                )
+            )
         case .loginFailed(let detail):
-            return "Login failed. \(detail)"
+            return localizer.localized(
+                LocalizedStringResource.usageErrorLoginFailedDetail(detail)
+            )
         }
     }
 }

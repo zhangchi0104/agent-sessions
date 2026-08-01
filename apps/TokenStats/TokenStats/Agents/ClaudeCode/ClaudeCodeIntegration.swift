@@ -19,9 +19,9 @@ struct ClaudeCodeIntegration: CodingAgentIntegration {
     /// Three windows — weekly (left), the 5-hour "session limit" emphasized in
     /// the center, and the weekly Fable limit (right).
     let gaugeLayout = GaugeLayout(slots: [
-        .init(label: "Weekly"),
-        .init(label: "5-hour", emphasized: true),
-        .init(label: "Fable"),
+        .init(identity: .weekly),
+        .init(identity: .shortTerm, emphasized: true),
+        .init(identity: .modelWeekly(model: "Fable")),
     ])
 
     var transcriptRoot: String { realHomeDirectory() + "/.claude/projects" }

@@ -13,17 +13,37 @@ import Testing
 
 @MainActor
 struct TokenSummaryPresentationTests {
+    private let englishLocale = Locale(identifier: "en-US")
+
     @Test func unloadedSummaryNamesTheRangeBeingRead() {
         let summary = TokenSummaryPresentation.make(
             perAgent: [],
             metric: .billingTokens,
             range: .thirtyDays,
-            hasLoaded: false
+            hasLoaded: false,
+            locale: englishLocale
         )
 
         #expect(summary.value == "—")
         #expect(summary.label == "Reading 30 days…")
         #expect(summary.numericValue == nil)
+    }
+
+    @Test func currentDayUsesAContextualSentenceFormInsteadOfThePickerTitle() {
+        let localizer = AppLocalizer(locale: englishLocale)
+        let summary = TokenSummaryPresentation.make(
+            perAgent: [],
+            metric: .billingTokens,
+            range: .today,
+            hasLoaded: false,
+            locale: englishLocale
+        )
+
+        #expect(TokenRange.today.localizedHeadingForm(using: localizer) == "Today")
+        #expect(TokenRange.today.localizedSentenceForm(using: localizer) == "today")
+        #expect(summary.label == "Reading today…")
+        #expect(summary.help == "Reading token usage for today.")
+        #expect(summary.accessibilityLabel == "Reading token usage for today")
     }
 
     @Test func billingSummaryExcludesOnlyCacheReads() {
@@ -32,11 +52,12 @@ struct TokenSummaryPresentationTests {
             perAgent: [agent(.claudeCode, model: "claude-opus-5", usage: usage)],
             metric: .billingTokens,
             range: .today,
-            hasLoaded: true
+            hasLoaded: true,
+            locale: englishLocale
         )
 
         #expect(summary.value == "60")
-        #expect(summary.label == "billing tokens · Today")
+        #expect(summary.label == "Billing tokens · Today")
         #expect(summary.numericValue == 60)
         #expect(summary.help.contains("Cache read 9,999"))
     }
@@ -47,10 +68,11 @@ struct TokenSummaryPresentationTests {
             perAgent: [agent(.claudeCode, model: "claude-opus-5", usage: usage)],
             metric: .billingTokens,
             range: .thirtyDays,
-            hasLoaded: true
+            hasLoaded: true,
+            locale: englishLocale
         )
 
-        #expect(summary.value == "12B")
+        #expect(summary.value == "12.3B")
         #expect(summary.numericValue == 12_345_678_901)
         #expect(summary.help.contains("12,345,678,901 billing tokens"))
         #expect(summary.accessibilityLabel.contains("12,345,678,901"))
@@ -88,11 +110,12 @@ struct TokenSummaryPresentationTests {
             metric: .apiEquivalent,
             range: .sevenDays,
             hasLoaded: true,
-            pricingDate: Date(timeIntervalSince1970: 1_785_283_200)
+            pricingDate: Date(timeIntervalSince1970: 1_785_283_200),
+            locale: englishLocale
         )
 
         #expect(summary.value == "$5.00")
-        #expect(summary.label == "API-equivalent · 7 days")
+        #expect(summary.label == "API equivalent · 7 days")
         #expect(summary.numericValue == 5)
     }
 
@@ -109,7 +132,8 @@ struct TokenSummaryPresentationTests {
             perAgent: visible,
             metric: .billingTokens,
             range: .today,
-            hasLoaded: true
+            hasLoaded: true,
+            locale: englishLocale
         )
 
         #expect(visible.map(\.id) == [.codex])
@@ -123,13 +147,82 @@ struct TokenSummaryPresentationTests {
             perAgent: [agent(.codex, model: "codex-auto-review", usage: usage)],
             metric: .apiEquivalent,
             range: .today,
-            hasLoaded: true
+            hasLoaded: true,
+            locale: englishLocale
         )
 
         #expect(summary.value == "—")
         #expect(summary.numericValue == nil)
         #expect(summary.help.contains("Codex: codex-auto-review"))
         #expect(summary.accessibilityLabel.contains("unavailable"))
+    }
+
+    @Test func unpricedModelListUsesTheEffectiveLocalesListGrammar() {
+        let chinese = Locale(identifier: "zh-Hans-CN")
+        let summary = TokenSummaryPresentation.make(
+            perAgent: [
+                agent(.claudeCode, model: "claude-future-model", usage: tokens(output: 10)),
+                agent(.codex, model: "codex-future-model", usage: tokens(output: 20)),
+            ],
+            metric: .apiEquivalent,
+            range: .today,
+            hasLoaded: true,
+            locale: chinese
+        )
+
+        #expect(summary.help.contains("Claude Code：claude-future-model和Codex：codex-future-model"))
+        #expect(summary.help.contains(", ") == false)
+    }
+
+    @Test func pricingReviewDateDoesNotMoveAcrossTimeZones() throws {
+        let west = try #require(TimeZone(identifier: "Pacific/Honolulu"))
+        let east = try #require(TimeZone(identifier: "Pacific/Kiritimati"))
+
+        let westText = TokenSummaryPresentation.reviewedDate(
+            locale: englishLocale,
+            timeZone: west
+        )
+        let eastText = TokenSummaryPresentation.reviewedDate(
+            locale: englishLocale,
+            timeZone: east
+        )
+
+        #expect(westText == "Jul 27, 2026")
+        #expect(eastText == westText)
+    }
+
+    @Test func tokenKindCopyUsesContextSpecificGrammarInEnglishAndChinese() {
+        let english = AppLocalizer(locale: englishLocale)
+        let chinese = AppLocalizer(locale: Locale(identifier: "zh-Hans-CN"))
+
+        #expect(
+            TokenKindPresentation.help(
+                for: .directInput,
+                isSelected: true,
+                using: english
+            ) == "Exclude direct input from the selected total"
+        )
+        #expect(
+            TokenKindPresentation.accessibilityLabel(
+                for: .directInput,
+                using: english
+            ) == "Include direct input tokens"
+        )
+        #expect(
+            TokenKindPresentation.selectedRow(
+                for: .directInput,
+                formattedAmount: "100",
+                percentage: "50%",
+                using: english
+            ) == "Direct input 100 (50% of selected kinds)"
+        )
+        #expect(
+            TokenKindPresentation.help(
+                for: .directInput,
+                isSelected: true,
+                using: chinese
+            ) == "从已选合计中排除直接输入"
+        )
     }
 
     private func agent(

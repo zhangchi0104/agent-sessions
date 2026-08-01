@@ -24,16 +24,17 @@ struct AppearancePane: View {
     var body: some View {
         Form {
             Section {
-                Picker("Primary subscription", selection: $appearance.primaryAgent) {
+                Picker(selection: $appearance.primaryAgent) {
                     ForEach(CodingAgentID.allCases, id: \.self) { id in
                         Text(id.integration.displayName).tag(id)
                     }
+                } label: {
+                    Text(AppearanceCopy.primarySubscriptionPicker)
                 }
             } header: {
-                Text("Primary")
+                Text(AppearanceCopy.primarySectionTitle)
             } footer: {
-                Text("Your primary subscription is shown first and badged in the "
-                     + "popover and menu bar.")
+                Text(AppearanceCopy.primaryFooter)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -47,14 +48,11 @@ struct AppearancePane: View {
                     appearance.move(fromOffsets: source, toOffset: destination)
                 } : nil)
             } header: {
-                Text("Order")
+                Text(AppearanceCopy.orderSectionTitle)
             } footer: {
                 Text(canReorder
-                     ? "Drag to arrange how subscriptions are listed. The primary "
-                       + "subscription always leads."
-                     : "Nothing to arrange yet — your primary leads and the only "
-                       + "other subscription follows. Drag-to-reorder unlocks once "
-                       + "you track a third.")
+                     ? AppearanceCopy.orderReorderableFooter
+                     : AppearanceCopy.orderFixedFooter)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -63,48 +61,55 @@ struct AppearancePane: View {
             agentVisibilitySection
 
             Section {
-                Picker("Tokens summary", selection: $appearance.tokenSummaryMetric) {
+                Picker(selection: $appearance.tokenSummaryMetric) {
                     ForEach(TokenSummaryMetric.allCases) { metric in
                         Text(metric.title).tag(metric)
                     }
+                } label: {
+                    Text(AppearanceCopy.tokenSummaryTitle)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
             } header: {
-                Text("Tokens summary")
+                Text(AppearanceCopy.tokenSummaryTitle)
             } footer: {
-                Text("Billing tokens count direct input, cache writes, and output. "
-                     + "API equivalent estimates standard list-price cost from the "
-                     + "Models recorded in local transcripts. Token Kind filters "
-                     + "change neither summary.")
+                Text(AppearanceCopy.tokenSummaryFooter)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             Section {
-                Picker("Token values", selection: $appearance.tokenValueDisplay) {
+                Picker(selection: $appearance.tokenValueDisplay) {
                     ForEach(TokenValueDisplayMode.allCases) { mode in
                         Text(mode.title).tag(mode)
                     }
+                } label: {
+                    Text(AppearanceCopy.tokenValuesTitle)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
             } header: {
-                Text("Token values")
+                Text(AppearanceCopy.tokenValuesTitle)
             } footer: {
-                Text("Enabled Token Kinds use this format. Disabled kinds keep "
-                     + "a dimmed raw value and are excluded from composition percentages.")
+                Text(AppearanceCopy.tokenValuesFooter)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             Section {
-                Picker("Display mode", selection: $appearance.gaugeStyle) {
+                Picker(selection: $appearance.gaugeStyle) {
                     ForEach(GaugeStyle.allCases) { style in
-                        Label(style.title, systemImage: style.icon).tag(style)
+                        Label {
+                            Text(style.title)
+                        } icon: {
+                            Image(systemName: style.icon)
+                        }
+                        .tag(style)
                     }
+                } label: {
+                    Text(AppearanceCopy.gaugeStylePicker)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
@@ -113,22 +118,22 @@ struct AppearancePane: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 4)
             } header: {
-                Text("Usage Window style")
+                Text(AppearanceCopy.gaugeStyleSectionTitle)
             } footer: {
-                Text("Choose how each Usage Window is drawn.")
+                Text(AppearanceCopy.gaugeStyleFooter)
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
-        .navigationTitle("Appearance")
+        .navigationTitle(Text(AppearanceCopy.title))
     }
 
     private var agentVisibilitySection: some View {
         Section {
             Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 10) {
                 GridRow {
-                    Text("Agent")
+                    Text(AppearanceCopy.agentColumnTitle)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     visibilityHeader(.usage)
@@ -142,7 +147,7 @@ struct AppearancePane: View {
                             AgentIconBadge(id: id)
                             Text(id.integration.displayName)
                             if appearance.primaryAgent == id {
-                                Text("Primary")
+                                Text(AppearanceCopy.primaryBadge)
                                     .font(.caption2.weight(.semibold))
                                     .foregroundStyle(.tint)
                             }
@@ -157,11 +162,9 @@ struct AppearancePane: View {
             }
             .padding(.vertical, 4)
         } header: {
-            Text("Agent visibility")
+            Text(AppearanceCopy.visibilitySectionTitle)
         } footer: {
-            Text("Each row is an agent. Choose the surfaces where it appears; "
-                 + "Tokens excludes unchecked agents from all summaries and totals. "
-                 + "At least one agent must remain visible in each column.")
+            Text(AppearanceCopy.visibilityFooter)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -178,21 +181,31 @@ struct AppearancePane: View {
 
     private func visibilityToggle(for id: CodingAgentID,
                                   on surface: AgentDisplaySurface) -> some View {
-        Toggle("", isOn: visibilityBinding(for: id, on: surface))
+        let isVisible = appearance.isVisible(id, on: surface)
+        let mustRemainVisible = isVisible && !appearance.canHide(id, on: surface)
+
+        return Toggle(isOn: visibilityBinding(for: id, on: surface)) {
+            EmptyView()
+        }
             .labelsHidden()
             .controlSize(.small)
             .frame(width: Self.surfaceColumnWidth)
-            .disabled(appearance.isVisible(id, on: surface)
-                      && !appearance.canHide(id, on: surface))
-            .help(appearance.isVisible(id, on: surface)
-                  ? "Hide \(id.integration.displayName) from \(surface.helpSurfaceName)"
-                  : "Show \(id.integration.displayName) in \(surface.helpSurfaceName)")
-            .accessibilityLabel("\(id.integration.displayName), \(surface.columnTitle)")
-            .accessibilityValue(appearance.isVisible(id, on: surface) ? "Shown" : "Hidden")
-            .accessibilityHint(appearance.isVisible(id, on: surface)
-                               && !appearance.canHide(id, on: surface)
-                               ? "At least one agent must remain visible."
-                               : "")
+            .disabled(mustRemainVisible)
+            .help(Text(surface.visibilityHelp(
+                agentName: id.integration.displayName,
+                isVisible: isVisible
+            )))
+            .accessibilityLabel(Text(surface.visibilityAccessibilityLabel(
+                agentName: id.integration.displayName
+            )))
+            .accessibilityValue(Text(
+                isVisible ? AppearanceCopy.shownAccessibilityValue : AppearanceCopy.hiddenAccessibilityValue
+            ))
+            .accessibilityHint(
+                mustRemainVisible
+                    ? Text(AppearanceCopy.minimumVisibleAccessibilityHint)
+                    : Text(verbatim: "")
+            )
     }
 
     private func visibilityBinding(for id: CodingAgentID,
@@ -228,32 +241,73 @@ private struct OrderRow: View {
                 AgentIconBadge(id: id)
                 Text(id.integration.displayName)
                 if appearance.primaryAgent == id {
-                    Text("Primary")
+                    Text(AppearanceCopy.primaryBadge)
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.tint)
                 }
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(appearance.primaryAgent == id
-                            ? "\(id.integration.displayName), primary" : id.integration.displayName)
-        .accessibilityHint(draggable ? "Draggable. Drag to reorder." : "")
+        .accessibilityLabel(
+            appearance.primaryAgent == id
+                ? Text(AppearanceCopy.primaryOrderAccessibilityLabel(id.integration.displayName))
+                : Text(verbatim: id.integration.displayName)
+        )
+        .accessibilityHint(
+            draggable
+                ? Text(AppearanceCopy.reorderAccessibilityHint)
+                : Text(verbatim: "")
+        )
     }
 }
 
 /// A small live sample of the selected gauge style for the Appearance picker.
 private struct GaugeStylePreview: View {
     let style: GaugeStyle
+    @Environment(\.locale) private var locale
 
     private var sample: [GaugeContent] {
-        [
-            GaugeContent(title: "5-hour",
-                         subtitle: .reset(display: "3h 20m", spoken: "resets in 3h 20m"),
-                         percentRemaining: 72, progress: 0.72, centerText: "72%",
-                         emphasized: true),
-            GaugeContent(title: "Weekly",
-                         subtitle: .reset(display: "4d", spoken: "resets in 4d"),
-                         percentRemaining: 28, progress: 0.28, centerText: "28%"),
+        let shortTermDuration = Duration.seconds((3 * 60 * 60) + (20 * 60))
+        let weeklyDuration = Duration.seconds(4 * 24 * 60 * 60)
+        let shortTermSpokenDuration = shortTermDuration.formatted(
+            .units(allowed: [.hours, .minutes], width: .wide).locale(locale)
+        )
+        let weeklySpokenDuration = weeklyDuration.formatted(
+            .units(allowed: [.days], width: .wide).locale(locale)
+        )
+
+        return [
+            GaugeContent(identity: .shortTerm,
+                         title: localized(AppearanceCopy.previewShortTermTitle),
+                         subtitle: .reset(
+                             display: shortTermDuration.formatted(
+                                 .units(allowed: [.hours, .minutes], width: .narrow).locale(locale)
+                             ),
+                             spoken: localized(AppearanceCopy.previewResetSpoken(
+                                 duration: shortTermSpokenDuration
+                             ))
+                         ),
+                         percentRemaining: 72, progress: 0.72,
+                         centerText: 0.72.formatted(
+                             .percent.precision(.fractionLength(0)).locale(locale)
+                         ),
+                         emphasized: true,
+                         localizer: AppLocalizer(locale: locale)),
+            GaugeContent(identity: .weekly,
+                         title: localized(AppearanceCopy.previewWeeklyTitle),
+                         subtitle: .reset(
+                             display: weeklyDuration.formatted(
+                                 .units(allowed: [.days], width: .narrow).locale(locale)
+                             ),
+                             spoken: localized(AppearanceCopy.previewResetSpoken(
+                                 duration: weeklySpokenDuration
+                             ))
+                         ),
+                         percentRemaining: 28, progress: 0.28,
+                         centerText: 0.28.formatted(
+                             .percent.precision(.fractionLength(0)).locale(locale)
+                         ),
+                         localizer: AppLocalizer(locale: locale)),
         ]
     }
 
@@ -264,23 +318,137 @@ private struct GaugeStylePreview: View {
                                          circularSpacing: 16))
             .frame(maxWidth: style == .bar ? 260 : .infinity)
     }
+
+    private func localized(_ resource: LocalizedStringResource) -> String {
+        AppLocalizer(locale: locale).localized(resource)
+    }
 }
 
 private extension AgentDisplaySurface {
-    var columnTitle: String {
+    var columnTitle: LocalizedStringResource {
         switch self {
-        case .usage: "Usage"
-        case .tokens: "Tokens"
-        case .menuBar: "Menu bar"
+        case .usage: AppearanceCopy.usageColumnTitle
+        case .tokens: AppearanceCopy.tokensColumnTitle
+        case .menuBar: AppearanceCopy.menuBarColumnTitle
         }
     }
 
-    var helpSurfaceName: String {
-        switch self {
-        case .usage: "Usage"
-        case .tokens: "Tokens and its totals"
-        case .menuBar: "the menu bar"
+    func visibilityHelp(agentName: String, isVisible: Bool) -> LocalizedStringResource {
+        switch (self, isVisible) {
+        case (.usage, true): AppearanceCopy.hideFromUsageHelp(agentName)
+        case (.usage, false): AppearanceCopy.showInUsageHelp(agentName)
+        case (.tokens, true): AppearanceCopy.hideFromTokensHelp(agentName)
+        case (.tokens, false): AppearanceCopy.showInTokensHelp(agentName)
+        case (.menuBar, true): AppearanceCopy.hideFromMenuBarHelp(agentName)
+        case (.menuBar, false): AppearanceCopy.showInMenuBarHelp(agentName)
         }
     }
 
+    func visibilityAccessibilityLabel(agentName: String) -> LocalizedStringResource {
+        switch self {
+        case .usage: AppearanceCopy.usageVisibilityAccessibilityLabel(agentName)
+        case .tokens: AppearanceCopy.tokensVisibilityAccessibilityLabel(agentName)
+        case .menuBar: AppearanceCopy.menuBarVisibilityAccessibilityLabel(agentName)
+        }
+    }
+}
+
+private enum AppearanceCopy {
+    static let title = LocalizedStringResource.settingsAppearanceTitle
+
+    static let primarySubscriptionPicker = LocalizedStringResource.settingsAppearancePrimarySubscriptionPicker
+
+    static let primarySectionTitle = LocalizedStringResource.settingsAppearancePrimarySection
+
+    static let primaryFooter = LocalizedStringResource.settingsAppearancePrimaryFooter
+
+    static let orderSectionTitle = LocalizedStringResource.settingsAppearanceOrderSection
+
+    static let orderReorderableFooter = LocalizedStringResource.settingsAppearanceOrderReorderableFooter
+
+    static let orderFixedFooter = LocalizedStringResource.settingsAppearanceOrderFixedFooter
+
+    static let tokenSummaryTitle = LocalizedStringResource.settingsAppearanceTokenSummaryTitle
+
+    static let tokenSummaryFooter = LocalizedStringResource.settingsAppearanceTokenSummaryFooter
+
+    static let tokenValuesTitle = LocalizedStringResource.settingsAppearanceTokenValuesTitle
+
+    static let tokenValuesFooter = LocalizedStringResource.settingsAppearanceTokenValuesFooter
+
+    static let gaugeStylePicker = LocalizedStringResource.settingsAppearanceUsageWindowStylePicker
+
+    static let gaugeStyleSectionTitle = LocalizedStringResource.settingsAppearanceUsageWindowStyleSection
+
+    static let gaugeStyleFooter = LocalizedStringResource.settingsAppearanceUsageWindowStyleFooter
+
+    static let agentColumnTitle = LocalizedStringResource.settingsAppearanceVisibilityAgentColumn
+
+    static let primaryBadge = LocalizedStringResource.settingsAppearancePrimaryBadge
+
+    static let visibilitySectionTitle = LocalizedStringResource.settingsAppearanceVisibilitySection
+
+    static let visibilityFooter = LocalizedStringResource.settingsAppearanceVisibilityFooter
+
+    static let usageColumnTitle = LocalizedStringResource.settingsAppearanceVisibilityUsageColumn
+
+    static let tokensColumnTitle = LocalizedStringResource.settingsAppearanceVisibilityTokensColumn
+
+    static let menuBarColumnTitle = LocalizedStringResource.settingsAppearanceVisibilityMenuBarColumn
+
+    static let shownAccessibilityValue = LocalizedStringResource.settingsAppearanceVisibilityShownAccessibilityValue
+
+    static let hiddenAccessibilityValue = LocalizedStringResource.settingsAppearanceVisibilityHiddenAccessibilityValue
+
+    static let minimumVisibleAccessibilityHint = LocalizedStringResource.settingsAppearanceVisibilityMinimumAccessibilityHint
+
+    static func primaryOrderAccessibilityLabel(_ agentName: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsAppearanceOrderPrimaryAccessibilityLabel(agentName)
+    }
+
+    static let reorderAccessibilityHint = LocalizedStringResource.settingsAppearanceOrderReorderAccessibilityHint
+
+    static func hideFromUsageHelp(_ agentName: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsAppearanceVisibilityUsageHideHelp(agentName)
+    }
+
+    static func showInUsageHelp(_ agentName: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsAppearanceVisibilityUsageShowHelp(agentName)
+    }
+
+    static func hideFromTokensHelp(_ agentName: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsAppearanceVisibilityTokensHideHelp(agentName)
+    }
+
+    static func showInTokensHelp(_ agentName: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsAppearanceVisibilityTokensShowHelp(agentName)
+    }
+
+    static func hideFromMenuBarHelp(_ agentName: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsAppearanceVisibilityMenuBarHideHelp(agentName)
+    }
+
+    static func showInMenuBarHelp(_ agentName: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsAppearanceVisibilityMenuBarShowHelp(agentName)
+    }
+
+    static func usageVisibilityAccessibilityLabel(_ agentName: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsAppearanceVisibilityUsageAccessibilityLabel(agentName)
+    }
+
+    static func tokensVisibilityAccessibilityLabel(_ agentName: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsAppearanceVisibilityTokensAccessibilityLabel(agentName)
+    }
+
+    static func menuBarVisibilityAccessibilityLabel(_ agentName: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsAppearanceVisibilityMenuBarAccessibilityLabel(agentName)
+    }
+
+    static let previewShortTermTitle = LocalizedStringResource.usageWindowShortTerm
+
+    static let previewWeeklyTitle = LocalizedStringResource.usageWindowWeekly
+
+    static func previewResetSpoken(duration: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsAppearanceGaugePreviewResetSpoken(duration)
+    }
 }

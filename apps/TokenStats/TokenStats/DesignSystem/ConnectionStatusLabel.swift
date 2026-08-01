@@ -29,11 +29,14 @@ enum ConnectionStatus {
         }
     }
 
-    var label: String {
+    var label: LocalizedStringResource {
         switch self {
-        case .connected: return "Connected"
-        case .awaitingCode: return "Awaiting code"
-        case .signedOut: return "Not signed in"
+        case .connected:
+            return LocalizedStringResource.accountStatusConnected
+        case .awaitingCode:
+            return LocalizedStringResource.accountStatusAwaitingCode
+        case .signedOut:
+            return LocalizedStringResource.accountStatusSignedOut
         }
     }
 

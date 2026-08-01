@@ -99,7 +99,9 @@ struct CircularUsageGauge: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
             if content.isEnabled {
-                Text("left")
+                Text(
+                    LocalizedStringResource.usageGaugeRemainingSuffix
+                )
                     .font(.system(size: numberSize * 0.4, weight: .medium))
                     .foregroundStyle(.secondary)
             }
@@ -134,7 +136,8 @@ struct CircularUsageGauge: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
         case .unavailable:
-            Text("—")
+            // i18n-ignore: Universal unavailable-value glyph, not natural-language copy.
+            Text(verbatim: "—")
                 .font(.callout)
                 .foregroundStyle(.tertiary)
         }

@@ -23,12 +23,31 @@ final class LoopbackAuthListener {
         case authorization(String)
 
         var errorDescription: String? {
+            localizedDescription(using: AppLocalizer(locale: .current))
+        }
+
+        func localizedDescription(using localizer: AppLocalizer) -> String {
             switch self {
-            case .noPort: return "Could not open a local port for sign-in."
-            case .badRequest: return "The sign-in redirect was malformed."
-            case .closed: return "Sign-in was cancelled."
-            case .timedOut: return "Sign-in timed out. Approve in the browser, then try again."
-            case .authorization(let message): return message
+            case .noPort:
+                return localizer.localized(
+                    LocalizedStringResource.accountSignInErrorLocalPort
+                )
+            case .badRequest:
+                return localizer.localized(
+                    LocalizedStringResource.accountSignInErrorMalformedRedirect
+                )
+            case .closed:
+                return localizer.localized(
+                    LocalizedStringResource.accountSignInErrorCancelled
+                )
+            case .timedOut:
+                return localizer.localized(
+                    LocalizedStringResource.accountSignInErrorTimedOut
+                )
+            case .authorization(let message):
+                return localizer.localized(
+                    LocalizedStringResource.accountSignInErrorAuthorization(message)
+                )
             }
         }
     }
@@ -42,9 +61,14 @@ final class LoopbackAuthListener {
     private let timeout: TimeInterval
     private var timeoutWorkItem: DispatchWorkItem?
     private var didTimeout = false
+    private let localizer: AppLocalizer
 
-    init(timeout: TimeInterval = 300) throws {
+    init(
+        timeout: TimeInterval = 300,
+        localizer: AppLocalizer = AppLocalizer(locale: .current)
+    ) throws {
         self.timeout = timeout
+        self.localizer = localizer
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
         // Prefer the CLI's port for redirect-URI compatibility; otherwise let
@@ -138,7 +162,10 @@ final class LoopbackAuthListener {
             }
             let requestLine = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
             guard let callback = Self.parseCallback(httpRequest: requestLine) else {
-                self.respond(connection, html: Self.failureHTML)
+                self.respond(
+                    connection,
+                    html: Self.callbackHTML(succeeded: false, localizer: self.localizer)
+                )
                 // Distinguish a provider error redirect (?error=access_denied…)
                 // from a malformed request so the user sees the real reason.
                 if let message = Self.parseError(httpRequest: requestLine) {
@@ -148,7 +175,10 @@ final class LoopbackAuthListener {
                 }
                 return
             }
-            self.respond(connection, html: Self.successHTML)
+            self.respond(
+                connection,
+                html: Self.callbackHTML(succeeded: true, localizer: self.localizer)
+            )
             self.deliver(.success(callback))
         }
     }
@@ -214,15 +244,37 @@ final class LoopbackAuthListener {
         return description.map { "\(error): \($0)" } ?? error
     }
 
-    private static let successHTML = """
-    <!doctype html><html><head><meta charset="utf-8"><title>TokenStats</title></head>
-    <body style="font-family:-apple-system,sans-serif;text-align:center;padding:3rem">
-    <h2>Signed in to Codex</h2><p>You can close this tab and return to TokenStats.</p></body></html>
-    """
+    static func callbackHTML(succeeded: Bool, localizer: AppLocalizer) -> String {
+        let heading: String
+        let body: String
+        if succeeded {
+            heading = localizer.localized(
+                LocalizedStringResource.accountSignInCallbackSuccessHeading
+            )
+            body = localizer.localized(
+                LocalizedStringResource.accountSignInCallbackSuccessBody
+            )
+        } else {
+            heading = localizer.localized(
+                LocalizedStringResource.accountSignInCallbackFailureHeading
+            )
+            body = localizer.localized(
+                LocalizedStringResource.accountSignInCallbackFailureBody
+            )
+        }
+        return """
+        <!doctype html><html lang="\(htmlEscaped(localizer.htmlLanguageTag))"><head><meta charset="utf-8"><title>TokenStats</title></head>
+        <body style="font-family:-apple-system,sans-serif;text-align:center;padding:3rem">
+        <h2>\(htmlEscaped(heading))</h2><p>\(htmlEscaped(body))</p></body></html>
+        """
+    }
 
-    private static let failureHTML = """
-    <!doctype html><html><head><meta charset="utf-8"><title>TokenStats</title></head>
-    <body style="font-family:-apple-system,sans-serif;text-align:center;padding:3rem">
-    <h2>Sign-in failed</h2><p>No authorization code was found. Return to TokenStats and try again.</p></body></html>
-    """
+    private static func htmlEscaped(_ text: String) -> String {
+        text
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&#39;")
+    }
 }

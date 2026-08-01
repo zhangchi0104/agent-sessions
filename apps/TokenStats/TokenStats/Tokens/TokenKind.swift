@@ -21,12 +21,16 @@ nonisolated enum TokenKind: String, CaseIterable, Codable, Hashable, Sendable {
 
     /// The glossary's name, spelled out. Shown in the column tooltips, since
     /// the headers themselves only have room for an abbreviation.
-    var name: String {
+    var name: LocalizedStringResource {
         switch self {
-        case .directInput: "Direct input"
-        case .output: "Output"
-        case .cacheWrite: "Cache write"
-        case .cacheRead: "Cache read"
+        case .directInput:
+            LocalizedStringResource.tokensKindDirectInput
+        case .output:
+            LocalizedStringResource.tokensKindOutput
+        case .cacheWrite:
+            LocalizedStringResource.tokensKindCacheWrite
+        case .cacheRead:
+            LocalizedStringResource.tokensKindCacheRead
         }
     }
 }
@@ -70,12 +74,13 @@ nonisolated enum TokenValueFormatting {
         amount: Int,
         selectedTotal: Int,
         isSelected: Bool,
-        mode: TokenValueDisplayMode
+        mode: TokenValueDisplayMode,
+        locale: Locale
     ) -> String {
         guard amount > 0 else { return "–" }
-        let value = TokenUsage.compact(amount)
+        let value = TokenUsage.compact(amount, locale: locale)
         guard isSelected else { return value }
-        let percentage = compositionPercentage(amount: amount, total: selectedTotal)
+        let percentage = compositionPercentage(amount: amount, total: selectedTotal, locale: locale)
         switch mode {
         case .value: return value
         case .percentage: return percentage
@@ -83,10 +88,17 @@ nonisolated enum TokenValueFormatting {
         }
     }
 
-    static func compositionPercentage(amount: Int, total: Int) -> String {
+    static func compositionPercentage(
+        amount: Int,
+        total: Int,
+        locale: Locale
+    ) -> String {
         guard total > 0 else { return "–" }
-        let percentage = Double(amount) / Double(total) * 100
-        let oneDecimal = String(format: "%.1f", percentage)
-        return "\(oneDecimal.hasSuffix(".0") ? String(oneDecimal.dropLast(2)) : oneDecimal)%"
+        let fraction = Double(amount) / Double(total)
+        return fraction.formatted(
+            .percent
+                .precision(.fractionLength(0...1))
+                .locale(locale)
+        )
     }
 }

@@ -14,9 +14,7 @@ struct OnboardingAccountsStep: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            OnboardingStepHeading("Connect your agents",
-                                  "Sign in so TokenStats can read your usage. Connect one or both — "
-                                  + "or skip and do it later in Settings.")
+            OnboardingStepHeading(AccountsOnboardingCopy.title, AccountsOnboardingCopy.subtitle)
             VStack(spacing: 12) {
                 ForEach(CodingAgentID.allCases, id: \.self) { id in
                     OnboardingAccountRow(model: model, id: id)
@@ -28,22 +26,35 @@ struct OnboardingAccountsStep: View {
 
     private var primaryPicker: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Primary subscription").font(.callout.weight(.semibold))
-            Picker("Primary subscription", selection: Binding(
+            Text(AccountsOnboardingCopy.primarySubscriptionTitle)
+                .font(.callout.weight(.semibold))
+            Picker(selection: Binding(
                 get: { model.appearance.primaryAgent },
                 set: { model.appearance.primaryAgent = $0 })) {
                 ForEach(CodingAgentID.allCases, id: \.self) { id in
                     Text(id.integration.displayName).tag(id)
                 }
+            } label: {
+                Text(AccountsOnboardingCopy.primarySubscriptionTitle)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            Text("Shown first and badged in the popover and menu bar.")
+            Text(AccountsOnboardingCopy.primarySubscriptionFooter)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .padding(.top, 4)
     }
+}
+
+private enum AccountsOnboardingCopy {
+    static let title = LocalizedStringResource.onboardingAccountsTitle
+
+    static let subtitle = LocalizedStringResource.onboardingAccountsSubtitle
+
+    static let primarySubscriptionTitle = LocalizedStringResource.onboardingAccountsPrimarySubscriptionTitle
+
+    static let primarySubscriptionFooter = LocalizedStringResource.onboardingAccountsPrimarySubscriptionFooter
 }
 
 /// One agent's connect tile: identity, status, and the state-dependent sign-in
@@ -73,9 +84,11 @@ private struct OnboardingAccountRow: View {
             }
 
             if let error = model.loginError[id] {
-                Label(error, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.red)
+                ErrorDiagnosticsDisclosure(
+                    summary: error,
+                    diagnostics: model.diagnostics[id],
+                    font: .caption
+                )
             }
         }
         .padding(14)

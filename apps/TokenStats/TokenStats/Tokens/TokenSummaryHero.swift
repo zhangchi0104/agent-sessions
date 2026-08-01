@@ -24,14 +24,23 @@ struct TokenSummaryPresentation: Equatable {
         metric: TokenSummaryMetric,
         range: TokenRange,
         hasLoaded: Bool,
-        pricingDate: Date = Date()
+        pricingDate: Date = Date(),
+        locale: Locale
     ) -> TokenSummaryPresentation {
+        let localizer = AppLocalizer(locale: locale)
+        let rangeSentenceForm = range.localizedSentenceForm(using: localizer)
         guard hasLoaded else {
             return TokenSummaryPresentation(
                 value: "—",
-                label: "Reading \(range.label.lowercased())…",
-                help: "Reading token usage for \(range.label).",
-                accessibilityLabel: "Reading token usage for \(range.label)",
+                label: localizer.localized(
+                    LocalizedStringResource.tokensSummaryReadingLabel(rangeSentenceForm)
+                ),
+                help: localizer.localized(
+                    LocalizedStringResource.tokensSummaryReadingHelp(rangeSentenceForm)
+                ),
+                accessibilityLabel: localizer.localized(
+                    LocalizedStringResource.tokensSummaryReadingAccessibility(rangeSentenceForm)
+                ),
                 numericValue: nil
             )
         }
@@ -42,7 +51,7 @@ struct TokenSummaryPresentation: Equatable {
 
         switch metric {
         case .billingTokens:
-            return billingPresentation(usage: usage, range: range)
+            return billingPresentation(usage: usage, range: range, localizer: localizer)
         case .apiEquivalent:
             let rows = perAgent.flatMap { agent in
                 agent.byModel.map { row in
@@ -57,21 +66,32 @@ struct TokenSummaryPresentation: Equatable {
             return apiEquivalentPresentation(
                 usage: usage,
                 estimate: estimate,
-                range: range
+                range: range,
+                localizer: localizer
             )
         }
     }
 
     private static func billingPresentation(
         usage: TokenUsage?,
-        range: TokenRange
+        range: TokenRange,
+        localizer: AppLocalizer
     ) -> TokenSummaryPresentation {
+        let rangeHeadingForm = range.localizedHeadingForm(using: localizer)
+        let rangeSentenceForm = range.localizedSentenceForm(using: localizer)
+        let label = localizer.localized(
+            LocalizedStringResource.tokensSummaryBillingLabel(rangeHeadingForm)
+        )
         guard let usage else {
             return TokenSummaryPresentation(
                 value: "—",
-                label: "billing tokens · \(range.label)",
-                help: "No billing token usage for \(range.label).",
-                accessibilityLabel: "No billing token usage for \(range.label)",
+                label: label,
+                help: localizer.localized(
+                    LocalizedStringResource.tokensSummaryBillingEmptyHelp(rangeSentenceForm)
+                ),
+                accessibilityLabel: localizer.localized(
+                    LocalizedStringResource.tokensSummaryBillingEmptyAccessibility(rangeSentenceForm)
+                ),
                 numericValue: nil
             )
         }
@@ -83,21 +103,21 @@ struct TokenSummaryPresentation: Equatable {
         // the largest exact value that fits, and keep the exact count in help
         // and accessibility text.
         let displayedCount = count >= 1_000_000_000
-            ? TokenUsage.compact(count)
-            : count.formatted()
-        let breakdown = "Direct input \(usage.inputTokens.formatted()) · "
-            + "Cache write \(usage.cacheCreationTokens.formatted()) · "
-            + "Output \(usage.outputTokens.formatted()) · "
-            + "Cache read \(usage.cacheReadTokens.formatted())"
+            ? TokenUsage.compact(count, locale: localizer.locale)
+            : count.formatted(.number.locale(localizer.locale))
+        let directInput = usage.inputTokens.formatted(.number.locale(localizer.locale))
+        let cacheWrite = usage.cacheCreationTokens.formatted(.number.locale(localizer.locale))
+        let output = usage.outputTokens.formatted(.number.locale(localizer.locale))
+        let cacheRead = usage.cacheReadTokens.formatted(.number.locale(localizer.locale))
         return TokenSummaryPresentation(
             value: displayedCount,
-            label: "billing tokens · \(range.label)",
-            help: "\(count.formatted()) billing tokens. \(breakdown). "
-                + "Billing tokens include direct input, cache writes, "
-                + "and output; cache reads remain visible in the table but are excluded "
-                + "from this total. Token Kind filters do not change this objective summary.",
-            accessibilityLabel: "\(count.formatted()) billing tokens for \(range.label); "
-                + "cache reads excluded",
+            label: label,
+            help: localizer.localized(
+                LocalizedStringResource.tokensSummaryBillingHelp(count, directInput, cacheWrite, output, cacheRead)
+            ),
+            accessibilityLabel: localizer.localized(
+                LocalizedStringResource.tokensSummaryBillingAccessibility(count, rangeSentenceForm)
+            ),
             numericValue: Double(count)
         )
     }
@@ -105,69 +125,148 @@ struct TokenSummaryPresentation: Equatable {
     private static func apiEquivalentPresentation(
         usage: TokenUsage?,
         estimate: ApiCostEstimate,
-        range: TokenRange
+        range: TokenRange,
+        localizer: AppLocalizer
     ) -> TokenSummaryPresentation {
+        let rangeHeadingForm = range.localizedHeadingForm(using: localizer)
+        let rangeSentenceForm = range.localizedSentenceForm(using: localizer)
+        let label = localizer.localized(
+            LocalizedStringResource.tokensSummaryApiEquivalentLabel(rangeHeadingForm)
+        )
         guard usage != nil else {
             return TokenSummaryPresentation(
                 value: "—",
-                label: "API-equivalent · \(range.label)",
-                help: "No API-equivalent usage for \(range.label).",
-                accessibilityLabel: "No API-equivalent usage for \(range.label)",
+                label: label,
+                help: localizer.localized(
+                    LocalizedStringResource.tokensSummaryApiEquivalentEmptyHelp(rangeSentenceForm)
+                ),
+                accessibilityLabel: localizer.localized(
+                    LocalizedStringResource.tokensSummaryApiEquivalentEmptyAccessibility(rangeSentenceForm)
+                ),
                 numericValue: nil
             )
         }
 
-        let unpriced = estimate.isPartial
-            ? " Unpriced: \(estimate.unpricedModels.joined(separator: ", ")) "
-                + "(\(estimate.unpricedTokens.formatted()) tokens)."
-            : ""
-        let reviewed = "\(ApiPricingCatalog.lastReviewed.year)-"
-            + String(format: "%02d", ApiPricingCatalog.lastReviewed.month)
-            + "-" + String(format: "%02d", ApiPricingCatalog.lastReviewed.day)
-        let help = "Standard API-equivalent estimate by recorded Model; includes all "
-            + "four Token Kinds at list rates regardless of the display filters. "
-            + "The final total is rounded upward to the nearest cent. Claude cache "
-            + "writes without TTL detail use the default 5-minute rate. "
-            + "Prices reviewed \(reviewed)." + unpriced
+        let reviewed = reviewedDate(locale: localizer.locale)
+        let help: String
+        if estimate.isPartial {
+            let models = estimate.unpricedModels
+                .map { $0.localizedDescription(using: localizer) }
+                .formatted(
+                    .list(type: .and, width: .standard)
+                        .locale(localizer.locale)
+                )
+            help = localizer.localized(
+                LocalizedStringResource.tokensSummaryApiEquivalentPartialHelp(
+                    estimate.unpricedTokens,
+                    reviewed,
+                    models
+                )
+            )
+        } else {
+            help = localizer.localized(
+                LocalizedStringResource.tokensSummaryApiEquivalentHelp(reviewed)
+            )
+        }
 
         guard estimate.isAvailable else {
             return TokenSummaryPresentation(
                 value: "—",
-                label: "API-equivalent · \(range.label)",
+                label: label,
                 help: help,
-                accessibilityLabel: "API-equivalent usage unavailable because the "
-                    + "transcript Model is unknown",
+                accessibilityLabel: localizer.localized(
+                    LocalizedStringResource.tokensSummaryApiEquivalentUnavailableAccessibility
+                ),
                 numericValue: nil
             )
         }
 
+        let exactCost = estimate.formattedCost(locale: localizer.locale)
         let displayedCost = compactCurrency(
             estimate.roundedCostUSD,
-            exact: estimate.formattedCost
+            exact: exactCost,
+            locale: localizer.locale
         )
         return TokenSummaryPresentation(
             value: displayedCost,
-            label: "API-equivalent · \(range.label)",
-            help: "Exact estimate \(estimate.formattedCost). " + help,
-            accessibilityLabel: "\(estimate.formattedCost) estimated API-equivalent "
-                + "usage for \(range.label)",
+            label: label,
+            help: localizer.localized(
+                LocalizedStringResource.tokensSummaryApiEquivalentExactHelp(exactCost, help)
+            ),
+            accessibilityLabel: localizer.localized(
+                LocalizedStringResource.tokensSummaryApiEquivalentAccessibility(
+                    exactCost,
+                    rangeSentenceForm
+                )
+            ),
             numericValue: NSDecimalNumber(decimal: estimate.roundedCostUSD).doubleValue
         )
     }
 
-    /// Keep the API summary in the same fixed 42pt slot if an unusually large
-    /// local corpus crosses seven figures. Ordinary estimates remain exact.
-    private static func compactCurrency(_ amount: Decimal, exact: String) -> String {
-        let value = NSDecimalNumber(decimal: amount).doubleValue
-        let units: [(Double, String)] = [(1e9, "B"), (1e6, "M")]
-        guard let (unit, suffix) = units.first(where: { value >= $0.0 }) else {
-            return exact
+    /// Currency remains exact and region-aware. The view may scale an unusually
+    /// large value, but it never replaces ISO currency semantics with a
+    /// hand-authored suffix that would be wrong in some locales.
+    private static func compactCurrency(_ amount: Decimal, exact: String, locale: Locale) -> String {
+        _ = amount
+        _ = locale
+        return exact
+    }
+
+    static func reviewedDate(
+        locale: Locale,
+        timeZone: TimeZone = .current
+    ) -> String {
+        let reviewed = ApiPricingCatalog.lastReviewed
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let date = calendar.date(from: DateComponents(
+            calendar: calendar,
+            timeZone: timeZone,
+            year: reviewed.year,
+            month: reviewed.month,
+            day: reviewed.day
+        )) ?? Date(timeIntervalSince1970: 0)
+        var format = Date.FormatStyle()
+            .year()
+            .month()
+            .day()
+            .locale(locale)
+        // `lastReviewed` is a civil date, not an instant. Constructing and
+        // rendering it in the same zone prevents a west/east-zone conversion
+        // from moving the displayed review date to an adjacent day.
+        format.timeZone = timeZone
+        return date.formatted(format)
+    }
+}
+
+extension TokenRange {
+    /// Contextual range spelling for headings. It deliberately has its own
+    /// catalog entries instead of reusing the picker title inside other copy.
+    func localizedHeadingForm(using localizer: AppLocalizer) -> String {
+        let resource: LocalizedStringResource = switch self {
+        case .today:
+            .tokensRangeTodayHeadingForm
+        case .sevenDays:
+            .tokensRangeSevenDaysHeadingForm
+        case .thirtyDays:
+            .tokensRangeThirtyDaysHeadingForm
         }
-        let scaled = value / unit
-        let text = scaled < 9.95
-            ? String(format: "%.1f", scaled)
-            : String(format: "%.0f", scaled)
-        return "$\(text)\(suffix)"
+        return localizer.localized(resource)
+    }
+
+    /// Contextual range spelling for insertion into a sentence. English uses
+    /// lowercase "today" here while the standalone picker title remains
+    /// "Today"; other languages can provide their own grammatical form.
+    func localizedSentenceForm(using localizer: AppLocalizer) -> String {
+        let resource: LocalizedStringResource = switch self {
+        case .today:
+            .tokensRangeTodaySentenceForm
+        case .sevenDays:
+            .tokensRangeSevenDaysSentenceForm
+        case .thirtyDays:
+            .tokensRangeThirtyDaysSentenceForm
+        }
+        return localizer.localized(resource)
     }
 }
 
@@ -184,6 +283,8 @@ struct TokenSummaryHero: View {
     let range: TokenRange
     let hasLoaded: Bool
 
+    @Environment(\.locale) private var locale
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// `nil` until this view has settled its first presentation. That first
     /// value appears immediately, matching v1's conditionally inserted hero.
@@ -195,7 +296,8 @@ struct TokenSummaryHero: View {
             perAgent: perAgent,
             metric: metric,
             range: range,
-            hasLoaded: hasLoaded
+            hasLoaded: hasLoaded,
+            locale: locale
         )
     }
 
@@ -215,6 +317,7 @@ struct TokenSummaryHero: View {
                 .font(.system(size: Self.valueFontSize, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .lineLimit(1)
+                .minimumScaleFactor(0.6)
                 .contentTransition(
                     .numericText(value: presentation.numericValue ?? 0)
                 )

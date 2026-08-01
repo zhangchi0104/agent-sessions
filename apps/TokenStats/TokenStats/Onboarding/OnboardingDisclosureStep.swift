@@ -12,27 +12,21 @@ import SwiftUI
 struct OnboardingDisclosureStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            OnboardingStepHeading("Before you start",
-                                  "The next step connects your accounts. Here's exactly what "
-                                  + "TokenStats accesses — and what it never does.")
+            OnboardingStepHeading(DisclosureCopy.title, DisclosureCopy.subtitle)
             VStack(alignment: .leading, spacing: 14) {
-                row("key.fill", "Tokens stay in your Keychain",
-                    "Signing in opens your browser to approve TokenStats. The access "
-                    + "tokens are saved in your macOS Keychain and used only to read your usage.")
-                row("network", "Only your providers are contacted",
-                    "Usage is fetched directly from Claude and OpenAI. Your tokens and "
-                    + "usage are never sent to any other server.")
-                row("internaldrive.fill", "Nothing about your work leaves your Mac",
-                    "Your token counts are read from your agents' transcript files "
-                    + "on this Mac. TokenStats reads them and uploads nothing.")
+                row("key.fill", DisclosureCopy.keychainTitle, DisclosureCopy.keychainDetail)
+                row("network", DisclosureCopy.providersTitle, DisclosureCopy.providersDetail)
+                row("internaldrive.fill", DisclosureCopy.localWorkTitle, DisclosureCopy.localWorkDetail)
             }
-            Text("Every step is optional — you can skip any of them and change these later in Settings.")
+            Text(DisclosureCopy.optionalFooter)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
     }
 
-    private func row(_ icon: String, _ title: String, _ detail: String) -> some View {
+    private func row(_ icon: String,
+                     _ title: LocalizedStringResource,
+                     _ detail: LocalizedStringResource) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 15))
@@ -49,4 +43,24 @@ struct OnboardingDisclosureStep: View {
             }
         }
     }
+}
+
+private enum DisclosureCopy {
+    static let title = LocalizedStringResource.onboardingDisclosureTitle
+
+    static let subtitle = LocalizedStringResource.onboardingDisclosureSubtitle
+
+    static let keychainTitle = LocalizedStringResource.onboardingDisclosureKeychainTitle
+
+    static let keychainDetail = LocalizedStringResource.onboardingDisclosureKeychainDetail
+
+    static let providersTitle = LocalizedStringResource.onboardingDisclosureProvidersTitle
+
+    static let providersDetail = LocalizedStringResource.onboardingDisclosureProvidersDetail
+
+    static let localWorkTitle = LocalizedStringResource.onboardingDisclosureLocalWorkTitle
+
+    static let localWorkDetail = LocalizedStringResource.onboardingDisclosureLocalWorkDetail
+
+    static let optionalFooter = LocalizedStringResource.onboardingDisclosureOptionalFooter
 }

@@ -2,6 +2,29 @@
 
 A native status-area app that shows how much of a Coding Agent's usage allowance has been consumed and when it resets. The original client is a macOS menu-bar app; a native Windows notification-area companion lives under `apps/TokenStats.Windows`.
 
+## Localization contract (macOS)
+
+English is the source language for TokenStats-owned copy. Simplified Chinese (`zh-Hans`) is the first fully supported translation. Product copy uses stable semantic String Catalog keys, `LocalizedStringResource`, and Xcode-generated symbols; visible sentences must not be assembled from translated fragments.
+
+The following terms are canonical. Review new copy against this table before adding a key:
+
+| English source term | Simplified Chinese | Notes |
+| --- | --- | --- |
+| Usage Window | 用量周期 | A quota period with authoritative consumption/reset semantics. |
+| Token Odometer | Token 计量 | The transcript-derived token total; never a quota. |
+| Token Kind | Token 类型 | One of direct input, output, cache write, or cache read. |
+| Selected total | 已选合计 | The projection over enabled Token Kinds. |
+| Billing tokens | 计费 Token | The existing direct-input + cache-write + output summary. |
+| API equivalent | API 等值费用 | An estimate, not an invoice. |
+| Coding Agent | Coding Agent | Keep the English technical term. |
+| Model | 模型 | The model reported by the transcript. |
+
+Do not translate the TokenStats, Claude Code, Codex, or Fable names; model identifiers; URLs; filesystem paths; protocol/JSON field names; or raw diagnostic payloads. Localize the user-facing summary around a diagnostic, but preserve the raw diagnostic itself in the expandable detail.
+
+An in-app language choice changes TokenStats-owned copy only. The chosen language is applied after restart, while number, date, time, and USD formatting conventions continue to follow the user's system region and related Locale preferences. System-owned macOS UI, such as file pickers and standard menus, continues to follow macOS.
+
+API-equivalent estimates are **USD-only** for now. The aggregate keeps the existing pricing behavior: round upward once to the nearest cent, then format as USD with exactly two fractional digits using the system's regional conventions. A future currency-selection project may add currencies; localization work must not infer or introduce currency conversion from the selected UI language.
+
 ## Language
 
 **Usage Window**:

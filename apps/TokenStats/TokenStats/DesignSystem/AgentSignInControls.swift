@@ -23,33 +23,56 @@ struct AgentSignInControls: View {
     var font: Font
 
     @State private var pastedCode = ""
+    @Environment(\.locale) private var locale
 
     private var agent: any CodingAgentIntegration { id.integration }
+    private var localizer: AppLocalizer { AppLocalizer(locale: locale) }
 
     @ViewBuilder var body: some View {
         switch agent.signInStyle {
         case .pasteCode:
-            Button(model.isAwaitingCode(id) ? "Re-open browser" : "Sign in to \(agent.displayName)") {
+            Button(signInButtonTitle) {
                 model.signIn(id)
             }
             if model.isAwaitingCode(id) {
-                Text("Approve TokenStats in your browser, then paste the code here:")
+                Text(
+                    LocalizedStringResource.accountSignInPasteCodeInstruction
+                )
                     .font(font)
                     .foregroundStyle(.secondary)
                 HStack {
-                    TextField("Paste code", text: $pastedCode)
+                    TextField(
+                        localizer.localized(LocalizedStringResource.accountSignInPasteCodeField),
+                        text: $pastedCode
+                    )
                         .textFieldStyle(.roundedBorder)
                         .onSubmit(submit)
-                    Button("Submit", action: submit)
+                    Button(
+                        LocalizedStringResource.accountSignInSubmitButton,
+                        action: submit
+                    )
                         .disabled(pastedCode.isEmpty)
                 }
             }
         case .selfCompleting:
-            Button("Sign in to \(agent.displayName)") { model.signIn(id) }
-            Text("Approve in your browser; TokenStats finishes automatically.")
+            Button(signInButtonTitle) { model.signIn(id) }
+            Text(
+                LocalizedStringResource.accountSignInAutomaticInstruction
+            )
                 .font(font)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private var signInButtonTitle: String {
+        if model.isAwaitingCode(id) {
+            return localizer.localized(
+                LocalizedStringResource.accountSignInReopenBrowserButton
+            )
+        }
+        return localizer.localized(
+            LocalizedStringResource.accountSignInAgentButton(agent.displayName)
+        )
     }
 
     private func submit() {
