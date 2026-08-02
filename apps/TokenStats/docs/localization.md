@@ -8,7 +8,7 @@ This document covers `apps/TokenStats` only. The Windows client has its own nati
 
 - English (`en`) is the source language.
 - Simplified Chinese (`zh-Hans`) is a complete launch language.
-- German (`de`), French (`fr`), Japanese (`ja`), and Russian (`ru`) have complete draft catalogs. Their String Units remain `needs_review`, and they are not release-ready until native-language review is complete.
+- German (`de`), French (`fr`), Japanese (`ja`), and Russian (`ru`) have complete, native-reviewed catalogs and are release-ready.
 - Missing runtime translations fall back to English, but catalog validation rejects a missing or unreviewed value in any supported language before release.
 
 The app language setting is ordered **Follow System**, **English**, **简体中文**, **Deutsch**, **Français**, **日本語**, **Русский**. Language names are presented in their own language. A preference change is saved immediately but does not partially relocalize the running process:

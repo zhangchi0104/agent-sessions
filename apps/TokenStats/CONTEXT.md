@@ -4,7 +4,7 @@ A native status-area app that shows how much of a Coding Agent's usage allowance
 
 ## Localization contract (macOS)
 
-English is the source language for TokenStats-owned copy, and Simplified Chinese (`zh-Hans`) is a fully supported translation. German (`de`), French (`fr`), Japanese (`ja`), and Russian (`ru`) currently have complete draft catalogs, but remain release-blocked until native-language review is complete. Product copy uses stable semantic String Catalog keys, `LocalizedStringResource`, and Xcode-generated symbols; visible sentences must not be assembled from translated fragments.
+English is the source language for TokenStats-owned copy. Simplified Chinese (`zh-Hans`), German (`de`), French (`fr`), Japanese (`ja`), and Russian (`ru`) are fully supported translations. Product copy uses stable semantic String Catalog keys, `LocalizedStringResource`, and Xcode-generated symbols; visible sentences must not be assembled from translated fragments.
 
 The following terms are canonical. Review new copy against this table before adding a key:
 
