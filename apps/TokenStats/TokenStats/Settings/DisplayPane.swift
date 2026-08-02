@@ -1,23 +1,22 @@
 //
-//  AppearancePane.swift
+//  DisplayPane.swift
 //  TokenStats
 //
-//  Settings → Appearance: pick the primary subscription, reorder the Coding
-//  Agents, and choose how Token and Usage readings are presented.
+//  Settings → Display: choose which Coding Agents appear on each surface,
+//  arrange them, and select the Usage Window presentation.
 //
 
 import SwiftUI
 
-/// Appearance: pick the primary subscription, reorder agents, and choose how
-/// Token and Usage readings are drawn. Edits write straight through to the
-/// persisted, observable `AppearanceSettings`, so the popover updates live.
-struct AppearancePane: View {
+/// Presentation choices shared by the popover and menu bar. Edits write
+/// through to the persisted `AppearanceSettings`, so every surface updates
+/// immediately while the central non-empty visibility invariant stays intact.
+struct DisplayPane: View {
     @Bindable var appearance: AppearanceSettings
 
-    /// Reordering only changes anything with at least two *non-primary* agents
-    /// to shuffle, since the primary is always hoisted first. With two agents
-    /// total there's a single follower, so dragging is a no-op — we disable it
-    /// and explain why rather than offer a control that does nothing.
+    /// With two agents there is only one non-primary follower, so moving it
+    /// cannot change the resolved order. Keep the affordance honest until a
+    /// third Coding Agent exists.
     private var canReorder: Bool { appearance.order.count > 2 }
     private static let surfaceColumnWidth: CGFloat = 80
 
@@ -42,7 +41,7 @@ struct AppearancePane: View {
 
             Section {
                 ForEach(appearance.order, id: \.self) { id in
-                    OrderRow(appearance: appearance, id: id, draggable: canReorder)
+                    DisplayOrderRow(appearance: appearance, id: id, draggable: canReorder)
                 }
                 .onMove(perform: canReorder ? { source, destination in
                     appearance.move(fromOffsets: source, toOffset: destination)
@@ -61,44 +60,6 @@ struct AppearancePane: View {
             agentVisibilitySection
 
             Section {
-                Picker(selection: $appearance.tokenSummaryMetric) {
-                    ForEach(TokenSummaryMetric.allCases) { metric in
-                        Text(metric.title).tag(metric)
-                    }
-                } label: {
-                    Text(AppearanceCopy.tokenSummaryTitle)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-            } header: {
-                Text(AppearanceCopy.tokenSummaryTitle)
-            } footer: {
-                Text(AppearanceCopy.tokenSummaryFooter)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Section {
-                Picker(selection: $appearance.tokenValueDisplay) {
-                    ForEach(TokenValueDisplayMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                } label: {
-                    Text(AppearanceCopy.tokenValuesTitle)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-            } header: {
-                Text(AppearanceCopy.tokenValuesTitle)
-            } footer: {
-                Text(AppearanceCopy.tokenValuesFooter)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Section {
                 Picker(selection: $appearance.gaugeStyle) {
                     ForEach(GaugeStyle.allCases) { style in
                         Label {
@@ -114,7 +75,7 @@ struct AppearancePane: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
 
-                GaugeStylePreview(style: appearance.gaugeStyle)
+                DisplayGaugeStylePreview(style: appearance.gaugeStyle)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 4)
             } header: {
@@ -208,8 +169,10 @@ struct AppearancePane: View {
             )
     }
 
-    private func visibilityBinding(for id: CodingAgentID,
-                                   on surface: AgentDisplaySurface) -> Binding<Bool> {
+    private func visibilityBinding(
+        for id: CodingAgentID,
+        on surface: AgentDisplaySurface
+    ) -> Binding<Bool> {
         Binding(
             get: { appearance.isVisible(id, on: surface) },
             set: { isVisible in
@@ -219,11 +182,7 @@ struct AppearancePane: View {
     }
 }
 
-/// One agent row: icon, name, and (for the primary) a badge. When the list is
-/// reorderable it carries a trailing drag handle — the affordance hinting the
-/// row can be dragged via the enclosing `ForEach`'s native `.onMove`. When only
-/// one follower exists the handle is hidden, since dragging does nothing.
-private struct OrderRow: View {
+private struct DisplayOrderRow: View {
     @Bindable var appearance: AppearanceSettings
     let id: CodingAgentID
     let draggable: Bool
@@ -261,8 +220,7 @@ private struct OrderRow: View {
     }
 }
 
-/// A small live sample of the selected gauge style for the Appearance picker.
-private struct GaugeStylePreview: View {
+private struct DisplayGaugeStylePreview: View {
     let style: GaugeStyle
     @Environment(\.locale) private var locale
 
@@ -343,7 +301,6 @@ private extension AgentDisplaySurface {
         case (.menuBar, false): AppearanceCopy.showInMenuBarHelp(agentName)
         }
     }
-
     func visibilityAccessibilityLabel(agentName: String) -> LocalizedStringResource {
         switch self {
         case .usage: AppearanceCopy.usageVisibilityAccessibilityLabel(agentName)
@@ -354,7 +311,7 @@ private extension AgentDisplaySurface {
 }
 
 private enum AppearanceCopy {
-    static let title = LocalizedStringResource.settingsAppearanceTitle
+    static let title = LocalizedStringResource.settingsDisplayTitle
 
     static let primarySubscriptionPicker = LocalizedStringResource.settingsAppearancePrimarySubscriptionPicker
 
@@ -367,14 +324,6 @@ private enum AppearanceCopy {
     static let orderReorderableFooter = LocalizedStringResource.settingsAppearanceOrderReorderableFooter
 
     static let orderFixedFooter = LocalizedStringResource.settingsAppearanceOrderFixedFooter
-
-    static let tokenSummaryTitle = LocalizedStringResource.settingsAppearanceTokenSummaryTitle
-
-    static let tokenSummaryFooter = LocalizedStringResource.settingsAppearanceTokenSummaryFooter
-
-    static let tokenValuesTitle = LocalizedStringResource.settingsAppearanceTokenValuesTitle
-
-    static let tokenValuesFooter = LocalizedStringResource.settingsAppearanceTokenValuesFooter
 
     static let gaugeStylePicker = LocalizedStringResource.settingsAppearanceUsageWindowStylePicker
 
@@ -400,7 +349,8 @@ private enum AppearanceCopy {
 
     static let hiddenAccessibilityValue = LocalizedStringResource.settingsAppearanceVisibilityHiddenAccessibilityValue
 
-    static let minimumVisibleAccessibilityHint = LocalizedStringResource.settingsAppearanceVisibilityMinimumAccessibilityHint
+    static let minimumVisibleAccessibilityHint =
+        LocalizedStringResource.settingsAppearanceVisibilityMinimumAccessibilityHint
 
     static func primaryOrderAccessibilityLabel(_ agentName: String) -> LocalizedStringResource {
         LocalizedStringResource.settingsAppearanceOrderPrimaryAccessibilityLabel(agentName)

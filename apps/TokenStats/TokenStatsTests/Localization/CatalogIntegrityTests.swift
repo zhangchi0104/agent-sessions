@@ -34,6 +34,7 @@ struct CatalogIntegrityTests {
         "tokens.agent.selected_total.accessibility",
         "tokens.agent.selected_total.help",
         "tokens.summary.api_equivalent.partial.help",
+        "tokens.summary.api_equivalent.unpriced.accessibility",
         "tokens.summary.billing.accessibility",
         "tokens.summary.billing.help",
     ]

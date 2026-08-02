@@ -18,6 +18,10 @@ struct TokenSummaryPresentation: Equatable {
     /// The semantic number behind `value`, used only by SwiftUI's native
     /// numeric transition. Nil means the reading is unavailable.
     let numericValue: Double?
+    /// Identifies the semantic unit behind `numericValue`. A changed identity
+    /// replaces the value with a short crossfade instead of rolling digits
+    /// between unrelated units such as tokens, USD, and CNY.
+    let transitionIdentity: String
 
     static func make(
         perAgent: [TokenOdometerModel.AgentTokens],
@@ -25,10 +29,12 @@ struct TokenSummaryPresentation: Equatable {
         range: TokenRange,
         hasLoaded: Bool,
         pricingDate: Date = Date(),
+        currencyContext: CurrencyDisplayContext = .usd,
         locale: Locale
     ) -> TokenSummaryPresentation {
         let localizer = AppLocalizer(locale: locale)
         let rangeSentenceForm = range.localizedSentenceForm(using: localizer)
+        let identity = transitionIdentity(metric: metric, currencyContext: currencyContext)
         guard hasLoaded else {
             return TokenSummaryPresentation(
                 value: "—",
@@ -41,7 +47,8 @@ struct TokenSummaryPresentation: Equatable {
                 accessibilityLabel: localizer.localized(
                     LocalizedStringResource.tokensSummaryReadingAccessibility(rangeSentenceForm)
                 ),
-                numericValue: nil
+                numericValue: nil,
+                transitionIdentity: identity
             )
         }
 
@@ -67,6 +74,7 @@ struct TokenSummaryPresentation: Equatable {
                 usage: usage,
                 estimate: estimate,
                 range: range,
+                currencyContext: currencyContext,
                 localizer: localizer
             )
         }
@@ -92,7 +100,8 @@ struct TokenSummaryPresentation: Equatable {
                 accessibilityLabel: localizer.localized(
                     LocalizedStringResource.tokensSummaryBillingEmptyAccessibility(rangeSentenceForm)
                 ),
-                numericValue: nil
+                numericValue: nil,
+                transitionIdentity: TokenSummaryMetric.billingTokens.rawValue
             )
         }
 
@@ -109,12 +118,19 @@ struct TokenSummaryPresentation: Equatable {
             value: displayedCount,
             label: label,
             help: localizer.localized(
-                LocalizedStringResource.tokensSummaryBillingHelp(count, directInput, cacheWrite, output, cacheRead)
+                LocalizedStringResource.tokensSummaryBillingHelp(
+                    count,
+                    directInput,
+                    cacheWrite,
+                    output,
+                    cacheRead
+                )
             ),
             accessibilityLabel: localizer.localized(
                 LocalizedStringResource.tokensSummaryBillingAccessibility(count, rangeSentenceForm)
             ),
-            numericValue: Double(count)
+            numericValue: Double(count),
+            transitionIdentity: TokenSummaryMetric.billingTokens.rawValue
         )
     }
 
@@ -122,12 +138,21 @@ struct TokenSummaryPresentation: Equatable {
         usage: TokenUsage?,
         estimate: ApiCostEstimate,
         range: TokenRange,
+        currencyContext: CurrencyDisplayContext,
         localizer: AppLocalizer
     ) -> TokenSummaryPresentation {
         let rangeHeadingForm = range.localizedHeadingForm(using: localizer)
         let rangeSentenceForm = range.localizedSentenceForm(using: localizer)
+        let currencyLabel = localizedCurrencyLabel(currencyContext, localizer: localizer)
         let label = localizer.localized(
-            LocalizedStringResource.tokensSummaryApiEquivalentLabel(rangeHeadingForm)
+            LocalizedStringResource.tokensSummaryApiEquivalentLabel(
+                currencyLabel,
+                rangeHeadingForm
+            )
+        )
+        let identity = transitionIdentity(
+            metric: .apiEquivalent,
+            currencyContext: currencyContext
         )
         guard usage != nil else {
             return TokenSummaryPresentation(
@@ -139,73 +164,265 @@ struct TokenSummaryPresentation: Equatable {
                 accessibilityLabel: localizer.localized(
                     LocalizedStringResource.tokensSummaryApiEquivalentEmptyAccessibility(rangeSentenceForm)
                 ),
-                numericValue: nil
+                numericValue: nil,
+                transitionIdentity: identity
             )
         }
 
         let reviewed = reviewedDate(locale: localizer.locale)
-        let help: String
+        let unpricedModels = localizedUnpricedModels(estimate, localizer: localizer)
+        let methodology: String
         if estimate.isPartial {
-            let models = estimate.unpricedModels
-                .map { $0.localizedDescription(using: localizer) }
-                .formatted(
-                    .list(type: .and, width: .standard)
-                        .locale(localizer.locale)
-                )
-            help = localizer.localized(
+            methodology = localizer.localized(
                 LocalizedStringResource.tokensSummaryApiEquivalentPartialHelp(
                     estimate.unpricedTokens,
                     reviewed,
-                    models
+                    unpricedModels
                 )
             )
         } else {
-            help = localizer.localized(
+            methodology = localizer.localized(
                 LocalizedStringResource.tokensSummaryApiEquivalentHelp(reviewed)
             )
         }
+        let disclosure = currencyDisclosure(currencyContext, localizer: localizer)
 
         guard estimate.isAvailable else {
+            var accessibilityParts = [
+                localizer.localized(
+                    LocalizedStringResource.tokensSummaryApiEquivalentUnavailableAccessibility
+                ),
+                disclosure,
+            ]
+            if estimate.isPartial {
+                accessibilityParts.append(
+                    localizedUnpricedAccessibility(
+                        estimate,
+                        models: unpricedModels,
+                        localizer: localizer
+                    )
+                )
+            }
             return TokenSummaryPresentation(
                 value: "—",
                 label: label,
-                help: help,
-                accessibilityLabel: localizer.localized(
-                    LocalizedStringResource.tokensSummaryApiEquivalentUnavailableAccessibility
-                ),
-                numericValue: nil
+                help: methodology + " " + disclosure,
+                accessibilityLabel: accessibilityParts.joined(separator: " "),
+                numericValue: nil,
+                transitionIdentity: identity
             )
         }
 
-        let exactCost = estimate.formattedCost(locale: localizer.locale)
-        let displayedCost = compactCurrency(
-            estimate.roundedCostUSD,
-            exact: exactCost,
-            locale: localizer.locale
+        // Convert the exact aggregate. Rounding the USD amount first and then
+        // converting would compound presentation rounding in the local value.
+        let amount = currencyContext.amount(forUSD: estimate.costUSD)
+        // Compact notation is only a width escape hatch for seven-figure
+        // totals. Ordinary values keep the currency's full minor-unit detail.
+        let shouldCompact = amount.roundedValue >= 1_000_000
+        let fullLocalCost = amount.formatted(compact: false)
+        let displayedCost = amount.formatted(compact: shouldCompact)
+        let originalUSD = estimate.formattedCost(locale: localizer.locale)
+        let exactHelp = localizer.localized(
+            LocalizedStringResource.tokensSummaryApiEquivalentExactHelp(
+                fullLocalCost,
+                originalUSD,
+                methodology
+            )
         )
+        var accessibilityParts = [
+            localizer.localized(
+                LocalizedStringResource.tokensSummaryApiEquivalentAccessibility(
+                    fullLocalCost,
+                    rangeSentenceForm,
+                    originalUSD
+                )
+            ),
+            disclosure,
+        ]
+        if estimate.isPartial {
+            accessibilityParts.append(
+                localizedUnpricedAccessibility(
+                    estimate,
+                    models: unpricedModels,
+                    localizer: localizer
+                )
+            )
+        }
         return TokenSummaryPresentation(
             value: displayedCost,
             label: label,
-            help: localizer.localized(
-                LocalizedStringResource.tokensSummaryApiEquivalentExactHelp(exactCost, help)
-            ),
-            accessibilityLabel: localizer.localized(
-                LocalizedStringResource.tokensSummaryApiEquivalentAccessibility(
-                    exactCost,
-                    rangeSentenceForm
-                )
-            ),
-            numericValue: NSDecimalNumber(decimal: estimate.roundedCostUSD).doubleValue
+            help: exactHelp + " " + disclosure,
+            accessibilityLabel: accessibilityParts.joined(separator: " "),
+            numericValue: amount.numericValue,
+            transitionIdentity: identity
         )
     }
 
-    /// Currency remains exact and region-aware. The view may scale an unusually
-    /// large value, but it never replaces ISO currency semantics with a
-    /// hand-authored suffix that would be wrong in some locales.
-    private static func compactCurrency(_ amount: Decimal, exact: String, locale: Locale) -> String {
-        _ = amount
-        _ = locale
-        return exact
+    private static func localizedCurrencyLabel(
+        _ context: CurrencyDisplayContext,
+        localizer: AppLocalizer
+    ) -> String {
+        let code = context.currencyCode.rawValue
+        if context.isFallback {
+            return localizer.localized(
+                LocalizedStringResource.tokensSummaryApiEquivalentCurrencyFallbackLabel(code)
+            )
+        }
+        if context.isStale {
+            return localizer.localized(
+                LocalizedStringResource.tokensSummaryApiEquivalentCurrencyStaleLabel(code)
+            )
+        }
+        return code
+    }
+
+    private static func localizedUnpricedModels(
+        _ estimate: ApiCostEstimate,
+        localizer: AppLocalizer
+    ) -> String {
+        estimate.unpricedModels
+            .map { $0.localizedDescription(using: localizer) }
+            .formatted(
+                .list(type: .and, width: .standard)
+                    .locale(localizer.locale)
+            )
+    }
+
+    private static func localizedUnpricedAccessibility(
+        _ estimate: ApiCostEstimate,
+        models: String,
+        localizer: AppLocalizer
+    ) -> String {
+        localizer.localized(
+            LocalizedStringResource.tokensSummaryApiEquivalentUnpricedAccessibility(
+                estimate.unpricedTokens,
+                models
+            )
+        )
+    }
+
+    private static func transitionIdentity(
+        metric: TokenSummaryMetric,
+        currencyContext: CurrencyDisplayContext
+    ) -> String {
+        guard metric == .apiEquivalent else { return metric.rawValue }
+        return [
+            metric.rawValue,
+            currencyContext.requestedCode.rawValue,
+            currencyContext.currencyCode.rawValue,
+            currencyContext.isFallback ? "fallback" : "converted",
+        ].joined(separator: ":")
+    }
+
+    private static func currencyDisclosure(
+        _ context: CurrencyDisplayContext,
+        localizer: AppLocalizer
+    ) -> String {
+        let effectiveCode = context.currencyCode.rawValue
+        let requestedCode = context.requestedCode.rawValue
+
+        if context.isFallback {
+            var parts = [
+                localizer.localized(
+                    LocalizedStringResource.tokensSummaryApiEquivalentCurrencyFallbackNoRate(
+                        requestedCode
+                    )
+                ),
+                localizer.localized(
+                    LocalizedStringResource.tokensSummaryApiEquivalentCurrencyFallbackOriginalUsd
+                ),
+            ]
+            if let fetchedAt = context.fetchedAt {
+                parts.append(
+                    localizer.localized(
+                        LocalizedStringResource.tokensSummaryApiEquivalentCurrencyFallbackLastFetched(
+                            fetchedAtText(fetchedAt, locale: localizer.locale)
+                        )
+                    )
+                )
+            }
+            return parts.joined(separator: " ")
+        }
+
+        var parts = [
+            localizer.localized(
+                LocalizedStringResource.tokensSummaryApiEquivalentCurrencyRate(
+                    formatRate(context.rate, locale: localizer.locale),
+                    effectiveCode
+                )
+            ),
+        ]
+
+        if context.currencyCode == .usd {
+            parts.append(
+                localizer.localized(
+                    LocalizedStringResource.tokensSummaryApiEquivalentCurrencyUsdBase
+                )
+            )
+        } else {
+            if let rateDate = context.rateDate {
+                parts.append(
+                    localizer.localized(
+                        LocalizedStringResource.tokensSummaryApiEquivalentCurrencyRateDate(
+                            CurrencyAmountFormatting.rateDateText(
+                                rateDate,
+                                locale: localizer.locale
+                            )
+                        )
+                    )
+                )
+            } else {
+                parts.append(
+                    localizer.localized(
+                        LocalizedStringResource.tokensSummaryApiEquivalentCurrencyRateDateUnavailable
+                    )
+                )
+            }
+            if let fetchedAt = context.fetchedAt {
+                parts.append(
+                    localizer.localized(
+                        LocalizedStringResource.tokensSummaryApiEquivalentCurrencyFetched(
+                            fetchedAtText(fetchedAt, locale: localizer.locale)
+                        )
+                    )
+                )
+            } else {
+                parts.append(
+                    localizer.localized(
+                        LocalizedStringResource.tokensSummaryApiEquivalentCurrencyFetchUnavailable
+                    )
+                )
+            }
+            parts.append(
+                localizer.localized(
+                    context.isStale
+                        ? LocalizedStringResource.tokensSummaryApiEquivalentCurrencyStatusStale
+                        : LocalizedStringResource.tokensSummaryApiEquivalentCurrencyStatusCurrent
+                )
+            )
+        }
+
+        return parts.joined(separator: " ")
+    }
+
+    private static func fetchedAtText(_ date: Date, locale: Locale) -> String {
+        Date.FormatStyle()
+            .year()
+            .month()
+            .day()
+            .hour()
+            .minute()
+            .second()
+            .locale(locale)
+            .format(date)
+    }
+
+    private static func formatRate(_ rate: Decimal, locale: Locale) -> String {
+        rate.formatted(
+            .number
+                .precision(.fractionLength(0...8))
+                .locale(locale)
+        )
     }
 
     static func reviewedDate(
@@ -278,13 +495,27 @@ struct TokenSummaryHero: View {
     let metric: TokenSummaryMetric
     let range: TokenRange
     let hasLoaded: Bool
+    let currencyContext: CurrencyDisplayContext
+
+    init(
+        perAgent: [TokenOdometerModel.AgentTokens],
+        metric: TokenSummaryMetric,
+        range: TokenRange,
+        hasLoaded: Bool,
+        currencyContext: CurrencyDisplayContext = .usd
+    ) {
+        self.perAgent = perAgent
+        self.metric = metric
+        self.range = range
+        self.hasLoaded = hasLoaded
+        self.currencyContext = currencyContext
+    }
 
     @Environment(\.locale) private var locale
-
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// `nil` until this view has settled its first presentation. That first
     /// value appears immediately, matching v1's conditionally inserted hero.
-    @State private var presentedMetric: TokenSummaryMetric?
+    @State private var presentedIdentity: String?
     @State private var hasPresentedNumber = false
 
     private var presentation: TokenSummaryPresentation {
@@ -293,6 +524,7 @@ struct TokenSummaryHero: View {
             metric: metric,
             range: range,
             hasLoaded: hasLoaded,
+            currencyContext: currencyContext,
             locale: locale
         )
     }
@@ -300,37 +532,49 @@ struct TokenSummaryHero: View {
     private var shouldAnimate: Bool {
         !reduceMotion
             && hasPresentedNumber
-            && presentedMetric == metric
+            && presentedIdentity == presentation.transitionIdentity
             && presentation.numericValue != nil
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(presentation.value)
-                // This is the v1 macOS animation: SwiftUI owns the per-digit
-                // motion and its platform feel. Windows' hand-drawn rolling
-                // control is deliberately not shared.
-                .font(.system(size: Self.valueFontSize, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                .contentTransition(
-                    .numericText(value: presentation.numericValue ?? 0)
-                )
-                .animation(
-                    shouldAnimate ? .snappy(duration: 0.6) : nil,
-                    value: presentation.numericValue
-                )
-                .frame(
-                    maxWidth: .infinity,
-                    minHeight: Self.valueSlotHeight,
-                    maxHeight: Self.valueSlotHeight,
-                    alignment: .bottomLeading
-                )
+            ZStack(alignment: .bottomLeading) {
+                Text(presentation.value)
+                    // SwiftUI owns the same-unit per-digit motion. Changing
+                    // metric or currency replaces this child instead.
+                    .font(.system(size: Self.valueFontSize, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .contentTransition(
+                        .numericText(value: presentation.numericValue ?? 0)
+                    )
+                    .animation(
+                        shouldAnimate ? .snappy(duration: 0.6) : nil,
+                        value: presentation.numericValue
+                    )
+                    .id(presentation.transitionIdentity)
+                    .transition(
+                        reduceMotion
+                            ? .identity
+                            : .opacity.combined(with: .scale(scale: 0.98))
+                    )
+            }
+            .animation(
+                reduceMotion ? nil : .easeInOut(duration: 0.25),
+                value: presentation.transitionIdentity
+            )
+            .frame(
+                maxWidth: .infinity,
+                minHeight: Self.valueSlotHeight,
+                maxHeight: Self.valueSlotHeight,
+                alignment: .bottomLeading
+            )
             Text(presentation.label)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .frame(
             maxWidth: .infinity,
@@ -342,12 +586,12 @@ struct TokenSummaryHero: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
         .onAppear {
-            presentedMetric = metric
+            presentedIdentity = presentation.transitionIdentity
             hasPresentedNumber = presentation.numericValue != nil
         }
-        .onChange(of: metric) { _, newMetric in
+        .onChange(of: presentation.transitionIdentity) { _, newIdentity in
             // Units changed, so settle rather than implying a numeric delta.
-            presentedMetric = newMetric
+            presentedIdentity = newIdentity
             hasPresentedNumber = presentation.numericValue != nil
         }
         .onChange(of: presentation.numericValue) { _, newValue in
