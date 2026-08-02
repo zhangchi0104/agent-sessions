@@ -22,10 +22,13 @@ final class CurrencyModel {
         }
     }
 
+    private(set) var sourcePreferences: ExchangeRateSourcePreferences
     private(set) var snapshot: ExchangeRateSnapshot?
     private(set) var lastAttempt: ExchangeRateAttempt?
     private(set) var isRefreshing = false
+    private(set) var isValidatingSource = false
     private(set) var lastError: String?
+    private(set) var sourceValidationError: String?
     private(set) var systemCurrencyCode: CurrencyCode
     private(set) var localeIdentifier: String
 
@@ -41,7 +44,7 @@ final class CurrencyModel {
     @ObservationIgnored private var started = false
 
     init(
-        provider: any ExchangeRateProviding = FrankfurterExchangeRateProvider(),
+        provider: any ExchangeRateProviding = ExchangeRateProviderRouter(),
         store: ExchangeRateStore = ExchangeRateStore(),
         now: @escaping () -> Date = Date.init,
         locale: @escaping () -> Locale = { .autoupdatingCurrent },
@@ -53,8 +56,10 @@ final class CurrencyModel {
         self.locale = locale
         self.schedulesAutomaticRefresh = schedulesAutomaticRefresh
         selection = store.loadSelection()
-        snapshot = store.loadSnapshot()
-        lastAttempt = store.loadAttempt()
+        let persistentState = store.loadPersistentState()
+        sourcePreferences = persistentState.sourcePreferences
+        snapshot = persistentState.snapshot
+        lastAttempt = persistentState.attempt
         let initialLocale = locale()
         systemCurrencyCode = Self.resolveSystemCurrency(from: initialLocale)
         localeIdentifier = initialLocale.identifier
@@ -84,6 +89,18 @@ final class CurrencyModel {
         }
     }
 
+    var activeSource: ExchangeRateSource {
+        sourcePreferences.activeSource
+    }
+
+    var availableSourceDescriptors: [ExchangeRateProviderDescriptor] {
+        ExchangeRateProviderID.allCases.map(\.descriptor)
+    }
+
+    func configuredSource(for providerID: ExchangeRateProviderID) -> ExchangeRateSource {
+        sourcePreferences.source(for: providerID)
+    }
+
     var availableCurrencies: [CurrencyCode] {
         var codes = Set(snapshot?.quotes.map(\.quoteCode) ?? [])
         codes.insert(.usd)
@@ -100,7 +117,7 @@ final class CurrencyModel {
     }
 
     var canRetry: Bool {
-        guard !isRefreshing, let lastAttempt else { return false }
+        guard !isRefreshing, !isValidatingSource, let lastAttempt else { return false }
         return lastAttempt.outcome == .failure || lastAttempt.outcome == .pending
     }
 
@@ -151,15 +168,20 @@ final class CurrencyModel {
 
     /// Restore lifecycle observation and perform the single eligible automatic
     /// check. Repeated calls are harmless.
-    func start() {
-        guard !started else { return }
+    @discardableResult
+    func start() -> Task<Void, Never>? {
+        guard !started else { return nil }
         started = true
         observeSystemChanges()
-        Task { await refreshIfEligible() }
+        let initialRefresh = Task<Void, Never> { [weak self] in
+            guard let self else { return }
+            await self.refreshIfEligible()
+        }
+        return initialRefresh
     }
 
     func refreshIfEligible() async {
-        guard !isRefreshing else { return }
+        guard !isRefreshing, !isValidatingSource else { return }
         guard isEligible else {
             scheduleNextAutomaticRefresh()
             return
@@ -174,8 +196,100 @@ final class CurrencyModel {
         await refresh(force: true)
     }
 
+    /// Validate one known adapter against a candidate HTTPS endpoint, then
+    /// atomically make the candidate and its newly fetched table active. A
+    /// failed validation leaves the current source, cache, and daily gate intact.
+    @discardableResult
+    func validateAndActivateSource(
+        providerID: ExchangeRateProviderID,
+        endpointText: String
+    ) async -> Bool {
+        let candidate: ExchangeRateSource
+        do {
+            candidate = try ExchangeRateSource.validated(
+                providerID: providerID,
+                endpointText: endpointText
+            )
+        } catch {
+            sourceValidationError = Self.errorDetail(error)
+            return false
+        }
+
+        guard candidate != activeSource else {
+            sourceValidationError = nil
+            return true
+        }
+        // A second Apply arriving while validation is in flight is a no-op. It
+        // must not overwrite the first operation's eventual success/error.
+        guard !isValidatingSource else { return false }
+        guard !isRefreshing else {
+            sourceValidationError = "Wait for the current exchange-rate request to finish."
+            return false
+        }
+
+        automaticRefreshTask?.cancel()
+        automaticRefreshTask = nil
+        isValidatingSource = true
+        sourceValidationError = nil
+
+        let attemptedAt = now()
+        var didActivate = false
+        do {
+            let quotes = try await provider.fetchRates(from: candidate)
+            try Task.checkCancellation()
+            let fetched = ExchangeRateSnapshot(
+                source: candidate,
+                fetchedAt: now(),
+                quotes: quotes
+            )
+            guard fetched.isValidEnvelope else {
+                throw ExchangeRateProviderError.emptyTable(candidate.providerID)
+            }
+
+            var preferences = sourcePreferences
+            preferences.activate(candidate)
+            let success = ExchangeRateAttempt(
+                attemptedAt: attemptedAt,
+                outcome: .success,
+                errorDescription: nil,
+                source: candidate
+            )
+            let newState = ExchangeRatePersistentState(
+                schemaVersion: ExchangeRatePersistentState.currentSchemaVersion,
+                sourcePreferences: preferences,
+                snapshot: fetched,
+                attempt: success
+            )
+            guard newState.isValidEnvelope else {
+                throw ExchangeRateProviderError.emptyTable(candidate.providerID)
+            }
+
+            sourcePreferences = preferences
+            snapshot = fetched
+            lastAttempt = success
+            lastError = nil
+            sourceValidationError = nil
+            store.savePersistentState(newState)
+            didActivate = true
+        } catch {
+            sourceValidationError = Self.errorDetail(error)
+        }
+
+        isValidatingSource = false
+        if didActivate {
+            scheduleNextAutomaticRefresh()
+        } else {
+            restoreFutureAutomaticRefreshAfterFailedValidation()
+        }
+        return didActivate
+    }
+
+    func clearSourceValidationError() {
+        sourceValidationError = nil
+    }
+
     private func refresh(force: Bool) async {
-        guard !isRefreshing else { return }
+        guard !isRefreshing, !isValidatingSource else { return }
         guard force || isEligible else {
             scheduleNextAutomaticRefresh()
             return
@@ -184,46 +298,62 @@ final class CurrencyModel {
         automaticRefreshTask?.cancel()
         automaticRefreshTask = nil
 
+        let source = activeSource
         let attemptedAt = now()
         let pending = ExchangeRateAttempt(
             attemptedAt: attemptedAt,
             outcome: .pending,
-            errorDescription: nil
+            errorDescription: nil,
+            source: source
         )
         lastAttempt = pending
-        store.saveAttempt(pending)
+        persistState()
         lastError = nil
         isRefreshing = true
 
         do {
-            let quotes = try await provider.fetchRates()
-            let fetched = ExchangeRateSnapshot(fetchedAt: now(), quotes: quotes)
+            let quotes = try await provider.fetchRates(from: source)
+            let fetched = ExchangeRateSnapshot(
+                source: source,
+                fetchedAt: now(),
+                quotes: quotes
+            )
             guard fetched.isValidEnvelope else {
-                throw ExchangeRateProviderError.emptyTable
+                throw ExchangeRateProviderError.emptyTable(source.providerID)
             }
             snapshot = fetched
-            store.saveSnapshot(fetched)
             let success = ExchangeRateAttempt(
                 attemptedAt: attemptedAt,
                 outcome: .success,
-                errorDescription: nil
+                errorDescription: nil,
+                source: source
             )
             lastAttempt = success
-            store.saveAttempt(success)
+            persistState()
         } catch {
             let detail = Self.errorDetail(error)
             lastError = detail
             let failure = ExchangeRateAttempt(
                 attemptedAt: attemptedAt,
                 outcome: .failure,
-                errorDescription: detail
+                errorDescription: detail,
+                source: source
             )
             lastAttempt = failure
-            store.saveAttempt(failure)
+            persistState()
         }
 
         isRefreshing = false
         scheduleNextAutomaticRefresh()
+    }
+
+    private func persistState() {
+        store.savePersistentState(ExchangeRatePersistentState(
+            schemaVersion: ExchangeRatePersistentState.currentSchemaVersion,
+            sourcePreferences: sourcePreferences,
+            snapshot: snapshot,
+            attempt: lastAttempt
+        ))
     }
 
     private func scheduleNextAutomaticRefresh() {
@@ -251,6 +381,16 @@ final class CurrencyModel {
             self?.automaticRefreshTask = nil
             await self?.refreshIfEligible()
         }
+    }
+
+    /// Source validation is one explicit request. If it fails after an already
+    /// eligible automatic check was coalesced behind it, do not immediately
+    /// issue a second request to the still-active source. A future lifecycle
+    /// event may perform that eligible check. Timers that were not yet due are
+    /// restored so a failed validation does not postpone the normal schedule.
+    private func restoreFutureAutomaticRefreshAfterFailedValidation() {
+        guard let nextAutomaticRefreshAt, nextAutomaticRefreshAt > now() else { return }
+        scheduleNextAutomaticRefresh()
     }
 
     private func observeSystemChanges() {

@@ -94,21 +94,24 @@ nonisolated struct ExchangeRateQuote: Codable, Equatable, Sendable {
 }
 
 nonisolated struct ExchangeRateSnapshot: Codable, Equatable, Sendable {
-    static let currentSchemaVersion = 1
+    static let currentSchemaVersion = 2
 
     let schemaVersion: Int
     let baseCode: CurrencyCode
+    let source: ExchangeRateSource
     let fetchedAt: Date
     let quotes: [ExchangeRateQuote]
 
     init(
         schemaVersion: Int = Self.currentSchemaVersion,
         baseCode: CurrencyCode = .usd,
+        source: ExchangeRateSource = .default,
         fetchedAt: Date,
         quotes: [ExchangeRateQuote]
     ) {
         self.schemaVersion = schemaVersion
         self.baseCode = baseCode
+        self.source = source
         self.fetchedAt = fetchedAt
         self.quotes = quotes.sorted { $0.quoteCode < $1.quoteCode }
     }
@@ -120,6 +123,7 @@ nonisolated struct ExchangeRateSnapshot: Codable, Equatable, Sendable {
     var isValidEnvelope: Bool {
         schemaVersion == Self.currentSchemaVersion
             && baseCode == .usd
+            && source.isValid
             && !quotes.isEmpty
             && Set(quotes.map(\.quoteCode)).count == quotes.count
             && quotes.allSatisfy { $0.rate > 0 && $0.quoteCode != .usd }
@@ -136,6 +140,19 @@ nonisolated struct ExchangeRateAttempt: Codable, Equatable, Sendable {
     let attemptedAt: Date
     let outcome: ExchangeRateAttemptOutcome
     let errorDescription: String?
+    let source: ExchangeRateSource
+
+    init(
+        attemptedAt: Date,
+        outcome: ExchangeRateAttemptOutcome,
+        errorDescription: String?,
+        source: ExchangeRateSource = .default
+    ) {
+        self.attemptedAt = attemptedAt
+        self.outcome = outcome
+        self.errorDescription = errorDescription
+        self.source = source
+    }
 }
 
 nonisolated struct CurrencyDisplayAmount: Equatable, Sendable {
@@ -224,9 +241,9 @@ nonisolated struct CurrencyDisplayContext: Equatable, Sendable {
 }
 
 nonisolated enum CurrencyAmountFormatting {
-    /// Frankfurter's quote date is a calendar day, decoded at UTC midnight.
-    /// Always render that day in UTC so negative-offset user time zones cannot
-    /// shift it to the previous local date.
+    /// Provider quote dates are normalized to a UTC instant. Render the date in
+    /// UTC so negative-offset user time zones cannot shift it to the previous
+    /// local day.
     static func rateDateText(_ date: Date, locale: Locale) -> String {
         let formatter = DateFormatter()
         formatter.locale = locale

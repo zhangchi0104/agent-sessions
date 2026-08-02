@@ -104,9 +104,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if onboarding.completed {
             currencyModel.start()
         } else {
-            // Frankfurter is the only connection that does not require an
-            // account first. Let a new user read (or skip) the disclosure
-            // before the first automatic rate-table request leaves the Mac.
+            // The selected public exchange-rate source is the only connection
+            // that does not require an account first. Let a new user read (or
+            // skip) the disclosure before its first automatic request leaves
+            // the Mac.
             showOnboarding()
         }
     }

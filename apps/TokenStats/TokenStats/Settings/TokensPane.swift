@@ -15,6 +15,8 @@ struct TokensPane: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.locale) private var locale
     @State private var isChoosingCurrency = false
+    @State private var isConfiguringRateSource = false
+    @State private var isShowingRateDetails = false
 
     var body: some View {
         Form {
@@ -63,6 +65,9 @@ struct TokensPane: View {
         .sheet(isPresented: $isChoosingCurrency) {
             CurrencyPickerSheet(currencyModel: currencyModel)
         }
+        .sheet(isPresented: $isConfiguringRateSource) {
+            ExchangeRateSourceSheet(currencyModel: currencyModel)
+        }
     }
 
     private var currencySection: some View {
@@ -93,6 +98,25 @@ struct TokensPane: View {
                     value: context.requestedCode
                 )
 
+            DisclosureGroup(isExpanded: $isShowingRateDetails) {
+                rateDetails(context)
+                    .padding(.top, 8)
+            } label: {
+                rateDetailsLabel(context)
+            }
+            .accessibilityHint(
+                isShowingRateDetails
+                    ? "Collapse exchange-rate details"
+                    : "Expand exchange-rate details"
+            )
+        } header: {
+            Text("API-equivalent currency")
+        }
+    }
+
+    @ViewBuilder
+    private func rateDetails(_ context: CurrencyDisplayContext) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
             LabeledContent("Reference rate") {
                 Text(referenceRateText(context))
                     .monospacedDigit()
@@ -117,9 +141,59 @@ struct TokensPane: View {
                 }
             }
 
-            LabeledContent("Source") {
-                Link("Frankfurter", destination: Self.frankfurterURL)
+            LabeledContent("Rate provider") {
+                Button {
+                    isConfiguringRateSource = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(activeSourceDescriptor.displayName)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+                .help("Change the exchange-rate provider or API endpoint")
+                .accessibilityLabel(
+                    "Rate provider, \(activeSourceDescriptor.displayName). Change provider or endpoint"
+                )
             }
+
+            LabeledContent("API endpoint") {
+                Button {
+                    isConfiguringRateSource = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(activeEndpointHost)
+                            .font(.callout.monospaced())
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+                .help(currencyModel.activeSource.endpoint.absoluteString)
+                .accessibilityLabel(
+                    "Exchange-rate API host, \(activeEndpointHost). Full endpoint, "
+                        + currencyModel.activeSource.endpoint.absoluteString
+                        + ". Change provider or endpoint."
+                )
+            }
+
+            LabeledContent("Attribution") {
+                Link(
+                    activeSourceDescriptor.attributionTitle,
+                    destination: activeSourceDescriptor.attributionURL
+                )
+            }
+
+            Text(activeSourceDescriptor.explanation)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             currencyStatus(context)
 
@@ -127,15 +201,36 @@ struct TokensPane: View {
                 Spacer()
                 refreshButton
             }
-        } header: {
-            Text("API-equivalent currency")
-        } footer: {
-            Text("Official Model prices remain in USD. TokenStats downloads the complete "
-                 + "USD reference-rate table automatically at most once every 24 hours. "
-                 + "Retrying after an error sends one additional request.")
-                .font(.callout)
+
+            Text("Official Model prices remain in USD. TokenStats downloads a complete "
+                 + "USD reference-rate table from the selected provider automatically at "
+                 + "most once every 24 hours. Retrying after an error sends one additional request.")
+                .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func rateDetailsLabel(_ context: CurrencyDisplayContext) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("Exchange rate details")
+            if currencyModel.isRefreshing {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Updating rates…")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityElement(children: .combine)
+            } else {
+                let status = rateDetailsStatus(context)
+                Label(status.text, systemImage: status.systemImage)
+                    .font(.caption)
+                    .foregroundStyle(status.color)
+            }
         }
     }
 
@@ -164,7 +259,7 @@ struct TokensPane: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if context.isStale {
+            if currencyModel.isSnapshotStale {
                 Label("The cached exchange rate may be out of date.", systemImage: "clock.arrow.circlepath")
                     .foregroundStyle(.secondary)
             }
@@ -182,7 +277,7 @@ struct TokensPane: View {
                 systemImage: "arrow.uturn.backward.circle"
             )
             .foregroundStyle(.secondary)
-        } else if context.isStale {
+        } else if currencyModel.isSnapshotStale {
             Label("Using the last known reference rate.", systemImage: "clock.arrow.circlepath")
                 .foregroundStyle(.secondary)
         } else if currencyModel.snapshot == nil {
@@ -261,7 +356,44 @@ struct TokensPane: View {
             ?? code.rawValue
     }
 
-    private static let frankfurterURL = URL(string: "https://frankfurter.dev")!
+    private var activeSourceDescriptor: ExchangeRateProviderDescriptor {
+        currencyModel.availableSourceDescriptors.first {
+            $0.id == currencyModel.activeSource.providerID
+        } ?? currencyModel.activeSource.providerID.descriptor
+    }
+
+    private var activeEndpointHost: String {
+        currencyModel.activeSource.endpoint.host
+            ?? currencyModel.activeSource.endpoint.absoluteString
+    }
+
+    private func rateDetailsStatus(
+        _ context: CurrencyDisplayContext
+    ) -> (text: String, systemImage: String, color: Color) {
+        if currencyModel.lastError != nil {
+            return (
+                currencyModel.snapshot == nil
+                    ? "Update failed · no rates cached"
+                    : "Update failed · last known rates retained",
+                "exclamationmark.triangle.fill",
+                .orange
+            )
+        }
+        if context.isFallback {
+            return (
+                "\(context.requestedCode.rawValue) unavailable · USD fallback",
+                "arrow.uturn.backward.circle",
+                .orange
+            )
+        }
+        if currencyModel.isSnapshotStale {
+            return ("Cached rate may be out of date", "clock.arrow.circlepath", .secondary)
+        }
+        if currencyModel.snapshot == nil {
+            return ("No exchange rates cached", "tray", .secondary)
+        }
+        return ("Up to date · \(activeSourceDescriptor.displayName)", "checkmark.circle.fill", .green)
+    }
 }
 
 private struct CurrencyPreview: View {
@@ -296,20 +428,32 @@ private struct CurrencyPreview: View {
     }
 
     private var previewText: String {
-        context.isFallback
-            ? "US$10.00 — not converted"
-            : "US$10.00  ≈  \(convertedText)"
+        if context.isFallback {
+            return "US$10.00 — not converted"
+        }
+        if isNativeUSD {
+            return "US$10.00 — no conversion"
+        }
+        return "US$10.00  ≈  \(convertedText)"
     }
 
     private var previewAccessibilityLabel: String {
-        context.isFallback
-            ? "No usable \(context.requestedCode.rawValue) exchange rate; "
+        if context.isFallback {
+            return "No usable \(context.requestedCode.rawValue) exchange rate; "
                 + "ten US dollars is shown without conversion"
-            : "Ten US dollars is approximately \(convertedText)"
+        }
+        if isNativeUSD {
+            return "Ten US dollars; no currency conversion is needed"
+        }
+        return "Ten US dollars is approximately \(convertedText)"
     }
 
     private var convertedText: String {
         context.amount(forUSD: exampleUSD).formatted()
+    }
+
+    private var isNativeUSD: Bool {
+        context.requestedCode == .usd && context.currencyCode == .usd
     }
 }
 
@@ -321,45 +465,98 @@ private struct CurrencyPickerSheet: View {
     @State private var query = ""
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            HStack(spacing: 14) {
+                Text("Display Currency")
+                    .font(.title2.weight(.semibold))
+
+                Spacer(minLength: 20)
+
+                HStack(spacing: 7) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+
+                    TextField("Search currencies", text: $query)
+                        .textFieldStyle(.plain)
+                        .lineLimit(1)
+
+                    if !query.isEmpty {
+                        Button {
+                            query = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Clear currency search")
+                    }
+                }
+                .padding(.horizontal, 9)
+                .frame(width: 220, height: 28)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 7))
+                .accessibilityElement(children: .contain)
+
+                Button("Close") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+
+            Divider()
+
             List {
-                Section("Automatic") {
-                    currencyRow(
-                        selection: .system,
-                        code: systemCurrencyCode,
-                        title: "System Region",
-                        subtitle: "\(currencyName(systemCurrencyCode)) "
-                            + "(\(systemCurrencyCode.rawValue))"
-                    )
+                if !filteredPopularCurrencies.isEmpty {
+                    Section("Popular") {
+                        ForEach(filteredPopularCurrencies, id: \.rawValue) { code in
+                            currencyRow(
+                                selection: .fixed(code),
+                                code: code,
+                                title: currencyName(code),
+                                subtitle: code.rawValue
+                            )
+                        }
+                    }
                 }
 
-                Section {
-                    ForEach(filteredCurrencies, id: \.rawValue) { code in
+                if automaticMatchesQuery {
+                    Section {
                         currencyRow(
-                            selection: .fixed(code),
-                            code: code,
-                            title: currencyName(code),
-                            subtitle: code.rawValue
+                            selection: .system,
+                            code: systemCurrencyCode,
+                            title: "System Region",
+                            subtitle: "\(currencyName(systemCurrencyCode)) "
+                                + "(\(systemCurrencyCode.rawValue))"
                         )
-                    }
-                } header: {
-                    Text("Currencies")
-                } footer: {
-                    if currencyModel.snapshot == nil {
-                        Text("No rates are cached yet. Close this list and choose Refresh rates "
-                             + "to load the Frankfurter currency table.")
+                    } header: {
+                        Text("Automatic")
+                    } footer: {
+                        if currencyModel.snapshot == nil {
+                            Text("No rates are cached yet. Close this list and choose Refresh rates "
+                                 + "to load the \(activeProviderName) currency table.")
+                        }
                     }
                 }
-            }
-            .searchable(text: $query, prompt: "Search currencies")
-            .navigationTitle("Choose Currency")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+
+                if !filteredGeneralCurrencies.isEmpty {
+                    Section("All Currencies") {
+                        ForEach(filteredGeneralCurrencies, id: \.rawValue) { code in
+                            currencyRow(
+                                selection: .fixed(code),
+                                code: code,
+                                title: currencyName(code),
+                                subtitle: code.rawValue
+                            )
+                        }
+                    }
+                }
+
+                if hasNoSearchResults {
+                    ContentUnavailableView.search(text: query)
                 }
             }
         }
-        .frame(minWidth: 440, idealWidth: 440, minHeight: 500, idealHeight: 500)
+        .frame(minWidth: 560, idealWidth: 600, minHeight: 500, idealHeight: 520)
     }
 
     private var allCurrencies: [CurrencyCode] {
@@ -376,14 +573,51 @@ private struct CurrencyPickerSheet: View {
         }
     }
 
-    private var filteredCurrencies: [CurrencyCode] {
+    private static let popularCurrencyOrder = ["USD", "CNY", "JPY", "EUR", "GBP", "KRW"]
+
+    private var popularCurrencies: [CurrencyCode] {
+        let availableByCode = Dictionary(
+            uniqueKeysWithValues: allCurrencies.map { ($0.rawValue, $0) }
+        )
+        return Self.popularCurrencyOrder.compactMap { availableByCode[$0] }
+    }
+
+    private var generalCurrencies: [CurrencyCode] {
+        let popular = Set(popularCurrencies)
+        return allCurrencies.filter { !popular.contains($0) }
+    }
+
+    private var filteredPopularCurrencies: [CurrencyCode] {
+        popularCurrencies.filter(matchesQuery)
+    }
+
+    private var filteredGeneralCurrencies: [CurrencyCode] {
+        generalCurrencies.filter(matchesQuery)
+    }
+
+    private var hasNoSearchResults: Bool {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return allCurrencies }
-        return allCurrencies.filter { code in
-            code.rawValue.localizedCaseInsensitiveContains(trimmed)
-                || currencyName(code).localizedCaseInsensitiveContains(trimmed)
-                || currencySymbol(code).localizedCaseInsensitiveContains(trimmed)
-        }
+        return !trimmed.isEmpty
+            && !automaticMatchesQuery
+            && filteredPopularCurrencies.isEmpty
+            && filteredGeneralCurrencies.isEmpty
+    }
+
+    private var automaticMatchesQuery: Bool {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return true }
+        return "System Region".localizedCaseInsensitiveContains(trimmed)
+            || systemCurrencyCode.rawValue.localizedCaseInsensitiveContains(trimmed)
+            || currencyName(systemCurrencyCode).localizedCaseInsensitiveContains(trimmed)
+            || currencySymbol(systemCurrencyCode).localizedCaseInsensitiveContains(trimmed)
+    }
+
+    private func matchesQuery(_ code: CurrencyCode) -> Bool {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return true }
+        return code.rawValue.localizedCaseInsensitiveContains(trimmed)
+            || currencyName(code).localizedCaseInsensitiveContains(trimmed)
+            || currencySymbol(code).localizedCaseInsensitiveContains(trimmed)
     }
 
     @ViewBuilder
@@ -445,5 +679,175 @@ private struct CurrencyPickerSheet: View {
         formatter.numberStyle = .currency
         formatter.currencyCode = code.rawValue
         return formatter.currencySymbol ?? code.rawValue
+    }
+
+    private var activeProviderName: String {
+        currencyModel.availableSourceDescriptors.first {
+            $0.id == currencyModel.activeSource.providerID
+        }?.displayName ?? currencyModel.activeSource.providerID.rawValue
+    }
+}
+
+private struct ExchangeRateSourceSheet: View {
+    @Bindable var currencyModel: CurrencyModel
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedProviderID: ExchangeRateProviderID
+    @State private var endpointText: String
+
+    init(currencyModel: CurrencyModel) {
+        self.currencyModel = currencyModel
+        let source = currencyModel.activeSource
+        _selectedProviderID = State(initialValue: source.providerID)
+        _endpointText = State(initialValue: source.endpoint.absoluteString)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Picker("Provider", selection: $selectedProviderID) {
+                        ForEach(currencyModel.availableSourceDescriptors) { descriptor in
+                            Text(descriptor.displayName).tag(descriptor.id)
+                        }
+                    }
+
+                    Text(selectedDescriptor.explanation)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    LabeledContent("Attribution") {
+                        Link(
+                            selectedDescriptor.attributionTitle,
+                            destination: selectedDescriptor.attributionURL
+                        )
+                    }
+
+                    LabeledContent("Documentation") {
+                        Link("Open API documentation", destination: selectedDescriptor.documentationURL)
+                    }
+                } header: {
+                    Text("Rate provider")
+                }
+
+                Section {
+                    TextField("Full HTTPS API URL", text: $endpointText)
+                        .font(.system(.body, design: .monospaced))
+                        .lineLimit(1)
+                        .multilineTextAlignment(.leading)
+                        .textFieldStyle(.roundedBorder)
+                        .disableAutocorrection(true)
+                        .disabled(currencyModel.isValidatingSource)
+                        .accessibilityLabel("Exchange-rate API endpoint")
+
+                    HStack {
+                        Text("Use a public, keyless endpoint compatible with this provider. "
+                             + "Do not include credentials or API keys in the URL.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Spacer(minLength: 12)
+
+                        Button("Restore Default") {
+                            endpointText = selectedDescriptor.defaultEndpoint.absoluteString
+                            currencyModel.clearSourceValidationError()
+                        }
+                        .disabled(
+                            currencyModel.isValidatingSource
+                                || endpointText == selectedDescriptor.defaultEndpoint.absoluteString
+                        )
+                    }
+                } header: {
+                    Text("HTTPS endpoint")
+                } footer: {
+                    Text("TokenStats verifies the endpoint before switching. It contacts only "
+                         + "the selected endpoint and never fails over to another service.")
+                }
+
+                if let validationError = currencyModel.sourceValidationError {
+                    Section {
+                        Label(validationError, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityLabel("Could not use rate provider. \(validationError)")
+                    }
+                }
+            }
+            .formStyle(.grouped)
+            .disabled(currencyModel.isValidatingSource)
+            .navigationTitle("Exchange Rate Source")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        currencyModel.clearSourceValidationError()
+                        dismiss()
+                    }
+                    .disabled(currencyModel.isValidatingSource)
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        Task {
+                            let activated = await currencyModel.validateAndActivateSource(
+                                providerID: selectedProviderID,
+                                endpointText: endpointText
+                            )
+                            if activated {
+                                dismiss()
+                            }
+                        }
+                    } label: {
+                        if currencyModel.isValidatingSource {
+                            HStack(spacing: 6) {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text("Verifying…")
+                            }
+                        } else {
+                            Text("Verify & Use")
+                        }
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(
+                        currencyModel.isValidatingSource
+                            || endpointText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    )
+                    .accessibilityLabel(
+                        currencyModel.isValidatingSource
+                            ? "Verifying exchange-rate source"
+                            : "Verify and use exchange-rate source"
+                    )
+                }
+            }
+        }
+        .frame(minWidth: 560, idealWidth: 620, minHeight: 430, idealHeight: 470)
+        .interactiveDismissDisabled(currencyModel.isValidatingSource)
+        .onAppear {
+            syncFromActiveSource()
+        }
+        .onChange(of: selectedProviderID) { _, providerID in
+            endpointText = currencyModel.configuredSource(for: providerID).endpoint.absoluteString
+            currencyModel.clearSourceValidationError()
+        }
+        .onChange(of: endpointText) {
+            currencyModel.clearSourceValidationError()
+        }
+        .onDisappear {
+            currencyModel.clearSourceValidationError()
+        }
+    }
+
+    private var selectedDescriptor: ExchangeRateProviderDescriptor {
+        currencyModel.availableSourceDescriptors.first { $0.id == selectedProviderID }
+            ?? selectedProviderID.descriptor
+    }
+
+    private func syncFromActiveSource() {
+        let source = currencyModel.activeSource
+        selectedProviderID = source.providerID
+        endpointText = source.endpoint.absoluteString
+        currencyModel.clearSourceValidationError()
     }
 }

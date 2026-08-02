@@ -2,129 +2,157 @@
 //  FrankfurterExchangeRateProvider.swift
 //  TokenStats
 //
-//  Fetches one complete USD reference-rate table. The provider validates the
-//  whole response before returning so a malformed row cannot poison cache.
+//  Fetches and validates one complete Frankfurter USD reference-rate table.
 //
 
 import Foundation
 
 nonisolated protocol ExchangeRateProviding {
-    func fetchRates() async throws -> [ExchangeRateQuote]
+    func fetchRates(from source: ExchangeRateSource) async throws -> [ExchangeRateQuote]
 }
 
 nonisolated enum ExchangeRateProviderError: Error, Equatable, LocalizedError {
-    case badResponse(status: Int)
-    case emptyTable
-    case invalidBase(String)
-    case invalidQuote(String)
-    case invalidRate(String)
-    case duplicateQuote(String)
-    case invalidDate(String)
+    case invalidSource(ExchangeRateProviderID)
+    case badResponse(ExchangeRateProviderID, status: Int)
+    case invalidResponse(ExchangeRateProviderID)
+    case emptyTable(ExchangeRateProviderID)
+    case insufficientTable(ExchangeRateProviderID, actual: Int, minimum: Int)
+    case invalidBase(ExchangeRateProviderID, String)
+    case invalidQuote(ExchangeRateProviderID, String)
+    case invalidRate(ExchangeRateProviderID, String)
+    case duplicateQuote(ExchangeRateProviderID, String)
+    case invalidDate(ExchangeRateProviderID, String)
 
     var errorDescription: String? {
+        let providerID: ExchangeRateProviderID
         switch self {
-        case let .badResponse(status):
+        case let .invalidSource(id),
+             let .badResponse(id, _),
+             let .invalidResponse(id),
+             let .emptyTable(id),
+             let .insufficientTable(id, _, _),
+             let .invalidBase(id, _),
+             let .invalidQuote(id, _),
+             let .invalidRate(id, _),
+             let .duplicateQuote(id, _),
+             let .invalidDate(id, _):
+            providerID = id
+        }
+
+        let provider = providerID.descriptor.displayName
+        switch self {
+        case .invalidSource:
+            return "\(provider) is configured with an invalid exchange-rate URL."
+        case let .badResponse(_, status):
             return status < 0
-                ? "Frankfurter returned an invalid response."
-                : "Frankfurter returned HTTP \(status)."
+                ? "\(provider) returned an invalid response."
+                : "\(provider) returned HTTP \(status)."
+        case .invalidResponse:
+            return "\(provider) returned an unreadable exchange-rate response."
         case .emptyTable:
-            return "Frankfurter returned an empty exchange-rate table."
-        case let .invalidBase(base):
-            return "Frankfurter returned an unexpected base currency (\(base))."
-        case let .invalidQuote(quote):
-            return "Frankfurter returned an invalid currency code (\(quote))."
-        case let .invalidRate(quote):
-            return "Frankfurter returned an invalid rate for \(quote)."
-        case let .duplicateQuote(quote):
-            return "Frankfurter returned \(quote) more than once."
-        case let .invalidDate(value):
-            return "Frankfurter returned an invalid quote date (\(value))."
+            return "\(provider) returned an empty exchange-rate table."
+        case let .insufficientTable(_, actual, minimum):
+            return "\(provider) returned only \(actual) usable rates; at least \(minimum) are required."
+        case let .invalidBase(_, base):
+            return "\(provider) returned an unexpected base currency (\(base))."
+        case let .invalidQuote(_, quote):
+            return "\(provider) returned an invalid currency code (\(quote))."
+        case let .invalidRate(_, quote):
+            return "\(provider) returned an invalid rate for \(quote)."
+        case let .duplicateQuote(_, quote):
+            return "\(provider) returned \(quote) more than once."
+        case let .invalidDate(_, value):
+            return "\(provider) returned an invalid quote date (\(value))."
+        }
+    }
+}
+
+nonisolated struct ExchangeRateProviderRouter: ExchangeRateProviding {
+    var session: URLSession = .shared
+
+    func fetchRates(from source: ExchangeRateSource) async throws -> [ExchangeRateQuote] {
+        switch source.providerID {
+        case .frankfurter:
+            return try await FrankfurterExchangeRateProvider(session: session)
+                .fetchRates(from: source)
+        case .exchangeRateAPI:
+            return try await ExchangeRateAPIProvider(session: session)
+                .fetchRates(from: source)
+        case .ecb:
+            return try await ECBExchangeRateProvider(session: session)
+                .fetchRates(from: source)
         }
     }
 }
 
 nonisolated struct FrankfurterExchangeRateProvider: ExchangeRateProviding {
-    static let endpoint = URL(string: "https://api.frankfurter.dev/v2/rates?base=USD")!
-
-    /// Frankfurter territory aliases plus ISO codes introduced after the app's
-    /// minimum macOS currency catalog. They are safe to validate and omit when
-    /// Foundation cannot localize them; every other unknown code is corruption.
-    private static let knownCodesNotGuaranteedByHostCatalog: Set<String> = [
-        "GGP", "IMP", "JEP", "XCG", "ZWG",
-    ]
+    static let endpoint = ExchangeRateProviderID.frankfurter.descriptor.defaultEndpoint
 
     var session: URLSession = .shared
 
-    func fetchRates() async throws -> [ExchangeRateQuote] {
-        var request = URLRequest(url: Self.endpoint)
-        request.httpMethod = "GET"
-        request.timeoutInterval = 20
-        request.cachePolicy = .reloadIgnoringLocalCacheData
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+    func fetchRates(from source: ExchangeRateSource) async throws -> [ExchangeRateQuote] {
+        let providerID = ExchangeRateProviderID.frankfurter
+        let request = try ExchangeRateProviderSupport.request(
+            for: source,
+            expectedProviderID: providerID,
+            accept: "application/json"
+        )
+        let data = try await ExchangeRateProviderSupport.responseData(
+            for: request,
+            providerID: providerID,
+            session: session
+        )
 
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw ExchangeRateProviderError.badResponse(status: -1)
+        let rows: [ResponseRow]
+        do {
+            rows = try JSONDecoder().decode([ResponseRow].self, from: data)
+        } catch {
+            throw ExchangeRateProviderError.invalidResponse(providerID)
         }
-        guard http.statusCode == 200 else {
-            throw ExchangeRateProviderError.badResponse(status: http.statusCode)
+        guard !rows.isEmpty else {
+            throw ExchangeRateProviderError.emptyTable(providerID)
         }
-
-        let rows = try JSONDecoder().decode([ResponseRow].self, from: data)
-        guard !rows.isEmpty else { throw ExchangeRateProviderError.emptyTable }
-
-        let dateFormatter = DateFormatter()
-        dateFormatter.calendar = Calendar(identifier: .gregorian)
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        dateFormatter.isLenient = false
 
         var seen = Set<String>()
+        var sawUSDIdentity = false
         var quotes: [ExchangeRateQuote] = []
         quotes.reserveCapacity(rows.count)
 
         for row in rows {
             let base = row.base.uppercased()
             guard base == CurrencyCode.usd.rawValue else {
-                throw ExchangeRateProviderError.invalidBase(row.base)
+                throw ExchangeRateProviderError.invalidBase(providerID, row.base)
             }
 
-            guard let normalizedQuote = Self.normalizedCurrencyCode(row.quote) else {
-                throw ExchangeRateProviderError.invalidQuote(row.quote)
-            }
+            let normalizedQuote = try ExchangeRateProviderSupport.normalizedCurrencyCode(
+                row.quote,
+                providerID: providerID
+            )
             guard row.rate > 0 else {
-                throw ExchangeRateProviderError.invalidRate(normalizedQuote)
+                throw ExchangeRateProviderError.invalidRate(providerID, normalizedQuote)
             }
             guard seen.insert(normalizedQuote).inserted else {
-                throw ExchangeRateProviderError.duplicateQuote(normalizedQuote)
+                throw ExchangeRateProviderError.duplicateQuote(providerID, normalizedQuote)
             }
-            guard let rateDate = dateFormatter.date(from: row.date),
-                  dateFormatter.string(from: rateDate) == row.date
-            else {
-                throw ExchangeRateProviderError.invalidDate(row.date)
-            }
+            let rateDate = try ExchangeRateProviderSupport.rateDate(
+                row.date,
+                providerID: providerID
+            )
 
-            // The complete v2 table includes USD's canonical identity row.
-            // Validate it, but do not persist it as an exchange-rate quote;
-            // the display layer supplies USD directly at rate 1.
+            // Frankfurter v2 includes USD's identity row. Validate it, but do
+            // not persist it because the display layer supplies USD at rate 1.
             if normalizedQuote == CurrencyCode.usd.rawValue {
                 guard row.rate == 1 else {
-                    throw ExchangeRateProviderError.invalidRate(normalizedQuote)
+                    throw ExchangeRateProviderError.invalidRate(providerID, normalizedQuote)
                 }
+                sawUSDIdentity = true
                 continue
             }
 
-            // Frankfurter also publishes a small known set of provider aliases
-            // and newer ISO codes which the host Foundation may not recognize.
-            // Omit only those known codes; an arbitrary unknown value such as
-            // ZZZ must still reject the whole response.
-            guard let quoteCode = CurrencyCode(normalizedQuote) else {
-                guard Self.knownCodesNotGuaranteedByHostCatalog.contains(normalizedQuote) else {
-                    throw ExchangeRateProviderError.invalidQuote(row.quote)
-                }
-                continue
-            }
+            guard let quoteCode = try ExchangeRateProviderSupport.currencyCode(
+                normalizedQuote,
+                providerID: providerID
+            ) else { continue }
             quotes.append(ExchangeRateQuote(
                 quoteCode: quoteCode,
                 rate: row.rate,
@@ -132,16 +160,17 @@ nonisolated struct FrankfurterExchangeRateProvider: ExchangeRateProviding {
             ))
         }
 
-        guard !quotes.isEmpty else { throw ExchangeRateProviderError.emptyTable }
-        return quotes.sorted { $0.quoteCode < $1.quoteCode }
-    }
+        guard sawUSDIdentity else {
+            throw ExchangeRateProviderError.invalidBase(
+                providerID,
+                "missing USD identity rate"
+            )
+        }
 
-    private static func normalizedCurrencyCode(_ value: String) -> String? {
-        let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        guard normalized.utf8.count == 3,
-              normalized.utf8.allSatisfy({ $0 >= 65 && $0 <= 90 })
-        else { return nil }
-        return normalized
+        return try ExchangeRateProviderSupport.validatedCompleteTable(
+            quotes,
+            providerID: providerID
+        )
     }
 
     private struct ResponseRow: Decodable {

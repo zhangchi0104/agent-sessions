@@ -21,12 +21,14 @@ struct OnboardingDisclosureStep: View {
                     + "tokens are saved in your macOS Keychain and used only to read your usage.")
                 row("network", "Usage and public exchange rates",
                     "Usage is fetched directly from Claude and OpenAI. TokenStats can "
-                    + "automatically request the public USD exchange-rate table from "
-                    + "Frankfurter at most once every 24 hours; retrying an error in "
-                    + "Settings sends one additional request. That fixed request "
-                    + "contains no account, token, usage, transcript, cost, or region "
-                    + "data; like any network service, "
-                    + "Frankfurter receives ordinary connection metadata such as your IP address.")
+                    + "automatically request a public USD exchange-rate table at most "
+                    + "once every 24 hours. Frankfurter is the default; Settings lets "
+                    + "you choose one supported HTTPS service and endpoint. TokenStats "
+                    + "contacts only that selection and never fails over automatically. "
+                    + "TokenStats adds no account, token, usage, transcript, calculated cost, "
+                    + "or region data. The selected host receives the configured URL path and "
+                    + "query plus ordinary connection metadata, so never put credentials "
+                    + "or API keys in the URL.")
                 row("internaldrive.fill", "Nothing about your work leaves your Mac",
                     "Your token counts are read from your agents' transcript files "
                     + "on this Mac. TokenStats reads them and uploads nothing.")
