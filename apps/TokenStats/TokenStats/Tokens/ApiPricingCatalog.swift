@@ -99,12 +99,45 @@ nonisolated struct ApiModelUsage: Equatable, Sendable {
     }
 }
 
+/// A semantic description of usage that the USD pricing catalog could not
+/// price. Provider Model IDs stay invariant; only app-owned fallback wording
+/// is localized at the presentation boundary.
+nonisolated enum ApiUnpricedModel: Equatable, Hashable, Sendable {
+    case model(agent: ApiPricingAgent, model: ModelName)
+    case transcriptUnattributed
+
+    fileprivate var stableSortKey: String {
+        switch self {
+        case .model(let agent, let model):
+            return "\(agent.displayName):\(model.fallbackName)"
+        case .transcriptUnattributed:
+            return "unknown transcript model"
+        }
+    }
+
+    func localizedDescription(using localizer: AppLocalizer) -> String {
+        switch self {
+        case .model(let agent, let model):
+            return localizer.localized(
+                LocalizedStringResource.tokensSummaryApiEquivalentUnpricedModelLabel(
+                    agent.displayName,
+                    model.localizedDisplayName(using: localizer)
+                )
+            )
+        case .transcriptUnattributed:
+            return localizer.localized(
+                LocalizedStringResource.tokensSummaryApiEquivalentUnpricedTranscriptModelLabel
+            )
+        }
+    }
+}
+
 nonisolated struct ApiCostEstimate: Equatable, Sendable {
     /// The exact aggregate before presentation rounding.
     let costUSD: Decimal
     let pricedTokens: Int
     let unpricedTokens: Int
-    let unpricedModels: [String]
+    let unpricedModels: [ApiUnpricedModel]
 
     var isAvailable: Bool { pricedTokens > 0 }
     var isPartial: Bool { unpricedTokens > 0 }
@@ -136,7 +169,15 @@ nonisolated struct ApiCostEstimate: Equatable, Sendable {
 
     /// UI-facing spelling; `formattedCostUSD` remains explicit at domain call
     /// sites that also inspect the unrounded `costUSD`.
-    var formattedCost: String { formattedCostUSD }
+    func formattedCost(locale: Locale) -> String {
+        guard isAvailable else { return "—" }
+        return roundedCostUSD.formatted(
+            .currency(code: "USD")
+                .precision(.fractionLength(2))
+                .locale(locale)
+        )
+    }
+
 }
 
 /// Standard list-price catalog kept in lockstep with Windows
@@ -256,7 +297,7 @@ nonisolated enum ApiPricingCatalog {
     /// `totalUsage` is optional because the reader normally attributes every
     /// token to a Model (including `.unattributed`). When supplied, any
     /// non-negative remainder not represented by `modelUsage` is disclosed as
-    /// `unknown transcript model`, matching Windows' defensive fallback.
+    /// a semantic unattributed-transcript marker.
     static func estimate(
         modelUsage: [ApiModelUsage],
         totalUsage: TokenUsage? = nil,
@@ -266,13 +307,13 @@ nonisolated enum ApiPricingCatalog {
         var aggregateCost = Decimal.zero
         var pricedTokens = 0
         var unpricedTokens = 0
-        var unpricedByFoldedName: [String: String] = [:]
+        var unpricedByFoldedName: [String: ApiUnpricedModel] = [:]
         var attributed = TokenUsage()
 
-        func addUnpricedModel(_ label: String) {
-            let folded = label.lowercased()
+        func addUnpricedModel(_ model: ApiUnpricedModel) {
+            let folded = model.stableSortKey.lowercased()
             if unpricedByFoldedName[folded] == nil {
-                unpricedByFoldedName[folded] = label
+                unpricedByFoldedName[folded] = model
             }
         }
 
@@ -298,10 +339,7 @@ nonisolated enum ApiPricingCatalog {
                 pricedTokens += selectedTokens
             } else {
                 unpricedTokens += selectedTokens
-                addUnpricedModel(
-                    "\(item.agent.displayName): " +
-                    "\(item.model == .unattributed ? "unknown model" : item.model.displayName)"
-                )
+                addUnpricedModel(.model(agent: item.agent, model: item.model))
             }
         }
 
@@ -313,14 +351,14 @@ nonisolated enum ApiPricingCatalog {
             )
             if selectedUnattributed > 0 {
                 unpricedTokens += selectedUnattributed
-                addUnpricedModel("unknown transcript model")
+                addUnpricedModel(.transcriptUnattributed)
             }
         }
 
         let unpricedModels = unpricedByFoldedName.values.sorted {
-            let left = $0.lowercased()
-            let right = $1.lowercased()
-            return left == right ? $0 < $1 : left < right
+            let left = $0.stableSortKey.lowercased()
+            let right = $1.stableSortKey.lowercased()
+            return left == right ? $0.stableSortKey < $1.stableSortKey : left < right
         }
         return ApiCostEstimate(
             costUSD: aggregateCost,

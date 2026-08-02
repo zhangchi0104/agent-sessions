@@ -18,14 +18,14 @@ enum CodexUsageSnapshotParser {
         guard let rateLimit = payload.rate_limit else { return [] }
         // A window's duration is authoritative when present. Codex currently
         // moves the weekly window between these slots, so slot position alone
-        // cannot name it. The fallback labels retain compatibility with older
-        // payloads that omitted every duration field.
+        // cannot identify it. Stable slot identities retain compatibility with
+        // older payloads that omitted every duration field.
         //
         // Credits and additional_rate_limits are intentionally ignored for the
         // first Codex UI (see PRD / docs/codex-integration.md).
         return [
-            rateLimit.primary_window?.window(fallbackLabel: "5-hour"),
-            rateLimit.secondary_window?.window(fallbackLabel: "Weekly"),
+            rateLimit.primary_window?.window(fallbackIdentity: .shortTerm),
+            rateLimit.secondary_window?.window(fallbackIdentity: .weekly),
         ].compactMap { $0 }
     }
 
@@ -81,16 +81,16 @@ enum CodexUsageSnapshotParser {
             window_minutes = try? container.decodeIfPresent(Double.self, forKey: .window_minutes)
         }
 
-        func window(fallbackLabel: String) -> UsageWindow {
+        func window(fallbackIdentity: UsageWindowIdentity) -> UsageWindow {
             // reset_at is Unix epoch seconds; treat absent or non-positive as
             // "reset time unavailable" rather than 1970.
             let resetAt = reset_at.flatMap { $0 > 0 ? Date(timeIntervalSince1970: $0) : nil }
-            let label = if let durationSeconds {
-                Self.label(forDurationSeconds: durationSeconds)
+            let identity = if let durationSeconds {
+                UsageWindowIdentity.reportedDuration(seconds: durationSeconds)
             } else {
-                fallbackLabel
+                fallbackIdentity
             }
-            return UsageWindow(label: label, percentConsumed: used_percent, resetAt: resetAt)
+            return UsageWindow(identity: identity, percentConsumed: used_percent, resetAt: resetAt)
         }
 
         /// Codex has used all three names across its standalone payload and
@@ -118,20 +118,5 @@ enum CodexUsageSnapshotParser {
             return Int(value.rounded(.towardZero))
         }
 
-        private static func label(forDurationSeconds seconds: Int) -> String {
-            if seconds == 7 * 24 * 60 * 60 {
-                return "Weekly"
-            }
-            if seconds.isMultiple(of: 24 * 60 * 60) {
-                return "\(seconds / (24 * 60 * 60))-day"
-            }
-            if seconds.isMultiple(of: 60 * 60) {
-                return "\(seconds / (60 * 60))-hour"
-            }
-            if seconds.isMultiple(of: 60) {
-                return "\(seconds / 60)-minute"
-            }
-            return "\(seconds)-second"
-        }
     }
 }

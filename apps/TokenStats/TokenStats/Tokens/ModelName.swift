@@ -19,11 +19,23 @@ nonisolated enum ModelName: Hashable, Sendable {
     case named(String)
     case unattributed
 
-    /// What the table shows for this Model.
-    var displayName: String {
+    /// Stable English sort/debug spelling. UI code must resolve the
+    /// presentation through `localizedDisplayName(using:)`.
+    var fallbackName: String {
         switch self {
         case .named(let name): name
         case .unattributed: "unknown"
+        }
+    }
+
+    func localizedDisplayName(using localizer: AppLocalizer) -> String {
+        switch self {
+        case .named(let name):
+            return name
+        case .unattributed:
+            return localizer.localized(
+                LocalizedStringResource.tokensModelUnattributed
+            )
         }
     }
 }
@@ -32,6 +44,6 @@ nonisolated extension ModelName: Comparable {
     /// Ordered by what the reader sees, so a tie-break between two Models with
     /// equal totals is alphabetical on screen rather than by case order.
     static func < (lhs: ModelName, rhs: ModelName) -> Bool {
-        lhs.displayName < rhs.displayName
+        lhs.fallbackName < rhs.fallbackName
     }
 }

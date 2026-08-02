@@ -38,6 +38,16 @@
                ReferencedContainer = "container:TokenStats.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "0BBC1D422FC67594004E2460"
+               BuildableName = "TokenStatsUITests.xctest"
+               BlueprintName = "TokenStatsUITests"
+               ReferencedContainer = "container:TokenStats.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

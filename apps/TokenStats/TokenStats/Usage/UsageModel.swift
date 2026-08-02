@@ -37,11 +37,12 @@ final class UsageModel {
     let appearance: AppearanceSettings
 
     private let lastKnown: LastKnownUsageStore
-    /// One provider per Coding Agent, built once from that agent's registry
-    /// entry. Every other per-agent fact this model needs — the compact label,
-    /// the auth session, the sign-in style — is read from `id.integration`,
-    /// the same place the views read it, so the two can never disagree.
+    /// One integration and provider per Coding Agent. Production uses the
+    /// registry; UI tests inject inert integrations so even future interactions
+    /// cannot touch the real Keychain or network.
+    private let integrations: [CodingAgentID: any CodingAgentIntegration]
     private let providers: [CodingAgentID: UsageProvider]
+    private let localizer: AppLocalizer
 
     private var lastFetch: [CodingAgentID: Date] = [:]
     private var failures: [CodingAgentID: Int] = [:]
@@ -49,11 +50,17 @@ final class UsageModel {
     private var wakeObserver: NSObjectProtocol?
 
     init(appearance: AppearanceSettings,
-         lastKnown: LastKnownUsageStore = LastKnownUsageStore()) {
+         localizer: AppLocalizer = AppLocalizer(locale: .current),
+         lastKnown: LastKnownUsageStore? = nil,
+         integrations suppliedIntegrations: [any CodingAgentIntegration]? = nil) {
+        let integrations = suppliedIntegrations ?? CodingAgentRegistry.all
         self.appearance = appearance
-        self.lastKnown = lastKnown
+        self.localizer = localizer
+        self.lastKnown = lastKnown ?? LastKnownUsageStore()
+        self.integrations = Dictionary(uniqueKeysWithValues:
+            integrations.map { ($0.id, $0) })
         self.providers = Dictionary(uniqueKeysWithValues:
-            CodingAgentID.allCases.map { ($0, $0.integration.makeProvider()) })
+            integrations.map { ($0.id, $0.makeProvider()) })
     }
 
     /// Call once on launch: restore each agent's last-known snapshot, observe
@@ -80,7 +87,8 @@ final class UsageModel {
     /// Menu-bar readings in the user's display order (primary first).
     var menuBarSummaries: [CodingAgentUsageSummary] {
         appearance.menuBarDisplayOrder.map { id in
-            CodingAgentUsageSummary(shortLabel: id.integration.shortLabel, state: agentStates[id])
+            CodingAgentUsageSummary(shortLabel: integration(for: id).shortLabel,
+                                    state: agentStates[id])
         }
     }
 
@@ -104,12 +112,12 @@ final class UsageModel {
     /// the time this finishes; a `.pasteCode` agent then waits for the user to
     /// bring a code back to `submitPastedCode`.
     func signIn(_ id: CodingAgentID) {
-        let agent = id.integration
+        let agent = integration(for: id)
         loginError[id] = nil
         if agent.signInStyle == .pasteCode { awaitingCode.insert(id) }
         Task {
             do {
-                try await agent.auth.beginSignIn()
+                try await agent.auth.beginSignIn(localizer: localizer)
                 loginError[id] = nil
                 if agent.signInStyle == .selfCompleting {
                     await refresh(id, trigger: .manual)
@@ -120,7 +128,8 @@ final class UsageModel {
                 // at a paste field they can never satisfy — and cannot dismiss,
                 // since Sign out only appears once connected.
                 awaitingCode.remove(id)
-                loginError[id] = "Sign-in failed: \(detail(of: error))"
+                diagnostics[id] = detail(of: error)
+                loginError[id] = localizedSignInFailure
             }
         }
     }
@@ -129,18 +138,22 @@ final class UsageModel {
     func submitPastedCode(_ code: String, for id: CodingAgentID) {
         Task {
             do {
-                try await id.integration.auth.completeSignIn(pastedCode: code)
+                try await integration(for: id).auth.completeSignIn(
+                    pastedCode: code,
+                    localizer: localizer
+                )
                 loginError[id] = nil
                 awaitingCode.remove(id)
                 await refresh(id, trigger: .manual)
             } catch {
-                loginError[id] = "Sign-in failed: \(detail(of: error))"
+                diagnostics[id] = detail(of: error)
+                loginError[id] = localizedSignInFailure
             }
         }
     }
 
     func signOut(_ id: CodingAgentID) {
-        id.integration.auth.signOut()
+        integration(for: id).auth.signOut()
         // Signing an agent out abandons any code it was waiting for. An agent
         // that never waits was never in the set, so this needs no style check.
         awaitingCode.remove(id)
@@ -214,13 +227,29 @@ final class UsageModel {
     }
 
     private func isSignedIn(_ id: CodingAgentID) -> Bool {
-        id.integration.auth.isSignedIn
+        integration(for: id).auth.isSignedIn
+    }
+
+    private func integration(for id: CodingAgentID) -> any CodingAgentIntegration {
+        guard let integration = integrations[id] else {
+            preconditionFailure("No CodingAgentIntegration supplied for \(id.rawValue)")
+        }
+        return integration
     }
 
     private func detail(of error: Error) -> String {
-        if let usage = error as? UsageError { return usage.displayText }
+        if let usage = error as? UsageError { return usage.displayText(using: localizer) }
+        if let listener = error as? LoopbackAuthListener.ListenerError {
+            return listener.localizedDescription(using: localizer)
+        }
         if let described = (error as? LocalizedError)?.errorDescription { return described }
         return String(describing: error)
+    }
+
+    private var localizedSignInFailure: String {
+        localizer.localized(
+            LocalizedStringResource.accountSignInFailedSummary
+        )
     }
 
     // MARK: - Timer & wake

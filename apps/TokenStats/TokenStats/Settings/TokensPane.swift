@@ -21,20 +21,19 @@ struct TokensPane: View {
     var body: some View {
         Form {
             Section {
-                Picker("Tokens summary", selection: $appearance.tokenSummaryMetric) {
+                Picker(selection: $appearance.tokenSummaryMetric) {
                     ForEach(TokenSummaryMetric.allCases) { metric in
                         Text(metric.title).tag(metric)
                     }
+                } label: {
+                    Text(TokensSettingsCopy.tokenSummaryTitle)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
             } header: {
-                Text("Tokens summary")
+                Text(TokensSettingsCopy.tokenSummaryTitle)
             } footer: {
-                Text("Billing tokens count direct input, cache writes, and output. "
-                     + "API equivalent estimates standard list-price cost from the "
-                     + "Models recorded in local transcripts. Token Kind filters "
-                     + "change neither summary.")
+                Text(TokensSettingsCopy.tokenSummaryFooter)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -43,25 +42,26 @@ struct TokensPane: View {
             currencySection
 
             Section {
-                Picker("Token values", selection: $appearance.tokenValueDisplay) {
+                Picker(selection: $appearance.tokenValueDisplay) {
                     ForEach(TokenValueDisplayMode.allCases) { mode in
                         Text(mode.title).tag(mode)
                     }
+                } label: {
+                    Text(TokensSettingsCopy.tokenValuesTitle)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
             } header: {
-                Text("Token values")
+                Text(TokensSettingsCopy.tokenValuesTitle)
             } footer: {
-                Text("Enabled Token Kinds use this format. Disabled kinds keep "
-                     + "a dimmed raw value and are excluded from composition percentages.")
+                Text(TokensSettingsCopy.tokenValuesFooter)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .formStyle(.grouped)
-        .navigationTitle("Tokens")
+        .navigationTitle(Text(TokensSettingsCopy.title))
         .sheet(isPresented: $isChoosingCurrency) {
             CurrencyPickerSheet(currencyModel: currencyModel)
         }
@@ -73,7 +73,7 @@ struct TokensPane: View {
     private var currencySection: some View {
         let context = currencyModel.displayContext
         return Section {
-            LabeledContent("Display currency") {
+            LabeledContent {
                 Button {
                     isChoosingCurrency = true
                 } label: {
@@ -86,8 +86,12 @@ struct TokensPane: View {
                     }
                 }
                 .buttonStyle(.bordered)
-                .help("Choose the currency used for API-equivalent estimates")
-                .accessibilityLabel("Display currency, \(selectionLabel)")
+                .help(Text(TokensSettingsCopy.displayCurrencyHelp))
+                .accessibilityLabel(Text(
+                    TokensSettingsCopy.displayCurrencyAccessibilityLabel(selectionLabel)
+                ))
+            } label: {
+                Text(TokensSettingsCopy.displayCurrencyLabel)
             }
 
             CurrencyPreview(context: context)
@@ -104,44 +108,52 @@ struct TokensPane: View {
             } label: {
                 rateDetailsLabel(context)
             }
-            .accessibilityHint(
+            .accessibilityHint(Text(
                 isShowingRateDetails
-                    ? "Collapse exchange-rate details"
-                    : "Expand exchange-rate details"
-            )
+                    ? TokensSettingsCopy.rateDetailsCollapseAccessibilityHint
+                    : TokensSettingsCopy.rateDetailsExpandAccessibilityHint
+            ))
         } header: {
-            Text("API-equivalent currency")
+            Text(TokensSettingsCopy.currencySectionTitle)
         }
     }
 
     @ViewBuilder
     private func rateDetails(_ context: CurrencyDisplayContext) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            LabeledContent("Reference rate") {
+            LabeledContent {
                 Text(referenceRateText(context))
                     .monospacedDigit()
                     .textSelection(.enabled)
+            } label: {
+                Text(TokensSettingsCopy.referenceRateLabel)
             }
 
             if let quoteDate = context.rateDate {
-                LabeledContent("Rate date") {
+                LabeledContent {
                     Text(CurrencyAmountFormatting.rateDateText(quoteDate, locale: locale))
+                } label: {
+                    Text(TokensSettingsCopy.rateDateLabel)
                 }
             }
 
             if let fetchedAt = context.fetchedAt {
-                LabeledContent("Fetched") {
-                    Text(fetchedAt.formatted(date: .abbreviated, time: .shortened))
+                LabeledContent {
+                    Text(dateTimeText(fetchedAt))
+                } label: {
+                    Text(TokensSettingsCopy.fetchedLabel)
                 }
             }
 
             if let nextRefresh = currencyModel.nextAutomaticRefreshAt {
-                LabeledContent("Next eligible refresh") {
-                    Text(nextRefresh.formatted(date: .abbreviated, time: .shortened))
+                LabeledContent {
+                    Text(dateTimeText(nextRefresh))
+                } label: {
+                    Text(TokensSettingsCopy.nextEligibleRefreshLabel)
                 }
             }
 
-            LabeledContent("Rate provider") {
+            LabeledContent {
                 Button {
                     isConfiguringRateSource = true
                 } label: {
@@ -153,22 +165,27 @@ struct TokensPane: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .help("Change the exchange-rate provider or API endpoint")
-                .accessibilityLabel(
-                    "Rate provider, \(activeSourceDescriptor.displayName). Change provider or endpoint"
-                )
+                .help(Text(TokensSettingsCopy.changeProviderHelp))
+                .accessibilityLabel(Text(
+                    TokensSettingsCopy.changeProviderAccessibilityLabel(
+                        activeSourceDescriptor.displayName
+                    )
+                ))
+            } label: {
+                Text(TokensSettingsCopy.rateProviderLabel)
             }
 
-            LabeledContent("API endpoint") {
+            LabeledContent {
                 Button {
                     isConfiguringRateSource = true
                 } label: {
                     HStack(spacing: 6) {
-                        Text(activeEndpointHost)
+                        Text(currencyModel.activeSource.endpoint.absoluteString)
                             .font(.callout.monospaced())
                             .foregroundStyle(.primary)
                             .lineLimit(1)
                             .truncationMode(.middle)
+                            .textSelection(.enabled)
                         Image(systemName: "chevron.right")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(.secondary)
@@ -176,21 +193,25 @@ struct TokensPane: View {
                 }
                 .buttonStyle(.plain)
                 .help(currencyModel.activeSource.endpoint.absoluteString)
-                .accessibilityLabel(
-                    "Exchange-rate API host, \(activeEndpointHost). Full endpoint, "
-                        + currencyModel.activeSource.endpoint.absoluteString
-                        + ". Change provider or endpoint."
-                )
+                .accessibilityLabel(Text(
+                    TokensSettingsCopy.changeEndpointAccessibilityLabel(
+                        currencyModel.activeSource.endpoint.absoluteString
+                    )
+                ))
+            } label: {
+                Text(TokensSettingsCopy.apiEndpointLabel)
             }
 
-            LabeledContent("Attribution") {
+            LabeledContent {
                 Link(
                     activeSourceDescriptor.attributionTitle,
                     destination: activeSourceDescriptor.attributionURL
                 )
+            } label: {
+                Text(TokensSettingsCopy.attributionLabel)
             }
 
-            Text(activeSourceDescriptor.explanation)
+            Text(activeSourceDescriptor.id.settingsExplanation)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -202,9 +223,7 @@ struct TokensPane: View {
                 refreshButton
             }
 
-            Text("Official Model prices remain in USD. TokenStats downloads a complete "
-                 + "USD reference-rate table from the selected provider automatically at "
-                 + "most once every 24 hours. Retrying after an error sends one additional request.")
+            Text(TokensSettingsCopy.rateRequestPolicy)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -215,12 +234,12 @@ struct TokensPane: View {
     @ViewBuilder
     private func rateDetailsLabel(_ context: CurrencyDisplayContext) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text("Exchange rate details")
+            Text(TokensSettingsCopy.rateDetailsTitle)
             if currencyModel.isRefreshing {
                 HStack(spacing: 6) {
                     ProgressView()
                         .controlSize(.small)
-                    Text("Updating rates…")
+                    Text(TokensSettingsCopy.updatingRates)
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -240,8 +259,8 @@ struct TokensPane: View {
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small)
                 Text(currencyModel.snapshot == nil
-                     ? "Loading exchange rates…"
-                     : "Refreshing rates; the last known rate remains in use.")
+                     ? TokensSettingsCopy.loadingRates
+                     : TokensSettingsCopy.refreshingRatesWithLastKnown)
                     .foregroundStyle(.secondary)
             }
             .accessibilityElement(children: .combine)
@@ -251,40 +270,51 @@ struct TokensPane: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(currencyModel.snapshot == nil
-                ? "Retry now to request rates again. This sends one additional request "
-                   + "before the next scheduled update."
-                 : "The last known rate remains in use. Retry now to request rates "
-                   + "again; this sends one additional request before the next scheduled update.")
+                 ? TokensSettingsCopy.retryExplanationWithoutCache
+                 : TokensSettingsCopy.retryExplanationWithCache)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             if currencyModel.isSnapshotStale {
-                Label("The cached exchange rate may be out of date.", systemImage: "clock.arrow.circlepath")
+                Label {
+                    Text(TokensSettingsCopy.staleRateWarning)
+                } icon: {
+                    Image(systemName: "clock.arrow.circlepath")
+                }
                     .foregroundStyle(.secondary)
             }
 
             if context.isFallback {
-                Label(
-                    "\(context.requestedCode.rawValue) is unavailable; showing USD fallback.",
-                    systemImage: "arrow.uturn.backward.circle"
-                )
+                Label {
+                    Text(TokensSettingsCopy.fallbackWarning(context.requestedCode.rawValue))
+                } icon: {
+                    Image(systemName: "arrow.uturn.backward.circle")
+                }
                 .foregroundStyle(.secondary)
             }
         } else if context.isFallback {
-            Label(
-                "\(context.requestedCode.rawValue) is unavailable; showing USD.",
-                systemImage: "arrow.uturn.backward.circle"
-            )
+            Label {
+                Text(TokensSettingsCopy.unavailableCurrencyWarning(
+                    context.requestedCode.rawValue
+                ))
+            } icon: {
+                Image(systemName: "arrow.uturn.backward.circle")
+            }
             .foregroundStyle(.secondary)
         } else if currencyModel.isSnapshotStale {
-            Label("Using the last known reference rate.", systemImage: "clock.arrow.circlepath")
+            Label {
+                Text(TokensSettingsCopy.usingLastKnownRate)
+            } icon: {
+                Image(systemName: "clock.arrow.circlepath")
+            }
                 .foregroundStyle(.secondary)
         } else if currencyModel.snapshot == nil {
-            Label(
-                "No exchange rates are cached yet. Refresh rates to load more currencies.",
-                systemImage: "arrow.clockwise.circle"
-            )
+            Label {
+                Text(TokensSettingsCopy.noRatesCachedInstruction)
+            } icon: {
+                Image(systemName: "arrow.clockwise.circle")
+            }
             .foregroundStyle(.secondary)
         }
     }
@@ -292,39 +322,70 @@ struct TokensPane: View {
     @ViewBuilder
     private var refreshButton: some View {
         if currencyModel.isRefreshing {
-            Button("Updating…") {}
+            Button {} label: {
+                Text(TokensSettingsCopy.updatingButton)
+            }
                 .disabled(true)
-                .accessibilityLabel("Exchange rates are updating")
+                .accessibilityLabel(Text(TokensSettingsCopy.updatingAccessibilityLabel))
         } else if currencyModel.canRetry {
             Button {
                 Task { await currencyModel.retryNow() }
             } label: {
-                Label("Retry now", systemImage: "arrow.clockwise")
+                Label {
+                    Text(TokensSettingsCopy.retryNowButton)
+                } icon: {
+                    Image(systemName: "arrow.clockwise")
+                }
             }
-            .help("Retry now, even if the normal daily refresh is not yet eligible")
+            .help(Text(TokensSettingsCopy.retryNowHelp))
         } else if currencyModel.isEligible {
             Button {
                 Task { await currencyModel.refreshIfEligible() }
             } label: {
-                Label("Refresh rates", systemImage: "arrow.clockwise")
+                Label {
+                    Text(TokensSettingsCopy.refreshRatesButton)
+                } icon: {
+                    Image(systemName: "arrow.clockwise")
+                }
             }
         } else {
             Button {
             } label: {
-                Label("Updated", systemImage: "checkmark")
+                Label {
+                    Text(TokensSettingsCopy.updatedButton)
+                } icon: {
+                    Image(systemName: "checkmark")
+                }
             }
             .disabled(true)
-            .accessibilityLabel("Exchange rates are up to date")
+            .accessibilityLabel(Text(TokensSettingsCopy.updatedAccessibilityLabel))
         }
+    }
+
+    private func dateTimeText(_ date: Date) -> String {
+        Date.FormatStyle()
+            .year()
+            .month()
+            .day()
+            .hour()
+            .minute()
+            .locale(locale)
+            .format(date)
     }
 
     private var selectionLabel: String {
         switch currencyModel.selection {
         case .system:
             let code = systemCurrencyCode
-            return "System Region — \(currencyName(code)) (\(code.rawValue))"
+            return localized(TokensSettingsCopy.systemRegionSelectionLabel(
+                currencyName(code),
+                code.rawValue
+            ))
         case .fixed(let code):
-            return "\(currencyName(code)) (\(code.rawValue))"
+            return localized(TokensSettingsCopy.fixedCurrencySelectionLabel(
+                currencyName(code),
+                code.rawValue
+            ))
         }
     }
 
@@ -335,15 +396,19 @@ struct TokensPane: View {
 
     private func referenceRateText(_ context: CurrencyDisplayContext) -> String {
         guard !context.isFallback else {
-            return "\(context.requestedCode.rawValue) rate unavailable — USD fallback"
+            return localized(TokensSettingsCopy.referenceRateUnavailable(
+                context.requestedCode.rawValue
+            ))
         }
-        return "1 USD = \(decimalText(context.rate, maximumFractionDigits: 6)) "
-            + context.currencyCode.rawValue
+        return localized(TokensSettingsCopy.referenceRate(
+            decimalText(context.rate, maximumFractionDigits: 6),
+            context.currencyCode.rawValue
+        ))
     }
 
     private func decimalText(_ value: Decimal, maximumFractionDigits: Int) -> String {
         let formatter = NumberFormatter()
-        formatter.locale = .autoupdatingCurrent
+        formatter.locale = locale
         formatter.numberStyle = .decimal
         formatter.minimumFractionDigits = 0
         formatter.maximumFractionDigits = maximumFractionDigits
@@ -352,7 +417,7 @@ struct TokensPane: View {
     }
 
     private func currencyName(_ code: CurrencyCode) -> String {
-        Locale.autoupdatingCurrent.localizedString(forCurrencyCode: code.rawValue)
+        locale.localizedString(forCurrencyCode: code.rawValue)
             ?? code.rawValue
     }
 
@@ -362,43 +427,51 @@ struct TokensPane: View {
         } ?? currencyModel.activeSource.providerID.descriptor
     }
 
-    private var activeEndpointHost: String {
-        currencyModel.activeSource.endpoint.host
-            ?? currencyModel.activeSource.endpoint.absoluteString
-    }
-
     private func rateDetailsStatus(
         _ context: CurrencyDisplayContext
     ) -> (text: String, systemImage: String, color: Color) {
         if currencyModel.lastError != nil {
             return (
                 currencyModel.snapshot == nil
-                    ? "Update failed · no rates cached"
-                    : "Update failed · last known rates retained",
+                    ? localized(TokensSettingsCopy.updateFailedWithoutCache)
+                    : localized(TokensSettingsCopy.updateFailedWithCache),
                 "exclamationmark.triangle.fill",
                 .orange
             )
         }
         if context.isFallback {
             return (
-                "\(context.requestedCode.rawValue) unavailable · USD fallback",
+                localized(TokensSettingsCopy.fallbackStatus(context.requestedCode.rawValue)),
                 "arrow.uturn.backward.circle",
                 .orange
             )
         }
         if currencyModel.isSnapshotStale {
-            return ("Cached rate may be out of date", "clock.arrow.circlepath", .secondary)
+            return (
+                localized(TokensSettingsCopy.staleRateStatus),
+                "clock.arrow.circlepath",
+                .secondary
+            )
         }
         if currencyModel.snapshot == nil {
-            return ("No exchange rates cached", "tray", .secondary)
+            return (localized(TokensSettingsCopy.noRatesCachedStatus), "tray", .secondary)
         }
-        return ("Up to date · \(activeSourceDescriptor.displayName)", "checkmark.circle.fill", .green)
+        return (
+            localized(TokensSettingsCopy.upToDateStatus(activeSourceDescriptor.displayName)),
+            "checkmark.circle.fill",
+            .green
+        )
+    }
+
+    private func localized(_ resource: LocalizedStringResource) -> String {
+        AppLocalizer(locale: locale).localized(resource)
     }
 }
 
 private struct CurrencyPreview: View {
     let context: CurrencyDisplayContext
 
+    @Environment(\.locale) private var locale
     private let exampleUSD = Decimal(10)
 
     var body: some View {
@@ -409,7 +482,7 @@ private struct CurrencyPreview: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text("Preview")
+                Text(TokensSettingsCopy.previewTitle)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Text(previewText)
@@ -429,23 +502,36 @@ private struct CurrencyPreview: View {
 
     private var previewText: String {
         if context.isFallback {
-            return "US$10.00 — not converted"
+            return localized(TokensSettingsCopy.previewNotConverted(exampleUSDText))
         }
         if isNativeUSD {
-            return "US$10.00 — no conversion"
+            return localized(TokensSettingsCopy.previewNoConversion(exampleUSDText))
         }
-        return "US$10.00  ≈  \(convertedText)"
+        return localized(TokensSettingsCopy.previewApproximate(exampleUSDText, convertedText))
     }
 
     private var previewAccessibilityLabel: String {
         if context.isFallback {
-            return "No usable \(context.requestedCode.rawValue) exchange rate; "
-                + "ten US dollars is shown without conversion"
+            return localized(TokensSettingsCopy.previewFallbackAccessibilityLabel(
+                context.requestedCode.rawValue,
+                exampleUSDText
+            ))
         }
         if isNativeUSD {
-            return "Ten US dollars; no currency conversion is needed"
+            return localized(TokensSettingsCopy.previewUSDAccessibilityLabel(exampleUSDText))
         }
-        return "Ten US dollars is approximately \(convertedText)"
+        return localized(TokensSettingsCopy.previewConvertedAccessibilityLabel(
+            exampleUSDText,
+            convertedText
+        ))
+    }
+
+    private var exampleUSDText: String {
+        exampleUSD.formatted(
+            .currency(code: CurrencyCode.usd.rawValue)
+                .precision(.fractionLength(2))
+                .locale(locale)
+        )
     }
 
     private var convertedText: String {
@@ -455,6 +541,10 @@ private struct CurrencyPreview: View {
     private var isNativeUSD: Bool {
         context.requestedCode == .usd && context.currencyCode == .usd
     }
+
+    private func localized(_ resource: LocalizedStringResource) -> String {
+        AppLocalizer(locale: locale).localized(resource)
+    }
 }
 
 private struct CurrencyPickerSheet: View {
@@ -462,12 +552,13 @@ private struct CurrencyPickerSheet: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
     @State private var query = ""
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 14) {
-                Text("Display Currency")
+                Text(TokensSettingsCopy.currencyPickerTitle)
                     .font(.title2.weight(.semibold))
 
                 Spacer(minLength: 20)
@@ -477,7 +568,9 @@ private struct CurrencyPickerSheet: View {
                         .foregroundStyle(.secondary)
                         .accessibilityHidden(true)
 
-                    TextField("Search currencies", text: $query)
+                    TextField(text: $query) {
+                        Text(TokensSettingsCopy.currencySearchPlaceholder)
+                    }
                         .textFieldStyle(.plain)
                         .lineLimit(1)
 
@@ -489,7 +582,9 @@ private struct CurrencyPickerSheet: View {
                                 .foregroundStyle(.secondary)
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Clear currency search")
+                        .accessibilityLabel(Text(
+                            TokensSettingsCopy.clearCurrencySearchAccessibilityLabel
+                        ))
                     }
                 }
                 .padding(.horizontal, 9)
@@ -497,7 +592,11 @@ private struct CurrencyPickerSheet: View {
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 7))
                 .accessibilityElement(children: .contain)
 
-                Button("Close") { dismiss() }
+                Button {
+                    dismiss()
+                } label: {
+                    Text(TokensSettingsCopy.closeButton)
+                }
                     .keyboardShortcut(.cancelAction)
             }
             .padding(.horizontal, 18)
@@ -507,7 +606,7 @@ private struct CurrencyPickerSheet: View {
 
             List {
                 if !filteredPopularCurrencies.isEmpty {
-                    Section("Popular") {
+                    Section {
                         ForEach(filteredPopularCurrencies, id: \.rawValue) { code in
                             currencyRow(
                                 selection: .fixed(code),
@@ -516,6 +615,8 @@ private struct CurrencyPickerSheet: View {
                                 subtitle: code.rawValue
                             )
                         }
+                    } header: {
+                        Text(TokensSettingsCopy.popularCurrenciesSectionTitle)
                     }
                 }
 
@@ -524,22 +625,23 @@ private struct CurrencyPickerSheet: View {
                         currencyRow(
                             selection: .system,
                             code: systemCurrencyCode,
-                            title: "System Region",
-                            subtitle: "\(currencyName(systemCurrencyCode)) "
-                                + "(\(systemCurrencyCode.rawValue))"
+                            title: localized(TokensSettingsCopy.systemRegionTitle),
+                            subtitle: localized(TokensSettingsCopy.fixedCurrencySelectionLabel(
+                                currencyName(systemCurrencyCode),
+                                systemCurrencyCode.rawValue
+                            ))
                         )
                     } header: {
-                        Text("Automatic")
+                        Text(TokensSettingsCopy.automaticSectionTitle)
                     } footer: {
                         if currencyModel.snapshot == nil {
-                            Text("No rates are cached yet. Close this list and choose Refresh rates "
-                                 + "to load the \(activeProviderName) currency table.")
+                            Text(TokensSettingsCopy.noCachedRatesPickerFooter(activeProviderName))
                         }
                     }
                 }
 
                 if !filteredGeneralCurrencies.isEmpty {
-                    Section("All Currencies") {
+                    Section {
                         ForEach(filteredGeneralCurrencies, id: \.rawValue) { code in
                             currencyRow(
                                 selection: .fixed(code),
@@ -548,6 +650,8 @@ private struct CurrencyPickerSheet: View {
                                 subtitle: code.rawValue
                             )
                         }
+                    } header: {
+                        Text(TokensSettingsCopy.allCurrenciesSectionTitle)
                     }
                 }
 
@@ -606,7 +710,8 @@ private struct CurrencyPickerSheet: View {
     private var automaticMatchesQuery: Bool {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return true }
-        return "System Region".localizedCaseInsensitiveContains(trimmed)
+        return localized(TokensSettingsCopy.systemRegionTitle)
+            .localizedCaseInsensitiveContains(trimmed)
             || systemCurrencyCode.rawValue.localizedCaseInsensitiveContains(trimmed)
             || currencyName(systemCurrencyCode).localizedCaseInsensitiveContains(trimmed)
             || currencySymbol(systemCurrencyCode).localizedCaseInsensitiveContains(trimmed)
@@ -660,7 +765,11 @@ private struct CurrencyPickerSheet: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(title), \(subtitle)\(isSelected ? ", selected" : "")")
+        .accessibilityLabel(Text(
+            isSelected
+                ? TokensSettingsCopy.selectedCurrencyAccessibilityLabel(title, subtitle)
+                : TokensSettingsCopy.currencyAccessibilityLabel(title, subtitle)
+        ))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
@@ -669,13 +778,13 @@ private struct CurrencyPickerSheet: View {
     }
 
     private func currencyName(_ code: CurrencyCode) -> String {
-        Locale.autoupdatingCurrent.localizedString(forCurrencyCode: code.rawValue)
+        locale.localizedString(forCurrencyCode: code.rawValue)
             ?? code.rawValue
     }
 
     private func currencySymbol(_ code: CurrencyCode) -> String {
         let formatter = NumberFormatter()
-        formatter.locale = .autoupdatingCurrent
+        formatter.locale = locale
         formatter.numberStyle = .currency
         formatter.currencyCode = code.rawValue
         return formatter.currencySymbol ?? code.rawValue
@@ -685,6 +794,10 @@ private struct CurrencyPickerSheet: View {
         currencyModel.availableSourceDescriptors.first {
             $0.id == currencyModel.activeSource.providerID
         }?.displayName ?? currencyModel.activeSource.providerID.rawValue
+    }
+
+    private func localized(_ resource: LocalizedStringResource) -> String {
+        AppLocalizer(locale: locale).localized(resource)
     }
 }
 
@@ -706,53 +819,66 @@ private struct ExchangeRateSourceSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    Picker("Provider", selection: $selectedProviderID) {
+                    Picker(selection: $selectedProviderID) {
                         ForEach(currencyModel.availableSourceDescriptors) { descriptor in
                             Text(descriptor.displayName).tag(descriptor.id)
                         }
+                    } label: {
+                        Text(TokensSettingsCopy.providerPickerLabel)
                     }
 
-                    Text(selectedDescriptor.explanation)
+                    Text(selectedDescriptor.id.settingsExplanation)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    LabeledContent("Attribution") {
+                    LabeledContent {
                         Link(
                             selectedDescriptor.attributionTitle,
                             destination: selectedDescriptor.attributionURL
                         )
+                    } label: {
+                        Text(TokensSettingsCopy.attributionLabel)
                     }
 
-                    LabeledContent("Documentation") {
-                        Link("Open API documentation", destination: selectedDescriptor.documentationURL)
+                    LabeledContent {
+                        Link(destination: selectedDescriptor.documentationURL) {
+                            Text(TokensSettingsCopy.openAPIDocumentationLink)
+                        }
+                    } label: {
+                        Text(TokensSettingsCopy.documentationLabel)
                     }
                 } header: {
-                    Text("Rate provider")
+                    Text(TokensSettingsCopy.rateProviderLabel)
                 }
 
                 Section {
-                    TextField("Full HTTPS API URL", text: $endpointText)
+                    TextField(text: $endpointText) {
+                        Text(TokensSettingsCopy.endpointPlaceholder)
+                    }
                         .font(.system(.body, design: .monospaced))
                         .lineLimit(1)
                         .multilineTextAlignment(.leading)
                         .textFieldStyle(.roundedBorder)
                         .disableAutocorrection(true)
                         .disabled(currencyModel.isValidatingSource)
-                        .accessibilityLabel("Exchange-rate API endpoint")
+                        .accessibilityLabel(Text(
+                            TokensSettingsCopy.endpointFieldAccessibilityLabel
+                        ))
 
                     HStack {
-                        Text("Use a public, keyless endpoint compatible with this provider. "
-                             + "Do not include credentials or API keys in the URL.")
+                        Text(TokensSettingsCopy.endpointCredentialWarning)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
 
                         Spacer(minLength: 12)
 
-                        Button("Restore Default") {
+                        Button {
                             endpointText = selectedDescriptor.defaultEndpoint.absoluteString
                             currencyModel.clearSourceValidationError()
+                        } label: {
+                            Text(TokensSettingsCopy.restoreDefaultButton)
                         }
                         .disabled(
                             currencyModel.isValidatingSource
@@ -760,10 +886,9 @@ private struct ExchangeRateSourceSheet: View {
                         )
                     }
                 } header: {
-                    Text("HTTPS endpoint")
+                    Text(TokensSettingsCopy.httpsEndpointSectionTitle)
                 } footer: {
-                    Text("TokenStats verifies the endpoint before switching. It contacts only "
-                         + "the selected endpoint and never fails over to another service.")
+                    Text(TokensSettingsCopy.endpointVerificationFooter)
                 }
 
                 if let validationError = currencyModel.sourceValidationError {
@@ -771,18 +896,24 @@ private struct ExchangeRateSourceSheet: View {
                         Label(validationError, systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
                             .fixedSize(horizontal: false, vertical: true)
-                            .accessibilityLabel("Could not use rate provider. \(validationError)")
+                            .accessibilityLabel(Text(
+                                TokensSettingsCopy.sourceValidationErrorAccessibilityLabel(
+                                    validationError
+                                )
+                            ))
                     }
                 }
             }
             .formStyle(.grouped)
             .disabled(currencyModel.isValidatingSource)
-            .navigationTitle("Exchange Rate Source")
+            .navigationTitle(Text(TokensSettingsCopy.sourceSheetTitle))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button {
                         currencyModel.clearSourceValidationError()
                         dismiss()
+                    } label: {
+                        Text(TokensSettingsCopy.cancelButton)
                     }
                     .disabled(currencyModel.isValidatingSource)
                 }
@@ -803,10 +934,10 @@ private struct ExchangeRateSourceSheet: View {
                             HStack(spacing: 6) {
                                 ProgressView()
                                     .controlSize(.small)
-                                Text("Verifying…")
+                                Text(TokensSettingsCopy.verifyingSource)
                             }
                         } else {
-                            Text("Verify & Use")
+                            Text(TokensSettingsCopy.verifyAndUseButton)
                         }
                     }
                     .keyboardShortcut(.defaultAction)
@@ -814,11 +945,11 @@ private struct ExchangeRateSourceSheet: View {
                         currencyModel.isValidatingSource
                             || endpointText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                     )
-                    .accessibilityLabel(
+                    .accessibilityLabel(Text(
                         currencyModel.isValidatingSource
-                            ? "Verifying exchange-rate source"
-                            : "Verify and use exchange-rate source"
-                    )
+                            ? TokensSettingsCopy.verifyingSourceAccessibilityLabel
+                            : TokensSettingsCopy.verifyAndUseAccessibilityLabel
+                    ))
                 }
             }
         }
@@ -850,4 +981,273 @@ private struct ExchangeRateSourceSheet: View {
         endpointText = source.endpoint.absoluteString
         currencyModel.clearSourceValidationError()
     }
+}
+
+private extension ExchangeRateProviderID {
+    var settingsExplanation: LocalizedStringResource {
+        switch self {
+        case .frankfurter:
+            LocalizedStringResource.settingsTokensCurrencyProviderFrankfurterExplanation
+        case .exchangeRateAPI:
+            LocalizedStringResource.settingsTokensCurrencyProviderExchangeRateApiExplanation
+        case .ecb:
+            LocalizedStringResource.settingsTokensCurrencyProviderEcbExplanation
+        }
+    }
+}
+
+private enum TokensSettingsCopy {
+    static let title = LocalizedStringResource.settingsTokensTitle
+    static let tokenSummaryTitle = LocalizedStringResource.settingsAppearanceTokenSummaryTitle
+    static let tokenSummaryFooter = LocalizedStringResource.settingsAppearanceTokenSummaryFooter
+    static let tokenValuesTitle = LocalizedStringResource.settingsAppearanceTokenValuesTitle
+    static let tokenValuesFooter = LocalizedStringResource.settingsAppearanceTokenValuesFooter
+
+    static let currencySectionTitle = LocalizedStringResource.settingsTokensCurrencySectionTitle
+    static let displayCurrencyLabel = LocalizedStringResource.settingsTokensCurrencyDisplayLabel
+    static let displayCurrencyHelp = LocalizedStringResource.settingsTokensCurrencyDisplayHelp
+
+    static func displayCurrencyAccessibilityLabel(_ selection: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencyDisplayAccessibilityLabel(selection)
+    }
+
+    static let rateDetailsExpandAccessibilityHint =
+        LocalizedStringResource.settingsTokensCurrencyDetailsExpandAccessibilityHint
+    static let rateDetailsCollapseAccessibilityHint =
+        LocalizedStringResource.settingsTokensCurrencyDetailsCollapseAccessibilityHint
+    static let rateDetailsTitle = LocalizedStringResource.settingsTokensCurrencyDetailsTitle
+    static let referenceRateLabel =
+        LocalizedStringResource.settingsTokensCurrencyDetailsReferenceRateLabel
+    static let rateDateLabel = LocalizedStringResource.settingsTokensCurrencyDetailsRateDateLabel
+    static let fetchedLabel = LocalizedStringResource.settingsTokensCurrencyDetailsFetchedLabel
+    static let nextEligibleRefreshLabel =
+        LocalizedStringResource.settingsTokensCurrencyDetailsNextEligibleRefreshLabel
+    static let rateProviderLabel =
+        LocalizedStringResource.settingsTokensCurrencyDetailsRateProviderLabel
+    static let changeProviderHelp =
+        LocalizedStringResource.settingsTokensCurrencyDetailsRateProviderChangeHelp
+
+    static func changeProviderAccessibilityLabel(_ provider: String) -> LocalizedStringResource {
+        LocalizedStringResource
+            .settingsTokensCurrencyDetailsRateProviderChangeAccessibilityLabel(provider)
+    }
+
+    static let apiEndpointLabel =
+        LocalizedStringResource.settingsTokensCurrencyDetailsApiEndpointLabel
+
+    static func changeEndpointAccessibilityLabel(_ endpoint: String) -> LocalizedStringResource {
+        LocalizedStringResource
+            .settingsTokensCurrencyDetailsApiEndpointChangeAccessibilityLabel(endpoint)
+    }
+
+    static let attributionLabel =
+        LocalizedStringResource.settingsTokensCurrencyDetailsAttributionLabel
+    static let rateRequestPolicy =
+        LocalizedStringResource.settingsTokensCurrencyDetailsRequestPolicy
+    static let updatingRates =
+        LocalizedStringResource.settingsTokensCurrencyStatusUpdatingRates
+    static let loadingRates = LocalizedStringResource.settingsTokensCurrencyStatusLoadingRates
+    static let refreshingRatesWithLastKnown =
+        LocalizedStringResource.settingsTokensCurrencyStatusRefreshingWithLastKnown
+    static let retryExplanationWithoutCache =
+        LocalizedStringResource.settingsTokensCurrencyStatusRetryWithoutCache
+    static let retryExplanationWithCache =
+        LocalizedStringResource.settingsTokensCurrencyStatusRetryWithCache
+    static let staleRateWarning =
+        LocalizedStringResource.settingsTokensCurrencyStatusStaleWarning
+
+    static func fallbackWarning(_ code: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencyStatusFallbackWarning(code)
+    }
+
+    static func unavailableCurrencyWarning(_ code: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencyStatusUnavailableWarning(code)
+    }
+
+    static let usingLastKnownRate =
+        LocalizedStringResource.settingsTokensCurrencyStatusUsingLastKnown
+    static let noRatesCachedInstruction =
+        LocalizedStringResource.settingsTokensCurrencyStatusNoRatesInstruction
+    static let updatingButton =
+        LocalizedStringResource.settingsTokensCurrencyRefreshUpdatingButton
+    static let updatingAccessibilityLabel =
+        LocalizedStringResource.settingsTokensCurrencyRefreshUpdatingAccessibilityLabel
+    static let retryNowButton =
+        LocalizedStringResource.settingsTokensCurrencyRefreshRetryButton
+    static let retryNowHelp = LocalizedStringResource.settingsTokensCurrencyRefreshRetryHelp
+    static let refreshRatesButton =
+        LocalizedStringResource.settingsTokensCurrencyRefreshRefreshButton
+    static let updatedButton =
+        LocalizedStringResource.settingsTokensCurrencyRefreshUpdatedButton
+    static let updatedAccessibilityLabel =
+        LocalizedStringResource.settingsTokensCurrencyRefreshUpdatedAccessibilityLabel
+
+    static func systemRegionSelectionLabel(
+        _ currencyName: String,
+        _ code: String
+    ) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencySelectionSystemRegion(
+            currencyName,
+            code
+        )
+    }
+
+    static func fixedCurrencySelectionLabel(
+        _ currencyName: String,
+        _ code: String
+    ) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencySelectionFixed(currencyName, code)
+    }
+
+    static func referenceRateUnavailable(_ code: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencyReferenceRateUnavailable(code)
+    }
+
+    static func referenceRate(_ rate: String, _ code: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencyReferenceRateValue(rate, code)
+    }
+
+    static let updateFailedWithoutCache =
+        LocalizedStringResource.settingsTokensCurrencySummaryUpdateFailedWithoutCache
+    static let updateFailedWithCache =
+        LocalizedStringResource.settingsTokensCurrencySummaryUpdateFailedWithCache
+
+    static func fallbackStatus(_ code: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencySummaryFallback(code)
+    }
+
+    static let staleRateStatus =
+        LocalizedStringResource.settingsTokensCurrencySummaryStale
+    static let noRatesCachedStatus =
+        LocalizedStringResource.settingsTokensCurrencySummaryNoRates
+
+    static func upToDateStatus(_ provider: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencySummaryUpToDate(provider)
+    }
+
+    static let previewTitle = LocalizedStringResource.settingsTokensCurrencyPreviewTitle
+
+    static func previewNotConverted(_ usd: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencyPreviewNotConverted(usd)
+    }
+
+    static func previewNoConversion(_ usd: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencyPreviewNoConversion(usd)
+    }
+
+    static func previewApproximate(
+        _ usd: String,
+        _ convertedAmount: String
+    ) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencyPreviewApproximate(
+            usd,
+            convertedAmount
+        )
+    }
+
+    static func previewFallbackAccessibilityLabel(
+        _ code: String,
+        _ usd: String
+    ) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencyPreviewFallbackAccessibilityLabel(
+            code,
+            usd
+        )
+    }
+
+    static func previewUSDAccessibilityLabel(_ usd: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencyPreviewUsdAccessibilityLabel(usd)
+    }
+
+    static func previewConvertedAccessibilityLabel(
+        _ usd: String,
+        _ convertedAmount: String
+    ) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencyPreviewConvertedAccessibilityLabel(
+            usd,
+            convertedAmount
+        )
+    }
+
+    static let currencyPickerTitle =
+        LocalizedStringResource.settingsTokensCurrencyPickerTitle
+    static let currencySearchPlaceholder =
+        LocalizedStringResource.settingsTokensCurrencyPickerSearchPlaceholder
+    static let clearCurrencySearchAccessibilityLabel =
+        LocalizedStringResource.settingsTokensCurrencyPickerSearchClearAccessibilityLabel
+    static let closeButton =
+        LocalizedStringResource.settingsTokensCurrencyPickerCloseButton
+    static let popularCurrenciesSectionTitle =
+        LocalizedStringResource.settingsTokensCurrencyPickerPopularSection
+    static let systemRegionTitle =
+        LocalizedStringResource.settingsTokensCurrencyPickerSystemRegion
+    static let automaticSectionTitle =
+        LocalizedStringResource.settingsTokensCurrencyPickerAutomaticSection
+
+    static func noCachedRatesPickerFooter(_ provider: String) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencyPickerNoRatesFooter(provider)
+    }
+
+    static let allCurrenciesSectionTitle =
+        LocalizedStringResource.settingsTokensCurrencyPickerAllCurrenciesSection
+
+    static func selectedCurrencyAccessibilityLabel(
+        _ title: String,
+        _ subtitle: String
+    ) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencyPickerRowSelectedAccessibilityLabel(
+            title,
+            subtitle
+        )
+    }
+
+    static func currencyAccessibilityLabel(
+        _ title: String,
+        _ subtitle: String
+    ) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencyPickerRowAccessibilityLabel(
+            title,
+            subtitle
+        )
+    }
+
+    static let sourceSheetTitle =
+        LocalizedStringResource.settingsTokensCurrencySourceTitle
+    static let providerPickerLabel =
+        LocalizedStringResource.settingsTokensCurrencySourceProviderPicker
+    static let documentationLabel =
+        LocalizedStringResource.settingsTokensCurrencySourceDocumentationLabel
+    static let openAPIDocumentationLink =
+        LocalizedStringResource.settingsTokensCurrencySourceDocumentationLink
+    static let endpointPlaceholder =
+        LocalizedStringResource.settingsTokensCurrencySourceEndpointPlaceholder
+    static let endpointFieldAccessibilityLabel =
+        LocalizedStringResource.settingsTokensCurrencySourceEndpointAccessibilityLabel
+    static let endpointCredentialWarning =
+        LocalizedStringResource.settingsTokensCurrencySourceEndpointCredentialWarning
+    static let restoreDefaultButton =
+        LocalizedStringResource.settingsTokensCurrencySourceRestoreDefaultButton
+    static let httpsEndpointSectionTitle =
+        LocalizedStringResource.settingsTokensCurrencySourceHttpsEndpointSection
+    static let endpointVerificationFooter =
+        LocalizedStringResource.settingsTokensCurrencySourceEndpointVerificationFooter
+
+    static func sourceValidationErrorAccessibilityLabel(
+        _ error: String
+    ) -> LocalizedStringResource {
+        LocalizedStringResource.settingsTokensCurrencySourceValidationErrorAccessibilityLabel(
+            error
+        )
+    }
+
+    static let cancelButton =
+        LocalizedStringResource.settingsTokensCurrencySourceCancelButton
+    static let verifyingSource =
+        LocalizedStringResource.settingsTokensCurrencySourceVerifying
+    static let verifyAndUseButton =
+        LocalizedStringResource.settingsTokensCurrencySourceVerifyAndUseButton
+    static let verifyingSourceAccessibilityLabel =
+        LocalizedStringResource.settingsTokensCurrencySourceVerifyingAccessibilityLabel
+    static let verifyAndUseAccessibilityLabel =
+        LocalizedStringResource.settingsTokensCurrencySourceVerifyAndUseAccessibilityLabel
 }

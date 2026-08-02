@@ -15,10 +15,12 @@ struct AgentSection: View {
     let id: CodingAgentID
     @Environment(\.openWindow) private var openWindow
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.locale) private var locale
     @State private var isDiagnosticsExpanded = false
 
     private var displayName: String { id.integration.displayName }
     private var isPrimary: Bool { model.appearance.primaryAgent == id }
+    private var localizer: AppLocalizer { AppLocalizer(locale: locale) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -40,19 +42,31 @@ struct AgentSection: View {
             signedOut
         case .loading:
             if model.isRefreshing(id) {
-                Text("Loading usage…").font(.callout).foregroundStyle(.secondary)
+                Text(
+                    LocalizedStringResource.usageLoading
+                )
+                .font(.callout)
+                .foregroundStyle(.secondary)
             } else {
-                statusLine(text: "Couldn't load usage.",
+                statusLine(text: localizer.localized(
+                    LocalizedStringResource.usageLoadFailedSummary
+                ),
                            isStale: true,
                            diagnostics: model.diagnostics[id])
             }
         case .fresh(let snapshot):
             windows(snapshot)
-            statusLine(text: "Updated \(UsageFormatting.relativeAge(of: snapshot.fetchedAt))",
+            let age = UsageFormatting.relativeAge(of: snapshot.fetchedAt, locale: locale)
+            statusLine(text: localizer.localized(
+                LocalizedStringResource.usageUpdatedStatus(age)
+            ),
                        isStale: false)
         case .staleDisclosed(let snapshot):
             windows(snapshot)
-            statusLine(text: "Couldn't refresh · last updated \(UsageFormatting.relativeAge(of: snapshot.fetchedAt))",
+            let age = UsageFormatting.relativeAge(of: snapshot.fetchedAt, locale: locale)
+            statusLine(text: localizer.localized(
+                LocalizedStringResource.usageRefreshFailedStatus(age)
+            ),
                        isStale: true,
                        diagnostics: model.diagnostics[id])
         }
@@ -64,11 +78,15 @@ struct AgentSection: View {
     /// (and the sign-in flows) live on the dedicated Settings page.
     @ViewBuilder private var signedOut: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Not signed in to \(displayName).")
+            Text(
+                LocalizedStringResource.usageSignedOutMessage(displayName)
+            )
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
-            Button("Sign in…") {
+            Button(
+                LocalizedStringResource.usageSignInButton
+            ) {
                 PopoverView.openSettingsWindow(openWindow)
             }
             .controlSize(.small)
@@ -81,7 +99,7 @@ struct AgentSection: View {
     /// from its registry entry — this view just draws whatever it declares.
     private func windows(_ snapshot: UsageSnapshot) -> some View {
         let layout = id.integration.gaugeLayout
-        return GaugeCluster(items: layout.items(for: snapshot),
+        return GaugeCluster(items: layout.items(for: snapshot, localizer: localizer),
                             style: model.appearance.gaugeStyle,
                             sizing: layout.sizing)
     }
@@ -108,8 +126,8 @@ struct AgentSection: View {
                 .buttonStyle(.plain)
                 .contentShape(Rectangle())
                 .frame(maxWidth: .infinity, alignment: .trailing)
-                .help(isDiagnosticsExpanded ? "Hide error details" : "Show error details")
-                .accessibilityLabel("\(text). \(isDiagnosticsExpanded ? "Hide" : "Show") error details")
+                .help(diagnosticsHelp)
+                .accessibilityLabel(diagnosticsAccessibilityLabel(status: text))
 
                 if isDiagnosticsExpanded {
                     ScrollView {
@@ -131,19 +149,42 @@ struct AgentSection: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
+
+    private var diagnosticsHelp: String {
+        localizer.localized(
+            isDiagnosticsExpanded
+                ? LocalizedStringResource.usageDiagnosticsHideHelp
+                : LocalizedStringResource.usageDiagnosticsShowHelp
+        )
+    }
+
+    private func diagnosticsAccessibilityLabel(status: String) -> String {
+        if isDiagnosticsExpanded {
+            return localizer.localized(
+                LocalizedStringResource.usageDiagnosticsHideAccessibility(status)
+            )
+        }
+        return localizer.localized(
+            LocalizedStringResource.usageDiagnosticsShowAccessibility(status)
+        )
+    }
 }
 
 /// A small "Primary" tag next to the primary agent's name (Appearance setting).
 private struct PrimaryBadge: View {
     var body: some View {
-        Text("Primary")
+        Text(
+            LocalizedStringResource.usagePrimaryBadge
+        )
             .font(.system(size: 10, weight: .semibold))
             .textCase(.uppercase)
             .foregroundStyle(.tint)
             .padding(.horizontal, 5)
             .padding(.vertical, 1)
             .background(Color.accentColor.opacity(0.15), in: Capsule())
-            .accessibilityLabel("Primary subscription")
+            .accessibilityLabel(
+                LocalizedStringResource.usagePrimaryAccessibility
+            )
     }
 }
 

@@ -29,20 +29,31 @@ struct TokenStatsApp: App {
             PopoverView(model: appDelegate.model,
                         odometer: appDelegate.odometer,
                         currencyModel: appDelegate.currencyModel)
+                .environment(\.locale, appDelegate.localization.effectiveLocale)
         } label: {
             // Monochrome icon + per-agent percent — no threshold colors (PRD).
-            Image(systemName: "gauge.with.dots.needle.33percent")
-            Text(MenuBarSummary.text(for: appDelegate.model.menuBarSummaries))
+            Group {
+                Image(systemName: "gauge.with.dots.needle.33percent")
+                Text(MenuBarSummary.text(
+                    for: appDelegate.model.menuBarSummaries,
+                    locale: appDelegate.localization.effectiveLocale
+                ))
+            }
+            .environment(\.locale, appDelegate.localization.effectiveLocale)
         }
         .menuBarExtraStyle(.window)
 
         // The dedicated settings window for managing accounts. It uses a named
         // Window so the menu-bar popover and Command-comma can target the same
         // native Settings surface.
-        Window("Settings", id: TokenStatsWindowID.settings) {
+        Window(appDelegate.localization.localizer.localized(Self.settingsWindowTitle),
+               id: TokenStatsWindowID.settings) {
             SettingsView(model: appDelegate.model,
                          currencyModel: appDelegate.currencyModel,
+                         localization: appDelegate.localization,
+                         relauncher: appDelegate.relauncher,
                          onRunSetupAgain: { appDelegate.showOnboarding() })
+                .environment(\.locale, appDelegate.localization.effectiveLocale)
         }
         .defaultSize(width: 720, height: 460)
         .windowResizability(.contentMinSize)
@@ -50,9 +61,11 @@ struct TokenStatsApp: App {
         // the top of the window and the traffic lights float over it.
         .windowStyle(.hiddenTitleBar)
         .commands {
-            TokenStatsCommands()
+            TokenStatsCommands(localizer: appDelegate.localization.localizer)
         }
     }
+
+    private static let settingsWindowTitle = LocalizedStringResource.windowSettingsTitle
 }
 
 /// Owns the app's long-lived models and the onboarding window. As an
@@ -63,23 +76,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let model: UsageModel
     let odometer: TokenOdometerModel
     let currencyModel: CurrencyModel
-    let onboarding = OnboardingSettings()
+    let onboarding: OnboardingSettings
+    let localization: LocalizationSettings
+    let relauncher: AppRelauncher
     private var onboardingController: OnboardingWindowController?
 
     override init() {
         // Both models are driven by the registered Coding Agents: the usage
         // model refreshes one per agent, and the Token Odometer scans one
         // transcript root per agent.
-        let appearance = AppearanceSettings()
-        model = UsageModel(appearance: appearance)
+        let uiTesting = Self.isRunningUITests
+        let usesIsolatedPersistence = uiTesting || Self.isRunningUnitTests
+        // NSArgumentDomain is part of every UserDefaults search list, so the UI
+        // test language launch argument still overrides this isolated PID suite.
+        // Unit-test hosting is isolated too because CurrencyModel repairs its
+        // cache envelope during initialization, before the launch guard runs.
+        let persistenceDefaults = usesIsolatedPersistence
+            ? UserDefaults(
+                suiteName: "dev.otakuma.TokenStats.test-persistence."
+                    + String(ProcessInfo.processInfo.processIdentifier)
+            )!
+            : .standard
+        let appearance = AppearanceSettings(defaults: persistenceDefaults)
+        localization = LocalizationSettings(defaults: persistenceDefaults)
+        relauncher = uiTesting ? AppRelauncher.disabledForUITesting() : AppRelauncher()
+        onboarding = OnboardingSettings(defaults: persistenceDefaults)
+        let integrations: [any CodingAgentIntegration] = uiTesting
+            ? CodingAgentRegistry.all.map(UITestingCodingAgentIntegration.init(wrapping:))
+            : CodingAgentRegistry.all
+        let exchangeRateProvider: any ExchangeRateProviding
+        if uiTesting {
+            exchangeRateProvider = UITestingExchangeRateProvider()
+        } else {
+            exchangeRateProvider = ExchangeRateProviderRouter()
+        }
+        model = UsageModel(
+            appearance: appearance,
+            localizer: localization.localizer,
+            lastKnown: LastKnownUsageStore(defaults: persistenceDefaults),
+            integrations: integrations
+        )
         odometer = TokenOdometerModel(
             reader: TranscriptTokenReader(
                 checkpointStore: TranscriptCheckpointStore()
             ),
-            roots: CodingAgentRegistry.transcriptRoots,
+            roots: uiTesting ? [] : CodingAgentRegistry.transcriptRoots,
             initialRange: appearance.selectedTokenRange
         )
-        currencyModel = CurrencyModel()
+        currencyModel = CurrencyModel(
+            provider: exchangeRateProvider,
+            store: ExchangeRateStore(defaults: persistenceDefaults),
+            schedulesAutomaticRefresh: !usesIsolatedPersistence
+        )
         super.init()
     }
 
@@ -92,7 +140,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             || NSClassFromString("XCTestCase") != nil
     }
 
+    static var isRunningUITests: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-testing")
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // UI tests use a deterministic onboarding window and do not start the
+        // Keychain-, network-, or transcript-backed models.
+        if Self.isRunningUITests {
+            showOnboarding()
+            return
+        }
         // The test bundle is hosted by this app under the shipped bundle id, so
         // starting up for a test run would read the developer's real Keychain
         // accounts, call both usage endpoints, and overwrite their persisted
@@ -119,22 +177,75 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onboardingController = OnboardingWindowController(
                 model: model,
                 onboarding: onboarding,
-                onComplete: { [weak self] in self?.currencyModel.start() }
+                locale: localization.effectiveLocale,
+                onComplete: { [weak self] in
+                    guard let self, !Self.isRunningUITests else { return }
+                    self.currencyModel.start()
+                }
             )
         }
         onboardingController?.show()
     }
 }
 
+/// UI-test dependencies deliberately retain the production presentation
+/// metadata while replacing every I/O boundary. This keeps future interaction
+/// tests safe even if they navigate beyond the deterministic welcome screen.
+private struct UITestingCodingAgentIntegration: CodingAgentIntegration {
+    private let wrapped: any CodingAgentIntegration
+    let auth: any AgentAuthSession = UITestingAuthSession()
+
+    init(wrapping integration: any CodingAgentIntegration) {
+        wrapped = integration
+    }
+
+    var id: CodingAgentID { wrapped.id }
+    var displayName: String { wrapped.displayName }
+    var shortLabel: String { wrapped.shortLabel }
+    var brand: AgentBrand { wrapped.brand }
+    var signInStyle: SignInStyle { wrapped.signInStyle }
+    var gaugeLayout: GaugeLayout { wrapped.gaugeLayout }
+    var transcriptRoot: String { wrapped.transcriptRoot }
+
+    func makeProvider() -> UsageProvider { UITestingUsageProvider() }
+}
+
+private final class UITestingAuthSession: AgentAuthSession {
+    let isSignedIn = false
+
+    func validAccessToken() async throws -> String { "ui-testing" }
+    func signOut() {}
+    func beginSignIn() async throws {}
+}
+
+private struct UITestingUsageProvider: UsageProvider {
+    func fetchUsage() async throws -> UsageReading { UsageReading(windows: []) }
+}
+
+private struct UITestingExchangeRateProvider: ExchangeRateProviding {
+    func fetchRates(from _: ExchangeRateSource) async throws -> [ExchangeRateQuote] {
+        [
+            ExchangeRateQuote(
+                quoteCode: CurrencyCode("CNY")!,
+                rate: 7,
+                rateDate: Date(timeIntervalSince1970: 0)
+            ),
+        ]
+    }
+}
+
 struct TokenStatsCommands: Commands {
     @Environment(\.openWindow) private var openWindow
+    let localizer: AppLocalizer
 
     var body: some Commands {
         CommandGroup(replacing: .appSettings) {
-            Button("Settings…") {
+            Button(localizer.localized(Self.settingsCommandTitle)) {
                 PopoverView.openSettingsWindow(openWindow)
             }
             .keyboardShortcut(",", modifiers: .command)
         }
     }
+
+    private static let settingsCommandTitle = LocalizedStringResource.commandSettingsTitle
 }

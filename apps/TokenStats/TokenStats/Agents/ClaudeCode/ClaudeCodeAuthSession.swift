@@ -16,6 +16,7 @@ final class ClaudeCodeAuthSession: AgentAuthSession {
 
     /// PKCE + state for an in-flight login; cleared once the code is exchanged.
     private var pending: (pkce: PKCE, state: String)?
+    private var signInLocalizer = AppLocalizer(locale: .current)
 
     init(store: any TokenStore = KeychainTokenStore(),
          client: OAuthClient = OAuthClient(),
@@ -37,6 +38,11 @@ final class ClaudeCodeAuthSession: AgentAuthSession {
 
     /// Open the browser for the user to approve; they'll paste back a code.
     func beginSignIn() async throws {
+        try await beginSignIn(localizer: AppLocalizer(locale: .current))
+    }
+
+    func beginSignIn(localizer: AppLocalizer) async throws {
+        signInLocalizer = localizer
         let pkce = OAuthFlow.makePKCE()
         let state = OAuthFlow.makeState()
         pending = (pkce, state)
@@ -50,10 +56,17 @@ final class ClaudeCodeAuthSession: AgentAuthSession {
         // When the callback appends the state (`code#state`), validate it against
         // the state we generated for this login — the OAuth CSRF protection.
         if let returnedState, returnedState != pending.state {
-            throw UsageError.loginFailed("State mismatch — possible interference; try again.")
+            throw UsageError.loginFailed(signInLocalizer.localized(
+                LocalizedStringResource.accountSignInErrorStateMismatch
+            ))
         }
         let tokens = try await client.exchangeCode(code, verifier: pending.pkce.verifier, state: pending.state)
         try cache.adopt(tokens)
         self.pending = nil
+    }
+
+    func completeSignIn(pastedCode: String, localizer: AppLocalizer) async throws {
+        signInLocalizer = localizer
+        try await completeSignIn(pastedCode: pastedCode)
     }
 }

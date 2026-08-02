@@ -27,6 +27,7 @@ struct UsageSnapshotParserTests {
 
         #expect(windows.count == 1)
         let window = try #require(windows.first)
+        #expect(window.identity == .shortTerm)
         #expect(window.percentConsumed == 42)
         #expect(window.resetAt == Date(timeIntervalSince1970: 42))
     }
@@ -42,8 +43,10 @@ struct UsageSnapshotParserTests {
         let windows = try UsageSnapshotParser.parse(json)
 
         #expect(windows.count == 2)
+        #expect(windows[0].identity == .shortTerm)
         #expect(windows[0].label == "5-hour")
         #expect(windows[0].percentConsumed == 42)
+        #expect(windows[1].identity == .weekly)
         #expect(windows[1].label == "Weekly")
         #expect(windows[1].percentConsumed == 18)
         #expect(windows[1].resetAt == Date(timeIntervalSince1970: 99))
@@ -56,7 +59,7 @@ struct UsageSnapshotParserTests {
 
         let windows = try UsageSnapshotParser.parse(json)
 
-        #expect(windows.map(\.label) == ["Weekly"])
+        #expect(windows.map(\.identity) == [.weekly])
     }
 
     @Test func returnsEmptyWhenNoKnownWindows() throws {
@@ -79,7 +82,7 @@ struct UsageSnapshotParserTests {
 
         let windows = try UsageSnapshotParser.parse(json)
 
-        #expect(windows.map(\.label) == ["Weekly"])
+        #expect(windows.map(\.identity) == [.weekly])
     }
 
     @Test func dropsWindowWithUnparseableResetTimestamp() throws {
@@ -105,7 +108,7 @@ struct UsageSnapshotParserTests {
 
         let windows = try UsageSnapshotParser.parse(json)
 
-        #expect(windows.map(\.label) == ["5-hour", "Weekly"])
+        #expect(windows.map(\.identity) == [.shortTerm, .weekly])
         #expect(windows.map(\.percentConsumed) == [0, 0])
         #expect(windows.allSatisfy { $0.resetAt == nil })
     }
@@ -128,7 +131,7 @@ struct UsageSnapshotParserTests {
 
         let windows = try UsageSnapshotParser.parse(json)
 
-        #expect(windows.map(\.label) == ["5-hour", "Fable"])
+        #expect(windows.map(\.identity) == [.shortTerm, .modelWeekly(model: "Fable")])
         #expect(windows[1].percentConsumed == 61)
         #expect(windows[1].resetAt == Date(timeIntervalSince1970: 99))
     }
@@ -154,7 +157,7 @@ struct UsageSnapshotParserTests {
 
         let windows = try UsageSnapshotParser.parse(json)
 
-        #expect(windows.map(\.label) == ["5-hour"])
+        #expect(windows.map(\.identity) == [.shortTerm])
     }
 
     @Test func keepsFableLimitWhenResetTimestampIsNull() throws {
@@ -171,7 +174,7 @@ struct UsageSnapshotParserTests {
 
         let windows = try UsageSnapshotParser.parse(json)
 
-        #expect(windows.map(\.label) == ["Fable"])
+        #expect(windows.map(\.identity) == [.modelWeekly(model: "Fable")])
         #expect(windows[0].resetAt == nil)
     }
 
@@ -204,7 +207,7 @@ struct UsageSnapshotParserTests {
 
         let windows = try UsageSnapshotParser.parse(json)
 
-        #expect(windows.map(\.label) == ["5-hour", "Weekly"])
+        #expect(windows.map(\.identity) == [.shortTerm, .weekly])
         #expect(windows[0].percentConsumed == 0)
         #expect(windows[0].resetAt == nil)
         #expect(windows[1].percentConsumed == 0)
@@ -250,7 +253,7 @@ struct UsageSnapshotParserTests {
 
         let windows = try UsageSnapshotParser.parse(json)
 
-        #expect(windows.map(\.label) == ["5-hour", "Weekly"])
+        #expect(windows.map(\.identity) == [.shortTerm, .weekly])
         #expect(windows[0].percentConsumed == 24)
         #expect(windows[1].percentConsumed == 18)
         // Both present means both ISO timestamps parsed (else they'd be dropped).

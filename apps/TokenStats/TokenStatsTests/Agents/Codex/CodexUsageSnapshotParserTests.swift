@@ -26,6 +26,7 @@ struct CodexUsageSnapshotParserTests {
 
         let windows = try CodexUsageSnapshotParser.parse(json)
 
+        #expect(windows.map(\.identity) == [.shortTerm, .weekly])
         #expect(windows.map(\.label) == ["5-hour", "Weekly"])
         #expect(windows[0].percentConsumed == 42)
         #expect(windows[0].resetAt == Date(timeIntervalSince1970: 1716800000))
@@ -44,7 +45,7 @@ struct CodexUsageSnapshotParserTests {
 
         let windows = try CodexUsageSnapshotParser.parse(json)
 
-        #expect(windows.map(\.label) == ["5-hour"])
+        #expect(windows.map(\.identity) == [.shortTerm])
         #expect(windows[0].percentConsumed == 30)
     }
 
@@ -63,7 +64,7 @@ struct CodexUsageSnapshotParserTests {
 
         let windows = try CodexUsageSnapshotParser.parse(json)
 
-        #expect(windows.map(\.label) == ["Weekly"])
+        #expect(windows.map(\.identity) == [.weekly])
         #expect(windows[0].percentConsumed == 18)
     }
 
@@ -87,7 +88,7 @@ struct CodexUsageSnapshotParserTests {
 
         let windows = try CodexUsageSnapshotParser.parse(json)
 
-        #expect(windows.map(\.label) == ["5-hour", "Weekly"])
+        #expect(windows.map(\.identity) == [.shortTerm, .weekly])
     }
 
     @Test func describesOtherDurationsRatherThanTrustingTheirSlots() throws {
@@ -108,6 +109,10 @@ struct CodexUsageSnapshotParserTests {
 
         let windows = try CodexUsageSnapshotParser.parse(json)
 
+        #expect(windows.map(\.identity) == [
+            .duration(seconds: 2 * 60 * 60),
+            .duration(seconds: 3 * 24 * 60 * 60),
+        ])
         #expect(windows.map(\.label) == ["2-hour", "3-day"])
     }
 
@@ -125,7 +130,7 @@ struct CodexUsageSnapshotParserTests {
 
         let windows = try CodexUsageSnapshotParser.parse(json)
 
-        #expect(windows.map(\.label) == ["5-hour"])
+        #expect(windows.map(\.identity) == [.shortTerm])
         #expect(windows[0].percentConsumed == 30)
     }
 
@@ -157,7 +162,7 @@ struct CodexUsageSnapshotParserTests {
 
         let windows = try CodexUsageSnapshotParser.parse(json)
 
-        #expect(windows.map(\.label) == ["5-hour", "Weekly"])
+        #expect(windows.map(\.identity) == [.shortTerm, .weekly])
         #expect(windows.allSatisfy { $0.resetAt == nil })
     }
 
@@ -180,7 +185,7 @@ struct CodexUsageSnapshotParserTests {
 
         let windows = try CodexUsageSnapshotParser.parse(json)
 
-        #expect(windows.map(\.label) == ["5-hour", "Weekly"])
+        #expect(windows.map(\.identity) == [.shortTerm, .weekly])
         #expect(windows.map(\.percentConsumed) == [24, 12])
     }
 
@@ -198,7 +203,7 @@ struct CodexUsageSnapshotParserTests {
 
         let windows = try CodexUsageSnapshotParser.parse(json)
 
-        #expect(windows.map(\.label) == ["Weekly"])
+        #expect(windows.map(\.identity) == [.weekly])
         #expect(windows[0].percentConsumed == 18)
     }
 

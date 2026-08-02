@@ -1,0 +1,5736 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "account.sign_in.agent.button": {
+      "comment": "Button that starts sign-in. The argument is an unlocalized Coding Agent brand name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in to %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录 %@"
+          }
+        }
+      }
+    },
+    "account.sign_in.automatic.instruction": {
+      "comment": "Instruction shown during a self-completing browser OAuth flow. TokenStats is a brand name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Approve in your browser; TokenStats finishes automatically."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在浏览器中授权；TokenStats 将自动完成登录。"
+          }
+        }
+      }
+    },
+    "account.sign_in.callback.failure.body": {
+      "comment": "Body on a failed OAuth callback page. TokenStats is a brand name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No authorization code was found. Return to TokenStats and try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到授权码。请返回 TokenStats 后重试。"
+          }
+        }
+      }
+    },
+    "account.sign_in.callback.failure.heading": {
+      "comment": "Heading on a failed OAuth browser callback page.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign-in failed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录失败"
+          }
+        }
+      }
+    },
+    "account.sign_in.callback.success.body": {
+      "comment": "Body on the successful OAuth callback page. TokenStats is a brand name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can close this tab and return to TokenStats."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你可以关闭此标签页并返回 TokenStats。"
+          }
+        }
+      }
+    },
+    "account.sign_in.callback.success.heading": {
+      "comment": "Heading on the successful Codex OAuth browser callback page. Codex is a brand name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signed in to Codex"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已登录 Codex"
+          }
+        }
+      }
+    },
+    "account.sign_in.error.authorization": {
+      "comment": "OAuth authorization failure diagnostic. The argument is raw provider detail and must not be translated.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authorization failed: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "授权失败：%@"
+          }
+        }
+      }
+    },
+    "account.sign_in.error.cancelled": {
+      "comment": "OAuth error when the loopback listener is cancelled.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign-in was cancelled."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录已取消。"
+          }
+        }
+      }
+    },
+    "account.sign_in.error.local_port": {
+      "comment": "OAuth error when TokenStats cannot bind a loopback port.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not open a local port for sign-in."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法打开用于登录的本地端口。"
+          }
+        }
+      }
+    },
+    "account.sign_in.error.malformed_redirect": {
+      "comment": "OAuth error when the browser callback request is malformed.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The sign-in redirect was malformed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录重定向格式有误。"
+          }
+        }
+      }
+    },
+    "account.sign_in.error.missing_refresh_token": {
+      "comment": "OAuth error when the provider omits the refresh token needed to keep the account signed in.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign-in did not return a refresh token; cannot stay signed in."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录未返回刷新 Token，无法保持登录状态。"
+          }
+        }
+      }
+    },
+    "account.sign_in.error.state_mismatch": {
+      "comment": "OAuth error when the returned state does not match the generated state.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "State mismatch — possible interference; try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "状态不匹配——可能受到干扰，请重试。"
+          }
+        }
+      }
+    },
+    "account.sign_in.error.timed_out": {
+      "comment": "OAuth error when browser approval does not finish before the timeout.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign-in timed out. Approve in the browser, then try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录超时。请在浏览器中授权后重试。"
+          }
+        }
+      }
+    },
+    "account.sign_in.error.pasted_code_unsupported": {
+      "comment": "Internal sign-in error shown if a paste-code completion is requested for an agent whose OAuth flow does not accept pasted codes.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Coding Agent does not sign in with a pasted code."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此 Coding Agent 不使用粘贴授权码的方式登录。"
+          }
+        }
+      }
+    },
+    "account.sign_in.failed.summary": {
+      "comment": "User-facing sign-in failure summary. Raw provider details are kept in diagnostics.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign-in failed. Try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录失败，请重试。"
+          }
+        }
+      }
+    },
+    "account.sign_in.paste_code.field": {
+      "comment": "Placeholder for the OAuth code text field.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste code"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴授权码"
+          }
+        }
+      }
+    },
+    "account.sign_in.paste_code.instruction": {
+      "comment": "Instruction shown during a paste-code OAuth flow. TokenStats is a brand name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Approve TokenStats in your browser, then paste the code here:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在浏览器中授权 TokenStats，然后将授权码粘贴到此处："
+          }
+        }
+      }
+    },
+    "account.sign_in.reopen_browser.button": {
+      "comment": "Button that reopens the browser during an OAuth sign-in flow.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Re-open browser"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新打开浏览器"
+          }
+        }
+      }
+    },
+    "account.sign_in.submit.button": {
+      "comment": "Button that submits a pasted OAuth code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Submit"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提交"
+          }
+        }
+      }
+    },
+    "account.status.awaiting_code": {
+      "comment": "Status label while waiting for the user to paste an OAuth code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Awaiting code"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "等待授权码"
+          }
+        }
+      }
+    },
+    "account.status.connected": {
+      "comment": "Status label for a connected Coding Agent account.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已连接"
+          }
+        }
+      }
+    },
+    "account.status.signed_out": {
+      "comment": "Status label for a Coding Agent account that is not signed in.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not signed in"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未登录"
+          }
+        }
+      }
+    },
+    "command.settings.title": {
+      "comment": "Application menu command that opens the TokenStats settings window.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置…"
+          }
+        }
+      }
+    },
+    "onboarding.accounts.primary_subscription.footer": {
+      "comment": "Explains how the selected primary subscription is presented.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shown first and badged in the popover and menu bar."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将在弹出窗口和菜单栏中置顶显示并标记。"
+          }
+        }
+      }
+    },
+    "onboarding.accounts.primary_subscription.title": {
+      "comment": "Label for choosing which Coding Agent subscription is presented first.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primary subscription"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主要订阅"
+          }
+        }
+      }
+    },
+    "onboarding.accounts.subtitle": {
+      "comment": "Instructions for the optional account connection step. TokenStats is the app name and Settings is its settings window.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in so TokenStats can read your usage. Connect one or both — or skip and do it later in Settings."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录后，TokenStats 即可读取你的用量。你可以连接一个或两个 Coding Agent，也可以跳过此步，稍后在“设置”中操作。"
+          }
+        }
+      }
+    },
+    "onboarding.accounts.title": {
+      "comment": "Title for the onboarding step where Coding Agent accounts are connected.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect your agents"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接你的 Coding Agent"
+          }
+        }
+      }
+    },
+    "onboarding.disclosure.keychain.detail": {
+      "comment": "Explains how OAuth access tokens are approved and stored. TokenStats, macOS, and Keychain are product names.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signing in opens your browser to approve TokenStats. The access tokens are saved in your macOS Keychain and used only to read your usage."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录时会打开浏览器，以授权 TokenStats。访问 Token 会保存在 macOS 钥匙串中，仅用于读取你的用量。"
+          }
+        }
+      }
+    },
+    "onboarding.disclosure.keychain.title": {
+      "comment": "Privacy disclosure heading. Keychain is Apple's credential store.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tokens stay in your Keychain"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token 保存在钥匙串中"
+          }
+        }
+      }
+    },
+    "onboarding.disclosure.local_work.detail": {
+      "comment": "Explains that Token Odometer data is read locally and never uploaded. TokenStats is the app name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your token counts are read from your agents' transcript files on this Mac. TokenStats reads them and uploads nothing."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的 Token 数量来自这台 Mac 上 Coding Agent 的对话记录文件。TokenStats 只会在本地读取，不会上传任何内容。"
+          }
+        }
+      }
+    },
+    "onboarding.disclosure.local_work.title": {
+      "comment": "Privacy disclosure heading explaining that local work data is not uploaded.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing about your work leaves your Mac"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的工作内容不会离开这台 Mac"
+          }
+        }
+      }
+    },
+    "onboarding.disclosure.optional.footer": {
+      "comment": "Footer explaining that onboarding choices can be changed later. Settings is the app's settings window.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every step is optional — you can skip any of them and change these later in Settings."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每个步骤都可以跳过，你也可以稍后在“设置”中更改这些选项。"
+          }
+        }
+      }
+    },
+    "onboarding.disclosure.providers.detail": {
+      "comment": "Privacy disclosure about usage and public exchange-rate requests. Claude, OpenAI, Frankfurter, Settings, USD, HTTPS, URL, TokenStats, and API are product or technical terms.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage is fetched directly from Claude and OpenAI. TokenStats can automatically request a public USD exchange-rate table at most once every 24 hours. Frankfurter is the default; Settings lets you choose one supported HTTPS service and endpoint. TokenStats contacts only that selection and never fails over automatically. TokenStats adds no account, token, usage, transcript, calculated cost, or region data. The selected host receives the configured URL path and query plus ordinary connection metadata, so never put credentials or API keys in the URL."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用量数据直接从 Claude 和 OpenAI 获取。TokenStats 每 24 小时最多自动请求一次公开的 USD 汇率表。Frankfurter 是默认服务；你可以在“设置”中选择其他受支持的 HTTPS 服务和端点。TokenStats 只会联系你选择的服务，绝不会自动故障转移。TokenStats 不会添加或发送任何账户、Token、用量、对话记录、计算金额或地区数据。所选主机会收到配置的 URL 路径、查询参数及常规网络连接元数据，因此请勿在 URL 中放入凭据或 API 密钥。"
+          }
+        }
+      }
+    },
+    "onboarding.disclosure.providers.title": {
+      "comment": "Privacy disclosure heading explaining which remote services receive requests.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage and public exchange rates"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用量与公开汇率"
+          }
+        }
+      }
+    },
+    "onboarding.disclosure.subtitle": {
+      "comment": "Introduces the onboarding privacy disclosure. TokenStats is the app name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The next step connects your accounts. Here's exactly what TokenStats accesses — and what it never does."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下一步将连接你的账户。下面将准确说明 TokenStats 会访问哪些内容，以及绝不会进行哪些操作。"
+          }
+        }
+      }
+    },
+    "onboarding.disclosure.title": {
+      "comment": "Title for the privacy disclosure shown before account sign-in.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Before you start"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始之前"
+          }
+        }
+      }
+    },
+    "onboarding.done.connected_agents.summary": {
+      "comment": "Summary of connected Coding Agent accounts. The first number is connected and the second is available. Configure plural variants for the connected count.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld of %2$@ agent connected"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld of %2$@ agents connected"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "已连接 %1$lld/%2$@ 个 Coding Agent"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "已连接 %1$lld/%2$@ 个 Coding Agent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "onboarding.done.footer": {
+      "comment": "Final onboarding note explaining where TokenStats lives and how to reopen setup. TokenStats is the app name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats lives in your menu bar. You can reconnect agents or revisit this setup anytime from Settings."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats 位于菜单栏中。你可以随时在“设置”中重新连接 Coding Agent 或再次进行设置。"
+          }
+        }
+      }
+    },
+    "onboarding.done.no_connected_agents.summary": {
+      "comment": "Summary shown when onboarding finishes without a connected Coding Agent account.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No agents connected yet"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未连接 Coding Agent"
+          }
+        }
+      }
+    },
+    "onboarding.done.primary_agent.summary": {
+      "comment": "Summary naming the primary Coding Agent. The inserted agent name is a brand name and must remain unchanged.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primary: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主要订阅：%@"
+          }
+        }
+      }
+    },
+    "onboarding.done.title": {
+      "comment": "Confirmation title on the final onboarding step.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You're all set"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一切就绪"
+          }
+        }
+      }
+    },
+    "onboarding.navigation.back.button": {
+      "comment": "Button that moves to the previous onboarding step.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "返回"
+          }
+        }
+      }
+    },
+    "onboarding.navigation.continue.button": {
+      "comment": "Button that moves to the next onboarding step.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续"
+          }
+        }
+      }
+    },
+    "onboarding.navigation.finish.button": {
+      "comment": "Button that completes and closes the onboarding flow.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成"
+          }
+        }
+      }
+    },
+    "onboarding.navigation.skip.button": {
+      "comment": "Button that dismisses the optional onboarding flow.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跳过"
+          }
+        }
+      }
+    },
+    "onboarding.welcome.title": {
+      "comment": "Title at the top of the TokenStats onboarding window. TokenStats is the app name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welcome to TokenStats"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "欢迎使用 TokenStats"
+          }
+        }
+      }
+    },
+    "popover.quit.button": {
+      "comment": "Popover menu item that quits TokenStats. TokenStats is a brand name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quit TokenStats"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出 TokenStats"
+          }
+        }
+      }
+    },
+    "popover.refresh_all.help": {
+      "comment": "Help text for refreshing all Usage and visible Token data.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh all (⌘R)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部刷新（⌘R）"
+          }
+        }
+      }
+    },
+    "popover.settings.accessibility": {
+      "comment": "VoiceOver label for the gear button in the TokenStats popover.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置"
+          }
+        }
+      }
+    },
+    "popover.settings.button": {
+      "comment": "Popover menu item that opens TokenStats Settings.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置…"
+          }
+        }
+      }
+    },
+    "popover.settings.help": {
+      "comment": "Help text for the gear button in the TokenStats popover.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置"
+          }
+        }
+      }
+    },
+    "popover.tab.picker.accessibility": {
+      "comment": "VoiceOver label for choosing the popover section.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Popover section"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "弹出窗口分区"
+          }
+        }
+      }
+    },
+    "popover.tab.picker.title": {
+      "comment": "Title of the fallback popover tab picker.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "视图"
+          }
+        }
+      }
+    },
+    "popover.tab.tokens": {
+      "comment": "Title of the Tokens tab in the popover.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tokens"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token"
+          }
+        }
+      }
+    },
+    "popover.tab.usage": {
+      "comment": "Title of the Usage tab in the popover.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用量"
+          }
+        }
+      }
+    },
+    "settings.about.description": {
+      "comment": "One-sentence description of TokenStats. Coding Agent and Usage Window are product terms.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A menu-bar gauge for your Coding Agents — see how much of each Usage Window is left and when it resets."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "菜单栏中的 Coding Agent 用量仪表，可查看各个用量周期的剩余量和重置时间。"
+          }
+        }
+      }
+    },
+    "settings.about.github.link": {
+      "comment": "Link that opens the TokenStats source repository on GitHub.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View on GitHub"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 GitHub 上查看"
+          }
+        }
+      }
+    },
+    "settings.about.run_setup_again.button": {
+      "comment": "Button that reopens the TokenStats onboarding flow.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run setup again"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新运行设置向导"
+          }
+        }
+      }
+    },
+    "settings.about.title": {
+      "comment": "Navigation title for the Settings pane describing TokenStats.\nTitle of the About settings pane.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关于"
+          }
+        }
+      }
+    },
+    "settings.about.version": {
+      "comment": "App version followed by the build number in parentheses.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version %1$@ (%2$@)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "版本 %1$@（%2$@）"
+          }
+        }
+      }
+    },
+    "settings.accounts.keychain_privacy.footer": {
+      "comment": "Privacy note below the account controls. TokenStats is the app name and Keychain is Apple's credential store.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats stores each account's tokens in your Keychain and never sends them anywhere else."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats 会将每个账户的 Token 保存在钥匙串中，绝不会发送到其他位置。"
+          }
+        }
+      }
+    },
+    "settings.accounts.sign_out.button": {
+      "comment": "Button that disconnects one Coding Agent account from TokenStats.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign out"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出登录"
+          }
+        }
+      }
+    },
+    "settings.accounts.title": {
+      "comment": "Navigation title for the Settings pane where Coding Agent accounts are managed.\nTitle of the Accounts settings pane.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accounts"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "账户"
+          }
+        }
+      }
+    },
+    "settings.appearance.gauge_preview.reset.spoken": {
+      "comment": "Accessibility phrase in the gauge preview. The inserted value is a localized duration.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "resets in %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@后重置"
+          }
+        }
+      }
+    },
+    "settings.appearance.gauge_style.bar": {
+      "comment": "Title of the horizontal bar Usage Window style.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bar"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "条形"
+          }
+        }
+      }
+    },
+    "settings.appearance.gauge_style.dial": {
+      "comment": "Title of the 270-degree dial Usage Window style.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dial"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表盘"
+          }
+        }
+      }
+    },
+    "settings.appearance.gauge_style.ring": {
+      "comment": "Title of the circular ring Usage Window style.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ring"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "环形"
+          }
+        }
+      }
+    },
+    "settings.appearance.order.fixed.footer": {
+      "comment": "Explanation shown when only two Coding Agent subscriptions exist and reordering would have no effect.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing to arrange yet — your primary leads and the only other subscription follows. Drag-to-reorder unlocks once you track a third."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目前无需排序——主要订阅位于首位，另一个订阅紧随其后。添加第三个订阅后即可拖动排序。"
+          }
+        }
+      }
+    },
+    "settings.appearance.order.primary.accessibility_label": {
+      "comment": "Accessibility label for the primary Coding Agent in the order list. The inserted agent name is a brand name and must remain unchanged.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, primary"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@，主要订阅"
+          }
+        }
+      }
+    },
+    "settings.appearance.order.reorder.accessibility_hint": {
+      "comment": "Accessibility hint for a Coding Agent row that can be reordered by dragging.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Draggable. Drag to reorder."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可拖动。拖动以重新排序。"
+          }
+        }
+      }
+    },
+    "settings.appearance.order.reorderable.footer": {
+      "comment": "Instructions shown when there are enough Coding Agent subscriptions to reorder.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag to arrange how subscriptions are listed. The primary subscription always leads."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖动以调整订阅的排列顺序。主要订阅始终位于首位。"
+          }
+        }
+      }
+    },
+    "settings.appearance.order.section": {
+      "comment": "Section title for arranging Coding Agent subscriptions.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Order"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顺序"
+          }
+        }
+      }
+    },
+    "settings.appearance.primary.badge": {
+      "comment": "Badge beside the primary Coding Agent subscription.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primary"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主要"
+          }
+        }
+      }
+    },
+    "settings.appearance.primary.footer": {
+      "comment": "Explains how the primary Coding Agent subscription is presented.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your primary subscription is shown first and badged in the popover and menu bar."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主要订阅将在弹出窗口和菜单栏中置顶显示并标记。"
+          }
+        }
+      }
+    },
+    "settings.appearance.primary.section": {
+      "comment": "Section title for choosing the primary Coding Agent subscription.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primary"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主要订阅"
+          }
+        }
+      }
+    },
+    "settings.appearance.primary_subscription.picker": {
+      "comment": "Picker label for choosing which Coding Agent subscription is presented first.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primary subscription"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主要订阅"
+          }
+        }
+      }
+    },
+    "settings.appearance.title": {
+      "comment": "Navigation title for settings that control how TokenStats presents usage and tokens.\nTitle of the Appearance settings pane.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appearance"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "外观"
+          }
+        }
+      }
+    },
+    "settings.appearance.token_summary.footer": {
+      "comment": "Explains the Billing tokens and API equivalent summary choices. Model and Token Kind are product terms.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Billing tokens count direct input, cache writes, and output. API equivalent estimates standard list-price cost from the Models recorded in local transcripts. Token Kind filters change neither summary."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "计费 Token 包含直接输入、缓存写入和输出。API 等值费用根据本地对话记录中的模型，按标准公开价格进行估算。Token 类型筛选不会改变任一摘要。"
+          }
+        }
+      }
+    },
+    "settings.appearance.token_summary.title": {
+      "comment": "Section and picker title for choosing the objective Token Odometer summary. Token is a technical term.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tokens summary"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token 摘要"
+          }
+        }
+      }
+    },
+    "settings.appearance.token_value.percentage": {
+      "comment": "Token table display mode showing only composition percentages.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Percentage"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "百分比"
+          }
+        }
+      }
+    },
+    "settings.appearance.token_value.value": {
+      "comment": "Token table display mode showing only compact token values.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Value"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数值"
+          }
+        }
+      }
+    },
+    "settings.appearance.token_value.value_and_percentage": {
+      "comment": "Token table display mode showing both token value and composition percentage.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Value (percentage)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数值（百分比）"
+          }
+        }
+      }
+    },
+    "settings.appearance.token_values.footer": {
+      "comment": "Explains how the Token Kind value presentation affects enabled and disabled columns. Token Kind is a product term.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enabled Token Kinds use this format. Disabled kinds keep a dimmed raw value and are excluded from composition percentages."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "启用的 Token 类型使用此格式。停用的类型保留灰显的原始数值，并从构成百分比中排除。"
+          }
+        }
+      }
+    },
+    "settings.appearance.token_values.title": {
+      "comment": "Section and picker title for choosing how Token Kind values are displayed. Token is a technical term.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token values"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token 数值"
+          }
+        }
+      }
+    },
+    "settings.appearance.usage_window_style.footer": {
+      "comment": "Explains the Usage Window gauge style setting. Usage Window is a product term.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose how each Usage Window is drawn."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择各个用量周期的显示方式。"
+          }
+        }
+      }
+    },
+    "settings.appearance.usage_window_style.picker": {
+      "comment": "Accessibility label for the picker that selects a Usage Window gauge style.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display mode"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示方式"
+          }
+        }
+      }
+    },
+    "settings.appearance.usage_window_style.section": {
+      "comment": "Section title for choosing the visual style of Usage Window gauges. Usage Window is a product term.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage Window style"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用量周期样式"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.agent.column": {
+      "comment": "Column heading above Coding Agent names in the visibility matrix.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coding Agent"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.footer": {
+      "comment": "Explains the Coding Agent visibility matrix and its non-empty-column rule. Tokens is the app tab name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each row is an agent. Choose the surfaces where it appears; Tokens excludes unchecked agents from all summaries and totals. At least one agent must remain visible in each column."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每行代表一个 Coding Agent。选择它要显示的位置；取消勾选后，该 Coding Agent 将从 Token 页的所有摘要和合计中排除。每列至少要保留一个可见的 Coding Agent。"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.hidden.accessibility_value": {
+      "comment": "Accessibility value for a Coding Agent that is hidden from a selected surface.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hidden"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已隐藏"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.menu_bar.accessibility_label": {
+      "comment": "Accessibility label for one Coding Agent's visibility toggle in the macOS menu bar. The inserted agent name is a brand name and must remain unchanged.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, menu bar visibility"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@，菜单栏可见性"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.menu_bar.column": {
+      "comment": "Visibility matrix column for the macOS menu bar.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menu bar"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "菜单栏"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.menu_bar.hide.help": {
+      "comment": "Help text for hiding one Coding Agent from the macOS menu bar. The inserted agent name is a brand name and must remain unchanged.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide %@ from the menu bar"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在菜单栏中隐藏 %@"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.menu_bar.show.help": {
+      "comment": "Help text for showing one Coding Agent in the macOS menu bar. The inserted agent name is a brand name and must remain unchanged.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show %@ in the menu bar"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在菜单栏中显示 %@"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.minimum.accessibility_hint": {
+      "comment": "Accessibility hint explaining why the final visible Coding Agent cannot be hidden.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At least one agent must remain visible."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "至少要保留一个可见的 Coding Agent。"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.section": {
+      "comment": "Section title for choosing where each Coding Agent appears.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent visibility"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coding Agent 可见性"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.shown.accessibility_value": {
+      "comment": "Accessibility value for a Coding Agent that is visible on a selected surface.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shown"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已显示"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.tokens.accessibility_label": {
+      "comment": "Accessibility label for one Coding Agent's visibility toggle in the Tokens tab. The inserted agent name is a brand name and must remain unchanged.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, Tokens visibility"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@，Token 页可见性"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.tokens.column": {
+      "comment": "Visibility matrix column for the Tokens tab. Token is a technical term.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tokens"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.tokens.hide.help": {
+      "comment": "Help text for excluding one Coding Agent from the Tokens tab and totals. The inserted agent name is a brand name and must remain unchanged.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide %@ from Tokens and its totals"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从 Token 页及其合计中隐藏 %@"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.tokens.show.help": {
+      "comment": "Help text for including one Coding Agent in the Tokens tab and totals. The inserted agent name is a brand name and must remain unchanged.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show %@ in Tokens and its totals"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Token 页及其合计中显示 %@"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.usage.accessibility_label": {
+      "comment": "Accessibility label for one Coding Agent's visibility toggle in the Usage tab. The inserted agent name is a brand name and must remain unchanged.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, Usage visibility"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@，用量页可见性"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.usage.column": {
+      "comment": "Visibility matrix column for the Usage tab.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用量"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.usage.hide.help": {
+      "comment": "Help text for hiding one Coding Agent from the Usage tab. The inserted agent name is a brand name and must remain unchanged.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide %@ from Usage"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从用量页中隐藏 %@"
+          }
+        }
+      }
+    },
+    "settings.appearance.visibility.usage.show.help": {
+      "comment": "Help text for showing one Coding Agent in the Usage tab. The inserted agent name is a brand name and must remain unchanged.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show %@ in Usage"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在用量页中显示 %@"
+          }
+        }
+      }
+    },
+    "settings.general.language.footer": {
+      "comment": "Explains restart behavior and that language does not replace regional formatting preferences.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Language changes apply to TokenStats after it restarts. Numbers, dates, and USD amounts continue to use your Mac's regional formats."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语言更改将在 TokenStats 重启后生效。数字、日期和美元金额仍使用 Mac 的地区格式。"
+          }
+        }
+      }
+    },
+    "settings.general.language.option.english": {
+      "comment": "The English language name, written in English.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "English"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "English"
+          }
+        }
+      }
+    },
+    "settings.general.language.option.simplified_chinese": {
+      "comment": "The Simplified Chinese language name, written in Simplified Chinese.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "简体中文"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "简体中文"
+          }
+        }
+      }
+    },
+    "settings.general.language.option.system": {
+      "comment": "Language picker option that follows the language macOS chooses for TokenStats.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow System"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跟随系统"
+          }
+        }
+      }
+    },
+    "settings.general.language.restart.deferred": {
+      "comment": "Confirmation shown after the user chooses to restart later.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The new language will be applied the next time TokenStats starts."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats 下次启动时将使用新语言。"
+          }
+        }
+      }
+    },
+    "settings.general.language.restart.error.application_unavailable": {
+      "comment": "Error shown when TokenStats cannot determine the application URL needed to restart.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats could not locate its application. Quit and reopen it manually."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats 无法定位应用程序。请手动退出并重新打开。"
+          }
+        }
+      }
+    },
+    "settings.general.language.restart.error.launch_failed": {
+      "comment": "Error shown when launching the replacement app instance fails.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats could not restart. This instance is still running."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats 无法重启。当前实例仍在运行。"
+          }
+        }
+      }
+    },
+    "settings.general.language.restart.in_progress": {
+      "comment": "Accessibility label for the progress indicator shown while launching a replacement app instance.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restarting TokenStats"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在重启 TokenStats"
+          }
+        }
+      }
+    },
+    "settings.general.language.restart.later": {
+      "comment": "Button that defers restarting TokenStats after a language change.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Later"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "稍后"
+          }
+        }
+      }
+    },
+    "settings.general.language.restart.message": {
+      "comment": "Prompt explaining that the saved application language requires a restart.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart TokenStats now to apply the new language, or continue using the current language until later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即重启 TokenStats 以应用新语言，或继续使用当前语言并稍后重启。"
+          }
+        }
+      }
+    },
+    "settings.general.language.restart.now": {
+      "comment": "Button that immediately restarts TokenStats to apply a language change.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart Now"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即重启"
+          }
+        }
+      }
+    },
+    "settings.general.language.restart.section": {
+      "comment": "Heading shown after the user selects a different application language.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart Required"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要重启"
+          }
+        }
+      }
+    },
+    "settings.general.language.section": {
+      "comment": "Section heading for the application language setting.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Language"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语言"
+          }
+        }
+      }
+    },
+    "settings.general.language.title": {
+      "comment": "Label for the TokenStats application language picker.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App language"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用语言"
+          }
+        }
+      }
+    },
+    "settings.general.title": {
+      "comment": "Title of the General settings pane.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通用"
+          }
+        }
+      }
+    },
+    "settings.display.title": {
+      "comment": "Title of the Display settings pane.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.section.title": {
+      "comment": "Section title for choosing the API-equivalent display currency.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API-equivalent currency"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 等值费用货币"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.display.label": {
+      "comment": "Label for the selected API-equivalent display currency.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display currency"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示货币"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.display.help": {
+      "comment": "Help text for opening the currency picker.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose the currency used for API-equivalent estimates"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择 API 等值费用估算所使用的货币"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.display.accessibility_label": {
+      "comment": "Accessibility label for the display-currency control. The argument is the localized current selection.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display currency, %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示货币：%@"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.expand.accessibility_hint": {
+      "comment": "Accessibility hint for expanding exchange-rate details.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expand exchange-rate details"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "展开汇率详情"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.collapse.accessibility_hint": {
+      "comment": "Accessibility hint for collapsing exchange-rate details.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapse exchange-rate details"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "收起汇率详情"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.title": {
+      "comment": "Title of the collapsible exchange-rate details area.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exchange rate details"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率详情"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.reference_rate.label": {
+      "comment": "Label for the current USD reference rate.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reference rate"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "参考汇率"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.rate_date.label": {
+      "comment": "Label for the provider quote date.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rate date"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "报价日期"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.fetched.label": {
+      "comment": "Label for the local time when rates were fetched.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetched"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取时间"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.next_eligible_refresh.label": {
+      "comment": "Label for the next time an automatic rate request is eligible.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next eligible refresh"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下次可自动刷新"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.rate_provider.label": {
+      "comment": "Label and section title for the selected exchange-rate provider.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rate provider"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率提供商"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.rate_provider.change.help": {
+      "comment": "Help text for opening exchange-rate source settings.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change the exchange-rate provider or API endpoint"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更改汇率提供商或 API 端点"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.rate_provider.change.accessibility_label": {
+      "comment": "Accessibility label for changing the rate provider. The argument is the provider display name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rate provider, %@. Change provider or endpoint."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率提供商：%@。更改提供商或端点。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.api_endpoint.label": {
+      "comment": "Label for the active exchange-rate API endpoint.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API endpoint"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 端点"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.api_endpoint.change.accessibility_label": {
+      "comment": "Accessibility label for changing the endpoint. The argument is the complete HTTPS URL and must remain unchanged.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exchange-rate API endpoint, %@. Change provider or endpoint."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率 API 端点：%@。更改提供商或端点。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.attribution.label": {
+      "comment": "Label for the exchange-rate provider attribution link.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attribution"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "来源标注"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.request_policy": {
+      "comment": "Footer explaining the USD pricing basis, 24-hour automatic request limit, and explicit retry behavior.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Official Model prices remain in USD. TokenStats downloads a complete USD reference-rate table from the selected provider automatically at most once every 24 hours. Retrying after an error sends one additional request."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "官方模型价格仍以 USD 计价。TokenStats 每 24 小时最多自动从所选提供商下载一次完整的 USD 参考汇率表。发生错误后重试会额外发送一次请求。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.updating_rates": {
+      "comment": "Compact status shown while exchange rates are updating.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updating rates…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在更新汇率…"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.loading_rates": {
+      "comment": "Status shown during the first exchange-rate request when no cache exists.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading exchange rates…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载汇率…"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.refreshing_with_last_known": {
+      "comment": "Status shown while refreshing when a last-known rate remains usable.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refreshing rates; the last known rate remains in use."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在刷新汇率；仍继续使用上次已知汇率。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.retry_without_cache": {
+      "comment": "Retry explanation after a failed request when no cached rates exist.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry now to request rates again. This sends one additional request before the next scheduled update."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即重试以再次请求汇率。这会在下次计划更新前额外发送一次请求。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.retry_with_cache": {
+      "comment": "Retry explanation after a failed request when cached rates remain usable.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The last known rate remains in use. Retry now to request rates again; this sends one additional request before the next scheduled update."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仍继续使用上次已知汇率。立即重试可再次请求汇率；这会在下次计划更新前额外发送一次请求。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.stale_warning": {
+      "comment": "Warning that the cached exchange rate may be stale.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The cached exchange rate may be out of date."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存汇率可能已过期。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.fallback_warning": {
+      "comment": "Warning shown after a request error when a selected currency falls back to USD. The argument is the requested ISO code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is unavailable; showing USD fallback."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 不可用；当前回退显示 USD。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.unavailable_warning": {
+      "comment": "Warning shown when a selected currency has no usable quote. The argument is the requested ISO code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is unavailable; showing USD."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 不可用；当前显示 USD。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.using_last_known": {
+      "comment": "Status explaining that a last-known reference rate remains in use.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Using the last known reference rate."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在使用上次已知参考汇率。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.no_rates_instruction": {
+      "comment": "Status shown when no exchange-rate table is cached.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No exchange rates are cached yet. Refresh rates to load more currencies."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未缓存汇率。请刷新汇率以加载更多货币。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.refresh.updating.button": {
+      "comment": "Disabled refresh button title while rates are updating.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updating…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在更新…"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.refresh.updating.accessibility_label": {
+      "comment": "Accessibility label while exchange rates are updating.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exchange rates are updating"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在更新汇率"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.refresh.retry.button": {
+      "comment": "Button title for one explicit exchange-rate retry.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry now"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即重试"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.refresh.retry.help": {
+      "comment": "Help text explaining that an explicit retry overrides the daily eligibility gate once.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry now, even if the normal daily refresh is not yet eligible"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即重试，即使尚未到常规每日刷新时间"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.refresh.refresh.button": {
+      "comment": "Button title for an eligible automatic-policy exchange-rate refresh.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh rates"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新汇率"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.refresh.updated.button": {
+      "comment": "Disabled button title when rates are current for the daily request policy.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日已更新"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.refresh.updated.accessibility_label": {
+      "comment": "Accessibility label when exchange rates are up to date.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exchange rates are up to date"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率已是最新"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.selection.system_region": {
+      "comment": "Current-selection label for System Region. Arguments are the localized currency name and ISO code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System Region — %1$@ (%2$@)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系统地区 — %1$@（%2$@）"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.selection.fixed": {
+      "comment": "Current-selection label for a fixed currency. Arguments are the localized currency name and ISO code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ (%2$@)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@（%2$@）"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.reference_rate.unavailable": {
+      "comment": "Reference-rate value when the requested currency has no quote. The argument is the requested ISO code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ rate unavailable — USD fallback"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 汇率不可用 — 回退为 USD"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.reference_rate.value": {
+      "comment": "USD reference-rate value. Arguments are the localized decimal rate and target ISO code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 USD = %1$@ %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 USD = %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.summary.update_failed_without_cache": {
+      "comment": "Compact exchange-rate summary after a failure with no cache.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update failed · no rates cached"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新失败 · 无缓存汇率"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.summary.update_failed_with_cache": {
+      "comment": "Compact exchange-rate summary after a failure while retaining cached rates.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update failed · last known rates retained"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新失败 · 已保留上次已知汇率"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.summary.fallback": {
+      "comment": "Compact fallback summary. The argument is the requested ISO code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ unavailable · USD fallback"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 不可用 · 回退为 USD"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.summary.stale": {
+      "comment": "Compact summary for a possibly stale cached rate.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cached rate may be out of date"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存汇率可能已过期"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.summary.no_rates": {
+      "comment": "Compact summary when no exchange-rate table is cached.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No exchange rates cached"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无缓存汇率"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.summary.up_to_date": {
+      "comment": "Compact current-rate summary. The argument is the provider display name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Up to date · %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已是最新 · %@"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.preview.title": {
+      "comment": "Caption above the example currency conversion.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预览"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.preview.not_converted": {
+      "comment": "Example USD amount when the requested currency has no usable rate. The argument is the region-formatted USD amount.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — not converted"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — 未换算"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.preview.no_conversion": {
+      "comment": "Example USD amount when fixed USD is selected. The argument is the region-formatted USD amount.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — no conversion"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — 无需换算"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.preview.approximate": {
+      "comment": "Example conversion. The first argument is the region-formatted USD amount; the second is the localized converted amount.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@  ≈  %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@  ≈  %2$@"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.preview.fallback.accessibility_label": {
+      "comment": "Accessibility description for an unavailable preview conversion. The first argument is the requested ISO code; the second is the region-formatted USD amount.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No usable %1$@ exchange rate; %2$@ is shown without conversion"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有可用的 %1$@ 汇率；当前显示 %2$@ 且不进行换算"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.preview.usd.accessibility_label": {
+      "comment": "Accessibility description for the USD preview. The argument is the region-formatted USD amount.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@; no currency conversion is needed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@；无需进行货币换算"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.preview.converted.accessibility_label": {
+      "comment": "Accessibility description for the converted preview. The first argument is the region-formatted USD amount; the second is the localized converted amount.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ is approximately %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ 约合 %2$@"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.title": {
+      "comment": "Title of the display-currency picker sheet.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display Currency"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示货币"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.search.placeholder": {
+      "comment": "Placeholder for searching currencies by name, code, or symbol.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search currencies"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索货币"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.search.clear.accessibility_label": {
+      "comment": "Accessibility label for clearing the currency search field.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear currency search"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除货币搜索"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.close.button": {
+      "comment": "Button title that closes the currency picker.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.popular.section": {
+      "comment": "Section title for commonly selected currencies.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Popular"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "热门货币"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.system_region": {
+      "comment": "Title of the automatic currency choice that follows the Mac region.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System Region"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系统地区"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.automatic.section": {
+      "comment": "Section title containing the System Region currency choice.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.no_rates.footer": {
+      "comment": "Currency-picker footer when no table is cached. The argument is the provider display name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No rates are cached yet. Close this list and choose Refresh rates to load the %@ currency table."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未缓存汇率。请关闭此列表并选择“刷新汇率”，以加载 %@ 货币表。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.all_currencies.section": {
+      "comment": "Section title for the complete cached currency list excluding popular entries.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All Currencies"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所有货币"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.row.selected.accessibility_label": {
+      "comment": "Accessibility label for a selected currency row. Arguments are its localized title and subtitle.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$@, selected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@，%2$@，已选择"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.row.accessibility_label": {
+      "comment": "Accessibility label for an unselected currency row. Arguments are its localized title and subtitle.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@，%2$@"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.provider.frankfurter.explanation": {
+      "comment": "Explanation of the Frankfurter rate provider.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broad daily reference-rate coverage from multiple public providers."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供来自多个公共数据提供方的广泛每日参考汇率。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.provider.exchange_rate_api.explanation": {
+      "comment": "Explanation of the ExchangeRate-API Open provider.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A keyless daily USD table; attribution is required by the service."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供无需密钥的每日 USD 汇率表；该服务要求标注来源。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.provider.ecb.explanation": {
+      "comment": "Explanation of the European Central Bank adapter.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Official EUR reference rates converted once into USD cross-rates; coverage is limited to currencies published for the latest ECB date."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将官方 EUR 参考汇率一次换算为 USD 交叉汇率；仅覆盖欧洲中央银行在最新日期发布的货币。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.title": {
+      "comment": "Title of the exchange-rate source configuration sheet.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exchange Rate Source"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率来源"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.provider.picker": {
+      "comment": "Label for selecting a supported response adapter.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供商"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.documentation.label": {
+      "comment": "Label for the selected provider documentation link.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Documentation"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文档"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.documentation.link": {
+      "comment": "Link title that opens the selected provider API documentation.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open API documentation"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开 API 文档"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.endpoint.placeholder": {
+      "comment": "Placeholder for the complete custom HTTPS API endpoint.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full HTTPS API URL"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完整 HTTPS API URL"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.endpoint.accessibility_label": {
+      "comment": "Accessibility label for the custom exchange-rate API URL field.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exchange-rate API endpoint"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率 API 端点"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.endpoint.credential_warning": {
+      "comment": "Warning that custom endpoints must be public, compatible, and contain no credentials.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use a public, keyless endpoint compatible with this provider. Do not include credentials or API keys in the URL."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请使用与此提供商兼容的公开、无需密钥的端点。请勿在 URL 中包含凭据或 API 密钥。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.restore_default.button": {
+      "comment": "Button title that restores the selected provider default endpoint.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore Default"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复默认值"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.https_endpoint.section": {
+      "comment": "Section title for editing the exchange-rate HTTPS endpoint.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTPS endpoint"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTPS 端点"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.endpoint.verification_footer": {
+      "comment": "Footer explaining atomic source verification and lack of automatic failover.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats verifies the endpoint before switching. It contacts only the selected endpoint and never fails over to another service."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats 会在切换前验证端点。它只联系所选端点，绝不会自动故障转移到其他服务。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.validation_error.accessibility_label": {
+      "comment": "Accessibility summary for a source validation failure. The argument is the diagnostic message.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not use rate provider. %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法使用汇率提供商。%@"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.cancel.button": {
+      "comment": "Button title that closes source configuration without changing it.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.verifying": {
+      "comment": "Progress label while the candidate exchange-rate source is verified.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifying…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在验证…"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.verify_and_use.button": {
+      "comment": "Button title that validates and atomically activates a candidate source.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verify & Use"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "验证并使用"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.verifying.accessibility_label": {
+      "comment": "Accessibility label while an exchange-rate source is being verified.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifying exchange-rate source"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在验证汇率来源"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.verify_and_use.accessibility_label": {
+      "comment": "Accessibility label for validating and activating an exchange-rate source.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verify and use exchange-rate source"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "验证并使用汇率来源"
+          }
+        }
+      }
+    },
+    "settings.tokens.title": {
+      "comment": "Title of the Tokens settings pane. Tokens is a product term.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tokens"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token"
+          }
+        }
+      }
+    },
+    "tokens.agent.selected_total.accessibility": {
+      "comment": "VoiceOver label for one agent Token subtotal. The first argument is the selected Token count and drives pluralization; the second is the unlocalized Coding Agent brand.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%2$@, %1$lld selected token"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%2$@, %1$lld selected tokens"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%2$@，已选合计 %1$lld 个 Token"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%2$@，已选合计 %1$lld 个 Token"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tokens.agent.selected_total.help": {
+      "comment": "Help text for one agent's selected Token subtotal. The first argument is the selected Token count and drives pluralization; the second is the localized all-kind count.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld selected token of %2$@ total across all four kinds"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld selected tokens of %2$@ total across all four kinds"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "已选合计 %1$lld 个 Token；全部四种 Token 类型共 %2$@ 个 Token"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "已选合计 %1$lld 个 Token；全部四种 Token 类型共 %2$@ 个 Token"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tokens.kind.cache_read": {
+      "comment": "Token Kind for input tokens read from a prompt cache.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache read"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存读取"
+          }
+        }
+      }
+    },
+    "tokens.kind.cache_read.abbreviation": {
+      "comment": "Very short Token table heading for Cache read.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C·R"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓·读"
+          }
+        }
+      }
+    },
+    "tokens.kind.cache_read.action_form": {
+      "comment": "Contextual Cache read wording inserted into Token Kind toggle help and accessibility sentences. English is lowercase because it appears mid-sentence.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cache read"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存读取"
+          }
+        }
+      }
+    },
+    "tokens.kind.cache_read.row_prefix": {
+      "comment": "Contextual Cache read wording at the start of a Token table tooltip line. English is capitalized because it begins the line.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache read"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存读取"
+          }
+        }
+      }
+    },
+    "tokens.kind.cache_write": {
+      "comment": "Token Kind for input tokens written to a prompt cache.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache write"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存写入"
+          }
+        }
+      }
+    },
+    "tokens.kind.cache_write.abbreviation": {
+      "comment": "Very short Token table heading for Cache write.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C·W"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓·写"
+          }
+        }
+      }
+    },
+    "tokens.kind.cache_write.action_form": {
+      "comment": "Contextual Cache write wording inserted into Token Kind toggle help and accessibility sentences. English is lowercase because it appears mid-sentence.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cache write"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存写入"
+          }
+        }
+      }
+    },
+    "tokens.kind.cache_write.row_prefix": {
+      "comment": "Contextual Cache write wording at the start of a Token table tooltip line. English is capitalized because it begins the line.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache write"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存写入"
+          }
+        }
+      }
+    },
+    "tokens.kind.direct_input": {
+      "comment": "Token Kind for input tokens that were not read from cache.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direct input"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直接输入"
+          }
+        }
+      }
+    },
+    "tokens.kind.direct_input.abbreviation": {
+      "comment": "Very short Token table heading for Direct input.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IN"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入"
+          }
+        }
+      }
+    },
+    "tokens.kind.direct_input.action_form": {
+      "comment": "Contextual Direct input wording inserted into Token Kind toggle help and accessibility sentences. English is lowercase because it appears mid-sentence.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "direct input"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直接输入"
+          }
+        }
+      }
+    },
+    "tokens.kind.direct_input.row_prefix": {
+      "comment": "Contextual Direct input wording at the start of a Token table tooltip line. English is capitalized because it begins the line.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direct input"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直接输入"
+          }
+        }
+      }
+    },
+    "tokens.kind.exclude.help": {
+      "comment": "Help text for an enabled Token Kind toggle. The argument is the localized, sentence-context action form for that Token Kind.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exclude %@ from the selected total"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从已选合计中排除%@"
+          }
+        }
+      }
+    },
+    "tokens.kind.include.accessibility": {
+      "comment": "VoiceOver label for a Token Kind inclusion toggle. The argument is the localized, sentence-context action form for that Token Kind.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include %@ tokens"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在已选合计中包含%@"
+          }
+        }
+      }
+    },
+    "tokens.kind.include.help": {
+      "comment": "Help text for a disabled Token Kind toggle. The argument is the localized, sentence-context action form for that Token Kind.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include %@ in the selected total"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在已选合计中包含%@"
+          }
+        }
+      }
+    },
+    "tokens.kind.output": {
+      "comment": "Token Kind for model output tokens.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Output"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输出"
+          }
+        }
+      }
+    },
+    "tokens.kind.output.abbreviation": {
+      "comment": "Very short Token table heading for Output.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OUT"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输出"
+          }
+        }
+      }
+    },
+    "tokens.kind.output.action_form": {
+      "comment": "Contextual Output wording inserted into Token Kind toggle help and accessibility sentences. English is lowercase because it appears mid-sentence.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "output"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输出"
+          }
+        }
+      }
+    },
+    "tokens.kind.output.row_prefix": {
+      "comment": "Contextual Output wording at the start of a Token table tooltip line. English is capitalized because it begins the line.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Output"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输出"
+          }
+        }
+      }
+    },
+    "tokens.model.unattributed": {
+      "comment": "Fallback Model label when a transcript never identifies a Model. Real provider Model IDs, including a literal ID named unknown, are never translated.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未知"
+          }
+        }
+      }
+    },
+    "tokens.range.picker.accessibility": {
+      "comment": "VoiceOver label for the Token Odometer range picker.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token Odometer range"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token 计量范围"
+          }
+        }
+      }
+    },
+    "tokens.range.picker.title": {
+      "comment": "Title for the Token Odometer range picker.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Range"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "范围"
+          }
+        }
+      }
+    },
+    "tokens.range.seven_days": {
+      "comment": "Token Odometer rolling range covering seven local calendar days.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7 days"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7 天"
+          }
+        }
+      }
+    },
+    "tokens.range.seven_days.heading_form": {
+      "comment": "Contextual seven-day range wording inserted into Token summary and table headings. It is separate from the standalone picker title so translators can adapt heading grammar.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7 days"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7 天"
+          }
+        }
+      }
+    },
+    "tokens.range.seven_days.sentence_form": {
+      "comment": "Contextual seven-day range wording inserted into complete loading, empty-state, help, and accessibility sentences.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7 days"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7 天"
+          }
+        }
+      }
+    },
+    "tokens.range.thirty_days": {
+      "comment": "Token Odometer rolling range covering thirty local calendar days.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 days"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 天"
+          }
+        }
+      }
+    },
+    "tokens.range.thirty_days.heading_form": {
+      "comment": "Contextual thirty-day range wording inserted into Token summary and table headings. It is separate from the standalone picker title so translators can adapt heading grammar.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 days"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 天"
+          }
+        }
+      }
+    },
+    "tokens.range.thirty_days.sentence_form": {
+      "comment": "Contextual thirty-day range wording inserted into complete loading, empty-state, help, and accessibility sentences.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 days"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 天"
+          }
+        }
+      }
+    },
+    "tokens.range.today": {
+      "comment": "Token Odometer range covering the current local calendar day.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天"
+          }
+        }
+      }
+    },
+    "tokens.range.today.heading_form": {
+      "comment": "Contextual current-day range wording inserted into Token summary and table headings. English remains title-cased in heading position.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天"
+          }
+        }
+      }
+    },
+    "tokens.range.today.sentence_form": {
+      "comment": "Contextual current-day range wording inserted into complete loading, empty-state, help, and accessibility sentences. English is lowercase because it appears mid-sentence.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "today"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天"
+          }
+        }
+      }
+    },
+    "tokens.row.kind.excluded": {
+      "comment": "Token row tooltip line for an excluded Token Kind. Arguments are the localized row-prefix form for that kind and the exact count.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@; excluded from composition percentages"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@；已从构成百分比中排除"
+          }
+        }
+      }
+    },
+    "tokens.row.kind.selected": {
+      "comment": "Token row tooltip line for an included Token Kind. Arguments are the localized row-prefix form for that kind, exact count, and composition percentage.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@ (%3$@ of selected kinds)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@（占所选类型的 %3$@）"
+          }
+        }
+      }
+    },
+    "tokens.row.kind.unavailable": {
+      "comment": "Token row tooltip line when a Token Kind was not measured. The argument is the localized row-prefix form for that kind.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ —"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ —"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.accessibility": {
+      "comment": "VoiceOver API-equivalent summary. Arguments are the localized displayed cost, localized sentence-context Token Odometer range, and localized original USD cost.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ estimated API-equivalent usage for %2$@. Original USD estimate %3$@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@，%2$@的 API 等值费用估算。原始 USD 估算为 %3$@。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.empty.accessibility": {
+      "comment": "VoiceOver label when API-equivalent usage is empty. The argument is the localized sentence-context form of the Token Odometer range.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No API-equivalent usage for %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所选范围（%@）内没有 API 等值费用"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.empty.help": {
+      "comment": "Help text when API-equivalent usage is empty. The argument is the localized sentence-context form of the Token Odometer range.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No API-equivalent usage for %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所选范围（%@）内没有 API 等值费用。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.exact.help": {
+      "comment": "API-equivalent help headed by displayed localized cost and original localized USD cost, followed by the complete localized methodology sentence.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Displayed estimate %1$@. Original USD estimate %2$@. %3$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示的估算为 %1$@。原始 USD 估算为 %2$@。%3$@"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.help": {
+      "comment": "Detailed API-equivalent estimate help. The argument is the localized price-review date.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard API-equivalent estimate by recorded Model; includes all four Token Kinds at list rates regardless of the display filters. The exact USD aggregate is converted first, then the displayed total is rounded upward once at the target currency's minor unit. Claude cache writes without TTL detail use the default 5-minute rate. Prices reviewed %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "根据记录的模型，按标准公开价格估算 API 等值费用；无论显示筛选如何，均包含全部四种 Token 类型。先换算精确的 USD 合计，再按目标货币的最小单位将显示总额向上取整一次。Claude 缓存写入如无 TTL 详情，则采用默认的 5 分钟费率。价格审核日期：%@。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.label": {
+      "comment": "API-equivalent cost summary label. The first argument is an ISO currency code or localized fallback label; the second is the localized heading-context Token Odometer range.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API-equivalent · %1$@ · %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 等值费用 · %1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.partial.help": {
+      "comment": "Detailed partial API-equivalent estimate help. The first argument is the unpriced Token count and drives pluralization; the second is the localized review date; the third is a locale-aware list of localized fallback labels and invariant Model IDs.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Standard API-equivalent estimate by recorded Model; includes all four Token Kinds at list rates regardless of the display filters. The exact USD aggregate is converted first, then the displayed total is rounded upward once at the target currency's minor unit. Claude cache writes without TTL detail use the default 5-minute rate. Prices reviewed %2$@. Unpriced Models: %3$@ (%1$lld token)."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Standard API-equivalent estimate by recorded Model; includes all four Token Kinds at list rates regardless of the display filters. The exact USD aggregate is converted first, then the displayed total is rounded upward once at the target currency's minor unit. Claude cache writes without TTL detail use the default 5-minute rate. Prices reviewed %2$@. Unpriced Models: %3$@ (%1$lld tokens)."
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "根据记录的模型，按标准公开价格估算 API 等值费用；无论显示筛选如何，均包含全部四种 Token 类型。先换算精确的 USD 合计，再按目标货币的最小单位将显示总额向上取整一次。Claude 缓存写入如无 TTL 详情，则采用默认的 5 分钟费率。价格审核日期：%2$@。未定价模型：%3$@（%1$lld 个 Token）。"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "根据记录的模型，按标准公开价格估算 API 等值费用；无论显示筛选如何，均包含全部四种 Token 类型。先换算精确的 USD 合计，再按目标货币的最小单位将显示总额向上取整一次。Claude 缓存写入如无 TTL 详情，则采用默认的 5 分钟费率。价格审核日期：%2$@。未定价模型：%3$@（%1$lld 个 Token）。"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.fallback.label": {
+      "comment": "Label fragment for an API-equivalent value that fell back to USD. The argument is the effective ISO currency code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ fallback"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 回退"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.fallback.last_fetched": {
+      "comment": "Exchange-rate fallback disclosure. The argument is the localized time when the last rate table was fetched.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last rate table fetched: %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上次获取汇率表的时间：%@。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.fallback.no_rate": {
+      "comment": "Exchange-rate fallback disclosure. The argument is the requested ISO currency code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No usable %@ exchange rate was available."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有可用的 %@ 汇率。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.fallback.original_usd": {
+      "comment": "Exchange-rate fallback disclosure explaining that the canonical USD estimate is shown without conversion.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No FX conversion was applied; showing the original USD estimate."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未进行汇率换算；当前显示原始 USD 估算。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.fetch_unavailable": {
+      "comment": "Exchange-rate disclosure when the local fetch time is unavailable.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetch time unavailable."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取时间不可用。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.fetched": {
+      "comment": "Exchange-rate disclosure. The argument is the localized local fetch time.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetched: %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取时间：%@。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.rate": {
+      "comment": "Exchange-rate disclosure. The first argument is the localized rate and the second is the effective ISO currency code. USD is the canonical base.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exchange rate: 1 USD = %1$@ %2$@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率：1 USD = %1$@ %2$@。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.rate_date": {
+      "comment": "Exchange-rate disclosure. The argument is the localized provider quote date.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rate date: %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "报价日期：%@。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.rate_date_unavailable": {
+      "comment": "Exchange-rate disclosure when the provider quote date is unavailable.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rate date unavailable."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "报价日期不可用。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.status.current": {
+      "comment": "Exchange-rate disclosure for a fresh cached rate.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rate status: current."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率状态：当前。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.status.stale": {
+      "comment": "Exchange-rate disclosure for a stale cached rate.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rate status: stale cached rate."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率状态：缓存汇率可能已过期。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.stale.label": {
+      "comment": "Visible label fragment for an API-equivalent conversion that uses a stale cached rate. The argument is the effective ISO currency code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ stale"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 可能已过期"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.usd_base": {
+      "comment": "Exchange-rate disclosure when USD is displayed directly as the canonical pricing currency.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USD is the pricing currency; no FX rate date or fetch time applies."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USD 是定价货币，因此不适用汇率报价日期或获取时间。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.unpriced.accessibility": {
+      "comment": "VoiceOver note for unpriced Models. The first argument is the unpriced Token count and drives pluralization; the second is a locale-aware list of localized fallback labels and invariant Model IDs.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Unpriced Models: %2$@ (%1$lld token)."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Unpriced Models: %2$@ (%1$lld tokens)."
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "未定价模型：%2$@（%1$lld 个 Token）。"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "未定价模型：%2$@（%1$lld 个 Token）。"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.unavailable.accessibility": {
+      "comment": "VoiceOver summary when API-equivalent cost cannot be calculated for an unknown Model.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API-equivalent usage unavailable because the transcript Model is unknown"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "由于对话记录中的模型未知，无法计算 API 等值费用"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.unpriced_model.label": {
+      "comment": "One unpriced Model label in API-equivalent help. The first argument is an invariant Coding Agent brand; the second is either an invariant provider Model ID or the localized unattributed fallback.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@：%2$@"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.unpriced_transcript_model.label": {
+      "comment": "Unpriced Model fallback in API-equivalent help for Token usage present in transcript totals but absent from all Model-attributed rows.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown transcript Model"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未知的对话记录模型"
+          }
+        }
+      }
+    },
+    "tokens.summary.billing.accessibility": {
+      "comment": "VoiceOver billing-token summary. The first argument is the exact Token count and drives pluralization; the second is the localized sentence-context form of the Token Odometer range.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld billing token for %2$@; cache reads excluded"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld billing tokens for %2$@; cache reads excluded"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%2$@：%1$lld 个计费 Token；不含缓存读取"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%2$@：%1$lld 个计费 Token；不含缓存读取"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tokens.summary.billing.empty.accessibility": {
+      "comment": "VoiceOver label when there are no billing tokens. The argument is the localized sentence-context form of the Token Odometer range.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No billing token usage for %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所选范围（%@）内没有计费 Token 用量"
+          }
+        }
+      }
+    },
+    "tokens.summary.billing.empty.help": {
+      "comment": "Help text when there are no billing tokens. The argument is the localized sentence-context form of the Token Odometer range.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No billing token usage for %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所选范围（%@）内没有计费 Token 用量。"
+          }
+        }
+      }
+    },
+    "tokens.summary.billing.help": {
+      "comment": "Detailed billing-token help. The first argument is the exact billing Token count and drives pluralization; the remaining arguments are localized counts for direct input, cache write, output, and cache read.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld billing token. Direct input %2$@ · Cache write %3$@ · Output %4$@ · Cache read %5$@. Billing tokens include direct input, cache writes, and output; cache reads remain visible in the table but are excluded from this total. Token Kind filters do not change this summary."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld billing tokens. Direct input %2$@ · Cache write %3$@ · Output %4$@ · Cache read %5$@. Billing tokens include direct input, cache writes, and output; cache reads remain visible in the table but are excluded from this total. Token Kind filters do not change this summary."
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld 个计费 Token。直接输入 %2$@ · 缓存写入 %3$@ · 输出 %4$@ · 缓存读取 %5$@。计费 Token 包含直接输入、缓存写入和输出；缓存读取仍显示在表格中，但不计入此合计。Token 类型筛选不会改变此摘要。"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld 个计费 Token。直接输入 %2$@ · 缓存写入 %3$@ · 输出 %4$@ · 缓存读取 %5$@。计费 Token 包含直接输入、缓存写入和输出；缓存读取仍显示在表格中，但不计入此合计。Token 类型筛选不会改变此摘要。"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tokens.summary.billing.label": {
+      "comment": "Billing-token summary label. The argument is the localized heading-context form of the Token Odometer range.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Billing tokens · %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "计费 Token · %@"
+          }
+        }
+      }
+    },
+    "tokens.summary.metric.api_equivalent": {
+      "comment": "Token summary metric that estimates equivalent API list-price cost.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API equivalent"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 等值费用"
+          }
+        }
+      }
+    },
+    "tokens.summary.metric.billing_tokens": {
+      "comment": "Token summary metric for billable token kinds.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Billing tokens"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "计费 Token"
+          }
+        }
+      }
+    },
+    "tokens.summary.picker.accessibility": {
+      "comment": "VoiceOver label for the Token summary metric picker.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tokens summary"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token 摘要"
+          }
+        }
+      }
+    },
+    "tokens.summary.picker.title": {
+      "comment": "Accessibility title for the Token summary metric picker.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tokens summary"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token 摘要"
+          }
+        }
+      }
+    },
+    "tokens.summary.reading.accessibility": {
+      "comment": "VoiceOver label while token usage is being read. The argument is the localized sentence-context form of the Token Odometer range.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading token usage for %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在读取%@的 Token 用量"
+          }
+        }
+      }
+    },
+    "tokens.summary.reading.help": {
+      "comment": "Help text while token usage is being read. The argument is the localized sentence-context form of the Token Odometer range.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading token usage for %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在读取%@的 Token 用量。"
+          }
+        }
+      }
+    },
+    "tokens.summary.reading.label": {
+      "comment": "Token summary label while transcript usage is being read. The argument is the localized sentence-context form of the Token Odometer range.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading %@…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在读取%@…"
+          }
+        }
+      }
+    },
+    "tokens.table.column.model": {
+      "comment": "Uppercase heading for the Model column in the Token table.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MODEL"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型"
+          }
+        }
+      }
+    },
+    "tokens.table.empty_range": {
+      "comment": "Message under a Coding Agent with no Token usage in the selected range.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No usage in this range"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此范围内没有用量"
+          }
+        }
+      }
+    },
+    "tokens.table.heading.selected": {
+      "comment": "Token table heading. Arguments are the localized heading-context form of the Token Odometer range and compact selected Token count.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · %2$@ selected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · 已选合计 %2$@"
+          }
+        }
+      }
+    },
+    "tokens.table.reading_range": {
+      "comment": "Progress text while the Token Odometer reads a range. The argument is the localized sentence-context form of that range.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading %@…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在读取%@…"
+          }
+        }
+      }
+    },
+    "usage.diagnostics.hide.accessibility": {
+      "comment": "VoiceOver label for an expanded Usage diagnostic disclosure. The argument is the localized status sentence.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@. Hide error details"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@。隐藏错误详情"
+          }
+        }
+      }
+    },
+    "usage.diagnostics.hide.help": {
+      "comment": "Help for collapsing raw Usage diagnostics.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide error details"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐藏错误详情"
+          }
+        }
+      }
+    },
+    "usage.diagnostics.show.accessibility": {
+      "comment": "VoiceOver label for a collapsed Usage diagnostic disclosure. The argument is the localized status sentence.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@. Show error details"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@。显示错误详情"
+          }
+        }
+      }
+    },
+    "usage.diagnostics.show.help": {
+      "comment": "Help for expanding raw Usage diagnostics.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show error details"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示错误详情"
+          }
+        }
+      }
+    },
+    "usage.error.http_response.detail": {
+      "comment": "Expandable Usage diagnostic for a non-success HTTP response. HTTP, the status code, and the raw provider body remain invariant; only punctuation follows the app language.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTP %1$lld. %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTP %1$lld。%2$@"
+          }
+        }
+      }
+    },
+    "usage.error.login_failed.detail": {
+      "comment": "Expandable Usage diagnostic prefix for a failed OAuth login. The inserted known error is localized; unknown provider detail remains verbatim.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Login failed. %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录失败。%@"
+          }
+        }
+      }
+    },
+    "usage.error.no_windows.detail": {
+      "comment": "Expandable Usage diagnostic when a successful provider response contains no recognized Usage Windows. The raw provider body is inserted verbatim.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Received data, but no Usage Windows were recognized. %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已收到数据，但未识别出用量周期。%@"
+          }
+        }
+      }
+    },
+    "usage.error.not_signed_in.detail": {
+      "comment": "Expandable Usage diagnostic when a request is attempted without a connected Coding Agent account.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not signed in."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未登录。"
+          }
+        }
+      }
+    },
+    "usage.gauge.accessibility": {
+      "comment": "VoiceOver label for a Usage Window. Arguments are localized title, remaining percentage, and reset status.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$@ left, %3$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@，剩余 %2$@，%3$@"
+          }
+        }
+      }
+    },
+    "usage.gauge.critical.accessibility": {
+      "comment": "VoiceOver label for a critically low Usage Window. Arguments are localized title, remaining percentage, and reset status.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$@ left, running low, %3$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@，剩余 %2$@，即将用尽，%3$@"
+          }
+        }
+      }
+    },
+    "usage.gauge.remaining.suffix": {
+      "comment": "Short suffix after a remaining Usage percentage.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "left"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可用"
+          }
+        }
+      }
+    },
+    "usage.gauge.unavailable.accessibility": {
+      "comment": "VoiceOver label for an unavailable Usage Window. The argument is the localized window title.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, not available"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@，不可用"
+          }
+        }
+      }
+    },
+    "usage.load_failed.summary": {
+      "comment": "User-facing summary when an initial Usage refresh fails.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t load usage."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法加载用量。"
+          }
+        }
+      }
+    },
+    "usage.loading": {
+      "comment": "Status shown while a Coding Agent Usage reading is loading.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading usage…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载用量…"
+          }
+        }
+      }
+    },
+    "usage.primary.accessibility": {
+      "comment": "VoiceOver label for the primary Coding Agent badge.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primary subscription"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主要订阅"
+          }
+        }
+      }
+    },
+    "usage.primary.badge": {
+      "comment": "Short badge marking the primary Coding Agent subscription.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primary"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主要"
+          }
+        }
+      }
+    },
+    "usage.refresh_failed.status": {
+      "comment": "Stale Usage status after refresh failure. The argument is a localized relative time.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t refresh · last updated %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新失败 · 上次更新：%@"
+          }
+        }
+      }
+    },
+    "usage.reset.in_duration": {
+      "comment": "Spoken Usage Window reset countdown. The argument is a localized duration.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "resets in %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@后重置"
+          }
+        }
+      }
+    },
+    "usage.reset.now": {
+      "comment": "Spoken reset countdown when a Usage Window reset is due now.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "resets now"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "现在重置"
+          }
+        }
+      }
+    },
+    "usage.reset.now.short": {
+      "comment": "Compact visual reset time when a Usage Window resets now.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "now"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "现在"
+          }
+        }
+      }
+    },
+    "usage.reset.unknown": {
+      "comment": "Spoken reset status when a provider does not expose a reset time.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "reset time unknown"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重置时间未知"
+          }
+        }
+      }
+    },
+    "usage.sign_in.button": {
+      "comment": "Button that opens Settings so the user can sign in to a Coding Agent.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录…"
+          }
+        }
+      }
+    },
+    "usage.signed_out.message": {
+      "comment": "Signed-out message. The argument is an unlocalized Coding Agent brand name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not signed in to %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未登录 %@。"
+          }
+        }
+      }
+    },
+    "usage.updated.just_now": {
+      "comment": "Relative update time for a reading fetched less than one minute ago.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "just now"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刚刚"
+          }
+        }
+      }
+    },
+    "usage.updated.status": {
+      "comment": "Fresh Usage reading status. The argument is a localized relative time.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新时间：%@"
+          }
+        }
+      }
+    },
+    "usage.window.short_term": {
+      "comment": "Title of the short-term Usage Window, whose usual duration is five hours.\nTitle of the short-term five-hour Usage Window.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5-hour"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 小时"
+          }
+        }
+      }
+    },
+    "usage.window.weekly": {
+      "comment": "Title of the standard weekly Usage Window.\nTitle of the weekly Usage Window.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weekly"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每周"
+          }
+        }
+      }
+    },
+    "window.onboarding.title": {
+      "comment": "AppKit accessibility title for the TokenStats onboarding window. The visual title bar is hidden, but VoiceOver and Window menus still expose this name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welcome to TokenStats"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "欢迎使用 TokenStats"
+          }
+        }
+      }
+    },
+    "window.settings.title": {
+      "comment": "Title of the TokenStats settings window.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

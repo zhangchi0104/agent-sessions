@@ -10,6 +10,7 @@ import SwiftUI
 
 struct OnboardingDoneStep: View {
     let model: UsageModel
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -17,7 +18,7 @@ struct OnboardingDoneStep: View {
                 Image(systemName: "checkmark.seal.fill")
                     .font(.system(size: 56))
                     .foregroundStyle(.green)
-                Text("You're all set").font(.title2.weight(.semibold))
+                Text(DoneCopy.title).font(.title2.weight(.semibold))
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
@@ -25,18 +26,23 @@ struct OnboardingDoneStep: View {
             VStack(alignment: .leading, spacing: 12) {
                 summaryRow(connectedCount > 0 ? "checkmark.circle.fill" : "exclamationmark.circle",
                            connectedCount > 0 ? .green : .orange,
-                           connectedCount > 0 ? "\(connectedCount) of \(CodingAgentID.allCases.count) agents connected"
-                                              : "No agents connected yet")
+                           connectedCount > 0
+                               ? DoneCopy.connectedAgents(
+                                   connectedCount: connectedCount,
+                                   totalCount: CodingAgentID.allCases.count.formatted(
+                                       .number.locale(locale)
+                                   )
+                               )
+                               : DoneCopy.noConnectedAgents)
                 summaryRow("star.circle.fill", .accentColor,
-                           "Primary: \(model.appearance.primaryAgent.integration.displayName)")
+                           DoneCopy.primaryAgent(model.appearance.primaryAgent.integration.displayName))
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(.quaternary.opacity(0.5),
                         in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-            Text("TokenStats lives in your menu bar. You can reconnect agents or revisit "
-                 + "this setup anytime from Settings.")
+            Text(DoneCopy.footer)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -47,11 +53,29 @@ struct OnboardingDoneStep: View {
         CodingAgentID.allCases.filter { model.agentStates[$0] != .signedOut }.count
     }
 
-    private func summaryRow(_ icon: String, _ color: Color, _ text: String) -> some View {
+    private func summaryRow(_ icon: String,
+                            _ color: Color,
+                            _ text: LocalizedStringResource) -> some View {
         HStack(spacing: 10) {
             Image(systemName: icon).foregroundStyle(color)
             Text(text).font(.callout)
             Spacer(minLength: 0)
         }
     }
+}
+
+private enum DoneCopy {
+    static let title = LocalizedStringResource.onboardingDoneTitle
+
+    static func connectedAgents(connectedCount: Int, totalCount: String) -> LocalizedStringResource {
+        LocalizedStringResource.onboardingDoneConnectedAgentsSummary(connectedCount, totalCount)
+    }
+
+    static let noConnectedAgents = LocalizedStringResource.onboardingDoneNoConnectedAgentsSummary
+
+    static func primaryAgent(_ agentName: String) -> LocalizedStringResource {
+        LocalizedStringResource.onboardingDonePrimaryAgentSummary(agentName)
+    }
+
+    static let footer = LocalizedStringResource.onboardingDoneFooter
 }

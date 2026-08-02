@@ -67,17 +67,25 @@ struct PopoverView: View {
     /// Footer menu: open the dedicated Settings page (account management) or quit.
     private var settings: some View {
         Menu {
-            Button("Settings…") { Self.openSettingsWindow(openWindow) }
+            Button(
+                LocalizedStringResource.popoverSettingsButton
+            ) { Self.openSettingsWindow(openWindow) }
             Divider()
-            Button("Quit TokenStats") { model.quit() }
+            Button(
+                LocalizedStringResource.popoverQuitButton
+            ) { model.quit() }
         } label: {
             Image(systemName: "gearshape")
                 .imageScale(.large)
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
-        .help("Settings")
-        .accessibilityLabel("Settings")
+        .help(
+            LocalizedStringResource.popoverSettingsHelp
+        )
+        .accessibilityLabel(
+            LocalizedStringResource.popoverSettingsAccessibility
+        )
     }
 
     /// Open the Settings window and pull it to the front. The extra `activate`
@@ -90,7 +98,8 @@ struct PopoverView: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("TokenStats").font(.title3.weight(.semibold))
+            // i18n-ignore: TokenStats is the invariant product brand.
+            Text(verbatim: "TokenStats").font(.title3.weight(.semibold))
             Spacer()
             Button {
                 model.refreshAllManually()
@@ -110,7 +119,9 @@ struct PopoverView: View {
             .buttonStyle(.borderless)
             // ⌘R refreshes every Coding Agent while the popover is up.
             .keyboardShortcut("r", modifiers: .command)
-            .help("Refresh all (⌘R)")
+            .help(
+                LocalizedStringResource.popoverRefreshAllHelp
+            )
         }
     }
 }

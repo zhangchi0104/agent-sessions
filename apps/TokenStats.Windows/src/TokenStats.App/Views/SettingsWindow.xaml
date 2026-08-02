@@ -111,7 +111,7 @@
                         Style="{StaticResource SecondaryText}"
                         Text="Nothing to arrange yet — the primary leads and the only other subscription follows." />
 
-                    <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Tokens summary" />
+                    <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Tray summary" />
                     <StackPanel Orientation="Horizontal">
                         <RadioButton
                             x:Name="UsageMetric"
@@ -128,7 +128,7 @@
                     <TextBlock
                         Margin="0,6,0,0"
                         Style="{StaticResource SecondaryText}"
-                        Text="API equivalent estimates standard list-price cost by recorded model and rounds the final total upward to the nearest cent. Billing tokens count direct input + cache write + output; cache reads stay visible in the Odometer table but are excluded from this summary. Token Kind display toggles do not change either summary."
+                        Text="Choose the Today value shown in the tray tooltip. The Tokens tab always shows Billing tokens with Estimated API value beneath it. API equivalent uses standard list prices by recorded model; Billing tokens exclude cache reads. Token Kind display toggles change neither summary."
                         TextWrapping="Wrap" />
 
                     <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Token values" />

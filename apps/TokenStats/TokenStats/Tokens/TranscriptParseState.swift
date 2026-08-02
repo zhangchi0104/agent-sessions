@@ -89,17 +89,13 @@ nonisolated struct TokenUsage: Equatable, Sendable {
         return true
     }
 
-    static func compact(_ count: Int) -> String {
-        let units: [(Double, String)] = [(1e9, "B"), (1e6, "M"), (1e3, "K")]
-        for (unit, suffix) in units where Double(count) >= unit {
-            let scaled = Double(count) / unit
-            // One decimal while it's informative ("1.2M"), none once it isn't ("84K").
-            let text = scaled < 9.95
-                ? String(format: "%.1f", scaled)
-                : String(format: "%.0f", scaled)
-            return text + suffix
-        }
-        return String(count)
+    static func compact(_ count: Int, locale: Locale) -> String {
+        count.formatted(
+            .number
+                .notation(.compactName)
+                .precision(.fractionLength(0...1))
+                .locale(locale)
+        )
     }
 }
 

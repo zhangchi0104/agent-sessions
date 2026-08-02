@@ -785,14 +785,13 @@ internal static class Program
             PumpDispatcher(flyout.Dispatcher);
             flyout.UpdateLayout();
             var tokensTab = FindNamed<RadioButton>(flyout, "TokensTabButton");
-            var apiMetric = FindNamed<RadioButton>(flyout, "ApiMetricButton");
-            var billingMetric =
-                FindNamed<RadioButton>(flyout, "BillingMetricButton");
-            var sevenDays =
-                FindNamed<RadioButton>(flyout, "SevenDaysRangeButton");
+            var rangeCombo =
+                FindNamed<ComboBox>(flyout, "TokenRangeComboBox");
             var pin = FindNamed<ToggleButton>(flyout, "PinButton");
             var summaryValue =
                 FindNamed<RollingNumberText>(flyout, "TokenSummaryValue");
+            var apiEstimate =
+                FindNamed<TextBlock>(flyout, "ApiEstimateValue");
             var summaryPeer =
                 UIElementAutomationPeer.CreatePeerForElement(summaryValue) ??
                 throw new InvalidOperationException(
@@ -820,6 +819,18 @@ internal static class Program
 
             tokensTab.IsChecked = true;
             PumpDispatcher(flyout.Dispatcher);
+            if (rangeCombo.SelectedValue is not string selectedRange ||
+                selectedRange != nameof(TokenRange.Today) ||
+                !rangeCombo.Focusable ||
+                AutomationProperties.GetName(rangeCombo) != "Reporting range" ||
+                flyout.FindName("ApiMetricButton") is not null ||
+                flyout.FindName("BillingMetricButton") is not null)
+            {
+                throw new InvalidOperationException(
+                    "The Tokens flyout did not expose one accessible reporting " +
+                    "range menu without the redundant metric tabs.");
+            }
+
             if (kindButtons.Any(button =>
                     button.IsChecked != true ||
                     !button.Focusable ||
@@ -846,47 +857,17 @@ internal static class Program
                     "The redundant Token Kind explanation row is still visible.");
             }
 
-            var billingRevisionBeforeApi =
-                summaryValue.TransitionRevision;
-            apiMetric.IsChecked = true;
-            PumpDispatcher(flyout.Dispatcher);
-            var apiSummaryBeforeFilter = summaryValue.Text;
-            var apiRevision = summaryValue.TransitionRevision;
-            if (apiRevision <= billingRevisionBeforeApi ||
-                settings.Appearance.TodayMetric != TodayMetricMode.Usage ||
-                !apiSummaryBeforeFilter.StartsWith("$", StringComparison.Ordinal) ||
-                summaryPeer.GetName() != apiSummaryBeforeFilter ||
-                summaryValue.IsRolling ||
-                new AppSettingsStore(settings.SettingsPath)
-                    .Appearance.TodayMetric != TodayMetricMode.Usage)
+            var billingSummaryBeforeFilter = summaryValue.Text;
+            var apiEstimateBeforeFilter = apiEstimate.Text;
+            if (billingSummaryBeforeFilter != "150" ||
+                !apiEstimateBeforeFilter.StartsWith(
+                    "$",
+                    StringComparison.Ordinal) ||
+                summaryPeer.GetName() != billingSummaryBeforeFilter)
             {
                 throw new InvalidOperationException(
-                    "The API-equivalent metric switch did not revise and " +
-                    "settle the summary without rolling before persisting.");
-            }
-
-            billingMetric.IsChecked = true;
-            PumpDispatcher(flyout.Dispatcher);
-            var billingRevision = summaryValue.TransitionRevision;
-            if (billingRevision <= apiRevision ||
-                settings.Appearance.TodayMetric != TodayMetricMode.Token ||
-                summaryValue.Text != "150" ||
-                summaryValue.IsRolling)
-            {
-                throw new InvalidOperationException(
-                    "The Billing metric switch did not revise and settle the " +
-                    "summary at 150 without rolling.");
-            }
-
-            apiMetric.IsChecked = true;
-            PumpDispatcher(flyout.Dispatcher);
-            var filteredApiRevision = summaryValue.TransitionRevision;
-            if (filteredApiRevision <= billingRevision ||
-                summaryValue.IsRolling)
-            {
-                throw new InvalidOperationException(
-                    "Switching back to API equivalent did not revise and " +
-                    "settle the summary without rolling.");
+                    "The Tokens flyout did not show Billing tokens as the " +
+                    "primary reading with a simultaneous API estimate.");
             }
 
             kindButtons[1].IsChecked = false;
@@ -895,7 +876,8 @@ internal static class Program
             if (settings.Appearance.SelectedTokenKinds !=
                     (TokenKindSelection.All & ~TokenKindSelection.Output) ||
                 kindButtons[1].IsChecked != false ||
-                summaryValue.Text != apiSummaryBeforeFilter ||
+                summaryValue.Text != "150" ||
+                apiEstimate.Text != apiEstimateBeforeFilter ||
                 excludedOutput.Text != "50" ||
                 Math.Abs(excludedOutput.Opacity - 0.32) > 0.01 ||
                 !tableTotal.Text.Contains("3 selected kinds", StringComparison.Ordinal) ||
@@ -903,24 +885,7 @@ internal static class Program
             {
                 throw new InvalidOperationException(
                     "Filtering Output did not preserve its dimmed raw value, " +
-                    "API equivalent, and the raw Token Odometer.");
-            }
-
-            var filteredRevisionBeforeBilling =
-                summaryValue.TransitionRevision;
-            billingMetric.IsChecked = true;
-            PumpDispatcher(flyout.Dispatcher);
-            if (settings.Appearance.TodayMetric != TodayMetricMode.Token ||
-                summaryValue.Text != "150" ||
-                summaryValue.TransitionRevision <=
-                    filteredRevisionBeforeBilling ||
-                summaryValue.IsRolling ||
-                new AppSettingsStore(settings.SettingsPath)
-                    .Appearance.TodayMetric != TodayMetricMode.Token)
-            {
-                throw new InvalidOperationException(
-                    "Token Kind filtering changed Billing tokens, or the " +
-                    "metric switch rolled instead of settling immediately.");
+                    "both objective summaries, and the raw Token Odometer.");
             }
 
             settings.SaveAppearance(
@@ -997,7 +962,7 @@ internal static class Program
                     "Unpinning did not restore notification-area flyout behavior.");
             }
 
-            sevenDays.IsChecked = true;
+            rangeCombo.SelectedValue = nameof(TokenRange.SevenDays);
             WaitForUi(
                 flyout.Dispatcher,
                 () =>
@@ -1070,10 +1035,10 @@ internal static class Program
         var sevenDaySummaryText = summaryValue.Text;
         var sevenDaySummaryRevision =
             summaryValue.TransitionRevision;
-        var thirtyDays =
-            FindNamed<RadioButton>(flyout, "ThirtyDaysRangeButton");
+        var rangeCombo =
+            FindNamed<ComboBox>(flyout, "TokenRangeComboBox");
         var sawThirtyDayRolling = false;
-        thirtyDays.IsChecked = true;
+        rangeCombo.SelectedValue = nameof(TokenRange.ThirtyDays);
         WaitForUi(
             flyout.Dispatcher,
             () =>
@@ -1268,13 +1233,13 @@ internal static class Program
                 flyout.FindName("TokensTabButton") as RadioButton ??
                 throw new InvalidOperationException(
                     "Tokens tab button could not be found.");
-            var rangeButton =
-                flyout.FindName("SevenDaysRangeButton") as RadioButton ??
+            var rangeCombo =
+                flyout.FindName("TokenRangeComboBox") as ComboBox ??
                 throw new InvalidOperationException(
-                    "Token range button could not be found.");
+                    "Token reporting range menu could not be found.");
             if (!usageTab.Focusable ||
                 !tokensTab.Focusable ||
-                !rangeButton.Focusable)
+                !rangeCombo.Focusable)
             {
                 throw new InvalidOperationException(
                     "Flyout navigation must use keyboard-focusable controls.");
