@@ -3,8 +3,8 @@
 //  TokenStats
 //
 //  The user-selectable language override. Language is deliberately separate
-//  from region and formatting preferences: choosing English or Simplified
-//  Chinese changes TokenStats' copy while retaining the Mac's regional rules.
+//  from region and formatting preferences: choosing a language changes
+//  TokenStats' copy while retaining the Mac's regional rules.
 //
 
 import Foundation
@@ -14,6 +14,10 @@ nonisolated enum AppLanguage: String, CaseIterable, Codable, Identifiable, Senda
     case system
     case english = "en"
     case simplifiedChinese = "zh-Hans"
+    case german = "de"
+    case french = "fr"
+    case japanese = "ja"
+    case russian = "ru"
 
     var id: Self { self }
 
@@ -27,6 +31,14 @@ nonisolated enum AppLanguage: String, CaseIterable, Codable, Identifiable, Senda
             LocalizedStringResource.settingsGeneralLanguageOptionEnglish
         case .simplifiedChinese:
             LocalizedStringResource.settingsGeneralLanguageOptionSimplifiedChinese
+        case .german:
+            LocalizedStringResource.settingsGeneralLanguageOptionGerman
+        case .french:
+            LocalizedStringResource.settingsGeneralLanguageOptionFrench
+        case .japanese:
+            LocalizedStringResource.settingsGeneralLanguageOptionJapanese
+        case .russian:
+            LocalizedStringResource.settingsGeneralLanguageOptionRussian
         }
     }
 
@@ -56,12 +68,14 @@ nonisolated enum AppLanguage: String, CaseIterable, Codable, Identifiable, Senda
             }
             components.languageComponents.languageCode = languageCode
             components.languageComponents.script = preferredLanguage.script
-        case .english:
-            components.languageComponents.languageCode = .english
-            components.languageComponents.script = nil
-        case .simplifiedChinese:
-            components.languageComponents.languageCode = .chinese
-            components.languageComponents.script = .hanSimplified
+        case .english, .simplifiedChinese, .german, .french, .japanese, .russian:
+            let explicitLanguage = Locale.Components(identifier: rawValue).languageComponents
+            guard let languageCode = explicitLanguage.languageCode else { return systemLocale }
+            components.languageComponents.languageCode = languageCode
+            // Clear a script inherited from the system Locale when the target
+            // language does not declare one. This prevents invalid composites
+            // such as de-Hans when switching away from Simplified Chinese.
+            components.languageComponents.script = explicitLanguage.script
         }
         return Locale(components: components)
     }

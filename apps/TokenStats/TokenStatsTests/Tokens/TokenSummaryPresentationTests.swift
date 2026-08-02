@@ -84,6 +84,10 @@ struct TokenSummaryPresentationTests {
             (Locale(identifier: "zh-Hans-CN"), 1_250_000, "125万", "1,250,000"),
             (Locale(identifier: "en-US"), 1_250_000_000, "1.2B", "1,250,000,000"),
             (Locale(identifier: "zh-Hans-CN"), 1_250_000_000, "12亿", "1,250,000,000"),
+            (Locale(identifier: "de-DE"), 1_250_000, "1,2\u{00A0}Mio.", "1.250.000"),
+            (Locale(identifier: "fr-FR"), 1_250_000, "1,2\u{00A0}M", "1\u{202F}250\u{202F}000"),
+            (Locale(identifier: "ja-JP"), 1_250_000, "125万", "1,250,000"),
+            (Locale(identifier: "ru-RU"), 1_250_000, "1,2\u{00A0}млн", "1\u{00A0}250\u{00A0}000"),
         ]
 
         for testCase in cases {
@@ -216,7 +220,7 @@ struct TokenSummaryPresentationTests {
         #expect(eastText == westText)
     }
 
-    @Test func tokenKindCopyUsesContextSpecificGrammarInEnglishAndChinese() {
+    @Test func tokenKindCopyUsesContextSpecificGrammarInEverySupportedLanguage() {
         let english = AppLocalizer(locale: englishLocale)
         let chinese = AppLocalizer(locale: Locale(identifier: "zh-Hans-CN"))
 
@@ -248,6 +252,64 @@ struct TokenSummaryPresentationTests {
                 using: chinese
             ) == "从已选合计中排除直接输入"
         )
+
+        let addedLanguageCases:
+            [(
+                locale: String,
+                help: String,
+                accessibility: String,
+                selectedRow: String
+            )] = [
+                (
+                    "de-DE",
+                    "Token aus direkten Eingaben aus der ausgewählten Summe ausschließen",
+                    "Token aus direkten Eingaben einbeziehen",
+                    "Direkte Eingabe 100 (50% der ausgewählten Typen)"
+                ),
+                (
+                    "fr-FR",
+                    "Exclure les tokens du type « entrée directe » du total sélectionné",
+                    "Inclure les tokens du type « entrée directe »",
+                    "Entrée directe 100 (50% du total sélectionné)"
+                ),
+                (
+                    "ja-JP",
+                    "選択合計からトークン種別「直接入力」を除外",
+                    "トークン種別「直接入力」を含める",
+                    "直接入力：100（選択した種別に占める割合：50%）"
+                ),
+                (
+                    "ru-RU",
+                    "Не учитывать прямой ввод в итоге по выбранным типам",
+                    "Учитывать токены типа «прямой ввод»",
+                    "Прямой ввод: 100 (50% от итога по выбранным типам)"
+                ),
+            ]
+
+        for testCase in addedLanguageCases {
+            let localizer = AppLocalizer(locale: Locale(identifier: testCase.locale))
+            #expect(
+                TokenKindPresentation.help(
+                    for: .directInput,
+                    isSelected: true,
+                    using: localizer
+                ) == testCase.help
+            )
+            #expect(
+                TokenKindPresentation.accessibilityLabel(
+                    for: .directInput,
+                    using: localizer
+                ) == testCase.accessibility
+            )
+            #expect(
+                TokenKindPresentation.selectedRow(
+                    for: .directInput,
+                    formattedAmount: "100",
+                    percentage: "50%",
+                    using: localizer
+                ) == testCase.selectedRow
+            )
+        }
     }
 
     private func agent(

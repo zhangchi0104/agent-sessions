@@ -27,6 +27,38 @@ final class TokenStatsUITests: XCTestCase {
     }
 
     @MainActor
+    func testGermanOnboardingUsesStableIdentifier() throws {
+        let app = launch(language: "de")
+        let title = app.staticTexts["onboarding.welcome.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertEqual(title.value as? String, "Willkommen bei TokenStats")
+    }
+
+    @MainActor
+    func testFrenchOnboardingUsesStableIdentifier() throws {
+        let app = launch(language: "fr")
+        let title = app.staticTexts["onboarding.welcome.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertEqual(title.value as? String, "Bienvenue dans TokenStats")
+    }
+
+    @MainActor
+    func testJapaneseOnboardingUsesStableIdentifier() throws {
+        let app = launch(language: "ja")
+        let title = app.staticTexts["onboarding.welcome.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertEqual(title.value as? String, "TokenStats へようこそ")
+    }
+
+    @MainActor
+    func testRussianOnboardingUsesStableIdentifier() throws {
+        let app = launch(language: "ru")
+        let title = app.staticTexts["onboarding.welcome.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertEqual(title.value as? String, "Добро пожаловать в TokenStats")
+    }
+
+    @MainActor
     private func launch(language: String) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [

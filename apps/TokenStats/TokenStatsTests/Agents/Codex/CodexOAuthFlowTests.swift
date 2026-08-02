@@ -120,6 +120,62 @@ struct CodexOAuthFlowTests {
                 "登录失败",
                 "未找到授权码。请返回 TokenStats 后重试。"
             ),
+            (
+                "de-DE",
+                true,
+                "de",
+                "Bei Codex angemeldet",
+                "Sie können diesen Tab schließen und zu TokenStats zurückkehren."
+            ),
+            (
+                "de-DE",
+                false,
+                "de",
+                "Anmeldung fehlgeschlagen",
+                "Es wurde kein Autorisierungscode gefunden. Kehren Sie zu TokenStats zurück und versuchen Sie es erneut."
+            ),
+            (
+                "fr-FR",
+                true,
+                "fr",
+                "Connecté à Codex",
+                "Vous pouvez fermer cet onglet et revenir à TokenStats."
+            ),
+            (
+                "fr-FR",
+                false,
+                "fr",
+                "Échec de la connexion",
+                "Aucun code d’autorisation n’a été trouvé. Revenez à TokenStats et réessayez."
+            ),
+            (
+                "ja-JP",
+                true,
+                "ja",
+                "Codex にサインインしました",
+                "このタブを閉じて TokenStats に戻ることができます。"
+            ),
+            (
+                "ja-JP",
+                false,
+                "ja",
+                "サインインに失敗しました",
+                "認可コードが見つかりませんでした。TokenStats に戻って、もう一度お試しください。"
+            ),
+            (
+                "ru-RU",
+                true,
+                "ru",
+                "Вход в Codex выполнен",
+                "Можно закрыть эту вкладку и вернуться в TokenStats."
+            ),
+            (
+                "ru-RU",
+                false,
+                "ru",
+                "Ошибка входа",
+                "Код авторизации не найден. Вернитесь в TokenStats и попробуйте ещё раз."
+            ),
         ]
 
         for (localeIdentifier, succeeded, language, heading, body) in fixtures {
