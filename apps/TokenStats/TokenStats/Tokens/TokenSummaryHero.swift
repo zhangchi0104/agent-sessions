@@ -97,14 +97,10 @@ struct TokenSummaryPresentation: Equatable {
         }
 
         let count = usage.billingTokens
-        // The popover gives the hero 300pt. A grouped ten-digit count no longer
-        // fits the v1 42pt face and SwiftUI's minimumScaleFactor used to shrink
-        // that range while shorter ranges stayed full-size. Compact only beyond
-        // the largest exact value that fits, and keep the exact count in help
-        // and accessibility text.
-        let displayedCount = count >= 1_000_000_000
-            ? TokenUsage.compact(count, locale: localizer.locale)
-            : count.formatted(.number.locale(localizer.locale))
+        // The visible summary shares the same locale-aware compact notation as
+        // every Token table value. Foundation keeps values below the locale's
+        // compact threshold exact; help and accessibility retain the full count.
+        let displayedCount = TokenUsage.compact(count, locale: localizer.locale)
         let directInput = usage.inputTokens.formatted(.number.locale(localizer.locale))
         let cacheWrite = usage.cacheCreationTokens.formatted(.number.locale(localizer.locale))
         let output = usage.outputTokens.formatted(.number.locale(localizer.locale))

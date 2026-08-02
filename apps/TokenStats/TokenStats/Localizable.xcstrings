@@ -3386,7 +3386,7 @@
       }
     },
     "tokens.table.heading.selected": {
-      "comment": "Token table heading. Arguments are the localized heading-context form of the Token Odometer range and compact selected Token count.",
+      "comment": "Token table heading. Arguments are the localized heading-context form of the Token Odometer range and the formatted selected Token count. The visible heading uses a compact count; help and VoiceOver use the exact localized count.",
       "extractionState": "manual",
       "localizations": {
         "en": {

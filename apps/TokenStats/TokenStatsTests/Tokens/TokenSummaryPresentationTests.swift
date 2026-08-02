@@ -72,10 +72,35 @@ struct TokenSummaryPresentationTests {
             locale: englishLocale
         )
 
-        #expect(summary.value == "12.3B")
+        #expect(summary.value == "12B")
         #expect(summary.numericValue == 12_345_678_901)
         #expect(summary.help.contains("12,345,678,901 billing tokens"))
         #expect(summary.accessibilityLabel.contains("12,345,678,901"))
+    }
+
+    @Test func billingSummaryUsesLocaleCompactThresholdsAndKeepsExactDisclosure() {
+        let cases: [(locale: Locale, count: Int, compact: String, exact: String)] = [
+            (Locale(identifier: "en-US"), 1_250_000, "1.2M", "1,250,000"),
+            (Locale(identifier: "zh-Hans-CN"), 1_250_000, "125万", "1,250,000"),
+            (Locale(identifier: "en-US"), 1_250_000_000, "1.2B", "1,250,000,000"),
+            (Locale(identifier: "zh-Hans-CN"), 1_250_000_000, "12亿", "1,250,000,000"),
+        ]
+
+        for testCase in cases {
+            let usage = tokens(input: testCase.count)
+            let summary = TokenSummaryPresentation.make(
+                perAgent: [agent(.claudeCode, model: "claude-opus-5", usage: usage)],
+                metric: .billingTokens,
+                range: .thirtyDays,
+                hasLoaded: true,
+                locale: testCase.locale
+            )
+
+            #expect(summary.value == testCase.compact)
+            #expect(summary.numericValue == Double(testCase.count))
+            #expect(summary.help.contains(testCase.exact))
+            #expect(summary.accessibilityLabel.contains(testCase.exact))
+        }
     }
 
     @Test func heroHeightIsStableAcrossRangesAndValueLengths() {

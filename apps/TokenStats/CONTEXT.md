@@ -21,7 +21,7 @@ The following terms are canonical. Review new copy against this table before add
 
 Do not translate the TokenStats, Claude Code, Codex, or Fable names; model identifiers; URLs; filesystem paths; protocol/JSON field names; or raw diagnostic payloads. Localize the user-facing summary around a diagnostic, but preserve the raw diagnostic itself in the expandable detail.
 
-An in-app language choice changes TokenStats-owned copy only. The chosen language is applied after restart, while number, date, time, and USD formatting conventions continue to follow the user's system region and related Locale preferences. System-owned macOS UI, such as file pickers and standard menus, continues to follow macOS.
+An in-app language choice changes TokenStats-owned copy only. The chosen language is applied after restart. Language-bearing compact-number units follow that effective UI language (for example English K/M/B-family forms versus Simplified Chinese 万/亿), while the full Locale still lets the user's system region refine decimal symbols, numbering, and regional variants. Date, time, and USD formatting conventions continue to follow the system region and related Locale preferences. System-owned macOS UI, such as file pickers and standard menus, continues to follow macOS.
 
 API-equivalent estimates are **USD-only** for now. The aggregate keeps the existing pricing behavior: round upward once to the nearest cent, then format as USD with exactly two fractional digits using the system's regional conventions. A future currency-selection project may add currencies; localization work must not infer or introduce currency conversion from the selected UI language.
 

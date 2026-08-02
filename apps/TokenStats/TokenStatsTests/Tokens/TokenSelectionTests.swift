@@ -87,4 +87,23 @@ struct TokenSelectionTests {
             ) == "–"
         )
     }
+
+    @Test func tokenCellsUseTheSameLocaleCompactNotationAsTotals() {
+        let cases = [
+            (locale: Locale(identifier: "en-US"), expected: "1.2M\n(50%)"),
+            (locale: Locale(identifier: "zh-Hans-CN"), expected: "125万\n(50%)"),
+        ]
+
+        for testCase in cases {
+            #expect(
+                TokenValueFormatting.cell(
+                    amount: 1_250_000,
+                    selectedTotal: 2_500_000,
+                    isSelected: true,
+                    mode: .valueAndPercentage,
+                    locale: testCase.locale
+                ) == testCase.expected
+            )
+        }
+    }
 }

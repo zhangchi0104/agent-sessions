@@ -47,7 +47,7 @@ The canonical English/Simplified Chinese product terms and definitions live in [
 
 Use Foundation `FormatStyle` with the effective UI language plus the user's system regional preferences for visible values:
 
-- Numbers and compact numbers use locale-aware decimal separators and compact notation. Put the full localized value in help and accessibility text when the visual value is abbreviated.
+- Numbers and compact numbers use locale-aware decimal separators and compact notation. Compact-unit vocabulary follows the effective UI language, while the preserved system region can refine symbols and regional forms; do not hand-author K/M/B or 万/亿 thresholds. Let Foundation choose compact precision and unit promotion. Put the full localized value in help and accessibility text when the visual value is abbreviated.
 - Remaining percentages retain the product rule of rounding downward before locale-aware percent formatting.
 - Relative times and durations use Foundation formatters and complete localized resources where surrounding grammar is needed.
 - Dates and times shown to people use the UI Locale and the user's calendar/hour-cycle preferences.

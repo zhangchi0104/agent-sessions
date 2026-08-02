@@ -21,6 +21,11 @@ struct LocalizationFormattingTests {
         let usd: String
     }
 
+    private struct CompactLocaleFixture {
+        let identifier: String
+        let expectations: [(count: Int, value: String)]
+    }
+
     private let fixtures = [
         LocaleFixture(
             identifier: "en-US",
@@ -52,6 +57,47 @@ struct LocalizationFormattingTests {
         ),
     ]
 
+    private let compactFixtures: [CompactLocaleFixture] = [
+        CompactLocaleFixture(
+            identifier: "en-US",
+            expectations: [
+                (999, "999"),
+                (1_000, "1K"),
+                (12_345, "12K"),
+                (1_250_000, "1.2M"),
+                (100_000_000, "100M"),
+                (1_250_000_000, "1.2B"),
+                (12_345_678_901, "12B"),
+            ]
+        ),
+        CompactLocaleFixture(
+            identifier: "en-DE",
+            expectations: [
+                (1_250_000, "1,2M"),
+                (1_250_000_000, "1,2B"),
+            ]
+        ),
+        CompactLocaleFixture(
+            identifier: "zh-Hans-US",
+            expectations: Self.chineseCompactExpectations
+        ),
+        CompactLocaleFixture(
+            identifier: "zh-Hans-CN",
+            expectations: Self.chineseCompactExpectations
+        ),
+    ]
+
+    private static let chineseCompactExpectations: [(count: Int, value: String)] = [
+        (1_000, "1000"),
+        (9_999, "9999"),
+        (10_000, "1万"),
+        (12_345, "1.2万"),
+        (1_250_000, "125万"),
+        (100_000_000, "1亿"),
+        (1_250_000_000, "12亿"),
+        (12_345_678_901, "123亿"),
+    ]
+
     @Test func percentagesFloorBeforeLocaleFormatting() {
         for fixture in fixtures {
             let locale = Locale(identifier: fixture.identifier)
@@ -79,6 +125,75 @@ struct LocalizationFormattingTests {
                 "Unexpected compact Token count for \(fixture.identifier)"
             )
         }
+    }
+
+    @Test func compactTokensUseLanguageAndRegionalPatternsAtNativeThresholds() {
+        for fixture in compactFixtures {
+            let locale = Locale(identifier: fixture.identifier)
+            for expectation in fixture.expectations {
+                #expect(
+                    TokenUsage.compact(expectation.count, locale: locale) == expectation.value,
+                    "Unexpected compact value for \(expectation.count) in \(fixture.identifier)"
+                )
+            }
+        }
+    }
+
+    @Test func regionalEnglishCompactVariantsDelegateToFoundation() {
+        let counts = [1_000, 12_345, 1_250_000, 100_000_000, 1_250_000_000]
+
+        // Exact compact spellings are CLDR data and can change between macOS
+        // releases. Compare against the current runtime so en-GB and en-IN
+        // retain their regional conventions without freezing one CLDR version.
+        for identifier in ["en-GB", "en-IN"] {
+            let locale = Locale(identifier: identifier)
+            for count in counts {
+                let foundationValue = count.formatted(
+                    .number
+                        .notation(.compactName)
+                        .locale(locale)
+                )
+                #expect(
+                    TokenUsage.compact(count, locale: locale) == foundationValue,
+                    "Unexpected Foundation compact value for \(count) in \(identifier)"
+                )
+            }
+        }
+    }
+
+    @Test func tableHeadingKeepsExactCountForHelpAndAccessibility() {
+        let cases = [
+            (
+                locale: Locale(identifier: "en-US"),
+                visual: "RANGE_SENTINEL · 1.2M selected",
+                exact: "RANGE_SENTINEL · 1,250,000 selected"
+            ),
+            (
+                locale: Locale(identifier: "zh-Hans-CN"),
+                visual: "RANGE_SENTINEL · 已选合计 125万",
+                exact: "RANGE_SENTINEL · 已选合计 1,250,000"
+            ),
+        ]
+
+        for testCase in cases {
+            let presentation = TokenTableHeadingPresentation.make(
+                rangeHeading: "RANGE_SENTINEL",
+                selectedTotal: 1_250_000,
+                localizer: AppLocalizer(locale: testCase.locale)
+            )
+            #expect(presentation.visual == testCase.visual)
+            #expect(presentation.help == testCase.exact)
+            #expect(presentation.accessibilityLabel == testCase.exact)
+        }
+
+        let empty = TokenTableHeadingPresentation.make(
+            rangeHeading: "RANGE_SENTINEL",
+            selectedTotal: nil,
+            localizer: AppLocalizer(locale: Locale(identifier: "en-US"))
+        )
+        #expect(empty.visual == "RANGE_SENTINEL")
+        #expect(empty.help == "RANGE_SENTINEL")
+        #expect(empty.accessibilityLabel == "RANGE_SENTINEL")
     }
 
     @Test func remainingDurationsNeverRoundUpHiddenLowerUnits() throws {

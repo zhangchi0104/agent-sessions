@@ -93,7 +93,6 @@ nonisolated struct TokenUsage: Equatable, Sendable {
         count.formatted(
             .number
                 .notation(.compactName)
-                .precision(.fractionLength(0...1))
                 .locale(locale)
         )
     }
