@@ -10,6 +10,36 @@ import Testing
 
 @MainActor
 struct LocalizationSettingsTests {
+    @Test func languagePickerOrderAndSelfNamesRemainStable() {
+        #expect(
+            AppLanguage.allCases == [
+                .system,
+                .english,
+                .simplifiedChinese,
+                .german,
+                .french,
+                .japanese,
+                .russian,
+            ])
+
+        let selfNames: [(AppLanguage, String)] = [
+            (.english, "English"),
+            (.simplifiedChinese, "简体中文"),
+            (.german, "Deutsch"),
+            (.french, "Français"),
+            (.japanese, "日本語"),
+            (.russian, "Русский"),
+        ]
+        for localeLanguage in AppLanguage.allCases where localeLanguage != .system {
+            let localizer = AppLocalizer(
+                locale: localeLanguage.locale(basedOn: Locale(identifier: "en-US"))
+            )
+            for (option, expectedName) in selfNames {
+                #expect(localizer.localized(option.pickerTitle) == expectedName)
+            }
+        }
+    }
+
     @Test func defaultsToSystemAndHasNoPendingRestart() {
         withDefaults { defaults in
             let systemLocale = Locale(identifier: "en-US")
@@ -120,7 +150,7 @@ struct LocalizationSettingsTests {
         components.measurementSystem = .metric
         let systemLocale = Locale(components: components)
 
-        for language in [AppLanguage.english, .simplifiedChinese] {
+        for language in AppLanguage.allCases where language != .system {
             let locale = language.locale(basedOn: systemLocale)
 
             #expect(locale.region == systemLocale.region)
@@ -138,6 +168,23 @@ struct LocalizationSettingsTests {
         let chinese = AppLanguage.simplifiedChinese.locale(basedOn: systemLocale)
         #expect(chinese.language.languageCode == .chinese)
         #expect(chinese.language.script == .hanSimplified)
+
+        let expectedLanguageCodes: [AppLanguage: Locale.LanguageCode] = [
+            .english: .english,
+            .simplifiedChinese: .chinese,
+            .german: Locale.LanguageCode("de"),
+            .french: Locale.LanguageCode("fr"),
+            .japanese: Locale.LanguageCode("ja"),
+            .russian: Locale.LanguageCode("ru"),
+        ]
+        for language in [AppLanguage.german, .french, .japanese, .russian] {
+            let effective = language.locale(basedOn: Locale(identifier: "zh-Hans-CN"))
+            #expect(effective.language.languageCode == expectedLanguageCodes[language])
+            #expect(
+                Locale.Components(locale: effective).languageComponents.script == nil
+            )
+            #expect(effective.region == Locale.Region("CN"))
+        }
     }
 
     @Test func followSystemUsesTheAppsPreferredLocalizationAndPreservesRegionalComponents() {
@@ -190,6 +237,14 @@ struct LocalizationSettingsTests {
             (.english, Locale(identifier: "de-DE"), .english, Locale.Region("DE")),
             (.simplifiedChinese, Locale(identifier: "en-US"), .chinese, Locale.Region("US")),
             (.simplifiedChinese, Locale(identifier: "zh-CN"), .chinese, Locale.Region("CN")),
+            (.german, Locale(identifier: "en-US"), Locale.LanguageCode("de"), Locale.Region("US")),
+            (.german, Locale(identifier: "de-DE"), Locale.LanguageCode("de"), Locale.Region("DE")),
+            (.french, Locale(identifier: "en-US"), Locale.LanguageCode("fr"), Locale.Region("US")),
+            (.french, Locale(identifier: "fr-FR"), Locale.LanguageCode("fr"), Locale.Region("FR")),
+            (.japanese, Locale(identifier: "en-US"), Locale.LanguageCode("ja"), Locale.Region("US")),
+            (.japanese, Locale(identifier: "ja-JP"), Locale.LanguageCode("ja"), Locale.Region("JP")),
+            (.russian, Locale(identifier: "en-US"), Locale.LanguageCode("ru"), Locale.Region("US")),
+            (.russian, Locale(identifier: "ru-RU"), Locale.LanguageCode("ru"), Locale.Region("RU")),
         ]
 
         for (language, systemLocale, expectedLanguage, expectedRegion) in cases {
@@ -210,6 +265,38 @@ struct LocalizationSettingsTests {
         #expect(localizer.resource(resource).locale == localizer.locale)
         #expect(localizer.localized(resource) == "Default value")
         #expect(localizer.htmlLanguageTag == "zh-Hans")
+
+        for language in ["de", "fr", "ja", "ru"] {
+            let locale = Locale(identifier: "\(language)-US-u-nu-latn")
+            #expect(AppLocalizer(locale: locale).htmlLanguageTag == language)
+        }
+    }
+
+    @Test func everyExplicitLanguageRawValuePersistsAndRelaunches() {
+        for language in AppLanguage.allCases where language != .system {
+            withDefaults { defaults in
+                let initial = LocalizationSettings(
+                    defaults: defaults,
+                    systemLocale: Locale(identifier: "en-US"),
+                    appPreferredLocalization: "en"
+                )
+
+                initial.preferredLanguage = language
+                #expect(defaults.string(forKey: LocalizationSettings.persistenceKey) == language.rawValue)
+                #expect(initial.needsRestart)
+
+                let relaunched = LocalizationSettings(
+                    defaults: defaults,
+                    systemLocale: Locale(identifier: "en-US"),
+                    appPreferredLocalization: "en"
+                )
+                #expect(relaunched.effectiveLanguage == language)
+                #expect(
+                    relaunched.effectiveLocale.language.languageCode
+                        == language.locale(basedOn: Locale(identifier: "en-US")).language.languageCode)
+                #expect(!relaunched.needsRestart)
+            }
+        }
     }
 
     private func withDefaults(_ test: (UserDefaults) -> Void) {

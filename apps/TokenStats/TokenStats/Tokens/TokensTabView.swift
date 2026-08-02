@@ -16,6 +16,40 @@
 import SwiftUI
 import AppKit
 
+nonisolated struct TokenTableHeadingPresentation: Equatable, Sendable {
+    let visual: String
+    let help: String
+    let accessibilityLabel: String
+
+    static func make(
+        rangeHeading: String,
+        selectedTotal: Int?,
+        localizer: AppLocalizer
+    ) -> TokenTableHeadingPresentation {
+        guard let selectedTotal else {
+            return TokenTableHeadingPresentation(
+                visual: rangeHeading,
+                help: rangeHeading,
+                accessibilityLabel: rangeHeading
+            )
+        }
+
+        let compact = TokenUsage.compact(selectedTotal, locale: localizer.locale)
+        let exact = selectedTotal.formatted(.number.locale(localizer.locale))
+        let visual = localizer.localized(
+            LocalizedStringResource.tokensTableHeadingSelected(rangeHeading, compact)
+        )
+        let exactText = localizer.localized(
+            LocalizedStringResource.tokensTableHeadingSelected(rangeHeading, exact)
+        )
+        return TokenTableHeadingPresentation(
+            visual: visual,
+            help: exactText,
+            accessibilityLabel: exactText
+        )
+    }
+}
+
 struct TokensTabView: View {
     let odometer: TokenOdometerModel
     @Bindable var appearance: AppearanceSettings
@@ -144,10 +178,13 @@ struct TokensTabView: View {
     /// never lands on the column header, and it names the range being *read*,
     /// which is the one thing allowed to run ahead of the data.
     private var headingRow: some View {
-        HStack(spacing: 6) {
-            Text(tableHeading)
+        let heading = tableHeadingPresentation
+        return HStack(spacing: 6) {
+            Text(heading.visual)
                 .font(.system(size: 11, weight: .semibold))
                 .kerning(0.4)
+                .help(heading.help)
+                .accessibilityLabel(Text(heading.accessibilityLabel))
             Spacer(minLength: 8)
             if isScanning {
                 ProgressView().controlSize(.small).scaleEffect(0.7)
@@ -159,13 +196,13 @@ struct TokensTabView: View {
         .frame(height: 14)
     }
 
-    private var tableHeading: String {
+    private var tableHeadingPresentation: TokenTableHeadingPresentation {
         let rangeHeading = odometer.displayedRange.localizedHeadingForm(using: localizer)
-        guard let usage = visibleUsage else { return rangeHeading }
-        let selected = usage.selectedTotal(appearance.selectedTokenKinds)
-        let compact = TokenUsage.compact(selected, locale: locale)
-        return localizer.localized(
-            LocalizedStringResource.tokensTableHeadingSelected(rangeHeading, compact)
+        let selectedTotal = visibleUsage?.selectedTotal(appearance.selectedTokenKinds)
+        return TokenTableHeadingPresentation.make(
+            rangeHeading: rangeHeading,
+            selectedTotal: selectedTotal,
+            localizer: localizer
         )
     }
 
