@@ -578,19 +578,19 @@
       }
     },
     "onboarding.disclosure.providers.detail": {
-      "comment": "Privacy disclosure about usage requests. Claude and OpenAI are brand names.",
+      "comment": "Privacy disclosure about usage and public exchange-rate requests. Claude, OpenAI, Frankfurter, Settings, USD, HTTPS, URL, TokenStats, and API are product or technical terms.",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Usage is fetched directly from Claude and OpenAI. Your tokens and usage are never sent to any other server."
+            "value": "Usage is fetched directly from Claude and OpenAI. TokenStats can automatically request a public USD exchange-rate table at most once every 24 hours. Frankfurter is the default; Settings lets you choose one supported HTTPS service and endpoint. TokenStats contacts only that selection and never fails over automatically. TokenStats adds no account, token, usage, transcript, calculated cost, or region data. The selected host receives the configured URL path and query plus ordinary connection metadata, so never put credentials or API keys in the URL."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "用量数据直接从 Claude 和 OpenAI 获取。你的 Token 与用量绝不会发送到其他服务器。"
+            "value": "用量数据直接从 Claude 和 OpenAI 获取。TokenStats 每 24 小时最多自动请求一次公开的 USD 汇率表。Frankfurter 是默认服务；你可以在“设置”中选择其他受支持的 HTTPS 服务和端点。TokenStats 只会联系你选择的服务，绝不会自动故障转移。TokenStats 不会添加或发送任何账户、Token、用量、对话记录、计算金额或地区数据。所选主机会收到配置的 URL 路径、查询参数及常规网络连接元数据，因此请勿在 URL 中放入凭据或 API 密钥。"
           }
         }
       }
@@ -602,13 +602,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Only your providers are contacted"
+            "value": "Usage and public exchange rates"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "仅向你的服务提供商发起请求"
+            "value": "用量与公开汇率"
           }
         }
       }
@@ -2185,6 +2185,1518 @@
         }
       }
     },
+    "settings.display.title": {
+      "comment": "Title of the Display settings pane.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.section.title": {
+      "comment": "Section title for choosing the API-equivalent display currency.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API-equivalent currency"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 等值费用货币"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.display.label": {
+      "comment": "Label for the selected API-equivalent display currency.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display currency"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示货币"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.display.help": {
+      "comment": "Help text for opening the currency picker.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose the currency used for API-equivalent estimates"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择 API 等值费用估算所使用的货币"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.display.accessibility_label": {
+      "comment": "Accessibility label for the display-currency control. The argument is the localized current selection.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display currency, %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示货币：%@"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.expand.accessibility_hint": {
+      "comment": "Accessibility hint for expanding exchange-rate details.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expand exchange-rate details"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "展开汇率详情"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.collapse.accessibility_hint": {
+      "comment": "Accessibility hint for collapsing exchange-rate details.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapse exchange-rate details"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "收起汇率详情"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.title": {
+      "comment": "Title of the collapsible exchange-rate details area.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exchange rate details"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率详情"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.reference_rate.label": {
+      "comment": "Label for the current USD reference rate.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reference rate"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "参考汇率"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.rate_date.label": {
+      "comment": "Label for the provider quote date.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rate date"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "报价日期"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.fetched.label": {
+      "comment": "Label for the local time when rates were fetched.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetched"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取时间"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.next_eligible_refresh.label": {
+      "comment": "Label for the next time an automatic rate request is eligible.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next eligible refresh"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下次可自动刷新"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.rate_provider.label": {
+      "comment": "Label and section title for the selected exchange-rate provider.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rate provider"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率提供商"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.rate_provider.change.help": {
+      "comment": "Help text for opening exchange-rate source settings.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change the exchange-rate provider or API endpoint"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更改汇率提供商或 API 端点"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.rate_provider.change.accessibility_label": {
+      "comment": "Accessibility label for changing the rate provider. The argument is the provider display name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rate provider, %@. Change provider or endpoint."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率提供商：%@。更改提供商或端点。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.api_endpoint.label": {
+      "comment": "Label for the active exchange-rate API endpoint.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API endpoint"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 端点"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.api_endpoint.change.accessibility_label": {
+      "comment": "Accessibility label for changing the endpoint. The argument is the complete HTTPS URL and must remain unchanged.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exchange-rate API endpoint, %@. Change provider or endpoint."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率 API 端点：%@。更改提供商或端点。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.attribution.label": {
+      "comment": "Label for the exchange-rate provider attribution link.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attribution"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "来源标注"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.details.request_policy": {
+      "comment": "Footer explaining the USD pricing basis, 24-hour automatic request limit, and explicit retry behavior.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Official Model prices remain in USD. TokenStats downloads a complete USD reference-rate table from the selected provider automatically at most once every 24 hours. Retrying after an error sends one additional request."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "官方模型价格仍以 USD 计价。TokenStats 每 24 小时最多自动从所选提供商下载一次完整的 USD 参考汇率表。发生错误后重试会额外发送一次请求。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.updating_rates": {
+      "comment": "Compact status shown while exchange rates are updating.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updating rates…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在更新汇率…"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.loading_rates": {
+      "comment": "Status shown during the first exchange-rate request when no cache exists.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading exchange rates…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载汇率…"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.refreshing_with_last_known": {
+      "comment": "Status shown while refreshing when a last-known rate remains usable.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refreshing rates; the last known rate remains in use."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在刷新汇率；仍继续使用上次已知汇率。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.retry_without_cache": {
+      "comment": "Retry explanation after a failed request when no cached rates exist.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry now to request rates again. This sends one additional request before the next scheduled update."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即重试以再次请求汇率。这会在下次计划更新前额外发送一次请求。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.retry_with_cache": {
+      "comment": "Retry explanation after a failed request when cached rates remain usable.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The last known rate remains in use. Retry now to request rates again; this sends one additional request before the next scheduled update."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仍继续使用上次已知汇率。立即重试可再次请求汇率；这会在下次计划更新前额外发送一次请求。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.stale_warning": {
+      "comment": "Warning that the cached exchange rate may be stale.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The cached exchange rate may be out of date."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存汇率可能已过期。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.fallback_warning": {
+      "comment": "Warning shown after a request error when a selected currency falls back to USD. The argument is the requested ISO code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is unavailable; showing USD fallback."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 不可用；当前回退显示 USD。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.unavailable_warning": {
+      "comment": "Warning shown when a selected currency has no usable quote. The argument is the requested ISO code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is unavailable; showing USD."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 不可用；当前显示 USD。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.using_last_known": {
+      "comment": "Status explaining that a last-known reference rate remains in use.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Using the last known reference rate."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在使用上次已知参考汇率。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.status.no_rates_instruction": {
+      "comment": "Status shown when no exchange-rate table is cached.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No exchange rates are cached yet. Refresh rates to load more currencies."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未缓存汇率。请刷新汇率以加载更多货币。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.refresh.updating.button": {
+      "comment": "Disabled refresh button title while rates are updating.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updating…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在更新…"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.refresh.updating.accessibility_label": {
+      "comment": "Accessibility label while exchange rates are updating.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exchange rates are updating"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在更新汇率"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.refresh.retry.button": {
+      "comment": "Button title for one explicit exchange-rate retry.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry now"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即重试"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.refresh.retry.help": {
+      "comment": "Help text explaining that an explicit retry overrides the daily eligibility gate once.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry now, even if the normal daily refresh is not yet eligible"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即重试，即使尚未到常规每日刷新时间"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.refresh.refresh.button": {
+      "comment": "Button title for an eligible automatic-policy exchange-rate refresh.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh rates"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新汇率"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.refresh.updated.button": {
+      "comment": "Disabled button title when rates are current for the daily request policy.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日已更新"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.refresh.updated.accessibility_label": {
+      "comment": "Accessibility label when exchange rates are up to date.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exchange rates are up to date"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率已是最新"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.selection.system_region": {
+      "comment": "Current-selection label for System Region. Arguments are the localized currency name and ISO code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System Region — %1$@ (%2$@)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系统地区 — %1$@（%2$@）"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.selection.fixed": {
+      "comment": "Current-selection label for a fixed currency. Arguments are the localized currency name and ISO code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ (%2$@)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@（%2$@）"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.reference_rate.unavailable": {
+      "comment": "Reference-rate value when the requested currency has no quote. The argument is the requested ISO code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ rate unavailable — USD fallback"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 汇率不可用 — 回退为 USD"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.reference_rate.value": {
+      "comment": "USD reference-rate value. Arguments are the localized decimal rate and target ISO code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 USD = %1$@ %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 USD = %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.summary.update_failed_without_cache": {
+      "comment": "Compact exchange-rate summary after a failure with no cache.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update failed · no rates cached"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新失败 · 无缓存汇率"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.summary.update_failed_with_cache": {
+      "comment": "Compact exchange-rate summary after a failure while retaining cached rates.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update failed · last known rates retained"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新失败 · 已保留上次已知汇率"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.summary.fallback": {
+      "comment": "Compact fallback summary. The argument is the requested ISO code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ unavailable · USD fallback"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 不可用 · 回退为 USD"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.summary.stale": {
+      "comment": "Compact summary for a possibly stale cached rate.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cached rate may be out of date"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存汇率可能已过期"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.summary.no_rates": {
+      "comment": "Compact summary when no exchange-rate table is cached.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No exchange rates cached"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无缓存汇率"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.summary.up_to_date": {
+      "comment": "Compact current-rate summary. The argument is the provider display name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Up to date · %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已是最新 · %@"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.preview.title": {
+      "comment": "Caption above the example currency conversion.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预览"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.preview.not_converted": {
+      "comment": "Example USD amount when the requested currency has no usable rate. The argument is the region-formatted USD amount.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — not converted"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — 未换算"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.preview.no_conversion": {
+      "comment": "Example USD amount when fixed USD is selected. The argument is the region-formatted USD amount.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — no conversion"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — 无需换算"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.preview.approximate": {
+      "comment": "Example conversion. The first argument is the region-formatted USD amount; the second is the localized converted amount.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@  ≈  %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@  ≈  %2$@"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.preview.fallback.accessibility_label": {
+      "comment": "Accessibility description for an unavailable preview conversion. The first argument is the requested ISO code; the second is the region-formatted USD amount.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No usable %1$@ exchange rate; %2$@ is shown without conversion"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有可用的 %1$@ 汇率；当前显示 %2$@ 且不进行换算"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.preview.usd.accessibility_label": {
+      "comment": "Accessibility description for the USD preview. The argument is the region-formatted USD amount.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@; no currency conversion is needed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@；无需进行货币换算"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.preview.converted.accessibility_label": {
+      "comment": "Accessibility description for the converted preview. The first argument is the region-formatted USD amount; the second is the localized converted amount.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ is approximately %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ 约合 %2$@"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.title": {
+      "comment": "Title of the display-currency picker sheet.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display Currency"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示货币"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.search.placeholder": {
+      "comment": "Placeholder for searching currencies by name, code, or symbol.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search currencies"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索货币"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.search.clear.accessibility_label": {
+      "comment": "Accessibility label for clearing the currency search field.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear currency search"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除货币搜索"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.close.button": {
+      "comment": "Button title that closes the currency picker.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.popular.section": {
+      "comment": "Section title for commonly selected currencies.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Popular"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "热门货币"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.system_region": {
+      "comment": "Title of the automatic currency choice that follows the Mac region.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System Region"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系统地区"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.automatic.section": {
+      "comment": "Section title containing the System Region currency choice.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.no_rates.footer": {
+      "comment": "Currency-picker footer when no table is cached. The argument is the provider display name.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No rates are cached yet. Close this list and choose Refresh rates to load the %@ currency table."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未缓存汇率。请关闭此列表并选择“刷新汇率”，以加载 %@ 货币表。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.all_currencies.section": {
+      "comment": "Section title for the complete cached currency list excluding popular entries.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All Currencies"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所有货币"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.row.selected.accessibility_label": {
+      "comment": "Accessibility label for a selected currency row. Arguments are its localized title and subtitle.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$@, selected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@，%2$@，已选择"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.picker.row.accessibility_label": {
+      "comment": "Accessibility label for an unselected currency row. Arguments are its localized title and subtitle.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@，%2$@"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.provider.frankfurter.explanation": {
+      "comment": "Explanation of the Frankfurter rate provider.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broad daily reference-rate coverage from multiple public providers."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供来自多个公共数据提供方的广泛每日参考汇率。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.provider.exchange_rate_api.explanation": {
+      "comment": "Explanation of the ExchangeRate-API Open provider.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A keyless daily USD table; attribution is required by the service."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供无需密钥的每日 USD 汇率表；该服务要求标注来源。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.provider.ecb.explanation": {
+      "comment": "Explanation of the European Central Bank adapter.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Official EUR reference rates converted once into USD cross-rates; coverage is limited to currencies published for the latest ECB date."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将官方 EUR 参考汇率一次换算为 USD 交叉汇率；仅覆盖欧洲中央银行在最新日期发布的货币。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.title": {
+      "comment": "Title of the exchange-rate source configuration sheet.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exchange Rate Source"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率来源"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.provider.picker": {
+      "comment": "Label for selecting a supported response adapter.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供商"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.documentation.label": {
+      "comment": "Label for the selected provider documentation link.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Documentation"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文档"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.documentation.link": {
+      "comment": "Link title that opens the selected provider API documentation.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open API documentation"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开 API 文档"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.endpoint.placeholder": {
+      "comment": "Placeholder for the complete custom HTTPS API endpoint.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full HTTPS API URL"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完整 HTTPS API URL"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.endpoint.accessibility_label": {
+      "comment": "Accessibility label for the custom exchange-rate API URL field.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exchange-rate API endpoint"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率 API 端点"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.endpoint.credential_warning": {
+      "comment": "Warning that custom endpoints must be public, compatible, and contain no credentials.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use a public, keyless endpoint compatible with this provider. Do not include credentials or API keys in the URL."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请使用与此提供商兼容的公开、无需密钥的端点。请勿在 URL 中包含凭据或 API 密钥。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.restore_default.button": {
+      "comment": "Button title that restores the selected provider default endpoint.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore Default"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复默认值"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.https_endpoint.section": {
+      "comment": "Section title for editing the exchange-rate HTTPS endpoint.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTPS endpoint"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTPS 端点"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.endpoint.verification_footer": {
+      "comment": "Footer explaining atomic source verification and lack of automatic failover.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats verifies the endpoint before switching. It contacts only the selected endpoint and never fails over to another service."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats 会在切换前验证端点。它只联系所选端点，绝不会自动故障转移到其他服务。"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.validation_error.accessibility_label": {
+      "comment": "Accessibility summary for a source validation failure. The argument is the diagnostic message.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not use rate provider. %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法使用汇率提供商。%@"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.cancel.button": {
+      "comment": "Button title that closes source configuration without changing it.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.verifying": {
+      "comment": "Progress label while the candidate exchange-rate source is verified.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifying…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在验证…"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.verify_and_use.button": {
+      "comment": "Button title that validates and atomically activates a candidate source.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verify & Use"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "验证并使用"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.verifying.accessibility_label": {
+      "comment": "Accessibility label while an exchange-rate source is being verified.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifying exchange-rate source"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在验证汇率来源"
+          }
+        }
+      }
+    },
+    "settings.tokens.currency.source.verify_and_use.accessibility_label": {
+      "comment": "Accessibility label for validating and activating an exchange-rate source.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verify and use exchange-rate source"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "验证并使用汇率来源"
+          }
+        }
+      }
+    },
+    "settings.tokens.title": {
+      "comment": "Title of the Tokens settings pane. Tokens is a product term.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tokens"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token"
+          }
+        }
+      }
+    },
     "tokens.agent.selected_total.accessibility": {
       "comment": "VoiceOver label for one agent Token subtotal. The first argument is the selected Token count and drives pluralization; the second is the unlocalized Coding Agent brand.",
       "extractionState": "manual",
@@ -2882,19 +4394,19 @@
       }
     },
     "tokens.summary.api_equivalent.accessibility": {
-      "comment": "VoiceOver API-equivalent summary. Arguments are localized USD cost and the localized sentence-context form of the Token Odometer range.",
+      "comment": "VoiceOver API-equivalent summary. Arguments are the localized displayed cost, localized sentence-context Token Odometer range, and localized original USD cost.",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$@ estimated API-equivalent usage for %2$@"
+            "value": "%1$@ estimated API-equivalent usage for %2$@. Original USD estimate %3$@."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$@，%2$@的 API 等值费用估算"
+            "value": "%1$@，%2$@的 API 等值费用估算。原始 USD 估算为 %3$@。"
           }
         }
       }
@@ -2936,19 +4448,19 @@
       }
     },
     "tokens.summary.api_equivalent.exact.help": {
-      "comment": "API-equivalent help headed by exact localized USD cost, followed by the complete localized methodology sentence.",
+      "comment": "API-equivalent help headed by displayed localized cost and original localized USD cost, followed by the complete localized methodology sentence.",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Exact estimate %1$@. %2$@"
+            "value": "Displayed estimate %1$@. Original USD estimate %2$@. %3$@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "精确估算为 %1$@。%2$@"
+            "value": "显示的估算为 %1$@。原始 USD 估算为 %2$@。%3$@"
           }
         }
       }
@@ -2960,31 +4472,31 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Standard API-equivalent estimate by recorded Model; includes all four Token Kinds at list rates regardless of the display filters. The final total is rounded upward to the nearest cent. Claude cache writes without TTL detail use the default 5-minute rate. Prices reviewed %@."
+            "value": "Standard API-equivalent estimate by recorded Model; includes all four Token Kinds at list rates regardless of the display filters. The exact USD aggregate is converted first, then the displayed total is rounded upward once at the target currency's minor unit. Claude cache writes without TTL detail use the default 5-minute rate. Prices reviewed %@."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "根据记录的模型，按标准公开价格估算 API 等值费用；无论显示筛选如何，均包含全部四种 Token 类型。最终总额向上取整到最接近的美分。Claude 缓存写入如无 TTL 详情，则采用默认的 5 分钟费率。价格审核日期：%@。"
+            "value": "根据记录的模型，按标准公开价格估算 API 等值费用；无论显示筛选如何，均包含全部四种 Token 类型。先换算精确的 USD 合计，再按目标货币的最小单位将显示总额向上取整一次。Claude 缓存写入如无 TTL 详情，则采用默认的 5 分钟费率。价格审核日期：%@。"
           }
         }
       }
     },
     "tokens.summary.api_equivalent.label": {
-      "comment": "API-equivalent cost summary label. The argument is the localized heading-context form of the Token Odometer range.",
+      "comment": "API-equivalent cost summary label. The first argument is an ISO currency code or localized fallback label; the second is the localized heading-context Token Odometer range.",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "API equivalent · %@"
+            "value": "API-equivalent · %1$@ · %2$@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "API 等值费用 · %@"
+            "value": "API 等值费用 · %1$@ · %2$@"
           }
         }
       }
@@ -2999,13 +4511,13 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Standard API-equivalent estimate by recorded Model; includes all four Token Kinds at list rates regardless of the display filters. The final total is rounded upward to the nearest cent. Claude cache writes without TTL detail use the default 5-minute rate. Prices reviewed %2$@. Unpriced Models: %3$@ (%1$lld token)."
+                  "value": "Standard API-equivalent estimate by recorded Model; includes all four Token Kinds at list rates regardless of the display filters. The exact USD aggregate is converted first, then the displayed total is rounded upward once at the target currency's minor unit. Claude cache writes without TTL detail use the default 5-minute rate. Prices reviewed %2$@. Unpriced Models: %3$@ (%1$lld token)."
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Standard API-equivalent estimate by recorded Model; includes all four Token Kinds at list rates regardless of the display filters. The final total is rounded upward to the nearest cent. Claude cache writes without TTL detail use the default 5-minute rate. Prices reviewed %2$@. Unpriced Models: %3$@ (%1$lld tokens)."
+                  "value": "Standard API-equivalent estimate by recorded Model; includes all four Token Kinds at list rates regardless of the display filters. The exact USD aggregate is converted first, then the displayed total is rounded upward once at the target currency's minor unit. Claude cache writes without TTL detail use the default 5-minute rate. Prices reviewed %2$@. Unpriced Models: %3$@ (%1$lld tokens)."
                 }
               }
             }
@@ -3017,13 +4529,289 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "根据记录的模型，按标准公开价格估算 API 等值费用；无论显示筛选如何，均包含全部四种 Token 类型。最终总额向上取整到最接近的美分。Claude 缓存写入如无 TTL 详情，则采用默认的 5 分钟费率。价格审核日期：%2$@。未定价模型：%3$@（%1$lld 个 Token）。"
+                  "value": "根据记录的模型，按标准公开价格估算 API 等值费用；无论显示筛选如何，均包含全部四种 Token 类型。先换算精确的 USD 合计，再按目标货币的最小单位将显示总额向上取整一次。Claude 缓存写入如无 TTL 详情，则采用默认的 5 分钟费率。价格审核日期：%2$@。未定价模型：%3$@（%1$lld 个 Token）。"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "根据记录的模型，按标准公开价格估算 API 等值费用；无论显示筛选如何，均包含全部四种 Token 类型。最终总额向上取整到最接近的美分。Claude 缓存写入如无 TTL 详情，则采用默认的 5 分钟费率。价格审核日期：%2$@。未定价模型：%3$@（%1$lld 个 Token）。"
+                  "value": "根据记录的模型，按标准公开价格估算 API 等值费用；无论显示筛选如何，均包含全部四种 Token 类型。先换算精确的 USD 合计，再按目标货币的最小单位将显示总额向上取整一次。Claude 缓存写入如无 TTL 详情，则采用默认的 5 分钟费率。价格审核日期：%2$@。未定价模型：%3$@（%1$lld 个 Token）。"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.fallback.label": {
+      "comment": "Label fragment for an API-equivalent value that fell back to USD. The argument is the effective ISO currency code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ fallback"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 回退"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.fallback.last_fetched": {
+      "comment": "Exchange-rate fallback disclosure. The argument is the localized time when the last rate table was fetched.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last rate table fetched: %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上次获取汇率表的时间：%@。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.fallback.no_rate": {
+      "comment": "Exchange-rate fallback disclosure. The argument is the requested ISO currency code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No usable %@ exchange rate was available."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有可用的 %@ 汇率。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.fallback.original_usd": {
+      "comment": "Exchange-rate fallback disclosure explaining that the canonical USD estimate is shown without conversion.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No FX conversion was applied; showing the original USD estimate."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未进行汇率换算；当前显示原始 USD 估算。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.fetch_unavailable": {
+      "comment": "Exchange-rate disclosure when the local fetch time is unavailable.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetch time unavailable."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取时间不可用。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.fetched": {
+      "comment": "Exchange-rate disclosure. The argument is the localized local fetch time.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetched: %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取时间：%@。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.rate": {
+      "comment": "Exchange-rate disclosure. The first argument is the localized rate and the second is the effective ISO currency code. USD is the canonical base.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exchange rate: 1 USD = %1$@ %2$@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率：1 USD = %1$@ %2$@。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.rate_date": {
+      "comment": "Exchange-rate disclosure. The argument is the localized provider quote date.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rate date: %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "报价日期：%@。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.rate_date_unavailable": {
+      "comment": "Exchange-rate disclosure when the provider quote date is unavailable.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rate date unavailable."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "报价日期不可用。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.status.current": {
+      "comment": "Exchange-rate disclosure for a fresh cached rate.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rate status: current."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率状态：当前。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.status.stale": {
+      "comment": "Exchange-rate disclosure for a stale cached rate.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rate status: stale cached rate."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率状态：缓存汇率可能已过期。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.stale.label": {
+      "comment": "Visible label fragment for an API-equivalent conversion that uses a stale cached rate. The argument is the effective ISO currency code.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ stale"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 可能已过期"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.currency.usd_base": {
+      "comment": "Exchange-rate disclosure when USD is displayed directly as the canonical pricing currency.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USD is the pricing currency; no FX rate date or fetch time applies."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USD 是定价货币，因此不适用汇率报价日期或获取时间。"
+          }
+        }
+      }
+    },
+    "tokens.summary.api_equivalent.unpriced.accessibility": {
+      "comment": "VoiceOver note for unpriced Models. The first argument is the unpriced Token count and drives pluralization; the second is a locale-aware list of localized fallback labels and invariant Model IDs.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Unpriced Models: %2$@ (%1$lld token)."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Unpriced Models: %2$@ (%1$lld tokens)."
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "未定价模型：%2$@（%1$lld 个 Token）。"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "未定价模型：%2$@（%1$lld 个 Token）。"
                 }
               }
             }

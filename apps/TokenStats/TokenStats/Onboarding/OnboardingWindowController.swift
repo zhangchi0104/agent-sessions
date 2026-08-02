@@ -17,12 +17,19 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
     private let model: UsageModel
     private let onboarding: OnboardingSettings
     private let locale: Locale
+    private let onComplete: () -> Void
     private var window: NSWindow?
 
-    init(model: UsageModel, onboarding: OnboardingSettings, locale: Locale) {
+    init(
+        model: UsageModel,
+        onboarding: OnboardingSettings,
+        locale: Locale,
+        onComplete: @escaping () -> Void = {}
+    ) {
         self.model = model
         self.onboarding = onboarding
         self.locale = locale
+        self.onComplete = onComplete
         super.init()
     }
 
@@ -76,6 +83,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         // Reaching here means the user finished, skipped, or closed the window —
         // all of which dismiss onboarding for good.
         onboarding.completed = true
+        onComplete()
         // Release the window so its SwiftUI view (and the view's polling task)
         // tear down now; a later "Run setup again" rebuilds a fresh one.
         window?.delegate = nil

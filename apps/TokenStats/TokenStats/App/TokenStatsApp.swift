@@ -27,7 +27,8 @@ struct TokenStatsApp: App {
     var body: some Scene {
         MenuBarExtra {
             PopoverView(model: appDelegate.model,
-                        odometer: appDelegate.odometer)
+                        odometer: appDelegate.odometer,
+                        currencyModel: appDelegate.currencyModel)
                 .environment(\.locale, appDelegate.localization.effectiveLocale)
         } label: {
             // Monochrome icon + per-agent percent — no threshold colors (PRD).
@@ -48,12 +49,13 @@ struct TokenStatsApp: App {
         Window(appDelegate.localization.localizer.localized(Self.settingsWindowTitle),
                id: TokenStatsWindowID.settings) {
             SettingsView(model: appDelegate.model,
+                         currencyModel: appDelegate.currencyModel,
                          localization: appDelegate.localization,
                          relauncher: appDelegate.relauncher,
                          onRunSetupAgain: { appDelegate.showOnboarding() })
                 .environment(\.locale, appDelegate.localization.effectiveLocale)
         }
-        .defaultSize(width: 700, height: 380)
+        .defaultSize(width: 720, height: 460)
         .windowResizability(.contentMinSize)
         // Full-size content with no opaque title strip, so the sidebar runs to
         // the top of the window and the traffic lights float over it.
@@ -73,6 +75,7 @@ struct TokenStatsApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model: UsageModel
     let odometer: TokenOdometerModel
+    let currencyModel: CurrencyModel
     let onboarding: OnboardingSettings
     let localization: LocalizationSettings
     let relauncher: AppRelauncher
@@ -83,10 +86,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // model refreshes one per agent, and the Token Odometer scans one
         // transcript root per agent.
         let uiTesting = Self.isRunningUITests
+        let usesIsolatedPersistence = uiTesting || Self.isRunningUnitTests
         // NSArgumentDomain is part of every UserDefaults search list, so the UI
         // test language launch argument still overrides this isolated PID suite.
-        let persistenceDefaults = uiTesting
-            ? UserDefaults(suiteName: "dev.otakuma.TokenStats.ui-testing.\(ProcessInfo.processInfo.processIdentifier)")!
+        // Unit-test hosting is isolated too because CurrencyModel repairs its
+        // cache envelope during initialization, before the launch guard runs.
+        let persistenceDefaults = usesIsolatedPersistence
+            ? UserDefaults(
+                suiteName: "dev.otakuma.TokenStats.test-persistence."
+                    + String(ProcessInfo.processInfo.processIdentifier)
+            )!
             : .standard
         let appearance = AppearanceSettings(defaults: persistenceDefaults)
         localization = LocalizationSettings(defaults: persistenceDefaults)
@@ -95,6 +104,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let integrations: [any CodingAgentIntegration] = uiTesting
             ? CodingAgentRegistry.all.map(UITestingCodingAgentIntegration.init(wrapping:))
             : CodingAgentRegistry.all
+        let exchangeRateProvider: any ExchangeRateProviding
+        if uiTesting {
+            exchangeRateProvider = UITestingExchangeRateProvider()
+        } else {
+            exchangeRateProvider = ExchangeRateProviderRouter()
+        }
         model = UsageModel(
             appearance: appearance,
             localizer: localization.localizer,
@@ -107,6 +122,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ),
             roots: uiTesting ? [] : CodingAgentRegistry.transcriptRoots,
             initialRange: appearance.selectedTokenRange
+        )
+        currencyModel = CurrencyModel(
+            provider: exchangeRateProvider,
+            store: ExchangeRateStore(defaults: persistenceDefaults),
+            schedulesAutomaticRefresh: !usesIsolatedPersistence
         )
         super.init()
     }
@@ -139,7 +159,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Tests construct the models they need directly.
         guard !Self.isRunningUnitTests else { return }
         model.start()
-        if !onboarding.completed { showOnboarding() }
+        if onboarding.completed {
+            currencyModel.start()
+        } else {
+            // The selected public exchange-rate source is the only connection
+            // that does not require an account first. Let a new user read (or
+            // skip) the disclosure before its first automatic request leaves
+            // the Mac.
+            showOnboarding()
+        }
     }
 
     /// Present (or re-present) the first-run onboarding flow. Reused for both the
@@ -149,7 +177,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onboardingController = OnboardingWindowController(
                 model: model,
                 onboarding: onboarding,
-                locale: localization.effectiveLocale
+                locale: localization.effectiveLocale,
+                onComplete: { [weak self] in
+                    guard let self, !Self.isRunningUITests else { return }
+                    self.currencyModel.start()
+                }
             )
         }
         onboardingController?.show()
@@ -188,6 +220,18 @@ private final class UITestingAuthSession: AgentAuthSession {
 
 private struct UITestingUsageProvider: UsageProvider {
     func fetchUsage() async throws -> UsageReading { UsageReading(windows: []) }
+}
+
+private struct UITestingExchangeRateProvider: ExchangeRateProviding {
+    func fetchRates(from _: ExchangeRateSource) async throws -> [ExchangeRateQuote] {
+        [
+            ExchangeRateQuote(
+                quoteCode: CurrencyCode("CNY")!,
+                rate: 7,
+                rateDate: Date(timeIntervalSince1970: 0)
+            ),
+        ]
+    }
 }
 
 struct TokenStatsCommands: Commands {

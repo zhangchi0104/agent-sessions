@@ -19,6 +19,7 @@ import AppKit
 struct PopoverView: View {
     let model: UsageModel
     let odometer: TokenOdometerModel
+    let currencyModel: CurrencyModel
     @Environment(\.openWindow) private var openWindow
     @State private var tab: PopoverTab = .usage
 
@@ -32,7 +33,11 @@ struct PopoverView: View {
             case .usage:
                 usage
             case .tokens:
-                TokensTabView(odometer: odometer, appearance: model.appearance)
+                TokensTabView(
+                    odometer: odometer,
+                    appearance: model.appearance,
+                    currencyContext: currencyModel.displayContext
+                )
                     .onAppear { odometer.displayOrder = model.appearance.displayOrder }
             }
 
@@ -98,6 +103,10 @@ struct PopoverView: View {
             Spacer()
             Button {
                 model.refreshAllManually()
+                // The complete FX table has its own rolling 24-hour gate.
+                // Refresh All checks eligibility but never becomes a manual
+                // rate-limit override; only Settings exposes retry after error.
+                Task { await currencyModel.refreshIfEligible() }
                 // The Tokens tab keeps itself current from a file watch, so
                 // this is belt and braces — but "Refresh all" should reach
                 // everything on screen. Only while that tab is the visible

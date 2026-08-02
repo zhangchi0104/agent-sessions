@@ -51,7 +51,7 @@ Use Foundation `FormatStyle` with the effective UI language plus the user's syst
 - Remaining percentages retain the product rule of rounding downward before locale-aware percent formatting.
 - Relative times and durations use Foundation formatters and complete localized resources where surrounding grammar is needed.
 - Dates and times shown to people use the UI Locale and the user's calendar/hour-cycle preferences.
-- API-equivalent estimates remain **USD-only**. Sum the current USD price estimate, round the final aggregate upward once to the nearest cent, and then format with `.currency(code: "USD")` and exactly two fractional digits. The selected app language does not select a currency and no currency conversion is performed. Currency selection is intentionally reserved for a separate future system.
+- API-equivalent estimates remain canonically priced and aggregated in USD. Fixed USD is the default display choice. When macOS displays another selected ISO 4217 currency, multiply the exact USD aggregate by the cached USD reference rate, then round upward once at the target currency's standard minor unit. Windows remains USD-only. The selected app language never selects a display currency; currency names, amounts, dates, and times use the effective UI language together with the user's system region.
 
 Machine-readable values remain locale-invariant. Use `en_US_POSIX` (and the existing fixed calendar/time-zone rules where applicable) for JSON, timestamps, cache date keys, protocol fields, and pricing-table parsing. Never localize identifiers stored in caches or sent to an API.
 
