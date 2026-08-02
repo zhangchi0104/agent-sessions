@@ -16,6 +16,30 @@
             "state": "translated",
             "value": "登录 %@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bei %@ anmelden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se connecter à %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ にサインイン"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Войти в %@"
+          }
         }
       }
     },
@@ -33,6 +57,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "请在浏览器中授权；TokenStats 将自动完成登录。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bestätigen Sie die Anfrage in Ihrem Browser; TokenStats schließt die Anmeldung automatisch ab."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Approuvez la demande dans votre navigateur ; TokenStats terminera automatiquement la connexion."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブラウザで承認してください。TokenStats が自動的にサインインを完了します。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подтвердите доступ в браузере; TokenStats завершит вход автоматически."
           }
         }
       }
@@ -52,6 +100,30 @@
             "state": "translated",
             "value": "未找到授权码。请返回 TokenStats 后重试。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es wurde kein Autorisierungscode gefunden. Kehren Sie zu TokenStats zurück und versuchen Sie es erneut."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun code d’autorisation n’a été trouvé. Revenez à TokenStats et réessayez."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "認可コードが見つかりませんでした。TokenStats に戻って、もう一度お試しください。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Код авторизации не найден. Вернитесь в TokenStats и попробуйте ещё раз."
+          }
         }
       }
     },
@@ -69,6 +141,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "登录失败"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmeldung fehlgeschlagen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de la connexion"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインインに失敗しました"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ошибка входа"
           }
         }
       }
@@ -88,6 +184,30 @@
             "state": "translated",
             "value": "你可以关闭此标签页并返回 TokenStats。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sie können diesen Tab schließen und zu TokenStats zurückkehren."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous pouvez fermer cet onglet et revenir à TokenStats."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このタブを閉じて TokenStats に戻ることができます。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Можно закрыть эту вкладку и вернуться в TokenStats."
+          }
         }
       }
     },
@@ -105,6 +225,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "已登录 Codex"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bei Codex angemeldet"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecté à Codex"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex にサインインしました"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вход в Codex выполнен"
           }
         }
       }
@@ -124,6 +268,30 @@
             "state": "translated",
             "value": "授权失败：%@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorisierung fehlgeschlagen: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de l’autorisation : %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "認可に失敗しました：%@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось авторизоваться: %@"
+          }
         }
       }
     },
@@ -141,6 +309,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "登录已取消。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Anmeldung wurde abgebrochen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La connexion a été annulée."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインインがキャンセルされました。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вход отменён."
           }
         }
       }
@@ -160,6 +352,30 @@
             "state": "translated",
             "value": "无法打开用于登录的本地端口。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es konnte kein lokaler Port für die Anmeldung geöffnet werden."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d’ouvrir un port local pour la connexion."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインイン用のローカルポートを開けませんでした。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось открыть локальный порт для входа."
+          }
         }
       }
     },
@@ -177,6 +393,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "登录重定向格式有误。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Weiterleitung zur Anmeldung war fehlerhaft."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La redirection de connexion était incorrecte."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインインのリダイレクトが不正です。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Некорректное перенаправление при входе."
           }
         }
       }
@@ -196,6 +436,30 @@
             "state": "translated",
             "value": "登录未返回刷新 Token，无法保持登录状态。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bei der Anmeldung wurde kein Refresh-Token zurückgegeben; eine dauerhafte Anmeldung ist nicht möglich."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La connexion n’a pas renvoyé de token d’actualisation ; impossible de rester connecté."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインインでリフレッシュトークンが返されなかったため、サインイン状態を維持できません。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "При входе не получен токен обновления, поэтому оставаться в системе невозможно."
+          }
         }
       }
     },
@@ -213,6 +477,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "状态不匹配——可能受到干扰，请重试。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Sicherheitsparameter stimmt nicht überein – möglicherweise liegt ein Eingriff vor. Versuchen Sie es erneut."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’état ne correspond pas — une interférence est possible ; réessayez."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "状態が一致しません。外部から干渉された可能性があります。もう一度お試しください。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Параметр состояния не совпадает — возможно вмешательство. Попробуйте ещё раз."
           }
         }
       }
@@ -232,6 +520,30 @@
             "state": "translated",
             "value": "登录超时。请在浏览器中授权后重试。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeitüberschreitung bei der Anmeldung. Bestätigen Sie sie im Browser und versuchen Sie es erneut."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La connexion a expiré. Approuvez la demande dans le navigateur, puis réessayez."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインインがタイムアウトしました。ブラウザで承認してから、もう一度お試しください。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Время ожидания входа истекло. Подтвердите доступ в браузере и попробуйте ещё раз."
+          }
         }
       }
     },
@@ -249,6 +561,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "此 Coding Agent 不使用粘贴授权码的方式登录。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Coding Agent unterstützt keine Anmeldung mit einem eingefügten Code."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce Coding Agent ne permet pas de se connecter à l’aide d’un code collé."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この Coding Agent は、貼り付けたコードではサインインできません。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Этот Coding Agent не поддерживает вход с помощью вставленного кода."
           }
         }
       }
@@ -268,6 +604,30 @@
             "state": "translated",
             "value": "登录失败，请重试。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmeldung fehlgeschlagen. Versuchen Sie es erneut."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de la connexion. Réessayez."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインインに失敗しました。もう一度お試しください。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось войти. Попробуйте ещё раз."
+          }
         }
       }
     },
@@ -285,6 +645,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "粘贴授权码"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code einfügen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coller le code"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コードを貼り付け"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вставьте код"
           }
         }
       }
@@ -304,6 +688,30 @@
             "state": "translated",
             "value": "请在浏览器中授权 TokenStats，然后将授权码粘贴到此处："
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorisieren Sie TokenStats in Ihrem Browser und fügen Sie anschließend den Code hier ein:"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Approuvez TokenStats dans votre navigateur, puis collez le code ici :"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブラウザで TokenStats を承認し、コードをここに貼り付けてください："
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подтвердите доступ TokenStats в браузере, затем вставьте код сюда:"
+          }
         }
       }
     },
@@ -321,6 +729,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "重新打开浏览器"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browser erneut öffnen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rouvrir le navigateur"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブラウザをもう一度開く"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Снова открыть браузер"
           }
         }
       }
@@ -340,6 +772,30 @@
             "state": "translated",
             "value": "提交"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Absenden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Envoyer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "送信"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отправить"
+          }
         }
       }
     },
@@ -357,6 +813,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "等待授权码"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warten auf Code"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En attente du code"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コードを待機中"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ожидание кода"
           }
         }
       }
@@ -376,6 +856,30 @@
             "state": "translated",
             "value": "已连接"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbunden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecté"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接続済み"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подключено"
+          }
         }
       }
     },
@@ -393,6 +897,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "未登录"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht angemeldet"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non connecté"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未サインイン"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вход не выполнен"
           }
         }
       }
@@ -412,6 +940,30 @@
             "state": "translated",
             "value": "设置…"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen …"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réglages…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Настройки…"
+          }
         }
       }
     },
@@ -429,6 +981,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "将在弹出窗口和菜单栏中置顶显示并标记。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird im Popover und in der Menüleiste an erster Stelle und mit einer Kennzeichnung angezeigt."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Affiché en premier et marqué d’un badge dans la fenêtre contextuelle et la barre des menus."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ポップオーバーとメニューバーの先頭に表示され、バッジが付きます。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отображается первым и отмечается значком во всплывающем окне и строке меню."
           }
         }
       }
@@ -448,6 +1024,30 @@
             "state": "translated",
             "value": "主要订阅"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primäres Abonnement"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonnement principal"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メインのサブスクリプション"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Основная подписка"
+          }
         }
       }
     },
@@ -465,6 +1065,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "登录后，TokenStats 即可读取你的用量。你可以连接一个或两个 Coding Agent，也可以跳过此步，稍后在“设置”中操作。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Melden Sie sich an, damit TokenStats Ihre Nutzung auslesen kann. Verbinden Sie einen oder beide Coding Agents – oder überspringen Sie diesen Schritt und erledigen Sie dies später in den Einstellungen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connectez-vous pour permettre à TokenStats de lire votre utilisation. Connectez un ou deux comptes, ou ignorez cette étape et faites-le plus tard dans Réglages."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats が使用状況を読み取れるようにサインインします。1つまたは両方の Coding Agent を接続するか、この手順をスキップして後で「設定」から接続できます。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Войдите, чтобы TokenStats мог получать данные об использовании. Подключите один или оба Coding Agent либо пропустите этот шаг и сделайте это позже в Настройках."
           }
         }
       }
@@ -484,6 +1108,30 @@
             "state": "translated",
             "value": "连接你的 Coding Agent"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coding Agents verbinden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connectez vos Coding Agents"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coding Agent を接続"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подключите Coding Agent"
+          }
         }
       }
     },
@@ -501,6 +1149,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "登录时会打开浏览器，以授权 TokenStats。访问 Token 会保存在 macOS 钥匙串中，仅用于读取你的用量。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bei der Anmeldung wird Ihr Browser geöffnet, damit Sie TokenStats autorisieren können. Die Zugriffs-Token werden in Ihrem macOS-Schlüsselbund gespeichert und ausschließlich zum Auslesen Ihrer Nutzung verwendet."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La connexion ouvre votre navigateur pour approuver TokenStats. Les tokens d’accès sont enregistrés dans le trousseau macOS et utilisés uniquement pour lire votre utilisation."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインインするとブラウザが開き、TokenStats を承認できます。アクセストークンは macOS のキーチェーンに保存され、使用状況の読み取りにのみ使用されます。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "При входе откроется браузер для подтверждения доступа TokenStats. Токены доступа сохраняются в Связке ключей macOS и используются только для чтения данных об использовании."
           }
         }
       }
@@ -520,6 +1192,30 @@
             "state": "translated",
             "value": "Token 保存在钥匙串中"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token bleiben in Ihrem Schlüsselbund"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vos tokens restent dans votre trousseau"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トークンはキーチェーンに保存されます"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Токены остаются в Связке ключей"
+          }
         }
       }
     },
@@ -537,6 +1233,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "你的 Token 数量来自这台 Mac 上 Coding Agent 的对话记录文件。TokenStats 只会在本地读取，不会上传任何内容。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Anzahl Ihrer Token wird aus den Transkriptdateien Ihrer Coding Agents auf diesem Mac ermittelt. TokenStats liest diese Dateien lokal und lädt nichts hoch."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le nombre de tokens est lu dans les fichiers de transcription de vos Coding Agents sur ce Mac. TokenStats les lit sans rien téléverser."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トークン数は、この Mac にある Coding Agent の会話記録ファイルから読み取られます。TokenStats はローカルで読み取り、何もアップロードしません。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Количество токенов считывается из файлов журналов Coding Agent на этом Mac. TokenStats читает их локально и ничего не загружает."
           }
         }
       }
@@ -556,6 +1276,30 @@
             "state": "translated",
             "value": "你的工作内容不会离开这台 Mac"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Informationen über Ihre Arbeit verlassen Ihren Mac"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune donnée concernant votre travail ne quitte votre Mac"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作業内容が Mac の外に送信されることはありません"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Данные о вашей работе не покидают Mac"
+          }
         }
       }
     },
@@ -573,6 +1317,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "每个步骤都可以跳过，你也可以稍后在“设置”中更改这些选项。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jeder Schritt ist optional – Sie können ihn überspringen und diese Auswahl später in den Einstellungen ändern."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chaque étape est facultative : vous pouvez en ignorer une et modifier ces choix plus tard dans Réglages."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべての手順は任意です。どの手順もスキップでき、後で「設定」から変更できます。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Все шаги необязательны: любой из них можно пропустить, а параметры изменить позже в Настройках."
           }
         }
       }
@@ -592,6 +1360,30 @@
             "state": "translated",
             "value": "用量数据直接从 Claude 和 OpenAI 获取。你的 Token 与用量绝不会发送到其他服务器。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Nutzung wird direkt von Claude und OpenAI abgerufen. Ihre Token und Nutzungsdaten werden niemals an einen anderen Server gesendet."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’utilisation est récupérée directement auprès de Claude et d’OpenAI. Vos tokens et vos données d’utilisation ne sont jamais envoyés à un autre serveur."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用状況は Claude と OpenAI から直接取得されます。トークンや使用状況が他のサーバーに送信されることはありません。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Данные об использовании загружаются напрямую из Claude и OpenAI. Ваши токены и данные об использовании никогда не отправляются на другие серверы."
+          }
         }
       }
     },
@@ -609,6 +1401,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "仅向你的服务提供商发起请求"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur Ihre Anbieter werden kontaktiert"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seuls vos fournisseurs sont contactés"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通信先は利用中のサービスだけです"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Связь только с вашими сервисами"
           }
         }
       }
@@ -628,6 +1444,30 @@
             "state": "translated",
             "value": "下一步将连接你的账户。下面将准确说明 TokenStats 会访问哪些内容，以及绝不会进行哪些操作。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im nächsten Schritt werden Ihre Konten verbunden. Hier erfahren Sie genau, worauf TokenStats zugreift – und was TokenStats niemals tut."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’étape suivante connecte vos comptes. Voici précisément les données auxquelles TokenStats accède et ce qu’il ne fait jamais."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の手順でアカウントを接続します。TokenStats がアクセスする内容と、決して行わないことを正確に説明します。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На следующем шаге будут подключены ваши учётные записи. Здесь точно указано, к чему TokenStats получает доступ и чего никогда не делает."
+          }
         }
       }
     },
@@ -645,6 +1485,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "开始之前"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bevor Sie beginnen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avant de commencer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "始める前に"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перед началом"
           }
         }
       }
@@ -688,6 +1552,90 @@
               }
             }
           }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Verbundener Coding Agent: %1$lld von %2$@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Verbundene Coding Agents: %1$lld von %2$@"
+                }
+              }
+            }
+          }
+        },
+        "fr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld Coding Agent connecté sur %2$@"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld Coding Agents connectés sur %2$@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld Coding Agents connectés sur %2$@"
+                }
+              }
+            }
+          }
+        },
+        "ja": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Coding Agent：%2$@件中%1$lld件が接続済みです"
+                }
+              }
+            }
+          }
+        },
+        "ru": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Подключён %1$lld из %2$@ Coding Agent"
+                }
+              },
+              "few": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Подключены %1$lld из %2$@ Coding Agent"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Подключено %1$lld из %2$@ Coding Agent"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Подключено %1$lld из %2$@ Coding Agent"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -705,6 +1653,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "TokenStats 位于菜单栏中。你可以随时在“设置”中重新连接 Coding Agent 或再次进行设置。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats befindet sich in Ihrer Menüleiste. Sie können Coding Agents jederzeit erneut verbinden oder diese Einrichtung in den Einstellungen wieder aufrufen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats se trouve dans la barre des menus. Vous pouvez reconnecter vos Coding Agents ou reprendre cette configuration à tout moment depuis Réglages."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats はメニューバーに常駐します。Coding Agent の再接続やこの設定のやり直しは、いつでも「設定」から行えます。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats находится в строке меню. Подключить Coding Agent заново или вернуться к настройке можно в любое время в Настройках."
           }
         }
       }
@@ -724,6 +1696,30 @@
             "state": "translated",
             "value": "尚未连接 Coding Agent"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Coding Agents verbunden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun Coding Agent connecté pour le moment"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coding Agent はまだ接続されていません"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пока нет подключённых Coding Agent"
+          }
         }
       }
     },
@@ -741,6 +1737,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "主要订阅：%@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primär: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Principal : %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メイン：%@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Основная подписка: %@"
           }
         }
       }
@@ -760,6 +1780,30 @@
             "state": "translated",
             "value": "一切就绪"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alles ist eingerichtet"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tout est prêt"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "準備が整いました"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Всё готово"
+          }
         }
       }
     },
@@ -777,6 +1821,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "返回"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurück"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retour"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "戻る"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Назад"
           }
         }
       }
@@ -796,6 +1864,30 @@
             "state": "translated",
             "value": "继续"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortfahren"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continuer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "続ける"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Продолжить"
+          }
         }
       }
     },
@@ -813,6 +1905,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "完成"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fertig"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完了"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Готово"
           }
         }
       }
@@ -832,6 +1948,30 @@
             "state": "translated",
             "value": "跳过"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Überspringen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ignorer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スキップ"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пропустить"
+          }
         }
       }
     },
@@ -849,6 +1989,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "欢迎使用 TokenStats"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Willkommen bei TokenStats"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bienvenue dans TokenStats"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats へようこそ"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добро пожаловать в TokenStats"
           }
         }
       }
@@ -868,6 +2032,30 @@
             "state": "translated",
             "value": "退出 TokenStats"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats beenden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitter TokenStats"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats を終了"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Завершить TokenStats"
+          }
         }
       }
     },
@@ -885,6 +2073,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "全部刷新（⌘R）"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alles aktualisieren (⌘R)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tout actualiser (⌘R)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべて更新（⌘R）"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обновить всё (⌘R)"
           }
         }
       }
@@ -904,6 +2116,30 @@
             "state": "translated",
             "value": "设置"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réglages"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Настройки"
+          }
         }
       }
     },
@@ -921,6 +2157,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "设置…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen …"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réglages…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Настройки…"
           }
         }
       }
@@ -940,6 +2200,30 @@
             "state": "translated",
             "value": "设置"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réglages"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Настройки"
+          }
         }
       }
     },
@@ -957,6 +2241,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "弹出窗口分区"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Popover-Bereich"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Section de la fenêtre contextuelle"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ポップオーバーのセクション"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Раздел всплывающего окна"
           }
         }
       }
@@ -976,6 +2284,30 @@
             "state": "translated",
             "value": "视图"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ansicht"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вид"
+          }
         }
       }
     },
@@ -993,6 +2325,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "Token"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tokens"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トークン"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Токены"
           }
         }
       }
@@ -1012,6 +2368,30 @@
             "state": "translated",
             "value": "用量"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutzung"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilisation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用状況"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Использование"
+          }
         }
       }
     },
@@ -1029,6 +2409,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "菜单栏中的 Coding Agent 用量仪表，可查看各个用量周期的剩余量和重置时间。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Anzeige in der Menüleiste für Ihre Coding Agents – sehen Sie, wie viel von jedem Nutzungszeitraum verbleibt und wann er zurückgesetzt wird."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un indicateur dans la barre des menus pour vos Coding Agents : consultez la part restante de chaque fenêtre d’utilisation et l’heure de sa réinitialisation."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coding Agent の各使用期間の残量とリセット時刻を確認できる、メニューバーのゲージです。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Индикатор в строке меню для Coding Agent: показывает остаток каждого периода использования и время его сброса."
           }
         }
       }
@@ -1048,6 +2452,30 @@
             "state": "translated",
             "value": "在 GitHub 上查看"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf GitHub ansehen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher sur GitHub"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub で表示"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть на GitHub"
+          }
         }
       }
     },
@@ -1065,6 +2493,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "重新运行设置向导"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einrichtung erneut durchführen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Relancer la configuration"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定をやり直す"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Повторить настройку"
           }
         }
       }
@@ -1084,6 +2536,30 @@
             "state": "translated",
             "value": "关于"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Über"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "À propos"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats について"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "О приложении"
+          }
         }
       }
     },
@@ -1101,6 +2577,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "版本 %1$@（%2$@）"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version %1$@ (%2$@)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version %1$@ (%2$@)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バージョン %1$@（%2$@）"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Версия %1$@ (%2$@)"
           }
         }
       }
@@ -1120,6 +2620,30 @@
             "state": "translated",
             "value": "TokenStats 会将每个账户的 Token 保存在钥匙串中，绝不会发送到其他位置。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats speichert die Token jedes Kontos in Ihrem Schlüsselbund und sendet sie niemals an einen anderen Ort."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats stocke les tokens de chaque compte dans votre trousseau et ne les envoie jamais ailleurs."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats は各アカウントのトークンをキーチェーンに保存し、他の場所には送信しません。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats хранит токены каждой учётной записи в Связке ключей и никуда больше их не отправляет."
+          }
         }
       }
     },
@@ -1137,6 +2661,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "退出登录"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abmelden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se déconnecter"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインアウト"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выйти"
           }
         }
       }
@@ -1156,6 +2704,30 @@
             "state": "translated",
             "value": "账户"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konten"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comptes"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウント"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Учётные записи"
+          }
         }
       }
     },
@@ -1173,6 +2745,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@后重置"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "wird in %@ zurückgesetzt"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "réinitialisation dans %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "あと%@でリセット"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "сброс через %@"
           }
         }
       }
@@ -1192,6 +2788,30 @@
             "state": "translated",
             "value": "条形"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Balken"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Barre"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バー"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Полоса"
+          }
         }
       }
     },
@@ -1209,6 +2829,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "表盘"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skala"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cadran"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダイヤル"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Циферблат"
           }
         }
       }
@@ -1228,6 +2872,30 @@
             "state": "translated",
             "value": "环形"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ring"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anneau"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リング"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Кольцо"
+          }
         }
       }
     },
@@ -1245,6 +2913,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "目前无需排序——主要订阅位于首位，另一个订阅紧随其后。添加第三个订阅后即可拖动排序。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Derzeit gibt es nichts anzuordnen – Ihr primäres Abonnement steht an erster Stelle, gefolgt vom einzigen weiteren Abonnement. Sobald ein drittes Abonnement hinzukommt, können Sie die Reihenfolge durch Ziehen ändern."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rien à organiser pour le moment : votre abonnement principal est en tête et le seul autre le suit. Le glisser-déposer sera disponible dès que vous en suivrez un troisième."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まだ並べ替える必要はありません。メインのサブスクリプションが先頭で、もう1つがその後に続きます。3つ目を追加すると、ドラッグして並べ替えられるようになります。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пока упорядочивать нечего: основная подписка идёт первой, а за ней — единственная другая подписка. Перетаскивание станет доступно после добавления третьей."
           }
         }
       }
@@ -1264,6 +2956,30 @@
             "state": "translated",
             "value": "%@，主要订阅"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, primär"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, principal"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@、メイン"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, основная подписка"
+          }
         }
       }
     },
@@ -1281,6 +2997,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "可拖动。拖动以重新排序。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ziehbar. Ziehen Sie, um die Reihenfolge zu ändern."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Élément déplaçable. Faites-le glisser pour réorganiser."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ドラッグできます。ドラッグして並べ替えてください。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Можно перетаскивать. Перетащите, чтобы изменить порядок."
           }
         }
       }
@@ -1300,6 +3040,30 @@
             "state": "translated",
             "value": "拖动以调整订阅的排列顺序。主要订阅始终位于首位。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ziehen Sie die Abonnements in die gewünschte Reihenfolge. Das primäre Abonnement steht immer an erster Stelle."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faites glisser les abonnements pour définir leur ordre. L’abonnement principal reste toujours en tête."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ドラッグしてサブスクリプションの表示順を変更します。メインのサブスクリプションは常に先頭です。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перетаскивайте подписки, чтобы изменить порядок. Основная подписка всегда идёт первой."
+          }
         }
       }
     },
@@ -1317,6 +3081,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "顺序"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reihenfolge"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ordre"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "順序"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Порядок"
           }
         }
       }
@@ -1336,6 +3124,30 @@
             "state": "translated",
             "value": "主要"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primär"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Principal"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メイン"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Основная"
+          }
         }
       }
     },
@@ -1353,6 +3165,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "主要订阅将在弹出窗口和菜单栏中置顶显示并标记。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ihr primäres Abonnement wird im Popover und in der Menüleiste an erster Stelle und mit einer Kennzeichnung angezeigt."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Votre abonnement principal est affiché en premier et marqué d’un badge dans la fenêtre contextuelle et la barre des menus."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メインのサブスクリプションは、ポップオーバーとメニューバーの先頭に表示され、バッジが付きます。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Основная подписка отображается первой и отмечается значком во всплывающем окне и строке меню."
           }
         }
       }
@@ -1372,6 +3208,30 @@
             "state": "translated",
             "value": "主要订阅"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primär"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Principal"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メイン"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Основная подписка"
+          }
         }
       }
     },
@@ -1389,6 +3249,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "主要订阅"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primäres Abonnement"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonnement principal"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メインのサブスクリプション"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Основная подписка"
           }
         }
       }
@@ -1408,6 +3292,30 @@
             "state": "translated",
             "value": "外观"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erscheinungsbild"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apparence"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "外観"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Оформление"
+          }
         }
       }
     },
@@ -1425,6 +3333,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "计费 Token 包含直接输入、缓存写入和输出。API 等值费用根据本地对话记录中的模型，按标准公开价格进行估算。Token 类型筛选不会改变任一摘要。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrechnungs-Token umfassen direkte Eingaben, Cache-Schreibvorgänge und Ausgaben. Das API-Äquivalent schätzt die Kosten zu Standardlistenpreisen anhand der Modelle in lokalen Transkripten. Filter für Token-Typen ändern keine der beiden Zusammenfassungen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les tokens facturables comprennent les entrées directes, les écritures en cache et les sorties. L’équivalent API estime le coût au tarif public standard à partir des modèles enregistrés dans les transcriptions locales. Les filtres de type de token ne modifient aucun de ces résumés."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "課金対象トークンには、直接入力、キャッシュ書き込み、出力が含まれます。API 換算額は、ローカルの会話記録に記録されたモデルの標準定価から費用を推定します。トークン種別フィルタは、どちらの概要にも影響しません。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Расчётные токены включают прямой ввод, запись в кэш и вывод. Эквивалент API оценивает стоимость по стандартным ценам на основе моделей из локальных журналов. Фильтры типов токенов не влияют ни на один из итогов."
           }
         }
       }
@@ -1444,6 +3376,30 @@
             "state": "translated",
             "value": "Token 摘要"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token-Zusammenfassung"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Résumé des tokens"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トークン概要"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Итог по токенам"
+          }
         }
       }
     },
@@ -1461,6 +3417,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "百分比"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prozentsatz"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pourcentage"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "割合"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Процент"
           }
         }
       }
@@ -1480,6 +3460,30 @@
             "state": "translated",
             "value": "数值"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wert"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valeur"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "値"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Значение"
+          }
         }
       }
     },
@@ -1497,6 +3501,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "数值（百分比）"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wert (Prozentsatz)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valeur (pourcentage)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "値（割合）"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Значение (процент)"
           }
         }
       }
@@ -1516,6 +3544,30 @@
             "state": "translated",
             "value": "启用的 Token 类型使用此格式。停用的类型保留灰显的原始数值，并从构成百分比中排除。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktivierte Token-Typen verwenden dieses Format. Deaktivierte Typen behalten einen ausgegrauten Rohwert und werden bei den prozentualen Anteilen nicht berücksichtigt."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les types de token activés utilisent ce format. Les types désactivés conservent une valeur brute estompée et sont exclus des pourcentages de composition."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有効なトークン種別にはこの形式を使用します。無効な種別は元の値を薄く表示し、構成比には含めません。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Включённые типы токенов используют этот формат. Для отключённых типов сохраняется приглушённое исходное значение, и они не учитываются при расчёте процентного состава."
+          }
         }
       }
     },
@@ -1533,6 +3585,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "Token 数值"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token-Werte"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valeurs des tokens"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トークン値"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Значения токенов"
           }
         }
       }
@@ -1552,6 +3628,30 @@
             "state": "translated",
             "value": "选择各个用量周期的显示方式。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wählen Sie, wie jeder Nutzungszeitraum dargestellt wird."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choisissez le mode d’affichage de chaque fenêtre d’utilisation."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "各使用期間の表示方法を選択します。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выберите способ отображения каждого периода использования."
+          }
         }
       }
     },
@@ -1569,6 +3669,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "显示方式"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Darstellungsmodus"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mode d’affichage"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示モード"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Режим отображения"
           }
         }
       }
@@ -1588,6 +3712,30 @@
             "state": "translated",
             "value": "用量周期样式"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Darstellung der Nutzungszeiträume"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Style de fenêtre d’utilisation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用期間のスタイル"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Стиль периода использования"
+          }
         }
       }
     },
@@ -1602,6 +3750,30 @@
           }
         },
         "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coding Agent"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coding Agent"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coding Agent"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coding Agent"
+          }
+        },
+        "ru": {
           "stringUnit": {
             "state": "translated",
             "value": "Coding Agent"
@@ -1624,6 +3796,30 @@
             "state": "translated",
             "value": "每行代表一个 Coding Agent。选择它要显示的位置；取消勾选后，该 Coding Agent 将从 Token 页的所有摘要和合计中排除。每列至少要保留一个可见的 Coding Agent。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jede Zeile entspricht einem Coding Agent. Wählen Sie die Bereiche, in denen er angezeigt wird; unter „Token“ werden nicht ausgewählte Coding Agents aus allen Zusammenfassungen und Summen ausgeschlossen. In jeder Spalte muss mindestens ein Coding Agent sichtbar bleiben."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chaque ligne correspond à un Coding Agent. Choisissez les emplacements où il apparaît ; dans Tokens, les Coding Agents décochés sont exclus de tous les résumés et totaux. Au moins un Coding Agent doit rester visible dans chaque colonne."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "各行は1つの Coding Agent です。表示する場所を選択してください。「トークン」のチェックを外すと、その Coding Agent はすべての概要と合計から除外されます。各列には少なくとも1つの Coding Agent を表示する必要があります。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Каждая строка — Coding Agent. Выберите, где он отображается; снятие флажка «Токены» исключает Coding Agent из всех итогов и сумм. В каждом столбце должен оставаться хотя бы один видимый Coding Agent."
+          }
         }
       }
     },
@@ -1641,6 +3837,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "已隐藏"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgeblendet"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masqué"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "非表示"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скрыт"
           }
         }
       }
@@ -1660,6 +3880,30 @@
             "state": "translated",
             "value": "%@，菜单栏可见性"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, Sichtbarkeit in der Menüleiste"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, visibilité dans la barre des menus"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@、メニューバーでの表示"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, отображение в строке меню"
+          }
         }
       }
     },
@@ -1677,6 +3921,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "菜单栏"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menüleiste"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Barre des menus"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メニューバー"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Строка меню"
           }
         }
       }
@@ -1696,6 +3964,30 @@
             "state": "translated",
             "value": "在菜单栏中隐藏 %@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ in der Menüleiste ausblenden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masquer %@ dans la barre des menus"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メニューバーで %@ を非表示"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не показывать %@ в строке меню"
+          }
         }
       }
     },
@@ -1713,6 +4005,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "在菜单栏中显示 %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ in der Menüleiste anzeigen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher %@ dans la barre des menus"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メニューバーに %@ を表示"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показывать %@ в строке меню"
           }
         }
       }
@@ -1732,6 +4048,30 @@
             "state": "translated",
             "value": "至少要保留一个可见的 Coding Agent。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindestens ein Coding Agent muss sichtbar bleiben."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Au moins un Coding Agent doit rester visible."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "少なくとも1つの Coding Agent を表示する必要があります。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Должен оставаться хотя бы один видимый Coding Agent."
+          }
         }
       }
     },
@@ -1749,6 +4089,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "Coding Agent 可见性"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichtbarkeit der Coding Agents"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visibilité des Coding Agents"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coding Agent の表示"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Видимость Coding Agent"
           }
         }
       }
@@ -1768,6 +4132,30 @@
             "state": "translated",
             "value": "已显示"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eingeblendet"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Affiché"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示中"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показан"
+          }
         }
       }
     },
@@ -1785,6 +4173,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@，Token 页可见性"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, Sichtbarkeit unter „Token“"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, visibilité dans Tokens"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@、「トークン」での表示"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, отображение в разделе «Токены»"
           }
         }
       }
@@ -1804,6 +4216,30 @@
             "state": "translated",
             "value": "Token"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tokens"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トークン"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Токены"
+          }
         }
       }
     },
@@ -1821,6 +4257,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "从 Token 页及其合计中隐藏 %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ unter „Token“ ausblenden und aus den zugehörigen Summen ausschließen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masquer %@ dans Tokens et ses totaux"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ を「トークン」とその合計から除外"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не показывать %@ в разделе «Токены» и не учитывать в его итогах"
           }
         }
       }
@@ -1840,6 +4300,30 @@
             "state": "translated",
             "value": "在 Token 页及其合计中显示 %@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ unter „Token“ anzeigen und in die zugehörigen Summen einbeziehen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher %@ dans Tokens et ses totaux"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ を「トークン」とその合計に含める"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показывать %@ в разделе «Токены» и его итогах"
+          }
         }
       }
     },
@@ -1857,6 +4341,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@，用量页可见性"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, Sichtbarkeit unter „Nutzung“"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, visibilité dans Utilisation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@、「使用状況」での表示"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, отображение в разделе «Использование»"
           }
         }
       }
@@ -1876,6 +4384,30 @@
             "state": "translated",
             "value": "用量"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutzung"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilisation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用状況"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Использование"
+          }
         }
       }
     },
@@ -1893,6 +4425,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "从用量页中隐藏 %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ unter „Nutzung“ ausblenden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masquer %@ dans Utilisation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「使用状況」で %@ を非表示"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не показывать %@ в разделе «Использование»"
           }
         }
       }
@@ -1912,6 +4468,30 @@
             "state": "translated",
             "value": "在用量页中显示 %@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ unter „Nutzung“ anzeigen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher %@ dans Utilisation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「使用状況」に %@ を表示"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показывать %@ в разделе «Использование»"
+          }
         }
       }
     },
@@ -1929,6 +4509,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "语言更改将在 TokenStats 重启后生效。数字、日期和美元金额仍使用 Mac 的地区格式。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprachänderungen werden nach einem Neustart von TokenStats angewendet. Zahlen, Datumsangaben und USD-Beträge verwenden weiterhin die regionalen Formate Ihres Mac."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les changements de langue s’appliquent à TokenStats après son redémarrage. Les nombres, les dates et les montants en USD continuent d’utiliser les formats régionaux de votre Mac."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "言語の変更は TokenStats の再起動後に適用されます。数値、日付、米ドル金額には引き続き Mac の地域形式が使用されます。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Изменение языка TokenStats применяется после перезапуска. Форматы чисел, дат и сумм в долларах США по-прежнему определяются региональными настройками Mac."
           }
         }
       }
@@ -1948,6 +4552,198 @@
             "state": "translated",
             "value": "English"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "English"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "English"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "English"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "English"
+          }
+        }
+      }
+    },
+    "settings.general.language.option.german": {
+      "comment": "The German language name, written in German.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deutsch"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deutsch"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deutsch"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deutsch"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deutsch"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deutsch"
+          }
+        }
+      }
+    },
+    "settings.general.language.option.french": {
+      "comment": "The French language name, written in French.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Français"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Français"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Français"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Français"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Français"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Français"
+          }
+        }
+      }
+    },
+    "settings.general.language.option.japanese": {
+      "comment": "The Japanese language name, written in Japanese.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日本語"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日本語"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日本語"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日本語"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日本語"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日本語"
+          }
+        }
+      }
+    },
+    "settings.general.language.option.russian": {
+      "comment": "The Russian language name, written in Russian.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Русский"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Русский"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Русский"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Русский"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Русский"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Русский"
+          }
         }
       }
     },
@@ -1962,6 +4758,30 @@
           }
         },
         "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "简体中文"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "简体中文"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "简体中文"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "简体中文"
+          }
+        },
+        "ru": {
           "stringUnit": {
             "state": "translated",
             "value": "简体中文"
@@ -1984,6 +4804,30 @@
             "state": "translated",
             "value": "跟随系统"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Systemeinstellung verwenden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suivre le système"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システム設定に従う"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Как в системе"
+          }
         }
       }
     },
@@ -2001,6 +4845,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "TokenStats 下次启动时将使用新语言。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die neue Sprache wird beim nächsten Start von TokenStats verwendet."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La nouvelle langue sera appliquée au prochain démarrage de TokenStats."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次回 TokenStats を起動したときに新しい言語が適用されます。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Новый язык будет применён при следующем запуске TokenStats."
           }
         }
       }
@@ -2020,6 +4888,30 @@
             "state": "translated",
             "value": "TokenStats 无法定位应用程序。请手动退出并重新打开。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats konnte die zugehörige App nicht finden. Beenden Sie TokenStats und öffnen Sie die App manuell erneut."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats n’a pas pu localiser l’app à redémarrer. Quittez TokenStats et rouvrez l’app manuellement."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats アプリが見つかりませんでした。手動で終了して、もう一度開いてください。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось определить расположение приложения TokenStats. Завершите TokenStats и откройте приложение снова вручную."
+          }
         }
       }
     },
@@ -2037,6 +4929,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "TokenStats 无法重启。当前实例仍在运行。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats konnte nicht neu gestartet werden. Diese Instanz wird weiterhin ausgeführt."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats n’a pas pu redémarrer. Cette instance est toujours en cours d’exécution."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats を再起動できませんでした。このインスタンスは引き続き実行中です。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось перезапустить TokenStats. Этот экземпляр продолжает работать."
           }
         }
       }
@@ -2056,6 +4972,30 @@
             "state": "translated",
             "value": "正在重启 TokenStats"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats wird neu gestartet"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redémarrage de TokenStats"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats を再起動中"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перезапуск TokenStats"
+          }
         }
       }
     },
@@ -2073,6 +5013,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "稍后"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Später"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plus tard"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "後で"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Позже"
           }
         }
       }
@@ -2092,6 +5056,30 @@
             "state": "translated",
             "value": "立即重启 TokenStats 以应用新语言，或继续使用当前语言并稍后重启。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starten Sie TokenStats jetzt neu, um die neue Sprache anzuwenden, oder verwenden Sie bis zu einem späteren Neustart weiterhin die aktuelle Sprache."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redémarrez TokenStats maintenant pour appliquer la nouvelle langue, ou continuez à utiliser la langue actuelle et redémarrez plus tard."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しい言語を適用するには TokenStats を今すぐ再起動してください。または、現在の言語を使い続けて後で再起動できます。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перезапустите TokenStats сейчас, чтобы применить новый язык, или продолжайте использовать текущий язык и перезапустите позже."
+          }
         }
       }
     },
@@ -2109,6 +5097,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "立即重启"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jetzt neu starten"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redémarrer maintenant"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今すぐ再起動"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перезапустить сейчас"
           }
         }
       }
@@ -2128,6 +5140,30 @@
             "state": "translated",
             "value": "需要重启"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neustart erforderlich"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redémarrage requis"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再起動が必要です"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Требуется перезапуск"
+          }
         }
       }
     },
@@ -2145,6 +5181,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "语言"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprache"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Langue"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "言語"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Язык"
           }
         }
       }
@@ -2164,6 +5224,30 @@
             "state": "translated",
             "value": "应用语言"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App-Sprache"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Langue de l’app"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリの言語"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Язык приложения"
+          }
         }
       }
     },
@@ -2181,6 +5265,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "通用"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allgemein"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Général"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一般"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Основные"
           }
         }
       }
@@ -2220,6 +5328,90 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%2$@，已选合计 %1$lld 个 Token"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%2$@, %1$lld ausgewähltes Token"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%2$@, %1$lld ausgewählte Token"
+                }
+              }
+            }
+          }
+        },
+        "fr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%2$@, %1$lld token sélectionné"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%2$@, %1$lld tokens sélectionnés"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%2$@, %1$lld tokens sélectionnés"
+                }
+              }
+            }
+          }
+        },
+        "ja": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%2$@、選択合計は%1$lldトークンです"
+                }
+              }
+            }
+          }
+        },
+        "ru": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%2$@, выбран %1$lld токен"
+                }
+              },
+              "few": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%2$@, выбрано %1$lld токена"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%2$@, выбрано %1$lld токенов"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%2$@, выбрано %1$lld токена"
                 }
               }
             }
@@ -2266,6 +5458,90 @@
               }
             }
           }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld ausgewähltes Token von insgesamt %2$@ über alle vier Typen"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld ausgewählte Token von insgesamt %2$@ über alle vier Typen"
+                }
+              }
+            }
+          }
+        },
+        "fr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld token sélectionné sur un total de %2$@ pour les quatre types"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld tokens sélectionnés sur un total de %2$@ pour les quatre types"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld tokens sélectionnés sur un total de %2$@ pour les quatre types"
+                }
+              }
+            }
+          }
+        },
+        "ja": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "選択合計は%1$lldトークンです（4種類すべての合計：%2$@）"
+                }
+              }
+            }
+          }
+        },
+        "ru": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Выбран %1$lld токен; всего по всем четырём типам: %2$@"
+                }
+              },
+              "few": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Выбрано %1$lld токена; всего по всем четырём типам: %2$@"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Выбрано %1$lld токенов; всего по всем четырём типам: %2$@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Выбрано %1$lld токена; всего по всем четырём типам: %2$@"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -2283,6 +5559,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "缓存读取"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache-Lesevorgang"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lecture du cache"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キャッシュ読み取り"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Чтение кэша"
           }
         }
       }
@@ -2302,6 +5602,30 @@
             "state": "translated",
             "value": "缓·读"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C·L"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L·C"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "読込"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "К·Ч"
+          }
         }
       }
     },
@@ -2319,6 +5643,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "缓存读取"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token aus Cache-Lesevorgängen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "lecture du cache"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キャッシュ読み取り"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "чтение кэша"
           }
         }
       }
@@ -2338,6 +5686,30 @@
             "state": "translated",
             "value": "缓存读取"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache-Lesevorgänge"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lecture du cache"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キャッシュ読み取り"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Чтение кэша"
+          }
         }
       }
     },
@@ -2355,6 +5727,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "缓存写入"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache-Schreibvorgang"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Écriture en cache"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キャッシュ書き込み"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запись в кэш"
           }
         }
       }
@@ -2374,6 +5770,30 @@
             "state": "translated",
             "value": "缓·写"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C·S"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "É·C"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "書込"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "К·З"
+          }
         }
       }
     },
@@ -2391,6 +5811,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "缓存写入"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token aus Cache-Schreibvorgängen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "écriture en cache"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キャッシュ書き込み"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "запись в кэш"
           }
         }
       }
@@ -2410,6 +5854,30 @@
             "state": "translated",
             "value": "缓存写入"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache-Schreibvorgänge"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Écriture en cache"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キャッシュ書き込み"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запись в кэш"
+          }
         }
       }
     },
@@ -2427,6 +5895,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "直接输入"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direkte Eingabe"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entrée directe"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直接入力"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Прямой ввод"
           }
         }
       }
@@ -2446,6 +5938,30 @@
             "state": "translated",
             "value": "输入"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EIN"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ENT"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入力"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ВХ"
+          }
         }
       }
     },
@@ -2463,6 +5979,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "直接输入"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token aus direkten Eingaben"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "entrée directe"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直接入力"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "прямой ввод"
           }
         }
       }
@@ -2482,6 +6022,30 @@
             "state": "translated",
             "value": "直接输入"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direkte Eingabe"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entrée directe"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直接入力"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Прямой ввод"
+          }
         }
       }
     },
@@ -2499,6 +6063,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "从已选合计中排除%@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ aus der ausgewählten Summe ausschließen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exclure les tokens du type « %@ » du total sélectionné"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択合計からトークン種別「%@」を除外"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не учитывать %@ в итоге по выбранным типам"
           }
         }
       }
@@ -2518,6 +6106,30 @@
             "state": "translated",
             "value": "在已选合计中包含%@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ einbeziehen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inclure les tokens du type « %@ »"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トークン種別「%@」を含める"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Учитывать токены типа «%@»"
+          }
         }
       }
     },
@@ -2535,6 +6147,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "在已选合计中包含%@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ in die ausgewählte Summe einbeziehen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inclure les tokens du type « %@ » dans le total sélectionné"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択合計にトークン種別「%@」を含める"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Учитывать %@ в итоге по выбранным типам"
           }
         }
       }
@@ -2554,6 +6190,30 @@
             "state": "translated",
             "value": "输出"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgabe"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sortie"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出力"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вывод"
+          }
         }
       }
     },
@@ -2571,6 +6231,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "输出"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AUS"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SORT"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出力"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ВЫХ"
           }
         }
       }
@@ -2590,6 +6274,30 @@
             "state": "translated",
             "value": "输出"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgabe-Token"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sortie"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出力"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "вывод"
+          }
         }
       }
     },
@@ -2607,6 +6315,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "输出"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgabe"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sortie"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出力"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вывод"
           }
         }
       }
@@ -2626,6 +6358,30 @@
             "state": "translated",
             "value": "未知"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unbekannt"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inconnu"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不明"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Неизвестная модель"
+          }
         }
       }
     },
@@ -2643,6 +6399,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "Token 计量范围"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeitraum des Token-Zählers"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Période du compteur de tokens"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トークン積算計の期間"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Диапазон счётчика токенов"
           }
         }
       }
@@ -2662,6 +6442,30 @@
             "state": "translated",
             "value": "范围"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeitraum"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Période"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "期間"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Диапазон"
+          }
         }
       }
     },
@@ -2679,6 +6483,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "7 天"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7 Tage"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7 jours"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7日間"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7 дней"
           }
         }
       }
@@ -2698,6 +6526,30 @@
             "state": "translated",
             "value": "7 天"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7 Tage"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7 jours"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7日間"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7 дней"
+          }
         }
       }
     },
@@ -2715,6 +6567,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "7 天"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "die letzten 7 Tage"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "les 7 derniers jours"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7日間"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7 дней"
           }
         }
       }
@@ -2734,6 +6610,30 @@
             "state": "translated",
             "value": "30 天"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 Tage"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 jours"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30日間"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 дней"
+          }
         }
       }
     },
@@ -2751,6 +6651,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "30 天"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 Tage"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 jours"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30日間"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 дней"
           }
         }
       }
@@ -2770,6 +6694,30 @@
             "state": "translated",
             "value": "30 天"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "die letzten 30 Tage"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "les 30 derniers jours"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30日間"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 дней"
+          }
         }
       }
     },
@@ -2787,6 +6735,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "今天"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heute"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aujourd’hui"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сегодня"
           }
         }
       }
@@ -2806,6 +6778,30 @@
             "state": "translated",
             "value": "今天"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heute"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aujourd’hui"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сегодня"
+          }
         }
       }
     },
@@ -2823,6 +6819,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "今天"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "heute"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aujourd’hui"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "сегодня"
           }
         }
       }
@@ -2842,6 +6862,30 @@
             "state": "translated",
             "value": "%1$@ %2$@；已从构成百分比中排除"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@; bei den prozentualen Anteilen nicht berücksichtigt"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@ ; hors des pourcentages de composition"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@：%2$@（構成比から除外）"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %2$@; не учитывается при расчёте процентного состава"
+          }
         }
       }
     },
@@ -2860,6 +6904,30 @@
             "state": "translated",
             "value": "%1$@ %2$@（占所选类型的 %3$@）"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@ (%3$@ der ausgewählten Typen)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@ (%3$@ du total sélectionné)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@：%2$@（選択した種別に占める割合：%3$@）"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %2$@ (%3$@ от итога по выбранным типам)"
+          }
         }
       }
     },
@@ -2874,6 +6942,30 @@
           }
         },
         "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ —"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ —"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ —"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@：—"
+          }
+        },
+        "ru": {
           "stringUnit": {
             "state": "translated",
             "value": "%@ —"
@@ -2896,6 +6988,30 @@
             "state": "translated",
             "value": "%1$@，%2$@的 API 等值费用估算"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geschätztes API-Äquivalent für %2$@: %1$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Équivalent API estimé pour %2$@ : %1$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%2$@の API 換算額（推定）：%1$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ — оценка эквивалента API за %2$@"
+          }
         }
       }
     },
@@ -2913,6 +7029,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "所选范围（%@）内没有 API 等值费用"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein API-Äquivalent für %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun équivalent API pour %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@の API 換算額はありません"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "За %@ нет использования, для которого можно рассчитать эквивалент API"
           }
         }
       }
@@ -2932,6 +7072,30 @@
             "state": "translated",
             "value": "所选范围（%@）内没有 API 等值费用。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein API-Äquivalent für %@."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun équivalent API pour %@."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@の API 換算額はありません。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "За %@ нет использования, для которого можно рассчитать эквивалент API."
+          }
         }
       }
     },
@@ -2949,6 +7113,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "精确估算为 %1$@。%2$@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exakte Schätzung: %1$@. %2$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimation exacte : %1$@. %2$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正確な推定額：%1$@。%2$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Точная оценка: %1$@. %2$@"
           }
         }
       }
@@ -2968,6 +7156,30 @@
             "state": "translated",
             "value": "根据记录的模型，按标准公开价格估算 API 等值费用；无论显示筛选如何，均包含全部四种 Token 类型。最终总额向上取整到最接近的美分。Claude 缓存写入如无 TTL 详情，则采用默认的 5 分钟费率。价格审核日期：%@。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standardmäßige Schätzung des API-Äquivalents anhand des aufgezeichneten Modells; umfasst unabhängig von Anzeigefiltern alle vier Token-Typen zu Listenpreisen. Die Endsumme wird auf den nächsten Cent aufgerundet. Für Claude-Cache-Schreibvorgänge ohne TTL-Angabe gilt standardmäßig der 5-Minuten-Tarif. Preise geprüft am %@."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimation standard de l’équivalent API d’après le modèle enregistré ; inclut les quatre types de token aux tarifs publics, quels que soient les filtres d’affichage. Le total final est arrondi à la hausse au centime le plus proche. Pour les écritures dans le cache Claude sans détail de durée de vie (TTL), le tarif par défaut de 5 minutes est utilisé. Tarifs vérifiés le %@."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "記録されたモデルに基づく標準 API 換算額の推定です。表示フィルタにかかわらず、4種類すべてのトークンを定価で含めます。最終合計は1セント単位で切り上げます。TTL の詳細がない Claude のキャッシュ書き込みには、デフォルトの5分料金を使用します。価格確認日：%@。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Стандартная оценка эквивалента API по модели, указанной в журнале; включает все четыре типа токенов по публичным тарифам независимо от фильтров отображения. Итоговая сумма округляется вверх до ближайшего цента. Для операций записи в кэш Claude без данных о TTL используется стандартный тариф на 5 минут. Цены проверены %@."
+          }
         }
       }
     },
@@ -2985,6 +7197,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "API 等值费用 · %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API-Äquivalent · %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Équivalent API · %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 換算額 · %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эквивалент API · %@"
           }
         }
       }
@@ -3028,6 +7264,90 @@
               }
             }
           }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Standardmäßige Schätzung des API-Äquivalents anhand des aufgezeichneten Modells; umfasst unabhängig von Anzeigefiltern alle vier Token-Typen zu Listenpreisen. Die Endsumme wird auf den nächsten Cent aufgerundet. Für Claude-Cache-Schreibvorgänge ohne TTL-Angabe gilt standardmäßig der 5-Minuten-Tarif. Preise geprüft am %2$@. Modelle ohne Preis: %3$@ (%1$lld Token)."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Standardmäßige Schätzung des API-Äquivalents anhand des aufgezeichneten Modells; umfasst unabhängig von Anzeigefiltern alle vier Token-Typen zu Listenpreisen. Die Endsumme wird auf den nächsten Cent aufgerundet. Für Claude-Cache-Schreibvorgänge ohne TTL-Angabe gilt standardmäßig der 5-Minuten-Tarif. Preise geprüft am %2$@. Modelle ohne Preis: %3$@ (%1$lld Token)."
+                }
+              }
+            }
+          }
+        },
+        "fr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Estimation standard de l’équivalent API d’après le modèle enregistré ; inclut les quatre types de token aux tarifs publics, quels que soient les filtres d’affichage. Le total final est arrondi à la hausse au centime le plus proche. Pour les écritures dans le cache Claude sans détail de durée de vie (TTL), le tarif par défaut de 5 minutes est utilisé. Tarifs vérifiés le %2$@. Modèles sans tarif : %3$@ (%1$lld token)."
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Estimation standard de l’équivalent API d’après le modèle enregistré ; inclut les quatre types de token aux tarifs publics, quels que soient les filtres d’affichage. Le total final est arrondi à la hausse au centime le plus proche. Pour les écritures dans le cache Claude sans détail de durée de vie (TTL), le tarif par défaut de 5 minutes est utilisé. Tarifs vérifiés le %2$@. Modèles sans tarif : %3$@ (%1$lld tokens)."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Estimation standard de l’équivalent API d’après le modèle enregistré ; inclut les quatre types de token aux tarifs publics, quels que soient les filtres d’affichage. Le total final est arrondi à la hausse au centime le plus proche. Pour les écritures dans le cache Claude sans détail de durée de vie (TTL), le tarif par défaut de 5 minutes est utilisé. Tarifs vérifiés le %2$@. Modèles sans tarif : %3$@ (%1$lld tokens)."
+                }
+              }
+            }
+          }
+        },
+        "ja": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "記録されたモデルに基づく標準 API 換算額の推定です。表示フィルタにかかわらず、4種類すべてのトークンを定価で含めます。最終合計は1セント単位で切り上げます。TTL の詳細がない Claude のキャッシュ書き込みには、デフォルトの5分料金を使用します。価格確認日：%2$@。価格情報のないモデル：%3$@（%1$lldトークン）。"
+                }
+              }
+            }
+          }
+        },
+        "ru": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Стандартная оценка эквивалента API по модели, указанной в журнале; включает все четыре типа токенов по публичным тарифам независимо от фильтров отображения. Итоговая сумма округляется вверх до ближайшего цента. Для операций записи в кэш Claude без данных о TTL используется стандартный тариф на 5 минут. Цены проверены %2$@. Модели без цены: %3$@ (%1$lld токен)."
+                }
+              },
+              "few": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Стандартная оценка эквивалента API по модели, указанной в журнале; включает все четыре типа токенов по публичным тарифам независимо от фильтров отображения. Итоговая сумма округляется вверх до ближайшего цента. Для операций записи в кэш Claude без данных о TTL используется стандартный тариф на 5 минут. Цены проверены %2$@. Модели без цены: %3$@ (%1$lld токена)."
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Стандартная оценка эквивалента API по модели, указанной в журнале; включает все четыре типа токенов по публичным тарифам независимо от фильтров отображения. Итоговая сумма округляется вверх до ближайшего цента. Для операций записи в кэш Claude без данных о TTL используется стандартный тариф на 5 минут. Цены проверены %2$@. Модели без цены: %3$@ (%1$lld токенов)."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Стандартная оценка эквивалента API по модели, указанной в журнале; включает все четыре типа токенов по публичным тарифам независимо от фильтров отображения. Итоговая сумма округляется вверх до ближайшего цента. Для операций записи в кэш Claude без данных о TTL используется стандартный тариф на 5 минут. Цены проверены %2$@. Модели без цены: %3$@ (%1$lld токена)."
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -3045,6 +7365,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "由于对话记录中的模型未知，无法计算 API 等值费用"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API-Äquivalent nicht verfügbar, da das Modell im Transkript unbekannt ist"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimation de l’équivalent API indisponible, car le modèle de la transcription est inconnu"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会話記録のモデルが不明なため、API 換算額を計算できません"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эквивалент API недоступен: модель в журнале диалога неизвестна"
           }
         }
       }
@@ -3064,6 +7408,30 @@
             "state": "translated",
             "value": "%1$@：%2$@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %2$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ : %2$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@：%2$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %2$@"
+          }
         }
       }
     },
@@ -3081,6 +7449,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "未知的对话记录模型"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unbekanntes Modell im Transkript"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modèle de transcription inconnu"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会話記録のモデル（不明）"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Неизвестная модель в журнале диалога"
           }
         }
       }
@@ -3124,6 +7516,90 @@
               }
             }
           }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld Abrechnungs-Token für %2$@; Cache-Lesevorgänge ausgeschlossen"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld Abrechnungs-Token für %2$@; Cache-Lesevorgänge ausgeschlossen"
+                }
+              }
+            }
+          }
+        },
+        "fr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld token facturable pour %2$@ ; lectures du cache exclues"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld tokens facturables pour %2$@ ; lectures du cache exclues"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld tokens facturables pour %2$@ ; lectures du cache exclues"
+                }
+              }
+            }
+          }
+        },
+        "ja": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%2$@の課金対象トークン数は%1$lldです。キャッシュ読み取りは除外されています"
+                }
+              }
+            }
+          }
+        },
+        "ru": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld расчётный токен за %2$@; чтение кэша не учтено"
+                }
+              },
+              "few": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld расчётных токена за %2$@; чтение кэша не учтено"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld расчётных токенов за %2$@; чтение кэша не учтено"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld расчётного токена за %2$@; чтение кэша не учтено"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -3142,6 +7618,30 @@
             "state": "translated",
             "value": "所选范围（%@）内没有计费 Token 用量"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Nutzung von Abrechnungs-Token für %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun token facturable pour %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@の課金対象トークンはありません"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет расчётных токенов за %@"
+          }
         }
       }
     },
@@ -3159,6 +7659,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "所选范围（%@）内没有计费 Token 用量。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Nutzung von Abrechnungs-Token für %@."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun token facturable pour %@."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@の課金対象トークンはありません。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет расчётных токенов за %@."
           }
         }
       }
@@ -3202,6 +7726,90 @@
               }
             }
           }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld Abrechnungs-Token. Direkte Eingabe %2$@ · Cache-Schreibvorgänge %3$@ · Ausgabe %4$@ · Cache-Lesevorgänge %5$@. Abrechnungs-Token umfassen direkte Eingaben, Cache-Schreibvorgänge und Ausgaben; Cache-Lesevorgänge bleiben in der Tabelle sichtbar, werden aber nicht in diese Summe einbezogen. Filter für Token-Typen ändern diese Zusammenfassung nicht."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld Abrechnungs-Token. Direkte Eingabe %2$@ · Cache-Schreibvorgänge %3$@ · Ausgabe %4$@ · Cache-Lesevorgänge %5$@. Abrechnungs-Token umfassen direkte Eingaben, Cache-Schreibvorgänge und Ausgaben; Cache-Lesevorgänge bleiben in der Tabelle sichtbar, werden aber nicht in diese Summe einbezogen. Filter für Token-Typen ändern diese Zusammenfassung nicht."
+                }
+              }
+            }
+          }
+        },
+        "fr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld token facturable. Entrée directe %2$@ · Écriture en cache %3$@ · Sortie %4$@ · Lecture du cache %5$@. Les tokens facturables comprennent les entrées directes, les écritures en cache et les sorties ; les lectures du cache restent visibles dans le tableau, mais sont exclues de ce total. Les filtres de type de token ne modifient pas ce résumé."
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld tokens facturables. Entrée directe %2$@ · Écriture en cache %3$@ · Sortie %4$@ · Lecture du cache %5$@. Les tokens facturables comprennent les entrées directes, les écritures en cache et les sorties ; les lectures du cache restent visibles dans le tableau, mais sont exclues de ce total. Les filtres de type de token ne modifient pas ce résumé."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld tokens facturables. Entrée directe %2$@ · Écriture en cache %3$@ · Sortie %4$@ · Lecture du cache %5$@. Les tokens facturables comprennent les entrées directes, les écritures en cache et les sorties ; les lectures du cache restent visibles dans le tableau, mais sont exclues de ce total. Les filtres de type de token ne modifient pas ce résumé."
+                }
+              }
+            }
+          }
+        },
+        "ja": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "課金対象トークン数：%1$lld。直接入力 %2$@ · キャッシュ書き込み %3$@ · 出力 %4$@ · キャッシュ読み取り %5$@。課金対象トークンには直接入力、キャッシュ書き込み、出力が含まれます。キャッシュ読み取りは表に表示されますが、この合計には含まれません。トークン種別フィルタはこの概要に影響しません。"
+                }
+              }
+            }
+          }
+        },
+        "ru": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld расчётный токен. Прямой ввод %2$@ · Запись в кэш %3$@ · Вывод %4$@ · Чтение кэша %5$@. Расчётные токены включают прямой ввод, запись в кэш и вывод; чтение кэша остаётся видимым в таблице, но не входит в этот итог. Фильтры типов токенов не меняют этот итог."
+                }
+              },
+              "few": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld расчётных токена. Прямой ввод %2$@ · Запись в кэш %3$@ · Вывод %4$@ · Чтение кэша %5$@. Расчётные токены включают прямой ввод, запись в кэш и вывод; чтение кэша остаётся видимым в таблице, но не входит в этот итог. Фильтры типов токенов не меняют этот итог."
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld расчётных токенов. Прямой ввод %2$@ · Запись в кэш %3$@ · Вывод %4$@ · Чтение кэша %5$@. Расчётные токены включают прямой ввод, запись в кэш и вывод; чтение кэша остаётся видимым в таблице, но не входит в этот итог. Фильтры типов токенов не меняют этот итог."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld расчётного токена. Прямой ввод %2$@ · Запись в кэш %3$@ · Вывод %4$@ · Чтение кэша %5$@. Расчётные токены включают прямой ввод, запись в кэш и вывод; чтение кэша остаётся видимым в таблице, но не входит в этот итог. Фильтры типов токенов не меняют этот итог."
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -3219,6 +7827,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "计费 Token · %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrechnungs-Token · %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tokens facturables · %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "課金対象トークン · %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Расчётные токены · %@"
           }
         }
       }
@@ -3238,6 +7870,30 @@
             "state": "translated",
             "value": "API 等值费用"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API-Äquivalent"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Équivalent API"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 換算額"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эквивалент API"
+          }
         }
       }
     },
@@ -3255,6 +7911,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "计费 Token"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrechnungs-Token"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tokens facturables"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "課金対象トークン"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Расчётные токены"
           }
         }
       }
@@ -3274,6 +7954,30 @@
             "state": "translated",
             "value": "Token 摘要"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token-Zusammenfassung"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Résumé des tokens"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トークン概要"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Итог по токенам"
+          }
         }
       }
     },
@@ -3291,6 +7995,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "Token 摘要"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token-Zusammenfassung"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Résumé des tokens"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トークン概要"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Итог по токенам"
           }
         }
       }
@@ -3310,6 +8038,30 @@
             "state": "translated",
             "value": "正在读取%@的 Token 用量"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token-Nutzung für %@ wird gelesen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lecture de l’utilisation des tokens pour %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@のトークン使用量を読み取り中"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Чтение данных о токенах за %@"
+          }
         }
       }
     },
@@ -3327,6 +8079,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在读取%@的 Token 用量。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token-Nutzung für %@ wird gelesen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lecture de l’utilisation des tokens pour %@."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@のトークン使用量を読み取り中です。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Чтение данных о токенах за %@."
           }
         }
       }
@@ -3346,6 +8122,30 @@
             "state": "translated",
             "value": "正在读取%@…"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token-Nutzung für %@ wird gelesen …"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lecture pour %@…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@のデータを読み取り中…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Чтение данных за %@…"
+          }
         }
       }
     },
@@ -3363,6 +8163,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "模型"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MODELL"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MODÈLE"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデル"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "МОДЕЛЬ"
           }
         }
       }
@@ -3382,6 +8206,30 @@
             "state": "translated",
             "value": "此范围内没有用量"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Nutzung in diesem Zeitraum"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune utilisation sur cette période"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この期間には使用量がありません"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "В этом диапазоне нет данных об использовании"
+          }
         }
       }
     },
@@ -3399,6 +8247,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "%1$@ · 已选合计 %2$@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · %2$@ ausgewählt"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · Total sélectionné : %2$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · 選択合計 %2$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · выбрано %2$@"
           }
         }
       }
@@ -3418,6 +8290,30 @@
             "state": "translated",
             "value": "正在读取%@…"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token-Nutzung für %@ wird gelesen …"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lecture pour %@…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@のデータを読み取り中…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Чтение данных за %@…"
+          }
         }
       }
     },
@@ -3435,6 +8331,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@。隐藏错误详情"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@. Fehlerdetails ausblenden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@. Masquer les détails de l’erreur"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@。エラーの詳細を隠す"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@. Скрыть сведения об ошибке"
           }
         }
       }
@@ -3454,6 +8374,30 @@
             "state": "translated",
             "value": "隐藏错误详情"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fehlerdetails ausblenden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masquer les détails de l’erreur"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エラーの詳細を隠す"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скрыть сведения об ошибке"
+          }
         }
       }
     },
@@ -3471,6 +8415,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@。显示错误详情"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@. Fehlerdetails anzeigen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@. Afficher les détails de l’erreur"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@。エラーの詳細を表示"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@. Показать сведения об ошибке"
           }
         }
       }
@@ -3490,6 +8458,30 @@
             "state": "translated",
             "value": "显示错误详情"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fehlerdetails anzeigen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher les détails de l’erreur"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エラーの詳細を表示"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показать сведения об ошибке"
+          }
         }
       }
     },
@@ -3507,6 +8499,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "HTTP %1$lld。%2$@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTP %1$lld. %2$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTP %1$lld. %2$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTP %1$lld。%2$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTP %1$lld. %2$@"
           }
         }
       }
@@ -3526,6 +8542,30 @@
             "state": "translated",
             "value": "登录失败。%@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmeldung fehlgeschlagen. %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de la connexion. %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインインに失敗しました。%@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось войти. %@"
+          }
         }
       }
     },
@@ -3543,6 +8583,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "已收到数据，但未识别出用量周期。%@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daten wurden empfangen, aber es wurden keine Nutzungszeiträume erkannt. %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Données reçues, mais aucune fenêtre d’utilisation n’a été reconnue. %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "データを受信しましたが、使用期間を認識できませんでした。%@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Данные получены, но периоды использования не распознаны. %@"
           }
         }
       }
@@ -3562,6 +8626,30 @@
             "state": "translated",
             "value": "尚未登录。"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht angemeldet."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non connecté."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインインしていません。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вход не выполнен."
+          }
         }
       }
     },
@@ -3579,6 +8667,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "%1$@，剩余 %2$@，%3$@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$@ verbleibend, %3$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$@ restant, %3$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@、残り %2$@、%3$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, осталось %2$@, %3$@"
           }
         }
       }
@@ -3598,6 +8710,30 @@
             "state": "translated",
             "value": "%1$@，剩余 %2$@，即将用尽，%3$@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$@ verbleibend, wird knapp, %3$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$@ restant, bientôt épuisé, %3$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@、残り %2$@、残量わずか、%3$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, осталось %2$@, почти исчерпано, %3$@"
+          }
         }
       }
     },
@@ -3615,6 +8751,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "可用"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "verbleibend"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "restant"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "利用可能"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "осталось"
           }
         }
       }
@@ -3634,6 +8794,30 @@
             "state": "translated",
             "value": "%@，不可用"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, nicht verfügbar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, indisponible"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@、利用できません"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, нет данных"
+          }
         }
       }
     },
@@ -3651,6 +8835,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "无法加载用量。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutzung konnte nicht geladen werden."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de charger les données d’utilisation."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用状況を読み込めませんでした。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось загрузить данные об использовании."
           }
         }
       }
@@ -3670,6 +8878,30 @@
             "state": "translated",
             "value": "正在加载用量…"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutzung wird geladen …"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chargement des données d’utilisation…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用状況を読み込み中…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загрузка данных об использовании…"
+          }
         }
       }
     },
@@ -3687,6 +8919,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "主要订阅"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primäres Abonnement"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonnement principal"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メインのサブスクリプション"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Основная подписка"
           }
         }
       }
@@ -3706,6 +8962,30 @@
             "state": "translated",
             "value": "主要"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primär"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Principal"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メイン"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Основная"
+          }
         }
       }
     },
@@ -3723,6 +9003,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "刷新失败 · 上次更新：%@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktualisierung fehlgeschlagen · zuletzt aktualisiert %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de l’actualisation · dernière mise à jour %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新できませんでした · 最終更新 %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось обновить · последнее обновление %@"
           }
         }
       }
@@ -3742,6 +9046,30 @@
             "state": "translated",
             "value": "%@后重置"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "wird in %@ zurückgesetzt"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "réinitialisation dans %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "あと%@でリセット"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "сброс через %@"
+          }
         }
       }
     },
@@ -3759,6 +9087,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "现在重置"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "wird jetzt zurückgesetzt"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "réinitialisation maintenant"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今リセットされます"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "сброс сейчас"
           }
         }
       }
@@ -3778,6 +9130,30 @@
             "state": "translated",
             "value": "现在"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "jetzt"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "maintenant"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "сейчас"
+          }
         }
       }
     },
@@ -3795,6 +9171,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "重置时间未知"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rücksetzzeit unbekannt"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "heure de réinitialisation inconnue"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リセット時刻は不明です"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "время сброса неизвестно"
           }
         }
       }
@@ -3814,6 +9214,30 @@
             "state": "translated",
             "value": "登录…"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmelden …"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se connecter…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインイン…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Войти…"
+          }
         }
       }
     },
@@ -3831,6 +9255,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "尚未登录 %@。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht bei %@ angemeldet."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non connecté à %@."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ にサインインしていません。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вход в %@ не выполнен."
           }
         }
       }
@@ -3850,6 +9298,30 @@
             "state": "translated",
             "value": "刚刚"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "gerade eben"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "à l’instant"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "たった今"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "только что"
+          }
         }
       }
     },
@@ -3867,6 +9339,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "更新时间：%@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktualisiert %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mis à jour %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新：%@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обновлено %@"
           }
         }
       }
@@ -3886,6 +9382,30 @@
             "state": "translated",
             "value": "5 小时"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 Stunden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 heures"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5時間"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 часов"
+          }
         }
       }
     },
@@ -3903,6 +9423,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "每周"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wöchentlich"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hebdomadaire"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "週次"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Неделя"
           }
         }
       }
@@ -3922,6 +9466,30 @@
             "state": "translated",
             "value": "欢迎使用 TokenStats"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Willkommen bei TokenStats"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bienvenue dans TokenStats"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TokenStats へようこそ"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добро пожаловать в TokenStats"
+          }
         }
       }
     },
@@ -3939,6 +9507,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "设置"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réglages"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Настройки"
           }
         }
       }

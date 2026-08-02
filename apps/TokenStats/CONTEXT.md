@@ -4,24 +4,24 @@ A native status-area app that shows how much of a Coding Agent's usage allowance
 
 ## Localization contract (macOS)
 
-English is the source language for TokenStats-owned copy. Simplified Chinese (`zh-Hans`) is the first fully supported translation. Product copy uses stable semantic String Catalog keys, `LocalizedStringResource`, and Xcode-generated symbols; visible sentences must not be assembled from translated fragments.
+English is the source language for TokenStats-owned copy. Simplified Chinese (`zh-Hans`), German (`de`), French (`fr`), Japanese (`ja`), and Russian (`ru`) are fully supported translations. Product copy uses stable semantic String Catalog keys, `LocalizedStringResource`, and Xcode-generated symbols; visible sentences must not be assembled from translated fragments.
 
 The following terms are canonical. Review new copy against this table before adding a key:
 
-| English source term | Simplified Chinese | Notes |
-| --- | --- | --- |
-| Usage Window | 用量周期 | A quota period with authoritative consumption/reset semantics. |
-| Token Odometer | Token 计量 | The transcript-derived token total; never a quota. |
-| Token Kind | Token 类型 | One of direct input, output, cache write, or cache read. |
-| Selected total | 已选合计 | The projection over enabled Token Kinds. |
-| Billing tokens | 计费 Token | The existing direct-input + cache-write + output summary. |
-| API equivalent | API 等值费用 | An estimate, not an invoice. |
-| Coding Agent | Coding Agent | Keep the English technical term. |
-| Model | 模型 | The model reported by the transcript. |
+| English source term | 简体中文 | Deutsch | Français | 日本語 | Русский | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| Usage Window | 用量周期 | Nutzungszeitraum | fenêtre d’utilisation | 使用期間 | период использования | A quota period with authoritative consumption/reset semantics. |
+| Token Odometer | Token 计量 | Token-Zähler | compteur de tokens | トークン積算計 | счётчик токенов | The transcript-derived token total; never a quota. |
+| Token Kind | Token 类型 | Token-Typ | type de token | トークン種別 | тип токенов | One of direct input, output, cache write, or cache read. |
+| Selected total | 已选合计 | Ausgewählte Summe | total sélectionné | 選択合計 | итог по выбранным типам | The projection over enabled Token Kinds. |
+| Billing tokens | 计费 Token | Abrechnungs-Token | tokens facturables | 課金対象トークン | расчётные токены | The existing direct-input + cache-write + output summary. |
+| API equivalent | API 等值费用 | API-Äquivalent | équivalent API | API 換算額 | эквивалент API | An estimate, not an invoice. |
+| Coding Agent | Coding Agent | Coding Agent | Coding Agent | Coding Agent | Coding Agent | Keep the English technical term. |
+| Model | 模型 | Modell | modèle | モデル | модель | The model reported by the transcript. |
 
 Do not translate the TokenStats, Claude Code, Codex, or Fable names; model identifiers; URLs; filesystem paths; protocol/JSON field names; or raw diagnostic payloads. Localize the user-facing summary around a diagnostic, but preserve the raw diagnostic itself in the expandable detail.
 
-An in-app language choice changes TokenStats-owned copy only. The chosen language is applied after restart. Language-bearing compact-number units follow that effective UI language (for example English K/M/B-family forms versus Simplified Chinese 万/亿), while the full Locale still lets the user's system region refine decimal symbols, numbering, and regional variants. Date, time, and USD formatting conventions continue to follow the system region and related Locale preferences. System-owned macOS UI, such as file pickers and standard menus, continues to follow macOS.
+An in-app language choice changes TokenStats-owned copy only. The chosen language is applied after restart. Language-bearing compact-number units follow that effective UI language (for example English K/M/B, German Mio./Mrd., French M/Md, Russian млн/млрд, and Chinese/Japanese 万/亿 forms), while the full Locale still lets the user's system region refine decimal symbols, numbering, and regional variants. Date, time, and USD formatting conventions continue to follow the system region and related Locale preferences. System-owned macOS UI, such as file pickers and standard menus, continues to follow macOS.
 
 API-equivalent estimates are **USD-only** for now. The aggregate keeps the existing pricing behavior: round upward once to the nearest cent, then format as USD with exactly two fractional digits using the system's regional conventions. A future currency-selection project may add currencies; localization work must not infer or introduce currency conversion from the selected UI language.
 

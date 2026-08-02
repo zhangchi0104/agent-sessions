@@ -11,8 +11,20 @@
 import Foundation
 import Testing
 
+@testable import TokenStats
 struct CatalogIntegrityTests {
-    private static let requiredLanguages = ["en", "zh-Hans"]
+    private static let requiredLanguages = AppLanguage.allCases.compactMap { language in
+        language == .system ? nil : language.rawValue
+    }
+
+    private static let requiredPluralCategories: [String: Set<String>] = [
+        "en": ["one", "other"],
+        "zh-Hans": ["other"],
+        "de": ["one", "other"],
+        "fr": ["one", "many", "other"],
+        "ja": ["other"],
+        "ru": ["one", "few", "many", "other"],
+    ]
 
     /// Count-dependent sentences must keep their plural contract explicit. A
     /// new count key belongs here so review cannot accidentally rely on the
@@ -30,11 +42,15 @@ struct CatalogIntegrityTests {
     /// not represent copy and intentionally have no localized variants.
     private static let allowedNonSemanticKeys: Set<String> = ["—"]
 
-    @Test func everySemanticKeyHasReviewedEnglishAndSimplifiedChineseCopy() throws {
+    @Test func everySemanticKeyHasReviewedCopyForEverySupportedLanguage() throws {
         let catalog = try sourceCatalog()
         #expect(catalog.sourceLanguage == "en")
         #expect(catalog.version == "1.0")
         #expect(catalog.strings.isEmpty == false)
+        #expect(
+            Set(Self.requiredLanguages) == Set(Self.requiredPluralCategories.keys),
+            "Every selectable language needs an explicit plural contract"
+        )
 
         let unexpectedKeys = catalog.strings.keys.filter {
             Self.isSemanticKey($0) == false && Self.allowedNonSemanticKeys.contains($0) == false
@@ -54,6 +70,10 @@ struct CatalogIntegrityTests {
             let localizations = try #require(
                 entry.localizations,
                 "\(key) has no localizations"
+            )
+            #expect(
+                Set(localizations.keys) == Set(Self.requiredLanguages),
+                "\(key) languages drifted from AppLanguage: \(localizations.keys.sorted())"
             )
             for language in Self.requiredLanguages {
                 let localization = try #require(
@@ -92,7 +112,7 @@ struct CatalogIntegrityTests {
         }
     }
 
-    @Test func everyPluralVariationDefinesOneAndOtherCategories() throws {
+    @Test func everyPluralVariationDefinesItsLanguagesRequiredCLDRCategories() throws {
         let catalog = try sourceCatalog()
         var pluralKeys: Set<String> = []
 
@@ -102,9 +122,10 @@ struct CatalogIntegrityTests {
                 guard let localization = entry.localizations?[language] else { continue }
                 for categories in Self.pluralCategorySets(in: localization) {
                     pluralKeys.insert(key)
+                    let required = try #require(Self.requiredPluralCategories[language])
                     #expect(
-                        categories.isSuperset(of: ["one", "other"]),
-                        "\(key) must define one/other plural categories for \(language); found \(categories.sorted())"
+                        categories.isSuperset(of: required),
+                        "\(key) must define \(required.sorted()) plural categories for \(language); found \(categories.sorted())"
                     )
                 }
             }
@@ -128,9 +149,10 @@ struct CatalogIntegrityTests {
                     "\(key) must define a plural variation for \(language)"
                 )
                 for categories in categorySets {
+                    let required = try #require(Self.requiredPluralCategories[language])
                     #expect(
-                        categories.isSuperset(of: ["one", "other"]),
-                        "\(key) must define one/other plural categories for \(language); found \(categories.sorted())"
+                        categories.isSuperset(of: required),
+                        "\(key) must define \(required.sorted()) plural categories for \(language); found \(categories.sorted())"
                     )
                 }
             }
@@ -144,53 +166,31 @@ struct CatalogIntegrityTests {
             let entry = try #require(catalog.strings[key])
             let localizations = try #require(entry.localizations, "\(key) has no localizations")
             let english = try #require(localizations["en"], "\(key) is missing en")
-            let simplifiedChinese = try #require(
-                localizations["zh-Hans"],
-                "\(key) is missing zh-Hans"
+            let englishSchemas = try Self.placeholderSchemasByCanonicalPath(
+                in: english,
+                key: key,
+                language: "en"
             )
-
-            let englishUnits = Self.stringUnitsByPath(in: english)
-            let chineseUnits = Self.stringUnitsByPath(in: simplifiedChinese)
-            #expect(
-                Set(englishUnits.keys) == Set(chineseUnits.keys),
-                "\(key) must have corresponding en/zh-Hans String Unit leaves"
-            )
-            for path in Set(englishUnits.keys).intersection(Set(chineseUnits.keys)).sorted() {
-                let englishValue = try #require(englishUnits[path]?.value)
-                let chineseValue = try #require(chineseUnits[path]?.value)
-                #expect(
-                    Self.printfPlaceholders(in: englishValue)
-                        == Self.printfPlaceholders(in: chineseValue),
-                    "\(key) leaf \(path) changed placeholder positions/types between en and zh-Hans"
-                )
-            }
 
             for language in Self.requiredLanguages {
-                let localization = try #require(localizations[language])
-                for branch in Self.pluralBranches(in: localization) {
-                    let one = try #require(
-                        branch.categories["one"],
-                        "\(key) plural \(branch.path) is missing one for \(language)"
-                    )
-                    let other = try #require(
-                        branch.categories["other"],
-                        "\(key) plural \(branch.path) is missing other for \(language)"
-                    )
-                    let oneUnits = Self.stringUnitsByPath(in: one)
-                    let otherUnits = Self.stringUnitsByPath(in: other)
+                let localization = try #require(
+                    localizations[language],
+                    "\(key) is missing \(language)"
+                )
+                let schemas = try Self.placeholderSchemasByCanonicalPath(
+                    in: localization,
+                    key: key,
+                    language: language
+                )
+                #expect(
+                    Set(schemas.keys) == Set(englishSchemas.keys),
+                    "\(key) must have corresponding canonical String Unit leaves for en and \(language)"
+                )
+                for path in Set(schemas.keys).intersection(Set(englishSchemas.keys)).sorted() {
                     #expect(
-                        Set(oneUnits.keys) == Set(otherUnits.keys),
-                        "\(key) plural \(branch.path) must have corresponding one/other leaves for \(language)"
+                        schemas[path] == englishSchemas[path],
+                        "\(key) leaf \(path) changed placeholder positions/types between en and \(language)"
                     )
-                    for path in Set(oneUnits.keys).intersection(Set(otherUnits.keys)).sorted() {
-                        let oneValue = try #require(oneUnits[path]?.value)
-                        let otherValue = try #require(otherUnits[path]?.value)
-                        #expect(
-                            Self.printfPlaceholders(in: oneValue)
-                                == Self.printfPlaceholders(in: otherValue),
-                            "\(key) plural \(branch.path)/\(path) changed placeholder positions/types between one and other for \(language)"
-                        )
-                    }
                 }
             }
         }
@@ -249,31 +249,38 @@ struct CatalogIntegrityTests {
         }
     }
 
-    private static func pluralBranches(
+    private static func placeholderSchemasByCanonicalPath(
         in value: JSONValue,
-        path: [String] = []
-    ) -> [PluralBranch] {
-        switch value {
-        case .object(let object):
-            var branches: [PluralBranch] = []
-            if case .object(let variations)? = object["variations"],
-               case .object(let plural)? = variations["plural"] {
-                branches.append(PluralBranch(
-                    path: path.joined(separator: "/"),
-                    categories: plural
-                ))
-            }
-            for (key, child) in object {
-                branches += pluralBranches(in: child, path: path + [key])
-            }
-            return branches
-        case .array(let values):
-            return values.enumerated().flatMap { index, child in
-                pluralBranches(in: child, path: path + [String(index)])
-            }
-        case .string, .number, .boolean, .null:
-            return []
+        key: String,
+        language: String
+    ) throws -> [String: [PrintfPlaceholder]] {
+        let groupedUnits = Dictionary(grouping: stringUnitsByPath(in: value)) { element in
+            canonicalStringUnitPath(element.key)
         }
+        var schemas: [String: [PrintfPlaceholder]] = [:]
+        for (path, units) in groupedUnits {
+            let distinctSchemas = Set(units.map { printfPlaceholders(in: $0.value.value) })
+            #expect(
+                distinctSchemas.count == 1,
+                "\(key) plural leaf \(path) changed placeholder positions/types within \(language)"
+            )
+            if let schema = distinctSchemas.first {
+                schemas[path] = schema
+            }
+        }
+        return schemas
+    }
+
+    /// Plural categories vary by language, so compare their argument schemas
+    /// after replacing the category component with one canonical marker.
+    private static func canonicalStringUnitPath(_ path: String) -> String {
+        var components = path.split(separator: "/").map(String.init)
+        for index in components.indices where index > components.startIndex {
+            if components[components.index(before: index)] == "plural" {
+                components[index] = "*"
+            }
+        }
+        return components.joined(separator: "/")
     }
 
     /// Returns a canonical placeholder schema sorted by argument position. A
@@ -345,12 +352,7 @@ private struct StringUnit {
     let value: String
 }
 
-private struct PluralBranch {
-    let path: String
-    let categories: [String: JSONValue]
-}
-
-private struct PrintfPlaceholder: Equatable {
+private struct PrintfPlaceholder: Hashable {
     let position: Int
     let type: String
 }
