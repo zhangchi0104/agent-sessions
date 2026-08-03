@@ -25,6 +25,7 @@ struct TokenSummaryPresentationTests {
         )
 
         #expect(summary.value == "—")
+        #expect(summary.compactValue == nil)
         #expect(summary.label == "Reading 30 days…")
         #expect(summary.numericValue == nil)
     }
@@ -57,13 +58,44 @@ struct TokenSummaryPresentationTests {
         )
 
         #expect(summary.value == "60")
+        #expect(summary.compactValue == nil)
         #expect(summary.label == "Billing tokens · Today")
         #expect(summary.numericValue == 60)
         #expect(summary.help.contains("Cache read 9,999"))
     }
 
-    @Test func largeBillingSummaryUsesCompactValueButKeepsExactDisclosure() {
-        let usage = tokens(input: 12_345_678_901)
+    @Test func billingSummaryDoesNotRepeatUngroupedExactValueAsCompact() {
+        let cases: [(locale: Locale, count: Int, exact: String)] = [
+            (Locale(identifier: "zh-Hans-CN"), 1_000, "1,000"),
+            (Locale(identifier: "zh-Hans-CN"), 9_999, "9,999"),
+            (Locale(identifier: "ja-JP"), 1_000, "1,000"),
+            (Locale(identifier: "ja-JP"), 9_999, "9,999"),
+            (Locale(identifier: "de-DE"), 1_000, "1.000"),
+            (Locale(identifier: "de-DE"), 9_999, "9.999"),
+        ]
+
+        for testCase in cases {
+            let summary = TokenSummaryPresentation.make(
+                perAgent: [
+                    agent(
+                        .claudeCode,
+                        model: "claude-opus-5",
+                        usage: tokens(input: testCase.count)
+                    ),
+                ],
+                metric: .billingTokens,
+                range: .today,
+                hasLoaded: true,
+                locale: testCase.locale
+            )
+
+            #expect(summary.value == testCase.exact)
+            #expect(summary.compactValue == nil)
+        }
+    }
+
+    @Test func largeBillingSummaryUsesExactHeroAndCompactSecondaryValue() {
+        let usage = tokens(input: 52_000_000)
         let summary = TokenSummaryPresentation.make(
             perAgent: [agent(.claudeCode, model: "claude-opus-5", usage: usage)],
             metric: .billingTokens,
@@ -72,10 +104,11 @@ struct TokenSummaryPresentationTests {
             locale: englishLocale
         )
 
-        #expect(summary.value == "12B")
-        #expect(summary.numericValue == 12_345_678_901)
-        #expect(summary.help.contains("12,345,678,901 billing tokens"))
-        #expect(summary.accessibilityLabel.contains("12,345,678,901"))
+        #expect(summary.value == "52,000,000")
+        #expect(summary.compactValue == "52M")
+        #expect(summary.numericValue == 52_000_000)
+        #expect(summary.help.contains("52,000,000 billing tokens"))
+        #expect(summary.accessibilityLabel.contains("52,000,000"))
     }
 
     @Test func billingSummaryUsesLocaleCompactThresholdsAndKeepsExactDisclosure() {
@@ -100,7 +133,8 @@ struct TokenSummaryPresentationTests {
                 locale: testCase.locale
             )
 
-            #expect(summary.value == testCase.compact)
+            #expect(summary.value == testCase.exact)
+            #expect(summary.compactValue == testCase.compact)
             #expect(summary.numericValue == Double(testCase.count))
             #expect(summary.help.contains(testCase.exact))
             #expect(summary.accessibilityLabel.contains(testCase.exact))
@@ -144,6 +178,7 @@ struct TokenSummaryPresentationTests {
         )
 
         #expect(summary.value == "$5.00")
+        #expect(summary.compactValue == nil)
         #expect(summary.label == "API-equivalent · USD · 7 days")
         #expect(summary.numericValue == 5)
         #expect(summary.help.contains("Original USD estimate $5.00"))
