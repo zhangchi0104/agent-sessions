@@ -92,9 +92,16 @@ private struct TokenSummaryHeroLayoutFixtureView: View {
                     metric: .billingTokens,
                     range: fixture.range,
                     hasLoaded: true,
-                    accessibilityIdentifier: fixture.id
+                    accessibilityIdentifier: "\(fixture.id).content"
                 )
-                .frame(width: Self.heroWidth)
+                // Keep the production view's accessibility node nested under a
+                // fixed-size fixture node. XCUI can otherwise report the
+                // inner SwiftUI accessibility element before the outer frame
+                // has propagated through the AppKit hosting boundary.
+                .frame(width: Self.heroWidth, height: TokenSummaryHero.fixedHeight)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(fixture.id)
+                .accessibilityIdentifier(fixture.id)
             }
         }
         .padding(Self.padding)
