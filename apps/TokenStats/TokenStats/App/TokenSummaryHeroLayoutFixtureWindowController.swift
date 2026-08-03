@@ -87,21 +87,25 @@ private struct TokenSummaryHeroLayoutFixtureView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Self.spacing) {
             ForEach(fixtures) { fixture in
-                TokenSummaryHero(
-                    perAgent: [agent(inputTokens: fixture.inputTokens)],
-                    metric: .billingTokens,
-                    range: fixture.range,
-                    hasLoaded: true,
-                    accessibilityIdentifier: "\(fixture.id).content"
-                )
-                // Keep the production view's accessibility node nested under a
-                // fixed-size fixture node. XCUI can otherwise report the
-                // inner SwiftUI accessibility element before the outer frame
-                // has propagated through the AppKit hosting boundary.
+                ZStack {
+                    TokenSummaryHero(
+                        perAgent: [agent(inputTokens: fixture.inputTokens)],
+                        metric: .billingTokens,
+                        range: fixture.range,
+                        hasLoaded: true,
+                        accessibilityIdentifier: "\(fixture.id).content"
+                    )
+                    // A button supplies a stable accessibility control frame;
+                    // SwiftUI otherwise reports the hero's content bounds.
+                    Button(action: {}) {
+                        Text(fixture.id).opacity(0)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: Self.heroWidth, height: TokenSummaryHero.fixedHeight)
+                    .accessibilityLabel(fixture.id)
+                    .accessibilityIdentifier(fixture.id)
+                }
                 .frame(width: Self.heroWidth, height: TokenSummaryHero.fixedHeight)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(fixture.id)
-                .accessibilityIdentifier(fixture.id)
             }
         }
         .padding(Self.padding)
