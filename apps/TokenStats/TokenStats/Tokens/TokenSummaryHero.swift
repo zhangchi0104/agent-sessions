@@ -521,19 +521,22 @@ struct TokenSummaryHero: View {
     let range: TokenRange
     let hasLoaded: Bool
     let currencyContext: CurrencyDisplayContext
+    let accessibilityIdentifier: String
 
     init(
         perAgent: [TokenOdometerModel.AgentTokens],
         metric: TokenSummaryMetric,
         range: TokenRange,
         hasLoaded: Bool,
-        currencyContext: CurrencyDisplayContext = .usd
+        currencyContext: CurrencyDisplayContext = .usd,
+        accessibilityIdentifier: String = "tokens.summary.hero"
     ) {
         self.perAgent = perAgent
         self.metric = metric
         self.range = range
         self.hasLoaded = hasLoaded
         self.currencyContext = currencyContext
+        self.accessibilityIdentifier = accessibilityIdentifier
     }
 
     @Environment(\.locale) private var locale
@@ -619,6 +622,7 @@ struct TokenSummaryHero: View {
         )
         .help(presentation.help)
         .accessibilityElement(children: .ignore)
+        .accessibilityIdentifier(accessibilityIdentifier)
         .accessibilityLabel(presentation.accessibilityLabel)
         .onAppear {
             presentedIdentity = presentation.transitionIdentity

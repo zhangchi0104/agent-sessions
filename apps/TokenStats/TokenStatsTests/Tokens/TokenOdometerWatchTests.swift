@@ -11,7 +11,6 @@
 
 import Foundation
 import Testing
-@testable import TokenStats
 
 @MainActor
 struct TokenOdometerWatchTests {
@@ -21,7 +20,8 @@ struct TokenOdometerWatchTests {
 
         let model = TokenOdometerModel(
             reader: TranscriptTokenReader(),
-            roots: [TranscriptRoot(id: .claudeCode, label: "Test", path: projects.path)]
+            roots: [TranscriptRoot(id: .claudeCode, label: "Test", path: projects.path)],
+            changeSource: EmittingTicks()
         )
         let task = Task { await model.observeWhileVisible() }
         defer { task.cancel() }
@@ -85,7 +85,8 @@ struct TokenOdometerWatchTests {
         let model = TokenOdometerModel(
             reader: TranscriptTokenReader(),
             roots: [TranscriptRoot(id: .claudeCode, label: "Claude Code", path: claude.path),
-                    TranscriptRoot(id: .codex, label: "Codex", path: codex.path)]
+                    TranscriptRoot(id: .codex, label: "Codex", path: codex.path)],
+            changeSource: EmittingTicks()
         )
         // Cancelled before the task body runs — the main actor is busy here —
         // so the scan sees cancellation at its very first root boundary.
@@ -108,7 +109,8 @@ struct TokenOdometerWatchTests {
 
         let model = TokenOdometerModel(
             reader: TranscriptTokenReader(),
-            roots: [TranscriptRoot(id: .claudeCode, label: "Test", path: projects.path)]
+            roots: [TranscriptRoot(id: .claudeCode, label: "Test", path: projects.path)],
+            changeSource: EmittingTicks()
         )
         let task = Task { await model.observeWhileVisible() }
         defer { task.cancel() }
@@ -132,7 +134,8 @@ struct TokenOdometerWatchTests {
 
         let model = TokenOdometerModel(
             reader: TranscriptTokenReader(),
-            roots: [TranscriptRoot(id: .claudeCode, label: "Test", path: projects.path)]
+            roots: [TranscriptRoot(id: .claudeCode, label: "Test", path: projects.path)],
+            changeSource: EmittingTicks()
         )
         let task = Task { await model.observeWhileVisible() }
         defer { task.cancel() }

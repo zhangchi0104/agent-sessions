@@ -7,9 +7,7 @@
 //
 
 import Foundation
-import SwiftUI
 import Testing
-@testable import TokenStats
 
 @MainActor
 struct TokenSummaryPresentationTests {
@@ -161,31 +159,6 @@ struct TokenSummaryPresentationTests {
             #expect(summary.help.contains(testCase.exact))
             #expect(summary.accessibilityLabel.contains(testCase.exact))
         }
-    }
-
-    @Test func heroHeightIsStableAcrossRangesAndValueLengths() {
-        let fixtures: [(TokenRange, TokenUsage)] = [
-            (.today, tokens(input: 60)),
-            (.sevenDays, tokens(input: 999_999_999)),
-            (.thirtyDays, tokens(input: 12_345_678_901)),
-        ]
-
-        let heights = fixtures.map { range, usage in
-            let hero = TokenSummaryHero(
-                perAgent: [agent(.claudeCode, model: "claude-opus-5", usage: usage)],
-                metric: .billingTokens,
-                range: range,
-                hasLoaded: true
-            )
-            let controller = NSHostingController(
-                rootView: hero.frame(width: 300)
-            )
-            return controller.sizeThatFits(
-                in: CGSize(width: 300, height: 1_000)
-            ).height
-        }
-
-        #expect(heights.allSatisfy { abs($0 - TokenSummaryHero.fixedHeight) < 0.5 })
     }
 
     @Test func apiEquivalentUsesTheRecordedAgentAndModel() {

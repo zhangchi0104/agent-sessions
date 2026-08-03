@@ -10,7 +10,6 @@
 
 import Testing
 import Foundation
-@testable import TokenStats
 
 /// What one registered Coding Agent is expected to publish. Internal rather
 /// than private only because `@Test(arguments:)` surfaces it in the test's

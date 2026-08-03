@@ -17,6 +17,16 @@ protocol TranscriptChangeSource: Sendable {
     func ticks() -> AsyncStream<Void>
 }
 
+/// Test/runtime safety source that completes without touching FSEvents. Test
+/// modes have no transcript roots, so there can be no legitimate change tick.
+struct InactiveTranscriptChangeSource: TranscriptChangeSource {
+    func ticks() -> AsyncStream<Void> {
+        AsyncStream { continuation in
+            continuation.finish()
+        }
+    }
+}
+
 /// Real source: one FSEvents stream over the given roots, coalescing bursts of
 /// appends via a ~1s latency so an active session triggers at most ~one
 /// tick/second and an idle-but-open popover triggers none (ADR-0003). An

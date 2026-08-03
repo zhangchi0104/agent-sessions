@@ -9,7 +9,6 @@
 
 import Foundation
 import Testing
-@testable import TokenStats
 
 struct TokenSelectionTests {
     private let englishLocale = Locale(identifier: "en-US")

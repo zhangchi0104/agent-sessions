@@ -8,7 +8,6 @@
 
 import Foundation
 import Testing
-@testable import TokenStats
 
 struct InvalidationFixture {
     let transcriptURL: URL

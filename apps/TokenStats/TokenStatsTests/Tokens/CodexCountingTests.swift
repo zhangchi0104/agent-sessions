@@ -11,7 +11,6 @@
 
 import Foundation
 import Testing
-@testable import TokenStats
 
 @MainActor
 struct CodexCountingTests {
@@ -26,8 +25,11 @@ struct CodexCountingTests {
                                 lastInput: 1_000, lastCached: 400, lastOutput: 100),
         ])
 
-        let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                          roots: [TranscriptRoot(id: .codex, label: "Codex", path: root.path)])
+        let odometer = TokenOdometerModel(
+            reader: TranscriptTokenReader(),
+            roots: [TranscriptRoot(id: .codex, label: "Codex", path: root.path)],
+            changeSource: EmittingTicks()
+        )
         let task = Task { await odometer.observeWhileVisible() }
         defer { task.cancel() }
 
@@ -45,8 +47,11 @@ struct CodexCountingTests {
                                 lastInput: 500, lastCached: 200, lastOutput: 150),
         ])
 
-        let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                          roots: [TranscriptRoot(id: .codex, label: "Codex", path: root.path)])
+        let odometer = TokenOdometerModel(
+            reader: TranscriptTokenReader(),
+            roots: [TranscriptRoot(id: .codex, label: "Codex", path: root.path)],
+            changeSource: EmittingTicks()
+        )
         let task = Task { await odometer.observeWhileVisible() }
         defer { task.cancel() }
 
@@ -61,8 +66,11 @@ struct CodexCountingTests {
             codexTokenCountLine(totalInput: 1_000, totalCached: 400, totalOutput: 100),
         ])
 
-        let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                          roots: [TranscriptRoot(id: .codex, label: "Codex", path: root.path)])
+        let odometer = TokenOdometerModel(
+            reader: TranscriptTokenReader(),
+            roots: [TranscriptRoot(id: .codex, label: "Codex", path: root.path)],
+            changeSource: EmittingTicks()
+        )
         let task = Task { await odometer.observeWhileVisible() }
         defer { task.cancel() }
 
@@ -86,8 +94,11 @@ struct CodexCountingTests {
                                 lastInput: 200, lastCached: 80, lastOutput: 20),
         ])
 
-        let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                          roots: [TranscriptRoot(id: .codex, label: "Codex", path: root.path)])
+        let odometer = TokenOdometerModel(
+            reader: TranscriptTokenReader(),
+            roots: [TranscriptRoot(id: .codex, label: "Codex", path: root.path)],
+            changeSource: EmittingTicks()
+        )
         let task = Task { await odometer.observeWhileVisible() }
         defer { task.cancel() }
 
@@ -115,8 +126,11 @@ struct CodexCountingTests {
                                 lastInput: 300, lastCached: 50, lastOutput: 40),
         ])
 
-        let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                          roots: [TranscriptRoot(id: .codex, label: "Codex", path: root.path)])
+        let odometer = TokenOdometerModel(
+            reader: TranscriptTokenReader(),
+            roots: [TranscriptRoot(id: .codex, label: "Codex", path: root.path)],
+            changeSource: EmittingTicks()
+        )
         let task = Task { await odometer.observeWhileVisible() }
         defer { task.cancel() }
 

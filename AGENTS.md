@@ -21,7 +21,7 @@ TypeScript uses Biome with two-space indentation and a 120-character line width.
 
 ## Testing Guidelines
 
-Run `cd packages/actions && bun run test` for Vitest `*.spec.ts` suites and `cd packages/database && bun run test` for Bun `*.test.ts` suites. Run TokenStats tests with `xcodebuild -project apps/TokenStats/TokenStats.xcodeproj -scheme TokenStats -destination 'platform=macOS' test`. Add focused regression tests beside the affected package; no repository-wide coverage threshold is configured.
+Run `cd packages/actions && bun run test` for Vitest `*.spec.ts` suites and `cd packages/database && bun run test` for Bun `*.test.ts` suites. From `apps/TokenStats`, run `npm test` for static checks and unit tests. The foreground-driving UI suite is opt-in via `npm run test:ui` and must run only in an isolated macOS user session, VM, or dedicated CI runner. Add focused regression tests beside the affected package; no repository-wide coverage threshold is configured.
 
 ## Commit & Pull Request Guidelines
 

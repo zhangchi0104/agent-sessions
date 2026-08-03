@@ -1,8 +1,8 @@
 name: Test TokenStats
 
-# Runs the Swift test suite (TokenStatsTests, via the shared TokenStats scheme)
-# on every pull request and on pushes to the release branches. This is the same
-# `npm test` script a developer runs locally, so CI and the desk agree.
+# Runs the safe, non-UI `npm test` entry point for TokenStats-affecting pull
+# requests and release-branch pushes, then explicitly opts into UI automation
+# on the runner's isolated macOS desktop.
 
 on:
   push:
@@ -50,6 +50,10 @@ jobs:
           esac
           xcodebuild -version
 
-      - name: Test
+      - name: Static checks and unit tests
         working-directory: apps/TokenStats
         run: npm test
+
+      - name: UI tests (isolated CI desktop)
+        working-directory: apps/TokenStats
+        run: npm run test:ui

@@ -65,9 +65,13 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Test release candidate
+      - name: Test release candidate (non-UI)
         working-directory: apps/TokenStats
         run: npm test
+
+      - name: Test release candidate UI (isolated CI desktop)
+        working-directory: apps/TokenStats
+        run: npm run test:ui
 
       - name: Import signing certificate
         env:

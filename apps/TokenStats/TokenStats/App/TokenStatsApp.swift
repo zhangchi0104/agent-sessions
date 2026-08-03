@@ -16,16 +16,13 @@
 import SwiftUI
 import AppKit
 
-enum TokenStatsWindowID {
-    static let settings = "settings"
-}
-
 @main
 struct TokenStatsApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @State private var isMenuBarExtraInserted = AppRuntimeMode.current.insertsMenuBarExtra
 
     var body: some Scene {
-        MenuBarExtra {
+        MenuBarExtra(isInserted: $isMenuBarExtraInserted) {
             PopoverView(model: appDelegate.model,
                         odometer: appDelegate.odometer,
                         currencyModel: appDelegate.currencyModel)
@@ -79,34 +76,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let onboarding: OnboardingSettings
     let localization: LocalizationSettings
     let relauncher: AppRelauncher
+    private let runtimeMode: AppRuntimeMode
+    private let testingDefaults: InMemoryUserDefaults?
     private var onboardingController: OnboardingWindowController?
+#if DEBUG
+    private var tokenSummaryHeroLayoutFixtureController: TokenSummaryHeroLayoutFixtureWindowController?
+#endif
 
     override init() {
         // Both models are driven by the registered Coding Agents: the usage
         // model refreshes one per agent, and the Token Odometer scans one
         // transcript root per agent.
-        let uiTesting = Self.isRunningUITests
-        let usesIsolatedPersistence = uiTesting || Self.isRunningUnitTests
-        // NSArgumentDomain is part of every UserDefaults search list, so the UI
-        // test language launch argument still overrides this isolated PID suite.
-        // Unit-test hosting is isolated too because CurrencyModel repairs its
-        // cache envelope during initialization, before the launch guard runs.
-        let persistenceDefaults = usesIsolatedPersistence
-            ? UserDefaults(
-                suiteName: "dev.otakuma.TokenStats.test-persistence."
-                    + String(ProcessInfo.processInfo.processIdentifier)
-            )!
-            : .standard
+        let runtimeMode = AppRuntimeMode.current
+        self.runtimeMode = runtimeMode
+        let testingDefaults: InMemoryUserDefaults?
+        if runtimeMode.usesIsolatedPersistence {
+            // Keep explicit `-key value` UI-test launch overrides while never
+            // consulting or mutating the user's persistent defaults domain.
+            let argumentValues = UserDefaults.standard.volatileDomain(
+                forName: UserDefaults.argumentDomain
+            )
+            testingDefaults = InMemoryUserDefaults(initialValues: argumentValues)
+        } else {
+            testingDefaults = nil
+        }
+        self.testingDefaults = testingDefaults
+        // Test processes use a process-only store. This remains safe even if a
+        // future Xcode configuration accidentally hosts unit tests in the app:
+        // CurrencyModel may repair its cache during initialization, but the
+        // write cannot reach CFPreferences or the user's production domain.
+        let persistenceDefaults: UserDefaults = testingDefaults ?? .standard
         let appearance = AppearanceSettings(defaults: persistenceDefaults)
         localization = LocalizationSettings(defaults: persistenceDefaults)
-        relauncher = uiTesting ? AppRelauncher.disabledForUITesting() : AppRelauncher()
+        relauncher = runtimeMode.usesInertDependencies
+            ? AppRelauncher.disabledForTesting()
+            : AppRelauncher()
         onboarding = OnboardingSettings(defaults: persistenceDefaults)
-        let integrations: [any CodingAgentIntegration] = uiTesting
-            ? CodingAgentRegistry.all.map(UITestingCodingAgentIntegration.init(wrapping:))
+        let integrations: [any CodingAgentIntegration] = runtimeMode.usesInertDependencies
+            ? CodingAgentRegistry.all.map(TestingCodingAgentIntegration.init(wrapping:))
             : CodingAgentRegistry.all
         let exchangeRateProvider: any ExchangeRateProviding
-        if uiTesting {
-            exchangeRateProvider = UITestingExchangeRateProvider()
+        if runtimeMode.usesInertDependencies {
+            exchangeRateProvider = TestingExchangeRateProvider()
         } else {
             exchangeRateProvider = ExchangeRateProviderRouter()
         }
@@ -116,48 +127,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             lastKnown: LastKnownUsageStore(defaults: persistenceDefaults),
             integrations: integrations
         )
+        let transcriptRoots = runtimeMode.usesInertDependencies
+            ? []
+            : CodingAgentRegistry.transcriptRoots
+        let transcriptChangeSource: any TranscriptChangeSource = runtimeMode.usesInertDependencies
+            ? InactiveTranscriptChangeSource()
+            : FSEventsTranscriptChangeSource(paths: transcriptRoots.map(\.path))
         odometer = TokenOdometerModel(
             reader: TranscriptTokenReader(
                 checkpointStore: TranscriptCheckpointStore()
             ),
-            roots: uiTesting ? [] : CodingAgentRegistry.transcriptRoots,
-            initialRange: appearance.selectedTokenRange
+            roots: transcriptRoots,
+            initialRange: appearance.selectedTokenRange,
+            changeSource: transcriptChangeSource
         )
         currencyModel = CurrencyModel(
             provider: exchangeRateProvider,
             store: ExchangeRateStore(defaults: persistenceDefaults),
-            schedulesAutomaticRefresh: !usesIsolatedPersistence
+            schedulesAutomaticRefresh: !runtimeMode.usesIsolatedPersistence
         )
         super.init()
-    }
-
-    /// True when this process is hosting the unit-test bundle rather than
-    /// serving a user.
-    static var isRunningUnitTests: Bool {
-        let environment = ProcessInfo.processInfo.environment
-        return environment["XCTestConfigurationFilePath"] != nil
-            || environment["XCTestBundlePath"] != nil
-            || NSClassFromString("XCTestCase") != nil
-    }
-
-    static var isRunningUITests: Bool {
-        ProcessInfo.processInfo.arguments.contains("--ui-testing")
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // UI tests use a deterministic onboarding window and do not start the
         // Keychain-, network-, or transcript-backed models.
-        if Self.isRunningUITests {
+        if runtimeMode == .uiTesting {
+#if DEBUG
+            if ProcessInfo.processInfo.arguments.contains(
+                TokenSummaryHeroLayoutFixtureWindowController.launchArgument
+            ) {
+                let controller = TokenSummaryHeroLayoutFixtureWindowController()
+                tokenSummaryHeroLayoutFixtureController = controller
+                controller.show()
+                return
+            }
+#endif
             showOnboarding()
             return
         }
-        // The test bundle is hosted by this app under the shipped bundle id, so
-        // starting up for a test run would read the developer's real Keychain
-        // accounts, call both usage endpoints, and overwrite their persisted
-        // snapshot — and on a fresh CI runner, where the onboarding flag is
-        // unset, it would also present the onboarding window and steal focus.
-        // Tests construct the models they need directly.
-        guard !Self.isRunningUnitTests else { return }
+        // The unit suite is unhosted, but fail closed if a future Xcode change
+        // starts this app under XCTest: never read real Keychain accounts,
+        // contact usage endpoints, overwrite persisted snapshots, or present
+        // first-run UI. Tests construct the models they need directly.
+        guard runtimeMode == .production else { return }
         model.start()
         if onboarding.completed {
             currencyModel.start()
@@ -179,7 +192,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 onboarding: onboarding,
                 locale: localization.effectiveLocale,
                 onComplete: { [weak self] in
-                    guard let self, !Self.isRunningUITests else { return }
+                    guard let self, self.runtimeMode == .production else { return }
                     self.currencyModel.start()
                 }
             )
@@ -191,9 +204,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 /// UI-test dependencies deliberately retain the production presentation
 /// metadata while replacing every I/O boundary. This keeps future interaction
 /// tests safe even if they navigate beyond the deterministic welcome screen.
-private struct UITestingCodingAgentIntegration: CodingAgentIntegration {
+private struct TestingCodingAgentIntegration: CodingAgentIntegration {
     private let wrapped: any CodingAgentIntegration
-    let auth: any AgentAuthSession = UITestingAuthSession()
+    let auth: any AgentAuthSession = TestingAuthSession()
 
     init(wrapping integration: any CodingAgentIntegration) {
         wrapped = integration
@@ -207,10 +220,10 @@ private struct UITestingCodingAgentIntegration: CodingAgentIntegration {
     var gaugeLayout: GaugeLayout { wrapped.gaugeLayout }
     var transcriptRoot: String { wrapped.transcriptRoot }
 
-    func makeProvider() -> UsageProvider { UITestingUsageProvider() }
+    func makeProvider() -> UsageProvider { TestingUsageProvider() }
 }
 
-private final class UITestingAuthSession: AgentAuthSession {
+private final class TestingAuthSession: AgentAuthSession {
     let isSignedIn = false
 
     func validAccessToken() async throws -> String { "ui-testing" }
@@ -218,11 +231,11 @@ private final class UITestingAuthSession: AgentAuthSession {
     func beginSignIn() async throws {}
 }
 
-private struct UITestingUsageProvider: UsageProvider {
+private struct TestingUsageProvider: UsageProvider {
     func fetchUsage() async throws -> UsageReading { UsageReading(windows: []) }
 }
 
-private struct UITestingExchangeRateProvider: ExchangeRateProviding {
+private struct TestingExchangeRateProvider: ExchangeRateProviding {
     func fetchRates(from _: ExchangeRateSource) async throws -> [ExchangeRateQuote] {
         [
             ExchangeRateQuote(

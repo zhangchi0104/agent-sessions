@@ -5,10 +5,14 @@
   "author": "Alex Zhang",
   "private": true,
   "scripts": {
-    "test": "npm run test:localization && npm run test:signing-isolation && npm run test:release-toolchain && xcodebuild test -project TokenStats.xcodeproj -scheme TokenStats -destination 'platform=macOS' CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER=",
+    "test": "npm run test:localization && npm run test:signing-isolation && npm run test:release-toolchain && npm run test:unit-isolation && npm run test:app-compile && npm run test:unit",
     "test:localization": "./scripts/test-check-localization.sh && ./scripts/check-localization.sh",
     "test:signing-isolation": "./scripts/test-signing-isolation.sh",
     "test:release-toolchain": "./scripts/test-verify-release-toolchain.sh",
+    "test:unit-isolation": "./scripts/test-unit-test-isolation.sh",
+    "test:app-compile": "xcodebuild build -project TokenStats.xcodeproj -scheme TokenStats -configuration Debug -destination 'platform=macOS' LM_SKIP_METADATA_EXTRACTION=YES REGISTER_WITH_LAUNCH_SERVICES=NO CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER=",
+    "test:unit": "xcodebuild test -project TokenStats.xcodeproj -scheme TokenStats -destination 'platform=macOS' -only-testing:TokenStatsTests CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER=",
+    "test:ui": "xcodebuild test -project TokenStats.xcodeproj -scheme TokenStatsUITests -destination 'platform=macOS' -only-testing:TokenStatsUITests CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER=",
     "build": "xcodebuild -project TokenStats.xcodeproj -scheme TokenStats -configuration Release -derivedDataPath build build",
     "dev": "bash scripts/dev.sh"
   }

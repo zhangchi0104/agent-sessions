@@ -59,13 +59,81 @@ final class TokenStatsUITests: XCTestCase {
     }
 
     @MainActor
-    private func launch(language: String) -> XCUIApplication {
+    func testTokenSummaryHeroHeightIsStableAcrossRangesAndValueLengths() throws {
+        let app = launch(
+            language: "en",
+            extraArguments: ["--ui-testing-token-summary-layout"]
+        )
+
+        let identifiers = [
+            "tokens.summary.hero.today-short",
+            "tokens.summary.hero.seven-days-large",
+            "tokens.summary.hero.thirty-days-very-large",
+        ]
+        var heights: [CGFloat] = []
+
+        for identifier in identifiers {
+            let hero = app.descendants(matching: .any)[identifier]
+            XCTAssertTrue(
+                hero.waitForExistence(timeout: 5),
+                "Missing TokenSummaryHero fixture: \(identifier)"
+            )
+
+            let frame = waitForFrame(
+                of: hero,
+                width: 300,
+                height: 76,
+                identifier: identifier
+            )
+            XCTAssertFalse(frame.isEmpty, "Empty TokenSummaryHero frame: \(identifier)")
+            XCTAssertEqual(frame.width, 300, accuracy: 1, identifier)
+            XCTAssertEqual(frame.height, 76, accuracy: 1, identifier)
+            heights.append(frame.height)
+        }
+
+        let shortest = try XCTUnwrap(heights.min())
+        let tallest = try XCTUnwrap(heights.max())
+        XCTAssertEqual(tallest, shortest, accuracy: 1)
+    }
+
+    @MainActor
+    private func launch(
+        language: String,
+        extraArguments: [String] = []
+    ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "--ui-testing",
             "-localization.preferredLanguage", language,
-        ]
+        ] + extraArguments
         app.launch()
+        addTeardownBlock { app.terminate() }
         return app
+    }
+
+    @MainActor
+    private func waitForFrame(
+        of element: XCUIElement,
+        width: CGFloat,
+        height: CGFloat,
+        identifier: String
+    ) -> CGRect {
+        let predicate = NSPredicate { object, _ in
+            guard let element = object as? XCUIElement else { return false }
+            let frame = element.frame
+            return !frame.isEmpty
+                && abs(frame.width - width) <= 1
+                && abs(frame.height - height) <= 1
+        }
+        let expectation = XCTNSPredicateExpectation(
+            predicate: predicate,
+            object: element
+        )
+        XCTAssertEqual(
+            XCTWaiter.wait(for: [expectation], timeout: 5),
+            .completed,
+            "TokenSummaryHero frame did not settle: \(identifier)"
+        )
+        return element.frame
     }
 }

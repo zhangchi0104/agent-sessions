@@ -9,7 +9,6 @@
 import CryptoKit
 import Foundation
 import Testing
-@testable import TokenStats
 
 enum InvalidEnvelopeState: String, CaseIterable {
     case schemaVersion

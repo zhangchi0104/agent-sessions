@@ -35,10 +35,17 @@ Requires Xcode 26 (the project is a macOS 26 / Xcode 26 format).
 
 ```sh
 cd apps/TokenStats
-npm test         # xcodebuild test against the shared TokenStats scheme
+npm test         # static checks, compile-only app build, then unhosted unit tests
+npm run test:ui  # opt-in UI automation; use an isolated macOS session
 npm run dev      # build Debug and launch the app
 npm run build    # build Release
 ```
+
+The UI suite controls the foreground desktop and is deliberately excluded from
+`npm test`. Run `npm run test:ui` only in a disposable macOS user session, VM,
+or dedicated CI runner where it cannot interfere with other applications.
+The compile-only step verifies the real app entry point without launching it;
+the unit bundle runs under Xcode's `xctest` process, not inside TokenStats.app.
 
 Debug and local Release builds use ad-hoc signing by default, so a fresh
 checkout needs no Apple Developer account. To use your own stable Apple
@@ -57,7 +64,8 @@ signing regardless of the local file. Like any ignored file, the local config
 can be removed by destructive cleanup such as `git clean -fdx`.
 
 The [`Test TokenStats`](.github/workflows/test-tokenstats.yml) workflow runs the
-same `npm test` on every pull request.
+same non-UI `npm test` for TokenStats-affecting pull requests and pushes, then
+separately opts into `npm run test:ui` on its dedicated macOS CI desktop.
 
 ## Develop on Windows
 

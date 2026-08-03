@@ -7,7 +7,6 @@
 
 import Foundation
 import Testing
-@testable import TokenStats
 
 struct ApiPricingCatalogTests {
     private let reviewed = ApiPricingDate(year: 2026, month: 7, day: 27)
