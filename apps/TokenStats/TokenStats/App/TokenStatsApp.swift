@@ -20,18 +20,11 @@ import AppKit
 struct TokenStatsApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
-    // `isInserted` controls membership in the menu bar, not the visibility of
-    // the window-style popover. Keep the binding immutable: a transient
-    // outside-click dismissal must never remove the app's only resident scene.
-    // UI tests use `false` here so their onboarding window remains deterministic;
-    // production uses `true` and the menu-bar item stays resident for the life
-    // of the app.
-    private var menuBarExtraInsertion: Binding<Bool> {
-        .constant(AppRuntimeMode.current.insertsMenuBarExtra)
-    }
-
     var body: some Scene {
-        MenuBarExtra(isInserted: menuBarExtraInsertion) {
+        // Use the persistent MenuBarExtra initializer. The isInserted variant
+        // is for dynamically removing a menu-bar item and must not own the
+        // lifetime of this menu-bar-only application.
+        MenuBarExtra {
             PopoverView(model: appDelegate.model,
                         odometer: appDelegate.odometer,
                         currencyModel: appDelegate.currencyModel)
@@ -190,6 +183,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // the Mac.
             showOnboarding()
         }
+    }
+
+    /// Dismissing the transient menu-bar popover must not terminate this
+    /// LSUIElement process as if its last application window had closed.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 
     /// Present (or re-present) the first-run onboarding flow. Reused for both the

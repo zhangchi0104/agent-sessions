@@ -25,7 +25,6 @@ struct AppRuntimeModeTests {
         )
 
         #expect(mode == .uiTesting)
-        #expect(!mode.insertsMenuBarExtra)
         #expect(mode.usesInertDependencies)
         #expect(mode.usesIsolatedPersistence)
     }
@@ -38,7 +37,6 @@ struct AppRuntimeModeTests {
         )
 
         #expect(mode == .unitTesting)
-        #expect(!mode.insertsMenuBarExtra)
         #expect(mode.usesInertDependencies)
         #expect(mode.usesIsolatedPersistence)
     }
@@ -51,7 +49,6 @@ struct AppRuntimeModeTests {
         )
 
         #expect(mode == .production)
-        #expect(mode.insertsMenuBarExtra)
         #expect(!mode.usesInertDependencies)
         #expect(!mode.usesIsolatedPersistence)
     }

@@ -38,10 +38,6 @@ enum AppRuntimeMode: Equatable {
         return .production
     }
 
-    var insertsMenuBarExtra: Bool {
-        self == .production
-    }
-
     var usesInertDependencies: Bool {
         self != .production
     }
