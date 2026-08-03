@@ -8,7 +8,6 @@
 
 import Foundation
 import Testing
-@testable import TokenStats
 
 struct TranscriptCheckpointInvalidationTests {
     @Test func acceptedCollectionBoundsRemainCompatibleWithTheVersionOneContract() {

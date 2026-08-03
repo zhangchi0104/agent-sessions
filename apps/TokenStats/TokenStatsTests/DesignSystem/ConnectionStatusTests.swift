@@ -10,7 +10,6 @@
 
 import Testing
 import Foundation
-@testable import TokenStats
 
 @MainActor
 struct ConnectionStatusTests {

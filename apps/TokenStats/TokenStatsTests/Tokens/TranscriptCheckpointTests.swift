@@ -9,7 +9,6 @@
 
 import Foundation
 import Testing
-@testable import TokenStats
 
 struct TranscriptCheckpointTests {
     @Test func nativeStoreUsesTheVersionedPlatformCacheAndConstructionIsLazy() throws {

@@ -7,7 +7,6 @@
 
 import Testing
 import Foundation
-@testable import TokenStats
 
 struct TokenStatsTests {
 
@@ -142,10 +141,7 @@ struct AppearanceSettingsTests {
 
     @MainActor
     private func withDefaults(_ test: (UserDefaults) -> Void) {
-        let suiteName = "TokenStatsTests.Appearance.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        test(defaults)
+        test(InMemoryUserDefaults())
     }
 
     @MainActor
@@ -305,10 +301,7 @@ struct LastKnownUsageStoreTests {
     }
 
     private func withStore(_ test: (LastKnownUsageStore) -> Void) {
-        let suiteName = "TokenStatsTests.LastKnownUsageStore.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let store = LastKnownUsageStore(defaults: defaults)
+        let store = LastKnownUsageStore(defaults: InMemoryUserDefaults())
 
         test(store)
     }

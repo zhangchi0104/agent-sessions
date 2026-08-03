@@ -86,12 +86,12 @@ final class TokenOdometerModel {
     init(reader: TranscriptTokenReader,
          roots: [TranscriptRoot],
          initialRange: TokenRange = .today,
-         changeSource: TranscriptChangeSource? = nil) {
+         changeSource: any TranscriptChangeSource) {
         self.reader = reader
         self.roots = roots
         self.selectedRange = initialRange
         self.displayedRange = initialRange
-        self.changeSource = changeSource ?? FSEventsTranscriptChangeSource(paths: roots.map(\.path))
+        self.changeSource = changeSource
     }
 
     /// Ask for a different range. The rows on screen stay — dimmed by the

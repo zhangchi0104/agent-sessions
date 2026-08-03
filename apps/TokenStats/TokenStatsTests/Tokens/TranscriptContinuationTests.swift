@@ -9,7 +9,6 @@
 
 import Foundation
 import Testing
-@testable import TokenStats
 
 struct TranscriptContinuationTests {
     @Test func anOrdinaryPartialTailCommitsOnlyAfterItsNewline() async throws {

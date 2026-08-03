@@ -6,7 +6,6 @@
 import AppKit
 import Foundation
 import Testing
-@testable import TokenStats
 
 @MainActor
 struct LocalizationSettingsTests {
@@ -300,10 +299,7 @@ struct LocalizationSettingsTests {
     }
 
     private func withDefaults(_ test: (UserDefaults) -> Void) {
-        let suiteName = "TokenStatsTests.Localization.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        test(defaults)
+        test(InMemoryUserDefaults())
     }
 }
 
@@ -388,8 +384,8 @@ struct AppRelauncherTests {
         #expect(relauncher.failure == .newInstanceLaunchFailed)
     }
 
-    @Test func uiTestingRelauncherFailsClosedAndKeepsTheCurrentInstanceRunning() {
-        let relauncher = AppRelauncher.disabledForUITesting()
+    @Test func testingRelauncherFailsClosedAndKeepsTheCurrentInstanceRunning() {
+        let relauncher = AppRelauncher.disabledForTesting()
 
         relauncher.relaunch()
 

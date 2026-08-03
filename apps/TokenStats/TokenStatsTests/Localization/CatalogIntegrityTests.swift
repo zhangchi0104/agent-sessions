@@ -11,7 +11,6 @@
 import Foundation
 import Testing
 
-@testable import TokenStats
 struct CatalogIntegrityTests {
     private static let requiredLanguages = AppLanguage.allCases.compactMap { language in
         language == .system ? nil : language.rawValue

@@ -55,11 +55,11 @@ final class AppRelauncher {
         )
     }
 
-    /// UI tests may navigate into Settings, but must never escape their inert
+    /// Tests may navigate into Settings, but must never escape their inert
     /// dependency graph by launching a replacement process without the
     /// `--ui-testing` argument. Failing through the normal completion path also
     /// lets UI tests exercise the localized restart error without opening an app.
-    static func disabledForUITesting() -> AppRelauncher {
+    static func disabledForTesting() -> AppRelauncher {
         AppRelauncher(
             applicationURL: { Bundle.main.bundleURL },
             launchNewInstance: { _, _, completion in completion(false) },

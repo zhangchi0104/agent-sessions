@@ -11,7 +11,6 @@
 
 import Foundation
 import Testing
-@testable import TokenStats
 
 @MainActor
 struct ModelAttributionTests {
@@ -108,7 +107,8 @@ struct ModelAttributionTests {
         let odometer = TokenOdometerModel(
             reader: TranscriptTokenReader(),
             roots: [TranscriptRoot(id: .claudeCode, label: "Claude Code", path: claude.path),
-                    TranscriptRoot(id: .codex, label: "Codex", path: codex.path)]
+                    TranscriptRoot(id: .codex, label: "Codex", path: codex.path)],
+            changeSource: EmittingTicks()
         )
         let task = Task { await odometer.observeWhileVisible() }
         defer { task.cancel() }
@@ -204,7 +204,8 @@ struct ModelAttributionTests {
         let odometer = TokenOdometerModel(
             reader: TranscriptTokenReader(),
             roots: [TranscriptRoot(id: .claudeCode, label: "Claude Code", path: claude.path),
-                    TranscriptRoot(id: .codex, label: "Codex", path: codex.path)]
+                    TranscriptRoot(id: .codex, label: "Codex", path: codex.path)],
+            changeSource: EmittingTicks()
         )
         // Registry order is Claude Code first; this user put Codex there.
         odometer.displayOrder = [.codex, .claudeCode]

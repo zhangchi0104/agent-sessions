@@ -9,7 +9,6 @@
 import Darwin
 import Foundation
 import Testing
-@testable import TokenStats
 
 @MainActor
 struct TranscriptCheckpointStoreTests {

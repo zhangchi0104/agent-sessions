@@ -73,7 +73,7 @@ Localize controls, explanations, accessibility sentences, and the outer summary 
 2. Translate every catalog entry directly in the String Catalog or review its JSON diff in the pull request, including every required plural branch. Preserve placeholder positions and types. Do not use an XLIFF round trip for this project.
 3. Keep draft String Units out of the `translated` state. Have a product-language reviewer check terminology and a native-language reviewer check fluency, truncation, placeholder order, and accessibility sentences before marking the complete language reviewed.
 4. Run `npm run test:localization` and the catalog completeness tests. All six values, required plural categories, `translated` states, placeholder schemas, and translator comments are release requirements.
-5. Launch unit/UI coverage with fixed language and region combinations: `en-US`/`en-DE`, `zh-Hans-US`/`zh-Hans-CN`, `de-US`/`de-DE`, `fr-US`/`fr-FR`, `ja-US`/`ja-JP`, and `ru-US`/`ru-RU`.
+5. Launch unit/UI coverage with fixed language and region combinations: `en-US`/`en-DE`, `zh-Hans-US`/`zh-Hans-CN`, `de-US`/`de-DE`, `fr-US`/`fr-FR`, `ja-US`/`ja-JP`, and `ru-US`/`ru-RU`. Run the opt-in `npm run test:ui` only in an isolated macOS session because it controls the foreground desktop.
 6. Inspect fixed-width popovers, tables, settings, onboarding, and accessibility under Xcode's Double-Length, Tall, Accented, and RTL pseudolanguages. A pseudolanguage is test data, not a shipped language.
 7. Run the full `npm test`, a Release build, and verify the built app contains `en.lproj`, `zh-Hans.lproj`, `de.lproj`, `fr.lproj`, `ja.lproj`, and `ru.lproj` resources.
 

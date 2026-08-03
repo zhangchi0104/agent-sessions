@@ -10,7 +10,6 @@
 import CryptoKit
 import Darwin
 import Foundation
-@testable import TokenStats
 
 struct TempCheckpointDirectory {
     let url: URL

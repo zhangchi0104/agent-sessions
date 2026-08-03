@@ -6,7 +6,6 @@
 import AppKit
 import Foundation
 import Testing
-@testable import TokenStats
 
 // These lifecycle tests intentionally post process-wide AppKit notifications.
 // Serialize the suite so one model cannot refresh in response to another
@@ -748,10 +747,7 @@ struct CurrencyModelTests {
     }
 
     private func makeDefaults() throws -> UserDefaults {
-        let suite = "CurrencyModelTests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
-        return defaults
+        InMemoryUserDefaults()
     }
 }
 
