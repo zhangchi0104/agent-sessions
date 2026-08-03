@@ -12,6 +12,10 @@ import SwiftUI
 @MainActor
 struct TokenSummaryPresentation: Equatable {
     let value: String
+    /// A width-efficient restatement for the secondary label row. The hero
+    /// keeps the exact Billing-token count; this preserves the quick compact
+    /// reading without making it the primary value.
+    let compactValue: String?
     let label: String
     let help: String
     let accessibilityLabel: String
@@ -38,6 +42,7 @@ struct TokenSummaryPresentation: Equatable {
         guard hasLoaded else {
             return TokenSummaryPresentation(
                 value: "—",
+                compactValue: nil,
                 label: localizer.localized(
                     LocalizedStringResource.tokensSummaryReadingLabel(rangeSentenceForm)
                 ),
@@ -93,6 +98,7 @@ struct TokenSummaryPresentation: Equatable {
         guard let usage else {
             return TokenSummaryPresentation(
                 value: "—",
+                compactValue: nil,
                 label: label,
                 help: localizer.localized(
                     LocalizedStringResource.tokensSummaryBillingEmptyHelp(rangeSentenceForm)
@@ -106,16 +112,32 @@ struct TokenSummaryPresentation: Equatable {
         }
 
         let count = usage.billingTokens
-        // The visible summary shares the same locale-aware compact notation as
-        // every Token table value. Foundation keeps values below the locale's
-        // compact threshold exact; help and accessibility retain the full count.
-        let displayedCount = TokenUsage.compact(count, locale: localizer.locale)
+        let displayedCount = count.formatted(.number.locale(localizer.locale))
+        let compactCandidate = TokenUsage.compact(count, locale: localizer.locale)
+        // Use the default compact result only to detect whether this locale has
+        // crossed a real unit threshold. Forcing fraction digits before this
+        // check can turn an exact value into redundant secondary text.
+        let ungroupedCount = count.formatted(
+            .number
+                .grouping(.never)
+                .locale(localizer.locale)
+        )
+        let shouldShowCompact = compactCandidate != displayedCount && compactCandidate != ungroupedCount
+        let compactCount = shouldShowCompact
+            ? count.formatted(
+                .number
+                    .precision(.fractionLength(2))
+                    .notation(.compactName)
+                    .locale(localizer.locale)
+            )
+            : nil
         let directInput = usage.inputTokens.formatted(.number.locale(localizer.locale))
         let cacheWrite = usage.cacheCreationTokens.formatted(.number.locale(localizer.locale))
         let output = usage.outputTokens.formatted(.number.locale(localizer.locale))
         let cacheRead = usage.cacheReadTokens.formatted(.number.locale(localizer.locale))
         return TokenSummaryPresentation(
             value: displayedCount,
+            compactValue: compactCount,
             label: label,
             help: localizer.localized(
                 LocalizedStringResource.tokensSummaryBillingHelp(
@@ -157,6 +179,7 @@ struct TokenSummaryPresentation: Equatable {
         guard usage != nil else {
             return TokenSummaryPresentation(
                 value: "—",
+                compactValue: nil,
                 label: label,
                 help: localizer.localized(
                     LocalizedStringResource.tokensSummaryApiEquivalentEmptyHelp(rangeSentenceForm)
@@ -205,6 +228,7 @@ struct TokenSummaryPresentation: Equatable {
             }
             return TokenSummaryPresentation(
                 value: "—",
+                compactValue: nil,
                 label: label,
                 help: methodology + " " + disclosure,
                 accessibilityLabel: accessibilityParts.joined(separator: " "),
@@ -250,6 +274,7 @@ struct TokenSummaryPresentation: Equatable {
         }
         return TokenSummaryPresentation(
             value: displayedCost,
+            compactValue: nil,
             label: label,
             help: exactHelp + " " + disclosure,
             accessibilityLabel: accessibilityParts.joined(separator: " "),
@@ -570,11 +595,21 @@ struct TokenSummaryHero: View {
                 maxHeight: Self.valueSlotHeight,
                 alignment: .bottomLeading
             )
-            Text(presentation.label)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(presentation.label)
+                    .font(.callout)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 8)
+                if let compactValue = presentation.compactValue {
+                    Text(compactValue)
+                        .font(.caption.weight(.semibold))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+            }
+            .foregroundStyle(.secondary)
         }
         .frame(
             maxWidth: .infinity,
