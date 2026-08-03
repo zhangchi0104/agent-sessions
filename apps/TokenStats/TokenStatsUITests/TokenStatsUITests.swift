@@ -118,22 +118,22 @@ final class TokenStatsUITests: XCTestCase {
         height: CGFloat,
         identifier: String
     ) -> CGRect {
-        let predicate = NSPredicate { object, _ in
-            guard let element = object as? XCUIElement else { return false }
-            let frame = element.frame
-            return !frame.isEmpty
+        let deadline = Date().addingTimeInterval(5)
+        var frame = element.frame
+        while Date() < deadline {
+            frame = element.frame
+            if !frame.isEmpty
                 && abs(frame.width - width) <= 1
-                && abs(frame.height - height) <= 1
+                && abs(frame.height - height) <= 1 {
+                return frame
+            }
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
         }
-        let expectation = XCTNSPredicateExpectation(
-            predicate: predicate,
-            object: element
+
+        XCTFail(
+            "TokenSummaryHero frame did not settle: \(identifier); "
+                + "observed \(frame), expected \(width)x\(height)"
         )
-        XCTAssertEqual(
-            XCTWaiter.wait(for: [expectation], timeout: 5),
-            .completed,
-            "TokenSummaryHero frame did not settle: \(identifier)"
-        )
-        return element.frame
+        return frame
     }
 }
