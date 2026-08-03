@@ -19,10 +19,19 @@ import AppKit
 @main
 struct TokenStatsApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var isMenuBarExtraInserted = AppRuntimeMode.current.insertsMenuBarExtra
+
+    // `isInserted` controls membership in the menu bar, not the visibility of
+    // the window-style popover. Keep the binding immutable: a transient
+    // outside-click dismissal must never remove the app's only resident scene.
+    // UI tests use `false` here so their onboarding window remains deterministic;
+    // production uses `true` and the menu-bar item stays resident for the life
+    // of the app.
+    private var menuBarExtraInsertion: Binding<Bool> {
+        .constant(AppRuntimeMode.current.insertsMenuBarExtra)
+    }
 
     var body: some Scene {
-        MenuBarExtra(isInserted: $isMenuBarExtraInserted) {
+        MenuBarExtra(isInserted: menuBarExtraInsertion) {
             PopoverView(model: appDelegate.model,
                         odometer: appDelegate.odometer,
                         currencyModel: appDelegate.currencyModel)
