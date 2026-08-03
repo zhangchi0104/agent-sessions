@@ -2605,6 +2605,132 @@
         }
       }
     },
+    "settings.accounts.add.button": {
+      "comment": "Accessibility label and help text for the add-account menu in Settings.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add account"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加账户"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konto hinzufügen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter un compte"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウントを追加"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавить учётную запись"
+          }
+        }
+      }
+    },
+    "settings.accounts.empty.description": {
+      "comment": "Empty-state guidance in Accounts Settings. Claude Code and Codex are product names.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Claude Code or Codex to start tracking its usage."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加 Claude Code 或 Codex，开始跟踪其用量。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fügen Sie Claude Code oder Codex hinzu, um die Nutzung zu erfassen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajoutez Claude Code ou Codex pour commencer à suivre son utilisation."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code または Codex を追加して、使用状況の追跡を開始します。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавьте Claude Code или Codex, чтобы начать отслеживать использование."
+          }
+        }
+      }
+    },
+    "settings.accounts.empty.title": {
+      "comment": "Empty-state heading shown when TokenStats has no connected Coding Agent accounts.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No accounts added"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未添加账户"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Konten hinzugefügt"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun compte ajouté"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウントが追加されていません"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет добавленных учётных записей"
+          }
+        }
+      }
+    },
     "settings.accounts.keychain_privacy.footer": {
       "comment": "Privacy note below the account controls. TokenStats is the app name and Keychain is Apple's credential store.",
       "extractionState": "manual",
