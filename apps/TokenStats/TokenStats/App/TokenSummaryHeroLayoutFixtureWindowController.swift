@@ -95,13 +95,13 @@ private struct TokenSummaryHeroLayoutFixtureView: View {
                         hasLoaded: true,
                         accessibilityIdentifier: "\(fixture.id).content"
                     )
-                    // A button supplies a stable accessibility control frame;
-                    // SwiftUI otherwise reports the hero's content bounds.
-                    Button(action: {}) {
-                        Text(fixture.id).opacity(0)
-                    }
-                    .buttonStyle(.plain)
+                    // An explicit accessibility element keeps the regression
+                    // target tied to the fixture's layout frame. A Button's
+                    // accessibility frame follows its label's content bounds
+                    // on macOS, even when its layout frame is fixed.
+                    Color.clear
                     .frame(width: Self.heroWidth, height: TokenSummaryHero.fixedHeight)
+                    .accessibilityElement(children: .ignore)
                     .accessibilityLabel(fixture.id)
                     .accessibilityIdentifier(fixture.id)
                 }
