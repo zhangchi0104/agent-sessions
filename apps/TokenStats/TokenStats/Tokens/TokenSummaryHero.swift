@@ -113,22 +113,31 @@ struct TokenSummaryPresentation: Equatable {
 
         let count = usage.billingTokens
         let displayedCount = count.formatted(.number.locale(localizer.locale))
-        let compactCount = TokenUsage.compact(count, locale: localizer.locale)
-        // Before their first compact unit, some locales only remove grouping
-        // separators. That is still the exact number, not useful shorthand.
+        let compactCandidate = TokenUsage.compact(count, locale: localizer.locale)
+        // Use the default compact result only to detect whether this locale has
+        // crossed a real unit threshold. Forcing fraction digits before this
+        // check can turn an exact value into redundant secondary text.
         let ungroupedCount = count.formatted(
             .number
                 .grouping(.never)
                 .locale(localizer.locale)
         )
-        let shouldShowCompact = compactCount != displayedCount && compactCount != ungroupedCount
+        let shouldShowCompact = compactCandidate != displayedCount && compactCandidate != ungroupedCount
+        let compactCount = shouldShowCompact
+            ? count.formatted(
+                .number
+                    .precision(.fractionLength(2))
+                    .notation(.compactName)
+                    .locale(localizer.locale)
+            )
+            : nil
         let directInput = usage.inputTokens.formatted(.number.locale(localizer.locale))
         let cacheWrite = usage.cacheCreationTokens.formatted(.number.locale(localizer.locale))
         let output = usage.outputTokens.formatted(.number.locale(localizer.locale))
         let cacheRead = usage.cacheReadTokens.formatted(.number.locale(localizer.locale))
         return TokenSummaryPresentation(
             value: displayedCount,
-            compactValue: shouldShowCompact ? compactCount : nil,
+            compactValue: compactCount,
             label: label,
             help: localizer.localized(
                 LocalizedStringResource.tokensSummaryBillingHelp(
