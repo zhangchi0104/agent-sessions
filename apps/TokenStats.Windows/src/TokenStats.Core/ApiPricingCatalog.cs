@@ -24,10 +24,10 @@ public sealed record ApiCostEstimate(
 
 public static class ApiPricingCatalog
 {
-    public static DateOnly LastReviewed { get; } = new(2026, 7, 27);
+    public static DateOnly LastReviewed { get; } = new(2026, 8, 4);
 
     public const string OpenAiPricingSource =
-        "https://developers.openai.com/api/docs/models";
+        "https://developers.openai.com/api/docs/pricing";
 
     public const string AnthropicPricingSource =
         "https://platform.claude.com/docs/en/about-claude/pricing";
@@ -36,11 +36,11 @@ public static class ApiPricingCatalog
     [
         // OpenAI GPT-5.6 cache writes are billed at 1.25x raw input.
         OpenAi("gpt-5.6-sol", 5m, 6.25m, 0.50m, 30m),
-        OpenAi("gpt-5.6-terra", 2.50m, 3.125m, 0.25m, 15m),
-        OpenAi("gpt-5.6-luna", 1m, 1.25m, 0.10m, 6m),
+        OpenAi("gpt-5.6-terra", 2m, 2.50m, 0.20m, 12m),
+        OpenAi("gpt-5.6-luna", 0.20m, 0.25m, 0.02m, 1.20m),
         OpenAi("gpt-5.6", 5m, 6.25m, 0.50m, 30m),
-        OpenAi("gpt-5.5", 5m, 5m, 0.50m, 30m),
-        OpenAi("gpt-5.4", 2.50m, 2.50m, 0.25m, 15m),
+        OpenAi("gpt-5.5", 5m, 0m, 0.50m, 30m),
+        OpenAi("gpt-5.4", 2.50m, 0m, 0.25m, 15m),
         OpenAi("gpt-5.3-codex", 1.75m, 1.75m, 0.175m, 14m),
         OpenAi("gpt-5.2-codex", 1.75m, 1.75m, 0.175m, 14m),
         OpenAi("gpt-5.2", 1.75m, 1.75m, 0.175m, 14m),

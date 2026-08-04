@@ -183,10 +183,10 @@ nonisolated struct ApiCostEstimate: Equatable, Sendable {
 /// Standard list-price catalog kept in lockstep with Windows
 /// `TokenStats.Core.ApiPricingCatalog`.
 nonisolated enum ApiPricingCatalog {
-    static let lastReviewed = ApiPricingDate(year: 2026, month: 7, day: 27)
+    static let lastReviewed = ApiPricingDate(year: 2026, month: 8, day: 4)
 
     static let openAIPricingSource =
-        "https://developers.openai.com/api/docs/models"
+        "https://developers.openai.com/api/docs/pricing"
 
     static let anthropicPricingSource =
         "https://platform.claude.com/docs/en/about-claude/pricing"
@@ -194,11 +194,11 @@ nonisolated enum ApiPricingCatalog {
     private static let rules: [PricingRule] = [
         // OpenAI GPT-5.6 cache writes are billed at 1.25x raw input.
         openAI("gpt-5.6-sol", "5", "6.25", "0.50", "30"),
-        openAI("gpt-5.6-terra", "2.50", "3.125", "0.25", "15"),
-        openAI("gpt-5.6-luna", "1", "1.25", "0.10", "6"),
+        openAI("gpt-5.6-terra", "2", "2.50", "0.20", "12"),
+        openAI("gpt-5.6-luna", "0.20", "0.25", "0.02", "1.20"),
         openAI("gpt-5.6", "5", "6.25", "0.50", "30"),
-        openAI("gpt-5.5", "5", "5", "0.50", "30"),
-        openAI("gpt-5.4", "2.50", "2.50", "0.25", "15"),
+        openAI("gpt-5.5", "5", "0", "0.50", "30"),
+        openAI("gpt-5.4", "2.50", "0", "0.25", "15"),
         openAI("gpt-5.3-codex", "1.75", "1.75", "0.175", "14"),
         openAI("gpt-5.2-codex", "1.75", "1.75", "0.175", "14"),
         openAI("gpt-5.2", "1.75", "1.75", "0.175", "14"),
