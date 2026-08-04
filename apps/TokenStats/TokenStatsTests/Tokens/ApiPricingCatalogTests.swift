@@ -9,13 +9,13 @@ import Foundation
 import Testing
 
 struct ApiPricingCatalogTests {
-    private let reviewed = ApiPricingDate(year: 2026, month: 7, day: 27)
+    private let reviewed = ApiPricingDate(year: 2026, month: 8, day: 4)
 
     @Test func metadataMatchesTheWindowsCatalog() {
         #expect(ApiPricingCatalog.lastReviewed == reviewed)
         #expect(
             ApiPricingCatalog.openAIPricingSource ==
-                "https://developers.openai.com/api/docs/models"
+                "https://developers.openai.com/api/docs/pricing"
         )
         #expect(
             ApiPricingCatalog.anthropicPricingSource ==
@@ -26,11 +26,11 @@ struct ApiPricingCatalogTests {
     @Test func everyWindowsPriceRuleResolvesToTheSameRates() throws {
         let cases: [(ApiPricingAgent, String, ApiTokenRates)] = [
             (.codex, "gpt-5.6-sol", openAI("5", "6.25", "0.50", "30")),
-            (.codex, "gpt-5.6-terra", openAI("2.50", "3.125", "0.25", "15")),
-            (.codex, "gpt-5.6-luna", openAI("1", "1.25", "0.10", "6")),
+            (.codex, "gpt-5.6-terra", openAI("2", "2.50", "0.20", "12")),
+            (.codex, "gpt-5.6-luna", openAI("0.20", "0.25", "0.02", "1.20")),
             (.codex, "gpt-5.6", openAI("5", "6.25", "0.50", "30")),
-            (.codex, "gpt-5.5", openAI("5", "5", "0.50", "30")),
-            (.codex, "gpt-5.4", openAI("2.50", "2.50", "0.25", "15")),
+            (.codex, "gpt-5.5", openAI("5", "0", "0.50", "30")),
+            (.codex, "gpt-5.4", openAI("2.50", "0", "0.25", "15")),
             (.codex, "gpt-5.3-codex", openAI("1.75", "1.75", "0.175", "14")),
             (.codex, "gpt-5.2-codex", openAI("1.75", "1.75", "0.175", "14")),
             (.codex, "gpt-5.2", openAI("1.75", "1.75", "0.175", "14")),
