@@ -9,13 +9,13 @@ import Foundation
 import Testing
 
 struct ApiPricingCatalogTests {
-    private let reviewed = ApiPricingDate(year: 2026, month: 7, day: 27)
+    private let reviewed = ApiPricingDate(year: 2026, month: 8, day: 4)
 
     @Test func metadataMatchesTheWindowsCatalog() {
         #expect(ApiPricingCatalog.lastReviewed == reviewed)
         #expect(
             ApiPricingCatalog.openAIPricingSource ==
-                "https://developers.openai.com/api/docs/models"
+                "https://developers.openai.com/api/docs/pricing"
         )
         #expect(
             ApiPricingCatalog.anthropicPricingSource ==
@@ -26,21 +26,25 @@ struct ApiPricingCatalogTests {
     @Test func everyWindowsPriceRuleResolvesToTheSameRates() throws {
         let cases: [(ApiPricingAgent, String, ApiTokenRates)] = [
             (.codex, "gpt-5.6-sol", openAI("5", "6.25", "0.50", "30")),
-            (.codex, "gpt-5.6-terra", openAI("2.50", "3.125", "0.25", "15")),
-            (.codex, "gpt-5.6-luna", openAI("1", "1.25", "0.10", "6")),
+            (.codex, "gpt-5.6-terra", openAI("2", "2.50", "0.20", "12")),
+            (.codex, "gpt-5.6-luna", openAI("0.20", "0.25", "0.02", "1.20")),
             (.codex, "gpt-5.6", openAI("5", "6.25", "0.50", "30")),
-            (.codex, "gpt-5.5", openAI("5", "5", "0.50", "30")),
-            (.codex, "gpt-5.4", openAI("2.50", "2.50", "0.25", "15")),
-            (.codex, "gpt-5.3-codex", openAI("1.75", "1.75", "0.175", "14")),
-            (.codex, "gpt-5.2-codex", openAI("1.75", "1.75", "0.175", "14")),
-            (.codex, "gpt-5.2", openAI("1.75", "1.75", "0.175", "14")),
-            (.codex, "gpt-5.1-codex-mini", openAI("0.25", "0.25", "0.025", "2")),
-            (.codex, "gpt-5.1-codex-max", openAI("1.25", "1.25", "0.125", "10")),
-            (.codex, "gpt-5.1-codex", openAI("1.25", "1.25", "0.125", "10")),
-            (.codex, "gpt-5.1", openAI("1.25", "1.25", "0.125", "10")),
-            (.codex, "gpt-5-codex", openAI("1.25", "1.25", "0.125", "10")),
-            (.codex, "gpt-5", openAI("1.25", "1.25", "0.125", "10")),
-            (.codex, "codex-mini-latest", openAI("1.50", "1.50", "0.375", "6")),
+            (.codex, "gpt-5.5", openAI("5", "0", "0.50", "30")),
+            (.codex, "gpt-5.5-pro", openAI("30", "0", "0", "180")),
+            (.codex, "gpt-5.4", openAI("2.50", "0", "0.25", "15")),
+            (.codex, "gpt-5.4-mini", openAI("0.75", "0", "0.075", "4.50")),
+            (.codex, "gpt-5.4-nano", openAI("0.20", "0", "0.02", "1.25")),
+            (.codex, "gpt-5.4-pro", openAI("30", "0", "0", "180")),
+            (.codex, "gpt-5.3-codex", openAI("1.75", "0", "0.175", "14")),
+            (.codex, "gpt-5.2-codex", openAI("1.75", "0", "0.175", "14")),
+            (.codex, "gpt-5.2", openAI("1.75", "0", "0.175", "14")),
+            (.codex, "gpt-5.1-codex-mini", openAI("0.25", "0", "0.025", "2")),
+            (.codex, "gpt-5.1-codex-max", openAI("1.25", "0", "0.125", "10")),
+            (.codex, "gpt-5.1-codex", openAI("1.25", "0", "0.125", "10")),
+            (.codex, "gpt-5.1", openAI("1.25", "0", "0.125", "10")),
+            (.codex, "gpt-5-codex", openAI("1.25", "0", "0.125", "10")),
+            (.codex, "gpt-5", openAI("1.25", "0", "0.125", "10")),
+            (.codex, "codex-mini-latest", openAI("1.50", "0", "0.375", "6")),
 
             (.claudeCode, "claude-fable-5", anthropic("10", "12.50", "20", "1", "50")),
             (.claudeCode, "claude-mythos-5", anthropic("10", "12.50", "20", "1", "50")),
@@ -92,6 +96,58 @@ struct ApiPricingCatalogTests {
 
         #expect(introductory == anthropic("2", "2.50", "4", "0.20", "10"))
         #expect(standard == anthropic("3", "3.75", "6", "0.30", "15"))
+    }
+
+    @Test func latestOpenAIPricesResolveByModeAndContext() throws {
+        let standardLong = try #require(
+            ApiPricingCatalog.rates(
+                for: .codex,
+                model: "gpt-5.6-sol",
+                pricingDate: reviewed,
+                pricingMode: .standard,
+                pricingContext: .long
+            )
+        )
+        let fastShort = try #require(
+            ApiPricingCatalog.rates(
+                for: .codex,
+                model: "gpt-5.6-sol",
+                pricingDate: reviewed,
+                pricingMode: .fast,
+                pricingContext: .short
+            )
+        )
+        let batchShort = try #require(
+            ApiPricingCatalog.rates(
+                for: .codex,
+                model: "gpt-5.5-pro",
+                pricingDate: reviewed,
+                pricingMode: .batch,
+                pricingContext: .short
+            )
+        )
+
+        #expect(standardLong == openAI("10", "12.50", "1", "45"))
+        #expect(fastShort == openAI("10", "12.50", "1", "60"))
+        #expect(batchShort == openAI("15", "0", "0", "90"))
+        #expect(
+            ApiPricingCatalog.rates(
+                for: .codex,
+                model: "gpt-5.4-mini",
+                pricingDate: reviewed,
+                pricingMode: .standard,
+                pricingContext: .long
+            ) == nil
+        )
+        #expect(
+            ApiPricingCatalog.rates(
+                for: .codex,
+                model: "gpt-5.5-pro",
+                pricingDate: reviewed,
+                pricingMode: .batch,
+                pricingContext: .long
+            ) == nil
+        )
     }
 
     @Test func onlyDatedSnapshotsExtendAKnownModelPrefix() {

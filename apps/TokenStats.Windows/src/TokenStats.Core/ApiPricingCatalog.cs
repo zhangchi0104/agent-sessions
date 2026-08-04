@@ -12,6 +12,26 @@ public sealed record ApiTokenRates(
     decimal CacheRead,
     decimal Output);
 
+/// <summary>
+/// The processing tier whose list price applies to a request. Transcript
+/// readers currently do not persist the API response's service_tier, so the
+/// estimator defaults to Standard until a verified tier is supplied.
+/// </summary>
+public enum ApiPricingMode
+{
+    Standard,
+    Batch,
+    Flex,
+    Fast,
+}
+
+/// <summary>The short/long context pricing column selected for a request.</summary>
+public enum ApiPricingContext
+{
+    Short,
+    Long,
+}
+
 public sealed record ApiCostEstimate(
     decimal CostUsd,
     long PricedTokens,
@@ -24,33 +44,112 @@ public sealed record ApiCostEstimate(
 
 public static class ApiPricingCatalog
 {
-    public static DateOnly LastReviewed { get; } = new(2026, 7, 27);
+    public static DateOnly LastReviewed { get; } = new(2026, 8, 4);
 
     public const string OpenAiPricingSource =
-        "https://developers.openai.com/api/docs/models";
+        "https://developers.openai.com/api/docs/pricing";
 
     public const string AnthropicPricingSource =
         "https://platform.claude.com/docs/en/about-claude/pricing";
 
     private static readonly PricingRule[] Rules =
     [
-        // OpenAI GPT-5.6 cache writes are billed at 1.25x raw input.
-        OpenAi("gpt-5.6-sol", 5m, 6.25m, 0.50m, 30m),
-        OpenAi("gpt-5.6-terra", 2.50m, 3.125m, 0.25m, 15m),
-        OpenAi("gpt-5.6-luna", 1m, 1.25m, 0.10m, 6m),
-        OpenAi("gpt-5.6", 5m, 6.25m, 0.50m, 30m),
-        OpenAi("gpt-5.5", 5m, 5m, 0.50m, 30m),
-        OpenAi("gpt-5.4", 2.50m, 2.50m, 0.25m, 15m),
-        OpenAi("gpt-5.3-codex", 1.75m, 1.75m, 0.175m, 14m),
-        OpenAi("gpt-5.2-codex", 1.75m, 1.75m, 0.175m, 14m),
-        OpenAi("gpt-5.2", 1.75m, 1.75m, 0.175m, 14m),
-        OpenAi("gpt-5.1-codex-mini", 0.25m, 0.25m, 0.025m, 2m),
-        OpenAi("gpt-5.1-codex-max", 1.25m, 1.25m, 0.125m, 10m),
-        OpenAi("gpt-5.1-codex", 1.25m, 1.25m, 0.125m, 10m),
-        OpenAi("gpt-5.1", 1.25m, 1.25m, 0.125m, 10m),
-        OpenAi("gpt-5-codex", 1.25m, 1.25m, 0.125m, 10m),
-        OpenAi("gpt-5", 1.25m, 1.25m, 0.125m, 10m),
-        OpenAi("codex-mini-latest", 1.50m, 1.50m, 0.375m, 6m),
+        // GPT-5.6 flagship prices are split by processing mode and context
+        // length. Fast mode has no long-context price because OpenAI does not
+        // support Fast mode for long-context requests.
+        OpenAi(
+            "gpt-5.6-sol",
+            standardShort: OpenAiRates(5m, 6.25m, 0.50m, 30m),
+            standardLong: OpenAiRates(10m, 12.50m, 1m, 45m),
+            batchShort: OpenAiRates(2.50m, 3.125m, 0.25m, 15m),
+            batchLong: OpenAiRates(5m, 6.25m, 0.50m, 22.50m),
+            flexShort: OpenAiRates(2.50m, 3.125m, 0.25m, 15m),
+            flexLong: OpenAiRates(5m, 6.25m, 0.50m, 22.50m),
+            fastShort: OpenAiRates(10m, 12.50m, 1m, 60m)),
+        OpenAi(
+            "gpt-5.6-terra",
+            standardShort: OpenAiRates(2m, 2.50m, 0.20m, 12m),
+            standardLong: OpenAiRates(4m, 5m, 0.40m, 18m),
+            batchShort: OpenAiRates(1m, 1.25m, 0.10m, 6m),
+            batchLong: OpenAiRates(2m, 2.50m, 0.20m, 9m),
+            flexShort: OpenAiRates(1m, 1.25m, 0.10m, 6m),
+            flexLong: OpenAiRates(2m, 2.50m, 0.20m, 9m),
+            fastShort: OpenAiRates(4m, 5m, 0.40m, 24m)),
+        OpenAi(
+            "gpt-5.6-luna",
+            standardShort: OpenAiRates(0.20m, 0.25m, 0.02m, 1.20m),
+            standardLong: OpenAiRates(0.40m, 0.50m, 0.04m, 1.80m),
+            batchShort: OpenAiRates(0.10m, 0.125m, 0.01m, 0.60m),
+            batchLong: OpenAiRates(0.20m, 0.25m, 0.02m, 0.90m),
+            flexShort: OpenAiRates(0.10m, 0.125m, 0.01m, 0.60m),
+            flexLong: OpenAiRates(0.20m, 0.25m, 0.02m, 0.90m),
+            fastShort: OpenAiRates(0.40m, 0.50m, 0.04m, 2.40m)),
+        OpenAi(
+            "gpt-5.6",
+            standardShort: OpenAiRates(5m, 6.25m, 0.50m, 30m),
+            standardLong: OpenAiRates(10m, 12.50m, 1m, 45m),
+            batchShort: OpenAiRates(2.50m, 3.125m, 0.25m, 15m),
+            batchLong: OpenAiRates(5m, 6.25m, 0.50m, 22.50m),
+            flexShort: OpenAiRates(2.50m, 3.125m, 0.25m, 15m),
+            flexLong: OpenAiRates(5m, 6.25m, 0.50m, 22.50m),
+            fastShort: OpenAiRates(10m, 12.50m, 1m, 60m)),
+        OpenAi(
+            "gpt-5.5",
+            standardShort: OpenAiRates(5m, 0m, 0.50m, 30m),
+            standardLong: OpenAiRates(10m, 0m, 1m, 45m),
+            batchShort: OpenAiRates(2.50m, 0m, 0.25m, 15m),
+            batchLong: OpenAiRates(5m, 0m, 0.50m, 22.50m),
+            flexShort: OpenAiRates(2.50m, 0m, 0.25m, 15m),
+            flexLong: OpenAiRates(5m, 0m, 0.50m, 22.50m),
+            fastShort: OpenAiRates(12.50m, 0m, 1.25m, 75m)),
+        OpenAi(
+            "gpt-5.5-pro",
+            standardShort: OpenAiRates(30m, 0m, 0m, 180m),
+            standardLong: OpenAiRates(60m, 0m, 0m, 270m),
+            batchShort: OpenAiRates(15m, 0m, 0m, 90m),
+            flexShort: OpenAiRates(15m, 0m, 0m, 90m)),
+        OpenAi(
+            "gpt-5.4",
+            standardShort: OpenAiRates(2.50m, 0m, 0.25m, 15m),
+            standardLong: OpenAiRates(5m, 0m, 0.50m, 22.50m),
+            batchShort: OpenAiRates(1.25m, 0m, 0.13m, 7.50m),
+            batchLong: OpenAiRates(2.50m, 0m, 0.25m, 11.25m),
+            flexShort: OpenAiRates(1.25m, 0m, 0.13m, 7.50m),
+            flexLong: OpenAiRates(2.50m, 0m, 0.25m, 11.25m),
+            fastShort: OpenAiRates(5m, 0m, 0.50m, 30m)),
+        OpenAi(
+            "gpt-5.4-mini",
+            standardShort: OpenAiRates(0.75m, 0m, 0.075m, 4.50m),
+            batchShort: OpenAiRates(0.375m, 0m, 0.0375m, 2.25m),
+            flexShort: OpenAiRates(0.375m, 0m, 0.0375m, 2.25m),
+            fastShort: OpenAiRates(1.50m, 0m, 0.15m, 9m)),
+        OpenAi(
+            "gpt-5.4-nano",
+            standardShort: OpenAiRates(0.20m, 0m, 0.02m, 1.25m),
+            batchShort: OpenAiRates(0.10m, 0m, 0.01m, 0.625m),
+            flexShort: OpenAiRates(0.10m, 0m, 0.01m, 0.625m)),
+        OpenAi(
+            "gpt-5.4-pro",
+            standardShort: OpenAiRates(30m, 0m, 0m, 180m),
+            standardLong: OpenAiRates(60m, 0m, 0m, 270m),
+            batchShort: OpenAiRates(15m, 0m, 0m, 90m),
+            batchLong: OpenAiRates(30m, 0m, 0m, 135m),
+            flexShort: OpenAiRates(15m, 0m, 0m, 90m),
+            flexLong: OpenAiRates(30m, 0m, 0m, 135m)),
+
+        // Legacy OpenAI models retain Standard/short coverage. Their current
+        // pricing table does not list cache-write charges, so those rates are
+        // explicitly zero rather than inheriting the GPT-5.6 multiplier.
+        OpenAi("gpt-5.3-codex", 1.75m, 0m, 0.175m, 14m),
+        OpenAi("gpt-5.2-codex", 1.75m, 0m, 0.175m, 14m),
+        OpenAi("gpt-5.2", 1.75m, 0m, 0.175m, 14m),
+        OpenAi("gpt-5.1-codex-mini", 0.25m, 0m, 0.025m, 2m),
+        OpenAi("gpt-5.1-codex-max", 1.25m, 0m, 0.125m, 10m),
+        OpenAi("gpt-5.1-codex", 1.25m, 0m, 0.125m, 10m),
+        OpenAi("gpt-5.1", 1.25m, 0m, 0.125m, 10m),
+        OpenAi("gpt-5-codex", 1.25m, 0m, 0.125m, 10m),
+        OpenAi("gpt-5", 1.25m, 0m, 0.125m, 10m),
+        OpenAi("codex-mini-latest", 1.50m, 0m, 0.375m, 6m),
 
         Anthropic("claude-fable-5", 10m, 12.50m, 20m, 1m, 50m),
         Anthropic("claude-mythos-5", 10m, 12.50m, 20m, 1m, 50m),
@@ -93,7 +192,9 @@ public static class ApiPricingCatalog
     public static ApiCostEstimate Estimate(
         TokenUsage usage,
         DateOnly? pricingDate = null,
-        TokenKindSelection selection = TokenKindSelection.All)
+        TokenKindSelection selection = TokenKindSelection.All,
+        ApiPricingMode pricingMode = ApiPricingMode.Standard,
+        ApiPricingContext pricingContext = ApiPricingContext.Short)
     {
         ArgumentNullException.ThrowIfNull(usage);
         if (!selection.IsValid())
@@ -121,7 +222,13 @@ public static class ApiPricingCatalog
             }
 
             if (item.Model is not null &&
-                TryResolve(item.AgentId, item.Model, date, out var rates))
+                TryResolve(
+                    item.AgentId,
+                    item.Model,
+                    date,
+                    out var rates,
+                    pricingMode,
+                    pricingContext))
             {
                 cost += Cost(item.Breakdown, rates, selection);
                 pricedTokens += selectedTokens;
@@ -153,7 +260,9 @@ public static class ApiPricingCatalog
         AgentId agentId,
         string model,
         DateOnly pricingDate,
-        out ApiTokenRates rates)
+        out ApiTokenRates rates,
+        ApiPricingMode pricingMode = ApiPricingMode.Standard,
+        ApiPricingContext pricingContext = ApiPricingContext.Short)
     {
         rates = null!;
         if (string.IsNullOrWhiteSpace(model))
@@ -176,7 +285,15 @@ public static class ApiPricingCatalog
             return false;
         }
 
-        rates = rule.Rates;
+        var variant = rule.Variants.FirstOrDefault(item =>
+            item.Mode == pricingMode &&
+            item.Context == pricingContext);
+        if (variant is null)
+        {
+            return false;
+        }
+
+        rates = variant.Rates;
         return true;
     }
 
@@ -251,17 +368,86 @@ public static class ApiPricingCatalog
         decimal cacheWrite,
         decimal cacheRead,
         decimal output) =>
-        new(
+        OpenAi(
+            modelPrefix,
+            OpenAiRates(rawInput, cacheWrite, cacheRead, output));
+
+    private static PricingRule OpenAi(
+        string modelPrefix,
+        ApiTokenRates standardShort,
+        ApiTokenRates? standardLong = null,
+        ApiTokenRates? batchShort = null,
+        ApiTokenRates? batchLong = null,
+        ApiTokenRates? flexShort = null,
+        ApiTokenRates? flexLong = null,
+        ApiTokenRates? fastShort = null)
+    {
+        var variants = new List<PricingVariant>
+        {
+            new(ApiPricingMode.Standard, ApiPricingContext.Short, standardShort),
+        };
+        AddVariant(
+            variants,
+            ApiPricingMode.Standard,
+            ApiPricingContext.Long,
+            standardLong);
+        AddVariant(
+            variants,
+            ApiPricingMode.Batch,
+            ApiPricingContext.Short,
+            batchShort);
+        AddVariant(
+            variants,
+            ApiPricingMode.Batch,
+            ApiPricingContext.Long,
+            batchLong);
+        AddVariant(
+            variants,
+            ApiPricingMode.Flex,
+            ApiPricingContext.Short,
+            flexShort);
+        AddVariant(
+            variants,
+            ApiPricingMode.Flex,
+            ApiPricingContext.Long,
+            flexLong);
+        AddVariant(
+            variants,
+            ApiPricingMode.Fast,
+            ApiPricingContext.Short,
+            fastShort);
+
+        return new(
             AgentId.Codex,
             modelPrefix,
-            new ApiTokenRates(
-                rawInput,
-                cacheWrite,
-                cacheWrite,
-                cacheRead,
-                output),
+            variants,
             null,
             null);
+    }
+
+    private static void AddVariant(
+        ICollection<PricingVariant> variants,
+        ApiPricingMode mode,
+        ApiPricingContext context,
+        ApiTokenRates? rates)
+    {
+        if (rates is not null)
+        {
+            variants.Add(new(mode, context, rates));
+        }
+    }
+
+    private static ApiTokenRates OpenAiRates(
+        decimal rawInput,
+        decimal cacheWrite,
+        decimal cacheRead,
+        decimal output) =>
+        new(
+            rawInput,
+            cacheWrite,
+            cacheWrite,
+            cacheRead,
+            output);
 
     private static PricingRule Anthropic(
         string modelPrefix,
@@ -275,19 +461,29 @@ public static class ApiPricingCatalog
         new(
             AgentId.ClaudeCode,
             modelPrefix,
-            new ApiTokenRates(
-                rawInput,
-                cacheWrite,
-                cacheWrite1Hour,
-                cacheRead,
-                output),
+            [
+                new(
+                    ApiPricingMode.Standard,
+                    ApiPricingContext.Short,
+                    new ApiTokenRates(
+                        rawInput,
+                        cacheWrite,
+                        cacheWrite1Hour,
+                        cacheRead,
+                        output)),
+            ],
             fromInclusive,
             untilExclusive);
 
     private sealed record PricingRule(
         AgentId AgentId,
         string ModelPrefix,
-        ApiTokenRates Rates,
+        IReadOnlyList<PricingVariant> Variants,
         DateOnly? FromInclusive,
         DateOnly? UntilExclusive);
+
+    private sealed record PricingVariant(
+        ApiPricingMode Mode,
+        ApiPricingContext Context,
+        ApiTokenRates Rates);
 }

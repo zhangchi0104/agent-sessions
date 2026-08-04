@@ -81,6 +81,24 @@ nonisolated struct ApiTokenRates: Equatable, Sendable {
     let output: Decimal
 }
 
+/// The OpenAI processing tier whose list price applies to a request.
+///
+/// Transcript readers currently do not persist the API response's
+/// `service_tier`, so the estimator defaults to `.standard` until a caller
+/// supplies a verified tier explicitly.
+nonisolated enum ApiPricingMode: String, CaseIterable, Sendable {
+    case standard
+    case batch
+    case flex
+    case fast
+}
+
+/// The short/long context pricing column selected for a request.
+nonisolated enum ApiPricingContext: String, CaseIterable, Sendable {
+    case short
+    case long
+}
+
 /// One Model-attributed slice in the current macOS Token Odometer shape.
 nonisolated struct ApiModelUsage: Equatable, Sendable {
     let agent: ApiPricingAgent
@@ -183,32 +201,121 @@ nonisolated struct ApiCostEstimate: Equatable, Sendable {
 /// Standard list-price catalog kept in lockstep with Windows
 /// `TokenStats.Core.ApiPricingCatalog`.
 nonisolated enum ApiPricingCatalog {
-    static let lastReviewed = ApiPricingDate(year: 2026, month: 7, day: 27)
+    static let lastReviewed = ApiPricingDate(year: 2026, month: 8, day: 4)
 
     static let openAIPricingSource =
-        "https://developers.openai.com/api/docs/models"
+        "https://developers.openai.com/api/docs/pricing"
 
     static let anthropicPricingSource =
         "https://platform.claude.com/docs/en/about-claude/pricing"
 
     private static let rules: [PricingRule] = [
-        // OpenAI GPT-5.6 cache writes are billed at 1.25x raw input.
-        openAI("gpt-5.6-sol", "5", "6.25", "0.50", "30"),
-        openAI("gpt-5.6-terra", "2.50", "3.125", "0.25", "15"),
-        openAI("gpt-5.6-luna", "1", "1.25", "0.10", "6"),
-        openAI("gpt-5.6", "5", "6.25", "0.50", "30"),
-        openAI("gpt-5.5", "5", "5", "0.50", "30"),
-        openAI("gpt-5.4", "2.50", "2.50", "0.25", "15"),
-        openAI("gpt-5.3-codex", "1.75", "1.75", "0.175", "14"),
-        openAI("gpt-5.2-codex", "1.75", "1.75", "0.175", "14"),
-        openAI("gpt-5.2", "1.75", "1.75", "0.175", "14"),
-        openAI("gpt-5.1-codex-mini", "0.25", "0.25", "0.025", "2"),
-        openAI("gpt-5.1-codex-max", "1.25", "1.25", "0.125", "10"),
-        openAI("gpt-5.1-codex", "1.25", "1.25", "0.125", "10"),
-        openAI("gpt-5.1", "1.25", "1.25", "0.125", "10"),
-        openAI("gpt-5-codex", "1.25", "1.25", "0.125", "10"),
-        openAI("gpt-5", "1.25", "1.25", "0.125", "10"),
-        openAI("codex-mini-latest", "1.50", "1.50", "0.375", "6"),
+        // GPT-5.6 flagship prices are split by processing mode and context
+        // length. Fast mode has no long-context price because OpenAI does not
+        // support Fast mode for long-context requests.
+        openAI(
+            "gpt-5.6-sol",
+            standardShort: openAIRates("5", "6.25", "0.50", "30"),
+            standardLong: openAIRates("10", "12.50", "1", "45"),
+            batchShort: openAIRates("2.50", "3.125", "0.25", "15"),
+            batchLong: openAIRates("5", "6.25", "0.50", "22.50"),
+            flexShort: openAIRates("2.50", "3.125", "0.25", "15"),
+            flexLong: openAIRates("5", "6.25", "0.50", "22.50"),
+            fastShort: openAIRates("10", "12.50", "1", "60")
+        ),
+        openAI(
+            "gpt-5.6-terra",
+            standardShort: openAIRates("2", "2.50", "0.20", "12"),
+            standardLong: openAIRates("4", "5", "0.40", "18"),
+            batchShort: openAIRates("1", "1.25", "0.10", "6"),
+            batchLong: openAIRates("2", "2.50", "0.20", "9"),
+            flexShort: openAIRates("1", "1.25", "0.10", "6"),
+            flexLong: openAIRates("2", "2.50", "0.20", "9"),
+            fastShort: openAIRates("4", "5", "0.40", "24")
+        ),
+        openAI(
+            "gpt-5.6-luna",
+            standardShort: openAIRates("0.20", "0.25", "0.02", "1.20"),
+            standardLong: openAIRates("0.40", "0.50", "0.04", "1.80"),
+            batchShort: openAIRates("0.10", "0.125", "0.01", "0.60"),
+            batchLong: openAIRates("0.20", "0.25", "0.02", "0.90"),
+            flexShort: openAIRates("0.10", "0.125", "0.01", "0.60"),
+            flexLong: openAIRates("0.20", "0.25", "0.02", "0.90"),
+            fastShort: openAIRates("0.40", "0.50", "0.04", "2.40")
+        ),
+        openAI(
+            "gpt-5.6",
+            standardShort: openAIRates("5", "6.25", "0.50", "30"),
+            standardLong: openAIRates("10", "12.50", "1", "45"),
+            batchShort: openAIRates("2.50", "3.125", "0.25", "15"),
+            batchLong: openAIRates("5", "6.25", "0.50", "22.50"),
+            flexShort: openAIRates("2.50", "3.125", "0.25", "15"),
+            flexLong: openAIRates("5", "6.25", "0.50", "22.50"),
+            fastShort: openAIRates("10", "12.50", "1", "60")
+        ),
+        openAI(
+            "gpt-5.5",
+            standardShort: openAIRates("5", "0", "0.50", "30"),
+            standardLong: openAIRates("10", "0", "1", "45"),
+            batchShort: openAIRates("2.50", "0", "0.25", "15"),
+            batchLong: openAIRates("5", "0", "0.50", "22.50"),
+            flexShort: openAIRates("2.50", "0", "0.25", "15"),
+            flexLong: openAIRates("5", "0", "0.50", "22.50"),
+            fastShort: openAIRates("12.50", "0", "1.25", "75")
+        ),
+        openAI(
+            "gpt-5.5-pro",
+            standardShort: openAIRates("30", "0", "0", "180"),
+            standardLong: openAIRates("60", "0", "0", "270"),
+            batchShort: openAIRates("15", "0", "0", "90"),
+            flexShort: openAIRates("15", "0", "0", "90")
+        ),
+        openAI(
+            "gpt-5.4",
+            standardShort: openAIRates("2.50", "0", "0.25", "15"),
+            standardLong: openAIRates("5", "0", "0.50", "22.50"),
+            batchShort: openAIRates("1.25", "0", "0.13", "7.50"),
+            batchLong: openAIRates("2.50", "0", "0.25", "11.25"),
+            flexShort: openAIRates("1.25", "0", "0.13", "7.50"),
+            flexLong: openAIRates("2.50", "0", "0.25", "11.25"),
+            fastShort: openAIRates("5", "0", "0.50", "30")
+        ),
+        openAI(
+            "gpt-5.4-mini",
+            standardShort: openAIRates("0.75", "0", "0.075", "4.50"),
+            batchShort: openAIRates("0.375", "0", "0.0375", "2.25"),
+            flexShort: openAIRates("0.375", "0", "0.0375", "2.25"),
+            fastShort: openAIRates("1.50", "0", "0.15", "9")
+        ),
+        openAI(
+            "gpt-5.4-nano",
+            standardShort: openAIRates("0.20", "0", "0.02", "1.25"),
+            batchShort: openAIRates("0.10", "0", "0.01", "0.625"),
+            flexShort: openAIRates("0.10", "0", "0.01", "0.625")
+        ),
+        openAI(
+            "gpt-5.4-pro",
+            standardShort: openAIRates("30", "0", "0", "180"),
+            standardLong: openAIRates("60", "0", "0", "270"),
+            batchShort: openAIRates("15", "0", "0", "90"),
+            batchLong: openAIRates("30", "0", "0", "135"),
+            flexShort: openAIRates("15", "0", "0", "90"),
+            flexLong: openAIRates("30", "0", "0", "135")
+        ),
+
+        // Legacy OpenAI models retain Standard/short coverage. Their current
+        // pricing table does not list cache-write charges, so those rates are
+        // explicitly zero rather than inheriting the GPT-5.6 multiplier.
+        openAI("gpt-5.3-codex", "1.75", "0", "0.175", "14"),
+        openAI("gpt-5.2-codex", "1.75", "0", "0.175", "14"),
+        openAI("gpt-5.2", "1.75", "0", "0.175", "14"),
+        openAI("gpt-5.1-codex-mini", "0.25", "0", "0.025", "2"),
+        openAI("gpt-5.1-codex-max", "1.25", "0", "0.125", "10"),
+        openAI("gpt-5.1-codex", "1.25", "0", "0.125", "10"),
+        openAI("gpt-5.1", "1.25", "0", "0.125", "10"),
+        openAI("gpt-5-codex", "1.25", "0", "0.125", "10"),
+        openAI("gpt-5", "1.25", "0", "0.125", "10"),
+        openAI("codex-mini-latest", "1.50", "0", "0.375", "6"),
 
         anthropic("claude-fable-5", "10", "12.50", "20", "1", "50"),
         anthropic("claude-mythos-5", "10", "12.50", "20", "1", "50"),
@@ -260,7 +367,9 @@ nonisolated enum ApiPricingCatalog {
         ],
         totalUsage: TokenUsage? = nil,
         on date: Date = Date(),
-        includedKinds: Set<TokenKind> = Set(TokenKind.allCases)
+        includedKinds: Set<TokenKind> = Set(TokenKind.allCases),
+        pricingMode: ApiPricingMode = .standard,
+        pricingContext: ApiPricingContext = .short
     ) -> ApiCostEstimate {
         estimate(
             modelUsage: modelUsage.map {
@@ -272,7 +381,9 @@ nonisolated enum ApiPricingCatalog {
             },
             totalUsage: totalUsage,
             pricingDate: ApiPricingDate(date),
-            includedKinds: includedKinds
+            includedKinds: includedKinds,
+            pricingMode: pricingMode,
+            pricingContext: pricingContext
         )
     }
 
@@ -282,13 +393,17 @@ nonisolated enum ApiPricingCatalog {
         _ modelUsage: [ApiModelUsage],
         totalUsage: TokenUsage? = nil,
         on date: Date = Date(),
-        includedKinds: Set<TokenKind> = Set(TokenKind.allCases)
+        includedKinds: Set<TokenKind> = Set(TokenKind.allCases),
+        pricingMode: ApiPricingMode = .standard,
+        pricingContext: ApiPricingContext = .short
     ) -> ApiCostEstimate {
         estimate(
             modelUsage: modelUsage,
             totalUsage: totalUsage,
             pricingDate: ApiPricingDate(date),
-            includedKinds: includedKinds
+            includedKinds: includedKinds,
+            pricingMode: pricingMode,
+            pricingContext: pricingContext
         )
     }
 
@@ -302,7 +417,9 @@ nonisolated enum ApiPricingCatalog {
         modelUsage: [ApiModelUsage],
         totalUsage: TokenUsage? = nil,
         pricingDate: ApiPricingDate = .today,
-        includedKinds: Set<TokenKind> = Set(TokenKind.allCases)
+        includedKinds: Set<TokenKind> = Set(TokenKind.allCases),
+        pricingMode: ApiPricingMode = .standard,
+        pricingContext: ApiPricingContext = .short
     ) -> ApiCostEstimate {
         var aggregateCost = Decimal.zero
         var pricedTokens = 0
@@ -329,7 +446,9 @@ nonisolated enum ApiPricingCatalog {
                let rates = rates(
                    for: item.agent,
                    model: model,
-                   pricingDate: pricingDate
+                   pricingDate: pricingDate,
+                   pricingMode: pricingMode,
+                   pricingContext: pricingContext
                ) {
                 aggregateCost += cost(
                     of: item.usage,
@@ -371,7 +490,9 @@ nonisolated enum ApiPricingCatalog {
     static func rates(
         for agent: ApiPricingAgent,
         model: String,
-        pricingDate: ApiPricingDate
+        pricingDate: ApiPricingDate,
+        pricingMode: ApiPricingMode = .standard,
+        pricingContext: ApiPricingContext = .short
     ) -> ApiTokenRates? {
         guard !model.trimmingCharacters(
             in: .whitespacesAndNewlines
@@ -379,17 +500,24 @@ nonisolated enum ApiPricingCatalog {
             return nil
         }
 
-        return rules
-            .filter { rule in
-                rule.agent == agent &&
-                    matches(modelPrefix: rule.modelPrefix, model: model) &&
-                    (rule.fromInclusive == nil ||
-                     pricingDate >= rule.fromInclusive!) &&
-                    (rule.untilExclusive == nil ||
-                     pricingDate < rule.untilExclusive!)
-            }
-            .max { $0.modelPrefix.count < $1.modelPrefix.count }?
-            .rates
+        guard let rule = (
+            rules
+                .filter { rule in
+                    rule.agent == agent &&
+                        matches(modelPrefix: rule.modelPrefix, model: model) &&
+                        (rule.fromInclusive == nil ||
+                         pricingDate >= rule.fromInclusive!) &&
+                        (rule.untilExclusive == nil ||
+                         pricingDate < rule.untilExclusive!)
+                }
+                .max { $0.modelPrefix.count < $1.modelPrefix.count }
+        ) else {
+            return nil
+        }
+
+        return rule.variants.first {
+            $0.mode == pricingMode && $0.context == pricingContext
+        }?.rates
     }
 
     private static func matches(modelPrefix: String, model: String) -> Bool {
@@ -476,17 +604,103 @@ nonisolated enum ApiPricingCatalog {
         _ cacheRead: String,
         _ output: String
     ) -> PricingRule {
-        let write = decimal(cacheWrite)
+        openAI(
+            modelPrefix,
+            standardShort: openAIRates(rawInput, cacheWrite, cacheRead, output)
+        )
+    }
+
+    private static func openAI(
+        _ modelPrefix: String,
+        standardShort: ApiTokenRates,
+        standardLong: ApiTokenRates? = nil,
+        batchShort: ApiTokenRates? = nil,
+        batchLong: ApiTokenRates? = nil,
+        flexShort: ApiTokenRates? = nil,
+        flexLong: ApiTokenRates? = nil,
+        fastShort: ApiTokenRates? = nil
+    ) -> PricingRule {
+        var variants = [
+            PricingVariant(
+                mode: .standard,
+                context: .short,
+                rates: standardShort
+            ),
+        ]
+        if let standardLong {
+            variants.append(
+                PricingVariant(
+                    mode: .standard,
+                    context: .long,
+                    rates: standardLong
+                )
+            )
+        }
+        if let batchShort {
+            variants.append(
+                PricingVariant(
+                    mode: .batch,
+                    context: .short,
+                    rates: batchShort
+                )
+            )
+        }
+        if let batchLong {
+            variants.append(
+                PricingVariant(
+                    mode: .batch,
+                    context: .long,
+                    rates: batchLong
+                )
+            )
+        }
+        if let flexShort {
+            variants.append(
+                PricingVariant(
+                    mode: .flex,
+                    context: .short,
+                    rates: flexShort
+                )
+            )
+        }
+        if let flexLong {
+            variants.append(
+                PricingVariant(
+                    mode: .flex,
+                    context: .long,
+                    rates: flexLong
+                )
+            )
+        }
+        if let fastShort {
+            variants.append(
+                PricingVariant(
+                    mode: .fast,
+                    context: .short,
+                    rates: fastShort
+                )
+            )
+        }
         return PricingRule(
             agent: .codex,
             modelPrefix: modelPrefix,
-            rates: ApiTokenRates(
-                rawInput: decimal(rawInput),
-                cacheWrite: write,
-                cacheWrite1Hour: write,
-                cacheRead: decimal(cacheRead),
-                output: decimal(output)
-            )
+            variants: variants
+        )
+    }
+
+    private static func openAIRates(
+        _ rawInput: String,
+        _ cacheWrite: String,
+        _ cacheRead: String,
+        _ output: String
+    ) -> ApiTokenRates {
+        let write = decimal(cacheWrite)
+        return ApiTokenRates(
+            rawInput: decimal(rawInput),
+            cacheWrite: write,
+            cacheWrite1Hour: write,
+            cacheRead: decimal(cacheRead),
+            output: decimal(output)
         )
     }
 
@@ -503,13 +717,19 @@ nonisolated enum ApiPricingCatalog {
         PricingRule(
             agent: .claudeCode,
             modelPrefix: modelPrefix,
-            rates: ApiTokenRates(
-                rawInput: decimal(rawInput),
-                cacheWrite: decimal(cacheWrite),
-                cacheWrite1Hour: decimal(cacheWrite1Hour),
-                cacheRead: decimal(cacheRead),
-                output: decimal(output)
-            ),
+            variants: [
+                PricingVariant(
+                    mode: .standard,
+                    context: .short,
+                    rates: ApiTokenRates(
+                        rawInput: decimal(rawInput),
+                        cacheWrite: decimal(cacheWrite),
+                        cacheWrite1Hour: decimal(cacheWrite1Hour),
+                        cacheRead: decimal(cacheRead),
+                        output: decimal(output)
+                    )
+                ),
+            ],
             fromInclusive: fromInclusive,
             untilExclusive: untilExclusive
         )
@@ -528,8 +748,14 @@ nonisolated enum ApiPricingCatalog {
     private struct PricingRule: Sendable {
         let agent: ApiPricingAgent
         let modelPrefix: String
-        let rates: ApiTokenRates
+        let variants: [PricingVariant]
         var fromInclusive: ApiPricingDate?
         var untilExclusive: ApiPricingDate?
+    }
+
+    private struct PricingVariant: Sendable {
+        let mode: ApiPricingMode
+        let context: ApiPricingContext
+        let rates: ApiTokenRates
     }
 }

@@ -614,6 +614,47 @@ internal static class Program
         Check.Equal(30m, gpt56.Output);
 
         Check.True(ApiPricingCatalog.TryResolve(
+            AgentId.Codex,
+            "gpt-5.6-sol",
+            new DateOnly(2026, 8, 4),
+            out var gpt56Long,
+            ApiPricingMode.Standard,
+            ApiPricingContext.Long));
+        Check.Equal(10m, gpt56Long.RawInput);
+        Check.Equal(12.50m, gpt56Long.CacheWrite);
+        Check.Equal(1m, gpt56Long.CacheRead);
+        Check.Equal(45m, gpt56Long.Output);
+
+        Check.True(ApiPricingCatalog.TryResolve(
+            AgentId.Codex,
+            "gpt-5.6-sol",
+            new DateOnly(2026, 8, 4),
+            out var gpt56Fast,
+            ApiPricingMode.Fast,
+            ApiPricingContext.Short));
+        Check.Equal(10m, gpt56Fast.RawInput);
+        Check.Equal(12.50m, gpt56Fast.CacheWrite);
+        Check.Equal(1m, gpt56Fast.CacheRead);
+        Check.Equal(60m, gpt56Fast.Output);
+
+        Check.True(ApiPricingCatalog.TryResolve(
+            AgentId.Codex,
+            "gpt-5.5-pro",
+            new DateOnly(2026, 8, 4),
+            out var gpt55ProBatch,
+            ApiPricingMode.Batch,
+            ApiPricingContext.Short));
+        Check.Equal(15m, gpt55ProBatch.RawInput);
+        Check.Equal(90m, gpt55ProBatch.Output);
+        Check.False(ApiPricingCatalog.TryResolve(
+            AgentId.Codex,
+            "gpt-5.4-mini",
+            new DateOnly(2026, 8, 4),
+            out _,
+            ApiPricingMode.Standard,
+            ApiPricingContext.Long));
+
+        Check.True(ApiPricingCatalog.TryResolve(
             AgentId.ClaudeCode,
             "claude-sonnet-5",
             new DateOnly(2026, 9, 1),
