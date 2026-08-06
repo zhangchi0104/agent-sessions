@@ -23,9 +23,9 @@ internal readonly record struct TranscriptTokenCacheLoadResult(
 internal sealed class TranscriptTokenCacheStore
 {
     internal const int SchemaVersion = 1;
-    // Old entries contain unsupported cache-write token fields and must be
-    // rebuilt from the transcript under the three-kind parser semantics.
-    internal const int ParserSemanticsVersion = 2;
+    // The aggregate input now excludes provider cache-write counters as well
+    // as cache reads, so prior entries must be rebuilt from the transcript.
+    internal const int ParserSemanticsVersion = 3;
     internal const long MaximumReadBytes = 64L * 1024 * 1024;
 
     private const int StreamBufferBytes = 16 * 1024;

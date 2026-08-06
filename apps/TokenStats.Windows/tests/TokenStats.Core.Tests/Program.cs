@@ -1085,12 +1085,24 @@ internal static class Program
             "2026-07-27T10:00:00Z",
             input: 100,
             cachedInput: 40,
-            output: 20);
+            output: 20,
+            cacheWrite: 10,
+            inputTokensDetails: new Dictionary<string, long>
+            {
+                ["cached_tokens"] = 40,
+                ["cache_write_tokens"] = 10,
+            });
         var cachedExceedsInput = CodexLine(
             "2026-07-27T10:01:00Z",
             input: 105,
             cachedInput: 45,
-            output: 22);
+            output: 22,
+            cacheWrite1Hour: 5,
+            inputTokensDetails: new Dictionary<string, long>
+            {
+                ["cached_input_tokens"] = 45,
+                ["cache_write_1h_input_tokens"] = 5,
+            });
         File.WriteAllText(
             transcript,
             string.Join('\n', first, cachedExceedsInput) + "\n");
@@ -1103,11 +1115,11 @@ internal static class Program
         var usage = Check.NotNull(
             await reader.TodayUsageAsync(temp.Path, now).ConfigureAwait(false));
         Check.Equal(2, usage.ResponseCount);
-        Check.Equal(60L, usage.InputTokens);
+        Check.Equal(55L, usage.InputTokens);
         Check.Equal(45L, usage.CacheReadTokens);
         Check.Equal(22L, usage.OutputTokens);
-        Check.Equal(82L, usage.TotalTokens);
-        Check.Equal(127L, usage.MeteredTokens);
+        Check.Equal(77L, usage.TotalTokens);
+        Check.Equal(122L, usage.MeteredTokens);
     }
 
     private static async Task CodexTranscriptsTrackModelsAndUnknown()
@@ -2180,8 +2192,38 @@ internal static class Program
         long output,
         long? lastInput = null,
         long? lastCachedInput = null,
-        long? lastOutput = null) =>
-        JsonSerializer.Serialize(
+        long? lastOutput = null,
+        long cacheWrite = 0,
+        long cacheWrite1Hour = 0,
+        IReadOnlyDictionary<string, long>? inputTokensDetails = null)
+    {
+        var totalUsage = new Dictionary<string, object?>
+        {
+            ["input_tokens"] = input,
+            ["cached_input_tokens"] = cachedInput,
+            ["cache_write_input_tokens"] = cacheWrite,
+            ["cache_write_1h_input_tokens"] = cacheWrite1Hour,
+            ["output_tokens"] = output,
+        };
+        if (inputTokensDetails is not null)
+        {
+            totalUsage["input_tokens_details"] = inputTokensDetails;
+        }
+
+        var lastUsage = new Dictionary<string, object?>
+        {
+            ["input_tokens"] = lastInput ?? input,
+            ["cached_input_tokens"] = lastCachedInput ?? cachedInput,
+            ["cache_write_input_tokens"] = cacheWrite,
+            ["cache_write_1h_input_tokens"] = cacheWrite1Hour,
+            ["output_tokens"] = lastOutput ?? output,
+        };
+        if (inputTokensDetails is not null)
+        {
+            lastUsage["input_tokens_details"] = inputTokensDetails;
+        }
+
+        return JsonSerializer.Serialize(
             new Dictionary<string, object?>
             {
                 ["timestamp"] = timestamp,
@@ -2191,22 +2233,12 @@ internal static class Program
                     ["type"] = "token_count",
                     ["info"] = new Dictionary<string, object?>
                     {
-                        ["total_token_usage"] = new Dictionary<string, long>
-                        {
-                            ["input_tokens"] = input,
-                            ["cached_input_tokens"] = cachedInput,
-                            ["output_tokens"] = output,
-                        },
-                        ["last_token_usage"] = new Dictionary<string, long>
-                        {
-                            ["input_tokens"] = lastInput ?? input,
-                            ["cached_input_tokens"] =
-                                lastCachedInput ?? cachedInput,
-                            ["output_tokens"] = lastOutput ?? output,
-                        },
+                        ["total_token_usage"] = totalUsage,
+                        ["last_token_usage"] = lastUsage,
                     },
                 },
             });
+    }
 
     private static string CodexTurnContextLine(string? model) =>
         JsonSerializer.Serialize(
