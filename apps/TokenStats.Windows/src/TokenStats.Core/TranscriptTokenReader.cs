@@ -1255,6 +1255,16 @@ public sealed class TranscriptTokenReader
         var cachedInput = Math.Max(
             ReadInteger(rawUsage, "cached_input_tokens"),
             0);
+        var cacheWrite = Math.Max(
+            Math.Max(
+                ReadInteger(rawUsage, "cache_write_input_tokens"),
+                ReadInteger(rawUsage, "cache_write_tokens")),
+            0);
+        var cacheWrite1Hour = Math.Max(
+            Math.Max(
+                ReadInteger(rawUsage, "cache_write_1h_input_tokens"),
+                ReadInteger(rawUsage, "cache_write_1h_tokens")),
+            0);
 
         if (rawUsage.TryGetProperty("input_tokens_details", out var details) &&
             details.ValueKind == JsonValueKind.Object)
@@ -1264,11 +1274,29 @@ public sealed class TranscriptTokenReader
                 Math.Max(
                     ReadInteger(details, "cached_tokens"),
                     ReadInteger(details, "cached_input_tokens")));
+            cacheWrite = Math.Max(
+                cacheWrite,
+                Math.Max(
+                    ReadInteger(details, "cache_write_tokens"),
+                    ReadInteger(details, "cache_write_input_tokens")));
+            cacheWrite1Hour = Math.Max(
+                cacheWrite1Hour,
+                Math.Max(
+                    ReadInteger(details, "cache_write_1h_tokens"),
+                    ReadInteger(details, "cache_write_1h_input_tokens")));
         }
 
         cachedInput = Math.Clamp(cachedInput, 0, totalInput);
+        cacheWrite1Hour = Math.Clamp(
+            cacheWrite1Hour,
+            0,
+            totalInput - cachedInput);
+        cacheWrite = Math.Clamp(
+            cacheWrite,
+            0,
+            totalInput - cachedInput - cacheWrite1Hour);
         return new CodexRunningTotal(
-            totalInput - cachedInput,
+            totalInput - cachedInput - cacheWrite - cacheWrite1Hour,
             Math.Max(ReadInteger(rawUsage, "output_tokens"), 0),
             cachedInput);
     }

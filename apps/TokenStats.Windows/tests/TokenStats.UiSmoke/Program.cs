@@ -9,6 +9,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using TokenStats.App.Controls;
 using TokenStats.App.Infrastructure;
 using TokenStats.App.Services;
@@ -91,6 +92,66 @@ internal static class Program
             {
                 throw new InvalidOperationException(
                     "Windows v4 settings did not survive an ISO-JSON round trip.");
+            }
+
+            var legacySettingsPath = Path.Combine(
+                temporary,
+                "legacy-cache-write-settings.json");
+            var legacySeed = new AppSettingsStore(legacySettingsPath);
+            legacySeed.SaveAppearance(
+                AppearancePreferences.Default with
+                {
+                    PrimaryAgent = AgentId.Codex,
+                    GaugeStyle = GaugeStyle.Ring,
+                    TodayMetric = TodayMetricMode.Usage,
+                    SelectedTokenKinds =
+                        TokenKindSelection.DirectInput |
+                        TokenKindSelection.CacheRead,
+                    TokenValueDisplay = TokenValueDisplayMode.Percentage,
+                    SelectedTokenRange = TokenRange.SevenDays,
+                    AlwaysOnTop = true,
+                });
+            legacySeed.SaveVisualAppearance(customVisualAppearance);
+            legacySeed.SetOnboardingCompleted(true);
+            legacySeed.SaveLastSnapshot(
+                AgentId.Codex,
+                new UsageSnapshot(
+                    [new UsageWindow("weekly", 25, null)],
+                    DateTimeOffset.UnixEpoch));
+
+            var legacyDocument = JsonNode.Parse(
+                    File.ReadAllText(legacySettingsPath)) as JsonObject ??
+                throw new InvalidOperationException(
+                    "The seeded legacy settings document was not an object.");
+            var legacyAppearanceDocument =
+                legacyDocument["appearance"] as JsonObject ??
+                throw new InvalidOperationException(
+                    "The seeded legacy appearance was not an object.");
+            legacyAppearanceDocument["selectedTokenKinds"] =
+                "directInput, cacheWrite";
+            File.WriteAllText(
+                legacySettingsPath,
+                legacyDocument.ToJsonString(
+                    new JsonSerializerOptions { WriteIndented = true }));
+
+            var migratedSettings = new AppSettingsStore(legacySettingsPath);
+            if (migratedSettings.LastLoadError is not null ||
+                migratedSettings.Appearance.PrimaryAgent != AgentId.Codex ||
+                migratedSettings.Appearance.GaugeStyle != GaugeStyle.Ring ||
+                migratedSettings.Appearance.TodayMetric != TodayMetricMode.Usage ||
+                migratedSettings.Appearance.SelectedTokenKinds !=
+                    TokenKindSelection.DirectInput ||
+                migratedSettings.Appearance.TokenValueDisplay !=
+                    TokenValueDisplayMode.Percentage ||
+                migratedSettings.Appearance.SelectedTokenRange !=
+                    TokenRange.SevenDays ||
+                !migratedSettings.Appearance.AlwaysOnTop ||
+                !migratedSettings.OnboardingCompleted ||
+                migratedSettings.VisualAppearance != customVisualAppearance ||
+                migratedSettings.LoadLastSnapshot(AgentId.Codex) is null)
+            {
+                throw new InvalidOperationException(
+                    "Legacy cache-write selection reset unrelated settings.");
             }
 
             var malformedSettingsPath = Path.Combine(

@@ -667,10 +667,111 @@ public sealed class AppSettingsStore
             PropertyNameCaseInsensitive = true,
             WriteIndented = true,
         };
+        options.Converters.Add(new TokenKindSelectionJsonConverter());
         options.Converters.Add(new JsonStringEnumConverter(
             JsonNamingPolicy.CamelCase,
             allowIntegerValues: false));
         return options;
+    }
+
+    /// <summary>
+    /// Reads the pre-three-kind selection value long enough to discard its
+    /// obsolete cache-write flag. The flag is intentionally not part of
+    /// <see cref="TokenKindSelection"/> anymore, so this converter is scoped to
+    /// settings migration rather than the application domain.
+    /// </summary>
+    private sealed class TokenKindSelectionJsonConverter :
+        JsonConverter<TokenKindSelection>
+    {
+        public override TokenKindSelection Read(
+            ref Utf8JsonReader reader,
+            Type typeToConvert,
+            JsonSerializerOptions options)
+        {
+            if (reader.TokenType != JsonTokenType.String ||
+                reader.GetString() is not { } raw ||
+                string.IsNullOrWhiteSpace(raw))
+            {
+                throw new JsonException(
+                    "Token Kind selection must be a non-empty string.");
+            }
+
+            var selection = TokenKindSelection.None;
+            foreach (var rawName in raw.Split(
+                         ',',
+                         StringSplitOptions.RemoveEmptyEntries |
+                         StringSplitOptions.TrimEntries))
+            {
+                switch (rawName.ToLowerInvariant())
+                {
+                    case "none":
+                        break;
+                    case "all":
+                        selection |= TokenKindSelection.All;
+                        break;
+                    case "directinput":
+                        selection |= TokenKindSelection.DirectInput;
+                        break;
+                    case "output":
+                        selection |= TokenKindSelection.Output;
+                        break;
+                    case "cacheread":
+                        selection |= TokenKindSelection.CacheRead;
+                        break;
+                    case "cachewrite":
+                        // Legacy settings only. It must not become a current
+                        // Token Kind or affect the selected total.
+                        break;
+                    default:
+                        throw new JsonException(
+                            $"Unknown Token Kind selection '{rawName}'.");
+                }
+            }
+
+            return selection;
+        }
+
+        public override void Write(
+            Utf8JsonWriter writer,
+            TokenKindSelection value,
+            JsonSerializerOptions options)
+        {
+            if (!value.IsValid())
+            {
+                throw new JsonException(
+                    $"Invalid Token Kind selection '{value}'.");
+            }
+
+            if (value == TokenKindSelection.None)
+            {
+                writer.WriteStringValue("none");
+                return;
+            }
+
+            if (value == TokenKindSelection.All)
+            {
+                writer.WriteStringValue("all");
+                return;
+            }
+
+            var names = new List<string>(3);
+            if (value.Includes(TokenKind.DirectInput))
+            {
+                names.Add("directInput");
+            }
+
+            if (value.Includes(TokenKind.Output))
+            {
+                names.Add("output");
+            }
+
+            if (value.Includes(TokenKind.CacheRead))
+            {
+                names.Add("cacheRead");
+            }
+
+            writer.WriteStringValue(string.Join(", ", names));
+        }
     }
 
     private void OnChanged() => Changed?.Invoke(this, EventArgs.Empty);
