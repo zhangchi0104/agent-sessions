@@ -98,13 +98,11 @@ struct TokenOdometerWatchTests {
         #expect(model.perAgent.isEmpty)
     }
 
-    /// The four Token Kinds have to land in the four fields the table draws.
-    /// Every other Claude fixture leaves both cache kinds at zero, which would
-    /// let the two cache columns be swapped without a test noticing.
+    /// The three Token Kinds have to land in the three fields the table draws.
     @Test func eachClaudeTokenKindLandsInItsOwnColumn() async throws {
         let projects = try TempTranscripts("claude")
         try projects.write("a.jsonl", [
-            claudeUsageLine(id: "m1", input: 11, output: 22, cacheWrite: 33, cacheRead: 44),
+            claudeUsageLine(id: "m1", input: 11, output: 22, cacheRead: 44),
         ])
 
         let model = TokenOdometerModel(
@@ -115,11 +113,10 @@ struct TokenOdometerWatchTests {
         let task = Task { await model.observeWhileVisible() }
         defer { task.cancel() }
 
-        #expect(await waitUntil { model.usage?.totalTokens == 110 })
+        #expect(await waitUntil { model.usage?.totalTokens == 77 })
         let usage = try #require(model.usage)
         #expect(usage.inputTokens == 11)
         #expect(usage.outputTokens == 22)
-        #expect(usage.cacheCreationTokens == 33)
         #expect(usage.cacheReadTokens == 44)
     }
 

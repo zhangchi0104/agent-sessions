@@ -64,7 +64,6 @@ struct TranscriptCheckpointStoreTests {
                 id: "new-\(phase)",
                 input: 3,
                 output: 5,
-                cacheWrite: 7,
                 cacheRead: 11
             )
             try root.append(name, [appended])
@@ -82,7 +81,7 @@ struct TranscriptCheckpointStoreTests {
             ).readTranscript(at: transcript.path)
 
             #expect(
-                failedPublication.usage?.totalTokens == 56,
+                failedPublication.usage?.totalTokens == 49,
                 Comment(rawValue: "\(phase) changed source-derived totals")
             )
             #expect(failedPublication.usage?.responseCount == 2)

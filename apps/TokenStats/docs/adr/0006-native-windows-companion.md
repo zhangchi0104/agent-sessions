@@ -41,21 +41,21 @@ Add a separate native Windows application under `apps/TokenStats.Windows`:
 - The Windows app uses the same independent OAuth identities and never reads or
   refreshes either Coding Agent's own credentials.
 - The Windows Tokens tab implements the shared Token Odometer over Today,
-  7 days, or 30 days, grouped by Coding Agent, Model, and the four disjoint
+  7 days, or 30 days, grouped by Coding Agent, Model, and the three disjoint
   Token Kinds.
 - Each Windows Token Kind heading is an independent filter. Enabled headings
   produce a **selected total** for table subtotals, ordering, and percentage
-  composition while the raw four-kind Token Odometer remains unchanged.
+  composition while the raw three-kind Token Odometer remains unchanged.
   Enabled Token cells can show value, percentage composition, or
   `value (percentage)` according to the **Display** preference. Disabled cells
   retain a dimmed raw value with no percentage.
 - Windows retains two summary presentations inside that tab. Billing tokens
-  count direct input, cache writes, and output while excluding cache reads;
+  count direct input and output while excluding cache reads;
   API equivalent derives a list-price estimate from transcript model
   attribution, includes priced cache reads, and marks unknown models as
   partial. Both are objective over the full recorded usage for the selected
   time range and ignore Token Kind display filters. Neither summary changes the
-  four-kind Odometer total. API equivalent rounds the final aggregate upward
+  three-kind Odometer total. API equivalent rounds the final aggregate upward
   once to the nearest cent and displays exactly two decimal places. Both summary
   values use per-digit vertical rolling transitions for value and range changes
   when Windows client-area animations are enabled. Switching between Billing
@@ -136,7 +136,7 @@ behavior:
 
 1. Token Kind filters and their value/percentage presentation belong to
    **Display**. Their selected total remains explicitly distinct from the raw
-   four-kind Odometer and from the Billing/API-equivalent summary; disabled
+   three-kind Odometer and from the Billing/API-equivalent summary; disabled
    kinds retain a dimmed raw value but no percentage.
 2. The chosen Token Odometer range and flyout pin preference survive process
    restarts. The flyout grows to the current work-area limit before scrolling,
@@ -152,7 +152,7 @@ The switchable objective Token summary, Token Kind filters, composition
 percentages, and Token value presentation are no longer Windows-only behavior.
 The macOS Tokens tab implements the same domain semantics independently in
 Swift and persists its selected Token Kinds and range across restarts. These
-presentation preferences do not alter the four-kind Token Odometer, objective
+presentation preferences do not alter the three-kind Token Odometer, objective
 summary, or transcript records.
 
 macOS deliberately does not port the WPF per-digit rolling control. Token and

@@ -225,7 +225,6 @@
                                     <ColumnDefinition Width="64" />
                                     <ColumnDefinition Width="64" />
                                     <ColumnDefinition Width="64" />
-                                    <ColumnDefinition Width="64" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock
                                     Grid.Column="0"
@@ -280,31 +279,8 @@
                                     </StackPanel>
                                 </ToggleButton>
                                 <ToggleButton
-                                    x:Name="CacheWriteKindButton"
-                                    Grid.Column="3"
-                                    Style="{StaticResource TokenKindToggleButton}"
-                                    Tag="CacheWrite"
-                                    ToolTip="Include cache write in the selected total"
-                                    AutomationProperties.Name="Include cache write tokens"
-                                    Checked="TokenKindButton_OnChanged"
-                                    Unchecked="TokenKindButton_OnChanged">
-                                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                                        <Border
-                                            Width="6"
-                                            Height="6"
-                                            Margin="0,0,4,0"
-                                            VerticalAlignment="Center"
-                                            Background="{DynamicResource TokenCacheWriteBrush}" />
-                                        <TextBlock
-                                            FontSize="10.5"
-                                            FontWeight="SemiBold"
-                                            Foreground="{DynamicResource TokenCacheWriteBrush}"
-                                            Text="C·W" />
-                                    </StackPanel>
-                                </ToggleButton>
-                                <ToggleButton
                                     x:Name="CacheReadKindButton"
-                                    Grid.Column="4"
+                                    Grid.Column="3"
                                     Style="{StaticResource TokenKindToggleButton}"
                                     Tag="CacheRead"
                                     ToolTip="Include cache read in the selected total"

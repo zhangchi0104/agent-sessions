@@ -75,8 +75,6 @@ nonisolated struct ApiPricingDate: Equatable, Hashable, Comparable, Sendable {
 /// Standard API list prices in USD per million tokens.
 nonisolated struct ApiTokenRates: Equatable, Sendable {
     let rawInput: Decimal
-    let cacheWrite: Decimal
-    let cacheWrite1Hour: Decimal
     let cacheRead: Decimal
     let output: Decimal
 }
@@ -192,40 +190,37 @@ nonisolated enum ApiPricingCatalog {
         "https://platform.claude.com/docs/en/about-claude/pricing"
 
     private static let rules: [PricingRule] = [
-        // OpenAI GPT-5.6 cache writes are billed at 1.25x raw input.
-        openAI("gpt-5.6-sol", "5", "6.25", "0.50", "30"),
-        openAI("gpt-5.6-terra", "2", "2.50", "0.20", "12"),
-        openAI("gpt-5.6-luna", "0.20", "0.25", "0.02", "1.20"),
-        openAI("gpt-5.6", "5", "6.25", "0.50", "30"),
-        openAI("gpt-5.5", "5", "0", "0.50", "30"),
-        openAI("gpt-5.4", "2.50", "0", "0.25", "15"),
-        openAI("gpt-5.3-codex", "1.75", "1.75", "0.175", "14"),
-        openAI("gpt-5.2-codex", "1.75", "1.75", "0.175", "14"),
-        openAI("gpt-5.2", "1.75", "1.75", "0.175", "14"),
-        openAI("gpt-5.1-codex-mini", "0.25", "0.25", "0.025", "2"),
-        openAI("gpt-5.1-codex-max", "1.25", "1.25", "0.125", "10"),
-        openAI("gpt-5.1-codex", "1.25", "1.25", "0.125", "10"),
-        openAI("gpt-5.1", "1.25", "1.25", "0.125", "10"),
-        openAI("gpt-5-codex", "1.25", "1.25", "0.125", "10"),
-        openAI("gpt-5", "1.25", "1.25", "0.125", "10"),
-        openAI("codex-mini-latest", "1.50", "1.50", "0.375", "6"),
+        openAI("gpt-5.6-sol", "5", "0.50", "30"),
+        openAI("gpt-5.6-terra", "2", "0.20", "12"),
+        openAI("gpt-5.6-luna", "0.20", "0.02", "1.20"),
+        openAI("gpt-5.6", "5", "0.50", "30"),
+        openAI("gpt-5.5", "5", "0.50", "30"),
+        openAI("gpt-5.4", "2.50", "0.25", "15"),
+        openAI("gpt-5.3-codex", "1.75", "0.175", "14"),
+        openAI("gpt-5.2-codex", "1.75", "0.175", "14"),
+        openAI("gpt-5.2", "1.75", "0.175", "14"),
+        openAI("gpt-5.1-codex-mini", "0.25", "0.025", "2"),
+        openAI("gpt-5.1-codex-max", "1.25", "0.125", "10"),
+        openAI("gpt-5.1-codex", "1.25", "0.125", "10"),
+        openAI("gpt-5.1", "1.25", "0.125", "10"),
+        openAI("gpt-5-codex", "1.25", "0.125", "10"),
+        openAI("gpt-5", "1.25", "0.125", "10"),
+        openAI("codex-mini-latest", "1.50", "0.375", "6"),
 
-        anthropic("claude-fable-5", "10", "12.50", "20", "1", "50"),
-        anthropic("claude-mythos-5", "10", "12.50", "20", "1", "50"),
-        anthropic("claude-opus-5", "5", "6.25", "10", "0.50", "25"),
-        anthropic("claude-opus-4-8", "5", "6.25", "10", "0.50", "25"),
-        anthropic("claude-opus-4-7", "5", "6.25", "10", "0.50", "25"),
-        anthropic("claude-opus-4-6", "5", "6.25", "10", "0.50", "25"),
-        anthropic("claude-opus-4-5", "5", "6.25", "10", "0.50", "25"),
-        anthropic("claude-opus-4-1", "15", "18.75", "30", "1.50", "75"),
-        anthropic("claude-opus-4", "15", "18.75", "30", "1.50", "75"),
+        anthropic("claude-fable-5", "10", "1", "50"),
+        anthropic("claude-mythos-5", "10", "1", "50"),
+        anthropic("claude-opus-5", "5", "0.50", "25"),
+        anthropic("claude-opus-4-8", "5", "0.50", "25"),
+        anthropic("claude-opus-4-7", "5", "0.50", "25"),
+        anthropic("claude-opus-4-6", "5", "0.50", "25"),
+        anthropic("claude-opus-4-5", "5", "0.50", "25"),
+        anthropic("claude-opus-4-1", "15", "1.50", "75"),
+        anthropic("claude-opus-4", "15", "1.50", "75"),
 
         // Sonnet 5 has an introductory list price through 2026-08-31.
         anthropic(
             "claude-sonnet-5",
             "2",
-            "2.50",
-            "4",
             "0.20",
             "10",
             untilExclusive: ApiPricingDate(year: 2026, month: 9, day: 1)
@@ -233,21 +228,19 @@ nonisolated enum ApiPricingCatalog {
         anthropic(
             "claude-sonnet-5",
             "3",
-            "3.75",
-            "6",
             "0.30",
             "15",
             fromInclusive: ApiPricingDate(year: 2026, month: 9, day: 1)
         ),
-        anthropic("claude-sonnet-4-6", "3", "3.75", "6", "0.30", "15"),
-        anthropic("claude-sonnet-4-5", "3", "3.75", "6", "0.30", "15"),
-        anthropic("claude-sonnet-4", "3", "3.75", "6", "0.30", "15"),
-        anthropic("claude-3-7-sonnet", "3", "3.75", "6", "0.30", "15"),
-        anthropic("claude-3-5-sonnet", "3", "3.75", "6", "0.30", "15"),
-        anthropic("claude-haiku-4-5", "1", "1.25", "2", "0.10", "5"),
-        anthropic("claude-3-5-haiku", "0.80", "1", "1.60", "0.08", "4"),
-        anthropic("claude-3-haiku", "0.25", "0.3125", "0.50", "0.025", "1.25"),
-        anthropic("claude-3-opus", "15", "18.75", "30", "1.50", "75"),
+        anthropic("claude-sonnet-4-6", "3", "0.30", "15"),
+        anthropic("claude-sonnet-4-5", "3", "0.30", "15"),
+        anthropic("claude-sonnet-4", "3", "0.30", "15"),
+        anthropic("claude-3-7-sonnet", "3", "0.30", "15"),
+        anthropic("claude-3-5-sonnet", "3", "0.30", "15"),
+        anthropic("claude-haiku-4-5", "1", "0.10", "5"),
+        anthropic("claude-3-5-haiku", "0.80", "0.08", "4"),
+        anthropic("claude-3-haiku", "0.25", "0.025", "1.25"),
+        anthropic("claude-3-opus", "15", "1.50", "75"),
     ]
 
     /// Main-actor convenience for the exact rows exposed by
@@ -440,11 +433,6 @@ nonisolated enum ApiPricingCatalog {
         if includedKinds.contains(.output) {
             result += Decimal(usage.outputTokens) * rates.output
         }
-        if includedKinds.contains(.cacheWrite) {
-            // TokenUsage currently has no cache-write TTL split. Windows prices
-            // such writes at the default 5-minute rate, never the 1-hour rate.
-            result += Decimal(usage.cacheCreationTokens) * rates.cacheWrite
-        }
         if includedKinds.contains(.cacheRead) {
             result += Decimal(usage.cacheReadTokens) * rates.cacheRead
         }
@@ -458,10 +446,6 @@ nonisolated enum ApiPricingCatalog {
         var remainder = TokenUsage()
         remainder.inputTokens = max(total.inputTokens - attributed.inputTokens, 0)
         remainder.outputTokens = max(total.outputTokens - attributed.outputTokens, 0)
-        remainder.cacheCreationTokens = max(
-            total.cacheCreationTokens - attributed.cacheCreationTokens,
-            0
-        )
         remainder.cacheReadTokens = max(
             total.cacheReadTokens - attributed.cacheReadTokens,
             0
@@ -472,18 +456,14 @@ nonisolated enum ApiPricingCatalog {
     private static func openAI(
         _ modelPrefix: String,
         _ rawInput: String,
-        _ cacheWrite: String,
         _ cacheRead: String,
         _ output: String
     ) -> PricingRule {
-        let write = decimal(cacheWrite)
         return PricingRule(
             agent: .codex,
             modelPrefix: modelPrefix,
             rates: ApiTokenRates(
                 rawInput: decimal(rawInput),
-                cacheWrite: write,
-                cacheWrite1Hour: write,
                 cacheRead: decimal(cacheRead),
                 output: decimal(output)
             )
@@ -493,8 +473,6 @@ nonisolated enum ApiPricingCatalog {
     private static func anthropic(
         _ modelPrefix: String,
         _ rawInput: String,
-        _ cacheWrite: String,
-        _ cacheWrite1Hour: String,
         _ cacheRead: String,
         _ output: String,
         fromInclusive: ApiPricingDate? = nil,
@@ -505,8 +483,6 @@ nonisolated enum ApiPricingCatalog {
             modelPrefix: modelPrefix,
             rates: ApiTokenRates(
                 rawInput: decimal(rawInput),
-                cacheWrite: decimal(cacheWrite),
-                cacheWrite1Hour: decimal(cacheWrite1Hour),
                 cacheRead: decimal(cacheRead),
                 output: decimal(output)
             ),

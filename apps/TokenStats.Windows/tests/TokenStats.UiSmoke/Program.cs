@@ -233,7 +233,6 @@ internal static class Program
                         {
                             input_tokens = 100,
                             output_tokens = 50,
-                            cache_creation_input_tokens = 0,
                             cache_read_input_tokens = 0,
                         },
                     },
@@ -254,7 +253,6 @@ internal static class Program
                         {
                             input_tokens = 200,
                             output_tokens = 0,
-                            cache_creation_input_tokens = 0,
                             cache_read_input_tokens = 0,
                         },
                     },
@@ -278,7 +276,6 @@ internal static class Program
                         {
                             input_tokens = 0,
                             output_tokens = 0,
-                            cache_creation_input_tokens = 0,
                             cache_read_input_tokens = 900,
                         },
                     },
@@ -464,7 +461,6 @@ internal static class Program
                     ["WarningBrush"] = Rgb(0xA6, 0x68, 0x00),
                     ["TokenInputBrush"] = Rgb(0x21, 0x6B, 0xC7),
                     ["TokenOutputBrush"] = Rgb(0x17, 0x78, 0x59),
-                    ["TokenCacheWriteBrush"] = Rgb(0x9E, 0x6B, 0x0F),
                     ["TokenCacheReadBrush"] = Rgb(0x66, 0x5C, 0x9E),
                     ["TooltipBackgroundBrush"] = Rgb(0xFF, 0xFF, 0xFF),
                 });
@@ -495,7 +491,6 @@ internal static class Program
                     ["WarningBrush"] = Rgb(0xF1, 0xC7, 0x5B),
                     ["TokenInputBrush"] = Rgb(0x4A, 0x99, 0xF0),
                     ["TokenOutputBrush"] = Rgb(0x38, 0xAD, 0x87),
-                    ["TokenCacheWriteBrush"] = Rgb(0xD9, 0x9E, 0x38),
                     ["TokenCacheReadBrush"] = Rgb(0x8F, 0x85, 0xBF),
                     ["TooltipBackgroundBrush"] = Rgb(0x38, 0x3C, 0x42),
                 });
@@ -527,7 +522,6 @@ internal static class Program
                     ["WarningBrush"] = SystemColors.HotTrackColor,
                     ["TokenInputBrush"] = SystemColors.HighlightColor,
                     ["TokenOutputBrush"] = SystemColors.HotTrackColor,
-                    ["TokenCacheWriteBrush"] = SystemColors.WindowTextColor,
                     ["TokenCacheReadBrush"] = SystemColors.GrayTextColor,
                     ["TooltipBackgroundBrush"] = SystemColors.InfoColor,
                 });
@@ -813,7 +807,6 @@ internal static class Program
             {
                 FindNamed<ToggleButton>(flyout, "DirectInputKindButton"),
                 FindNamed<ToggleButton>(flyout, "OutputKindButton"),
-                FindNamed<ToggleButton>(flyout, "CacheWriteKindButton"),
                 FindNamed<ToggleButton>(flyout, "CacheReadKindButton"),
             };
 
@@ -843,18 +836,10 @@ internal static class Program
 
             if (FindTokenCell(flyout, "Direct input").Text != "100" ||
                 FindTokenCell(flyout, "Output").Text != "50" ||
-                FindTokenCell(flyout, "Cache write").Text != "–" ||
                 FindTokenCell(flyout, "Cache read").Text != "–")
             {
                 throw new InvalidOperationException(
-                    "Value mode did not render the four Token Kind cells.");
-            }
-            if (EnumerateVisualDescendants<TextBlock>(flyout).Any(text =>
-                    text.Text ==
-                    "IN direct input · OUT output · C·W cache write · C·R cache read"))
-            {
-                throw new InvalidOperationException(
-                    "The redundant Token Kind explanation row is still visible.");
+                    "Value mode did not render the three Token Kind cells.");
             }
 
             var billingSummaryBeforeFilter = summaryValue.Text;
@@ -1297,7 +1282,6 @@ internal static class Program
                 [
                     Rgb(0x21, 0x6B, 0xC7),
                     Rgb(0x17, 0x78, 0x59),
-                    Rgb(0x9E, 0x6B, 0x0F),
                     Rgb(0x66, 0x5C, 0x9E),
                 ],
                 "Light");
@@ -1338,7 +1322,6 @@ internal static class Program
                 [
                     Rgb(0x4A, 0x99, 0xF0),
                     Rgb(0x38, 0xAD, 0x87),
-                    Rgb(0xD9, 0x9E, 0x38),
                     Rgb(0x8F, 0x85, 0xBF),
                 ],
                 "Dark");
@@ -1548,7 +1531,7 @@ internal static class Program
         IReadOnlyList<Color> expected,
         string theme)
     {
-        var labels = new[] { "IN", "OUT", "C·W", "C·R" };
+        var labels = new[] { "IN", "OUT", "C·R" };
         for (var index = 0; index < labels.Length; index++)
         {
             var heading = FindVisualDescendant<TextBlock>(
@@ -1564,7 +1547,7 @@ internal static class Program
             root,
             grid =>
                 Math.Abs(grid.Height - 4) < 0.01 &&
-                VisualTreeHelper.GetChildrenCount(grid) == 4);
+                VisualTreeHelper.GetChildrenCount(grid) == 3);
         for (var index = 0; index < expected.Count; index++)
         {
             if (VisualTreeHelper.GetChild(proportionBar, index) is not
@@ -1914,7 +1897,6 @@ internal static class Program
                         {
                             input_tokens = 7,
                             output_tokens = 3,
-                            cache_creation_input_tokens = 0,
                             cache_read_input_tokens = 0,
                         },
                     },
@@ -2178,7 +2160,6 @@ internal static class Program
                 {
                     input_tokens = input,
                     output_tokens = output,
-                    cache_creation_input_tokens = 0,
                     cache_read_input_tokens = 0,
                 },
             },

@@ -39,7 +39,6 @@ struct TranscriptCheckpointTests {
                 id: "hydrate-one",
                 input: 11,
                 output: 13,
-                cacheWrite: 17,
                 cacheRead: 19
             ),
             claudeUsageLine(id: "hydrate-two", input: 23, output: 29),
@@ -82,7 +81,6 @@ struct TranscriptCheckpointTests {
             id: "append-second",
             input: 3,
             output: 5,
-            cacheWrite: 7,
             cacheRead: 11
         )
         try root.append(name, [appended])
@@ -92,7 +90,6 @@ struct TranscriptCheckpointTests {
 
         #expect(resumed.usage?.inputTokens == 13)
         #expect(resumed.usage?.outputTokens == 25)
-        #expect(resumed.usage?.cacheCreationTokens == 7)
         #expect(resumed.usage?.cacheReadTokens == 11)
         #expect(resumed.usage?.responseCount == 2)
         #expect(resumed.continuation?.safeCommittedBytes == firstBoundary + appendedBytes)
@@ -117,7 +114,6 @@ struct TranscriptCheckpointTests {
             id: responseID,
             input: 9_999,
             output: 8_888,
-            cacheWrite: 7_777,
             cacheRead: 6_666
         )
         try root.append(name, [repeated])
@@ -126,7 +122,6 @@ struct TranscriptCheckpointTests {
 
         #expect(resumed.usage?.inputTokens == 100)
         #expect(resumed.usage?.outputTokens == 50)
-        #expect(resumed.usage?.cacheCreationTokens == 0)
         #expect(resumed.usage?.cacheReadTokens == 0)
         #expect(resumed.usage?.responseCount == 1)
         #expect(resumed.statistics.transcriptContentBytesRead == encodedBytes([repeated]))
@@ -250,7 +245,6 @@ struct TranscriptCheckpointTests {
                 TokenUsage(
                     inputTokens: 0,
                     outputTokens: 3,
-                    cacheCreationTokens: 0,
                     cacheReadTokens: 7,
                     responseCount: 1
                 )
@@ -261,7 +255,6 @@ struct TranscriptCheckpointTests {
                 TokenUsage(
                     inputTokens: 0,
                     outputTokens: 3,
-                    cacheCreationTokens: 0,
                     cacheReadTokens: 0,
                     responseCount: 1
                 )
@@ -302,7 +295,6 @@ struct TranscriptCheckpointTests {
         let expected = TokenUsage(
             inputTokens: -1,
             outputTokens: 10,
-            cacheCreationTokens: 0,
             cacheReadTokens: 0,
             responseCount: 1
         )
@@ -377,14 +369,12 @@ struct TranscriptCheckpointTests {
                 id: "today",
                 input: 11,
                 output: 13,
-                cacheWrite: 17,
                 cacheRead: 19
             ),
             claudeUsageLine(
                 id: "within-seven",
                 input: 2,
                 output: 3,
-                cacheWrite: 5,
                 cacheRead: 7,
                 daysAgo: 4
             ),
@@ -392,7 +382,6 @@ struct TranscriptCheckpointTests {
                 id: "within-thirty",
                 input: 23,
                 output: 29,
-                cacheWrite: 31,
                 cacheRead: 37,
                 daysAgo: 12
             ),
@@ -440,25 +429,22 @@ struct TranscriptCheckpointTests {
         let today = try #require(freshToday[.named("claude-opus-5")])
         #expect(today.inputTokens == 11)
         #expect(today.outputTokens == 13)
-        #expect(today.cacheCreationTokens == 17)
         #expect(today.cacheReadTokens == 19)
-        #expect(today.totalTokens == 60)
+        #expect(today.totalTokens == 43)
         #expect(today.responseCount == 1)
 
         let seven = try #require(freshSeven[.named("claude-opus-5")])
         #expect(seven.inputTokens == 13)
         #expect(seven.outputTokens == 16)
-        #expect(seven.cacheCreationTokens == 22)
         #expect(seven.cacheReadTokens == 26)
-        #expect(seven.totalTokens == 77)
+        #expect(seven.totalTokens == 55)
         #expect(seven.responseCount == 2)
 
         let thirty = try #require(freshThirty[.named("claude-opus-5")])
         #expect(thirty.inputTokens == 36)
         #expect(thirty.outputTokens == 45)
-        #expect(thirty.cacheCreationTokens == 53)
         #expect(thirty.cacheReadTokens == 63)
-        #expect(thirty.totalTokens == 197)
+        #expect(thirty.totalTokens == 144)
         #expect(thirty.responseCount == 3)
     }
 
@@ -482,7 +468,6 @@ struct TranscriptCheckpointTests {
         let after = claudeUsageLine(
             id: "after-oversized",
             output: 13,
-            cacheWrite: 17,
             cacheRead: 19
         )
         try root.appendPartial(name, "\n" + after + "\n")
@@ -492,7 +477,7 @@ struct TranscriptCheckpointTests {
 
         #expect(resumed.usage == cold.usage)
         #expect(resumed.continuation == cold.continuation)
-        #expect(resumed.usage?.totalTokens == 60)
+        #expect(resumed.usage?.totalTokens == 43)
         #expect(resumed.usage?.responseCount == 2)
         #expect(resumed.statistics.checkpointLoads == 1)
         #expect(resumed.statistics.fingerprintBytesRead <= 8 * 1024)
@@ -543,8 +528,7 @@ struct TranscriptCheckpointTests {
         #expect(envelope["timeZoneIdentifier"] as? String == TimeZone.current.identifier)
         #expect(envelope["transcriptKey"] as? String == expectedKey)
         #expect(isSHA256Hex(checksum))
-        #expect(artifactText.contains(#""cacheWriteTokens":"#))
-        #expect(artifactText.contains(#""cacheCreationTokens":"#) == false)
+        #expect(artifactText.contains(#""cacheReadTokens":"#))
         #expect(artifact.path.contains(file.lastPathComponent) == false)
         #expect(artifactText.contains(file.path) == false)
         #expect(artifactText.contains(root.path) == false)

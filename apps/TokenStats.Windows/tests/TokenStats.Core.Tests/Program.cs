@@ -34,9 +34,9 @@ internal static class Program
             new(nameof(OAuthHttpClientBuildsExpectedRequestsAndSurfacesErrors), OAuthHttpClientBuildsExpectedRequestsAndSurfacesErrors),
             new(nameof(UsageProvidersSendExpectedHeadersAndRejectEmptyWindows), UsageProvidersSendExpectedHeadersAndRejectEmptyWindows),
             new(nameof(ClaudeTranscriptsDeduplicateByMessageIdAndUseLocalDay), ClaudeTranscriptsDeduplicateByMessageIdAndUseLocalDay),
-            new(nameof(ClaudeTranscriptsCaptureModelAndCacheWriteDurations), ClaudeTranscriptsCaptureModelAndCacheWriteDurations),
+            new(nameof(ClaudeTranscriptsCaptureModel), ClaudeTranscriptsCaptureModel),
             new(nameof(CodexTranscriptsSplitCachedInputAndScanRecursively), CodexTranscriptsSplitCachedInputAndScanRecursively),
-            new(nameof(CodexTranscriptsTrackModelsCacheWritesAndUnknown), CodexTranscriptsTrackModelsCacheWritesAndUnknown),
+            new(nameof(CodexTranscriptsTrackModelsAndUnknown), CodexTranscriptsTrackModelsAndUnknown),
             new(nameof(CodexRunningTotalsDeduplicateAdvanceAndReset), CodexRunningTotalsDeduplicateAdvanceAndReset),
             new(nameof(CodexOpeningBaselineExcludesInheritedHead), CodexOpeningBaselineExcludesInheritedHead),
             new(nameof(CodexModelAttributionBackfillsAndReadsThreadSettings), CodexModelAttributionBackfillsAndReadsThreadSettings),
@@ -385,13 +385,12 @@ internal static class Program
         {
             InputTokens = 10,
             OutputTokens = 5,
-            CacheCreationTokens = 3,
             CacheReadTokens = 2,
             ResponseCount = 1,
         };
-        Check.Equal(18L, usage.BillableTokens);
-        Check.Equal(18L, usage.TotalTokens);
-        Check.Equal(20L, usage.MeteredTokens);
+        Check.Equal(15L, usage.BillableTokens);
+        Check.Equal(15L, usage.TotalTokens);
+        Check.Equal(17L, usage.MeteredTokens);
         Check.True(UsageFormatting.TokenBreakdown(usage).Contains(
             "cache read",
             StringComparison.Ordinal));
@@ -403,17 +402,15 @@ internal static class Program
         {
             InputTokens = 10,
             OutputTokens = 5,
-            CacheWriteTokens = 3,
-            CacheWrite1HourTokens = 7,
             CacheReadTokens = 100,
             ResponseCount = 1,
         };
 
-        Check.Equal(25L, usage.BillableTokens);
-        Check.Equal(25L, usage.TotalTokens);
-        Check.Equal(125L, usage.MeteredTokens);
-        Check.Equal(25L, usage.Breakdown.TokenMetricTotal);
-        Check.Equal(125L, usage.Breakdown.MeteredTokenTotal);
+        Check.Equal(15L, usage.BillableTokens);
+        Check.Equal(15L, usage.TotalTokens);
+        Check.Equal(115L, usage.MeteredTokens);
+        Check.Equal(15L, usage.Breakdown.TokenMetricTotal);
+        Check.Equal(115L, usage.Breakdown.MeteredTokenTotal);
     }
 
     private static void TokenOdometerKindsIncludeCacheReads()
@@ -422,17 +419,14 @@ internal static class Program
         {
             InputTokens = 11,
             OutputTokens = 22,
-            CacheWriteTokens = 13,
-            CacheWrite1HourTokens = 20,
             CacheReadTokens = 44,
         };
 
         Check.Equal(11L, usage.Amount(TokenKind.DirectInput));
         Check.Equal(22L, usage.Amount(TokenKind.Output));
-        Check.Equal(33L, usage.Amount(TokenKind.CacheWrite));
         Check.Equal(44L, usage.Amount(TokenKind.CacheRead));
-        Check.Equal(66L, usage.BillableTokens);
-        Check.Equal(110L, usage.OdometerTokens);
+        Check.Equal(33L, usage.BillableTokens);
+        Check.Equal(77L, usage.OdometerTokens);
         Check.Equal("Today", TokenRange.Today.Label());
         Check.Equal("7 days", TokenRange.SevenDays.Label());
         Check.Equal("30 days", TokenRange.ThirtyDays.Label());
@@ -449,23 +443,21 @@ internal static class Program
         {
             InputTokens = 11,
             OutputTokens = 22,
-            CacheWriteTokens = 13,
-            CacheWrite1HourTokens = 20,
             CacheReadTokens = 44,
         };
-        var inputAndCacheWrite =
-            TokenKindSelection.DirectInput | TokenKindSelection.CacheWrite;
+        var inputAndCacheRead =
+            TokenKindSelection.DirectInput | TokenKindSelection.CacheRead;
 
-        Check.Equal(110L, usage.SelectedTotal(TokenKindSelection.All));
-        Check.Equal(44L, usage.SelectedTotal(inputAndCacheWrite));
+        Check.Equal(77L, usage.SelectedTotal(TokenKindSelection.All));
+        Check.Equal(55L, usage.SelectedTotal(inputAndCacheRead));
         Check.Equal(0L, usage.SelectedTotal(TokenKindSelection.None));
-        Check.Equal(44L, usage.Breakdown.SelectedTotal(inputAndCacheWrite));
-        Check.True(inputAndCacheWrite.Includes(TokenKind.DirectInput));
-        Check.True(inputAndCacheWrite.Includes(TokenKind.CacheWrite));
-        Check.False(inputAndCacheWrite.Includes(TokenKind.Output));
+        Check.Equal(55L, usage.Breakdown.SelectedTotal(inputAndCacheRead));
+        Check.True(inputAndCacheRead.Includes(TokenKind.DirectInput));
+        Check.True(inputAndCacheRead.Includes(TokenKind.CacheRead));
+        Check.False(inputAndCacheRead.Includes(TokenKind.Output));
         Check.Equal(
-            "IN + C·W",
-            UsageFormatting.TokenKindSelectionLabel(inputAndCacheWrite));
+            "IN + C·R",
+            UsageFormatting.TokenKindSelectionLabel(inputAndCacheRead));
         Check.Equal(
             "All",
             UsageFormatting.TokenKindSelectionLabel(TokenKindSelection.All));
@@ -500,13 +492,13 @@ internal static class Program
         }
 
         Check.Equal(
-            "T: 66 · 7 days",
+            "T: 33 · 7 days",
             UsageFormatting.TokenStatusSummary(
                 usage,
                 TokenRange.SevenDays,
                 TodayMetricMode.Token));
         Check.Equal(
-            "T: 66 · Today",
+            "T: 33 · Today",
             UsageFormatting.TokenStatusSummary(
                 usage,
                 TokenRange.Today,
@@ -565,8 +557,6 @@ internal static class Program
         {
             InputTokens = million,
             OutputTokens = million,
-            CacheWriteTokens = million,
-            CacheWrite1HourTokens = million,
             CacheReadTokens = million,
             ResponseCount = 1,
         };
@@ -593,8 +583,8 @@ internal static class Program
         var estimate = ApiPricingCatalog.Estimate(
             usage,
             new DateOnly(2026, 8, 31));
-        Check.Equal(66.70m, estimate.CostUsd);
-        Check.Equal(10_000_000L, estimate.PricedTokens);
+        Check.Equal(47.70m, estimate.CostUsd);
+        Check.Equal(6_000_000L, estimate.PricedTokens);
         Check.Equal(17L, estimate.UnpricedTokens);
         Check.True(estimate.IsAvailable);
         Check.True(estimate.IsPartial);
@@ -609,7 +599,6 @@ internal static class Program
             new DateOnly(2026, 7, 27),
             out var gpt56));
         Check.Equal(5m, gpt56.RawInput);
-        Check.Equal(6.25m, gpt56.CacheWrite);
         Check.Equal(0.50m, gpt56.CacheRead);
         Check.Equal(30m, gpt56.Output);
 
@@ -619,8 +608,6 @@ internal static class Program
             new DateOnly(2026, 9, 1),
             out var sonnetAfterIntro));
         Check.Equal(3m, sonnetAfterIntro.RawInput);
-        Check.Equal(3.75m, sonnetAfterIntro.CacheWrite);
-        Check.Equal(6m, sonnetAfterIntro.CacheWrite1Hour);
         Check.Equal(0.30m, sonnetAfterIntro.CacheRead);
         Check.Equal(15m, sonnetAfterIntro.Output);
         Check.False(ApiPricingCatalog.TryResolve(
@@ -637,8 +624,6 @@ internal static class Program
         {
             InputTokens = million,
             OutputTokens = million,
-            CacheWriteTokens = million,
-            CacheWrite1HourTokens = million,
             CacheReadTokens = million,
             ResponseCount = 1,
         };
@@ -671,16 +656,6 @@ internal static class Program
         Check.Equal(2 * million, directInput.PricedTokens);
         Check.Equal(10L, directInput.UnpricedTokens);
         Check.True(directInput.IsPartial);
-
-        var cacheWrite = ApiPricingCatalog.Estimate(
-            usage,
-            pricingDate,
-            TokenKindSelection.CacheWrite);
-        Check.Equal(19m, cacheWrite.CostUsd);
-        Check.Equal(4 * million, cacheWrite.PricedTokens);
-        Check.Equal(0L, cacheWrite.UnpricedTokens);
-        Check.False(cacheWrite.IsPartial);
-        Check.Equal(0, cacheWrite.UnpricedModels.Count);
 
         var cacheRead = ApiPricingCatalog.Estimate(
             usage,
@@ -1019,21 +994,18 @@ internal static class Program
             "2026-07-26T16:30:00.123Z",
             input: 10,
             output: 5,
-            cacheCreation: 3,
             cacheRead: 2);
         var duplicate = ClaudeLine(
             "message-current",
             "2026-07-26T16:31:00Z",
             input: 999,
             output: 999,
-            cacheCreation: 999,
             cacheRead: 999);
         var yesterday = ClaudeLine(
             "message-yesterday",
             "2026-07-26T15:30:00Z",
             input: 20,
             output: 4,
-            cacheCreation: 0,
             cacheRead: 1);
         File.WriteAllText(
             transcript,
@@ -1046,20 +1018,18 @@ internal static class Program
         Check.Equal(1, today.ResponseCount);
         Check.Equal(10L, today.InputTokens);
         Check.Equal(5L, today.OutputTokens);
-        Check.Equal(3L, today.CacheCreationTokens);
         Check.Equal(2L, today.CacheReadTokens);
-        Check.Equal(18L, today.TotalTokens);
-        Check.Equal(20L, today.MeteredTokens);
+        Check.Equal(15L, today.TotalTokens);
+        Check.Equal(17L, today.MeteredTokens);
 
         var all = Check.NotNull(reader.UsageForTranscript(transcript));
         Check.Equal(2, all.ResponseCount);
         Check.Equal(30L, all.InputTokens);
         Check.Equal(9L, all.OutputTokens);
-        Check.Equal(3L, all.CacheCreationTokens);
         Check.Equal(3L, all.CacheReadTokens);
     }
 
-    private static async Task ClaudeTranscriptsCaptureModelAndCacheWriteDurations()
+    private static async Task ClaudeTranscriptsCaptureModel()
     {
         using var temp = new TemporaryDirectory();
         var now = DateTimeOffset.Parse("2026-07-27T12:00:00Z", Invariant);
@@ -1073,11 +1043,8 @@ internal static class Program
                     "2026-07-27T10:00:00Z",
                     input: 10,
                     output: 5,
-                    cacheCreation: 30,
                     cacheRead: 2,
-                    model: "claude-sonnet-5-20260701",
-                    cacheWrite5Minute: 10,
-                    cacheWrite1Hour: 20),
+                    model: "claude-sonnet-5-20260701"),
                 ClaudeLine(
                     "<synthetic>",
                     "2026-07-27T10:01:00Z",
@@ -1092,11 +1059,9 @@ internal static class Program
             await reader.TodayUsageAsync(temp.Path, now).ConfigureAwait(false));
         Check.Equal(10L, usage.InputTokens);
         Check.Equal(5L, usage.OutputTokens);
-        Check.Equal(10L, usage.CacheWriteTokens);
-        Check.Equal(20L, usage.CacheWrite1HourTokens);
         Check.Equal(2L, usage.CacheReadTokens);
-        Check.Equal(45L, usage.TotalTokens);
-        Check.Equal(47L, usage.MeteredTokens);
+        Check.Equal(15L, usage.TotalTokens);
+        Check.Equal(17L, usage.MeteredTokens);
 
         Check.Equal(1, usage.ModelUsage.Count);
         var attributed = usage.ModelUsage[0];
@@ -1104,8 +1069,6 @@ internal static class Program
         Check.Equal("claude-sonnet-5-20260701", attributed.Model);
         Check.Equal(1, attributed.ResponseCount);
         Check.Equal(10L, attributed.Breakdown.RawInputTokens);
-        Check.Equal(10L, attributed.Breakdown.CacheWriteTokens);
-        Check.Equal(20L, attributed.Breakdown.CacheWrite1HourTokens);
         Check.Equal(2L, attributed.Breakdown.CacheReadTokens);
         Check.Equal(5L, attributed.Breakdown.OutputTokens);
     }
@@ -1147,7 +1110,7 @@ internal static class Program
         Check.Equal(127L, usage.MeteredTokens);
     }
 
-    private static async Task CodexTranscriptsTrackModelsCacheWritesAndUnknown()
+    private static async Task CodexTranscriptsTrackModelsAndUnknown()
     {
         using var temp = new TemporaryDirectory();
         var now = DateTimeOffset.Parse("2026-07-27T12:00:00Z", Invariant);
@@ -1160,22 +1123,19 @@ internal static class Program
                     "2026-07-27T09:59:00Z",
                     input: 10,
                     cachedInput: 2,
-                    output: 3,
-                    cacheWrite: 1),
+                    output: 3),
                 CodexTurnContextLine("gpt-5.6-sol"),
                 CodexLine(
                     "2026-07-27T10:00:00Z",
                     input: 110,
                     cachedInput: 32,
-                    output: 23,
-                    cacheWrite: 11),
+                    output: 23),
                 CodexTurnContextLine("gpt-5.6-terra"),
                 CodexLine(
                     "2026-07-27T10:01:00Z",
                     input: 160,
                     cachedInput: 37,
-                    output: 33,
-                    cacheWrite: 16)) +
+                    output: 33)) +
             "\n");
         File.SetLastWriteTimeUtc(transcript, now.UtcDateTime);
 
@@ -1183,9 +1143,8 @@ internal static class Program
         var usage = Check.NotNull(
             await reader.TodayUsageAsync(temp.Path, now).ConfigureAwait(false));
         Check.Equal(3, usage.ResponseCount);
-        Check.Equal(107L, usage.InputTokens);
+        Check.Equal(123L, usage.InputTokens);
         Check.Equal(33L, usage.OutputTokens);
-        Check.Equal(16L, usage.CacheWriteTokens);
         Check.Equal(37L, usage.CacheReadTokens);
         Check.Equal(156L, usage.TotalTokens);
         Check.Equal(193L, usage.MeteredTokens);
@@ -1193,15 +1152,13 @@ internal static class Program
 
         var sol = usage.ModelUsage.Single(
             item => item.Model == "gpt-5.6-sol");
-        Check.Equal(67L, sol.Breakdown.RawInputTokens);
-        Check.Equal(11L, sol.Breakdown.CacheWriteTokens);
+        Check.Equal(78L, sol.Breakdown.RawInputTokens);
         Check.Equal(32L, sol.Breakdown.CacheReadTokens);
         Check.Equal(23L, sol.Breakdown.OutputTokens);
 
         var terra = usage.ModelUsage.Single(
             item => item.Model == "gpt-5.6-terra");
-        Check.Equal(40L, terra.Breakdown.RawInputTokens);
-        Check.Equal(5L, terra.Breakdown.CacheWriteTokens);
+        Check.Equal(45L, terra.Breakdown.RawInputTokens);
         Check.Equal(5L, terra.Breakdown.CacheReadTokens);
         Check.Equal(10L, terra.Breakdown.OutputTokens);
     }
@@ -1388,8 +1345,7 @@ internal static class Program
                 "2026-07-27T10:00:00Z",
                 input: 100,
                 cachedInput: 30,
-                output: 20,
-                cacheWrite: 10) +
+                output: 20) +
             "\n");
         var attributed = Check.NotNull(reader.UsageForTranscript(transcript));
         Check.Equal(1, attributed.ModelUsage.Count);
@@ -1401,14 +1357,12 @@ internal static class Program
                 "2026-07-27T10:00:30Z",
                 input: 150,
                 cachedInput: 40,
-                output: 30,
-                cacheWrite: 15) +
+                output: 30) +
             "\n");
         var advanced = Check.NotNull(reader.UsageForTranscript(transcript));
         Check.Equal(2, advanced.ResponseCount);
-        Check.Equal(95L, advanced.InputTokens);
+        Check.Equal(110L, advanced.InputTokens);
         Check.Equal(40L, advanced.CacheReadTokens);
-        Check.Equal(15L, advanced.CacheWriteTokens);
         Check.Equal(30L, advanced.OutputTokens);
         Check.Equal("GPT-5.6-SOL", advanced.ModelUsage[0].Model);
 
@@ -1589,7 +1543,6 @@ internal static class Program
                     "2026-07-27T10:00:00Z",
                     input: 10,
                     output: 1,
-                    cacheCreation: 2,
                     cacheRead: 3,
                     model: "claude-sonnet-cache"),
                 ClaudeLine(
@@ -1597,7 +1550,6 @@ internal static class Program
                     "2026-07-24T10:00:00Z",
                     input: 20,
                     output: 2,
-                    cacheCreation: 4,
                     cacheRead: 5,
                     model: "claude-opus-cache")) +
             "\n");
@@ -1674,8 +1626,7 @@ internal static class Program
                 "2026-07-27T10:00:00Z",
                 input: 100,
                 cachedInput: 30,
-                output: 20,
-                cacheWrite: 10) +
+                output: 20) +
             "\n");
         File.SetLastWriteTimeUtc(claudeTranscript, now.UtcDateTime);
         File.SetLastWriteTimeUtc(codexTranscript, now.UtcDateTime);
@@ -1718,8 +1669,7 @@ internal static class Program
                 "2026-07-27T10:01:00Z",
                 input: 150,
                 cachedInput: 40,
-                output: 30,
-                cacheWrite: 15) +
+                output: 30) +
             "\n";
         File.AppendAllText(claudeTranscript, claudeAppend);
         File.AppendAllText(codexTranscript, codexAppend);
@@ -1735,9 +1685,8 @@ internal static class Program
                 .RangeUsageAsync(sessions, TokenRange.Today, now)
                 .ConfigureAwait(false));
         Check.Equal(4, appended.ResponseCount);
-        Check.Equal(110L, appended.InputTokens);
+        Check.Equal(125L, appended.InputTokens);
         Check.Equal(33L, appended.OutputTokens);
-        Check.Equal(15L, appended.CacheWriteTokens);
         Check.Equal(40L, appended.CacheReadTokens);
         Check.Equal(
             (long)Encoding.UTF8.GetByteCount(claudeAppend + codexAppend),
@@ -1756,9 +1705,8 @@ internal static class Program
                 item.AgentId == AgentId.Codex &&
                 item.Model == "gpt-5.6-sol");
         Check.Equal(2, codex.ResponseCount);
-        Check.Equal(95L, codex.Breakdown.RawInputTokens);
+        Check.Equal(110L, codex.Breakdown.RawInputTokens);
         Check.Equal(30L, codex.Breakdown.OutputTokens);
-        Check.Equal(15L, codex.Breakdown.CacheWriteTokens);
         Check.Equal(40L, codex.Breakdown.CacheReadTokens);
 
         var secondRestart = new TranscriptTokenReader(
@@ -2202,27 +2150,15 @@ internal static class Program
         string timestamp,
         long input,
         long output,
-        long cacheCreation = 0,
         long cacheRead = 0,
-        string? model = null,
-        long? cacheWrite5Minute = null,
-        long? cacheWrite1Hour = null)
+        string? model = null)
     {
         var usage = new Dictionary<string, object?>
         {
             ["input_tokens"] = input,
             ["output_tokens"] = output,
-            ["cache_creation_input_tokens"] = cacheCreation,
             ["cache_read_input_tokens"] = cacheRead,
         };
-        if (cacheWrite5Minute.HasValue || cacheWrite1Hour.HasValue)
-        {
-            usage["cache_creation"] = new Dictionary<string, long>
-            {
-                ["ephemeral_5m_input_tokens"] = cacheWrite5Minute ?? 0,
-                ["ephemeral_1h_input_tokens"] = cacheWrite1Hour ?? 0,
-            };
-        }
 
         return JsonSerializer.Serialize(
             new Dictionary<string, object?>
@@ -2242,13 +2178,9 @@ internal static class Program
         long input,
         long cachedInput,
         long output,
-        long cacheWrite = 0,
-        long cacheWrite1Hour = 0,
         long? lastInput = null,
         long? lastCachedInput = null,
-        long? lastOutput = null,
-        long? lastCacheWrite = null,
-        long? lastCacheWrite1Hour = null) =>
+        long? lastOutput = null) =>
         JsonSerializer.Serialize(
             new Dictionary<string, object?>
             {
@@ -2263,8 +2195,6 @@ internal static class Program
                         {
                             ["input_tokens"] = input,
                             ["cached_input_tokens"] = cachedInput,
-                            ["cache_write_input_tokens"] = cacheWrite,
-                            ["cache_write_1h_input_tokens"] = cacheWrite1Hour,
                             ["output_tokens"] = output,
                         },
                         ["last_token_usage"] = new Dictionary<string, long>
@@ -2272,10 +2202,6 @@ internal static class Program
                             ["input_tokens"] = lastInput ?? input,
                             ["cached_input_tokens"] =
                                 lastCachedInput ?? cachedInput,
-                            ["cache_write_input_tokens"] =
-                                lastCacheWrite ?? cacheWrite,
-                            ["cache_write_1h_input_tokens"] =
-                                lastCacheWrite1Hour ?? cacheWrite1Hour,
                             ["output_tokens"] = lastOutput ?? output,
                         },
                     },

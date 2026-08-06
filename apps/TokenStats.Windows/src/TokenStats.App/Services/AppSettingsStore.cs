@@ -86,7 +86,6 @@ public sealed record ThemeColorOverrides(
     string? Warning = null,
     string? TokenInput = null,
     string? TokenOutput = null,
-    string? TokenCacheWrite = null,
     string? TokenCacheRead = null)
 {
     public static ThemeColorOverrides Empty { get; } = new();
@@ -541,7 +540,6 @@ public sealed class AppSettingsStore
                 NormalizeColor(colors.Warning),
                 NormalizeColor(colors.TokenInput),
                 NormalizeColor(colors.TokenOutput),
-                NormalizeColor(colors.TokenCacheWrite),
                 NormalizeColor(colors.TokenCacheRead)),
             fontFamily,
             imagePath,
@@ -630,7 +628,6 @@ public sealed class AppSettingsStore
                 settings.VisualAppearance.Colors.Warning,
                 settings.VisualAppearance.Colors.TokenInput,
                 settings.VisualAppearance.Colors.TokenOutput,
-                settings.VisualAppearance.Colors.TokenCacheWrite,
                 settings.VisualAppearance.Colors.TokenCacheRead),
             settings.VisualAppearance.FontFamily,
             settings.VisualAppearance.BackgroundImagePath,

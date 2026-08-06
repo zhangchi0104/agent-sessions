@@ -18,12 +18,11 @@ nonisolated enum TranscriptStateError: Error {
 }
 
 /// Token totals summed across the distinct API responses in one transcript, or
-/// across a whole scan root. Cache tokens are tracked separately so the UI can
-/// disclose the breakdown.
+/// across a whole scan root. Cache reads are tracked separately so the UI can
+/// disclose the three-kind breakdown.
 nonisolated struct TokenUsage: Equatable, Sendable {
     var inputTokens = 0
     var outputTokens = 0
-    var cacheCreationTokens = 0
     var cacheReadTokens = 0
     /// Distinct API responses summed; 0 means the file held no usage data
     /// (e.g. a transcript format this reader doesn't understand).
@@ -33,7 +32,6 @@ nonisolated struct TokenUsage: Equatable, Sendable {
         [
             inputTokens,
             outputTokens,
-            cacheCreationTokens,
             cacheReadTokens,
         ]
     }
@@ -64,9 +62,6 @@ nonisolated struct TokenUsage: Equatable, Sendable {
     mutating func add(_ other: TokenUsage) -> Bool {
         let input = inputTokens.addingReportingOverflow(other.inputTokens)
         let output = outputTokens.addingReportingOverflow(other.outputTokens)
-        let cacheCreation = cacheCreationTokens.addingReportingOverflow(
-            other.cacheCreationTokens
-        )
         let cacheRead = cacheReadTokens.addingReportingOverflow(
             other.cacheReadTokens
         )
@@ -75,7 +70,6 @@ nonisolated struct TokenUsage: Equatable, Sendable {
         )
         guard input.overflow == false,
               output.overflow == false,
-              cacheCreation.overflow == false,
               cacheRead.overflow == false,
               responses.overflow == false
         else {
@@ -83,7 +77,6 @@ nonisolated struct TokenUsage: Equatable, Sendable {
         }
         inputTokens = input.partialValue
         outputTokens = output.partialValue
-        cacheCreationTokens = cacheCreation.partialValue
         cacheReadTokens = cacheRead.partialValue
         responseCount = responses.partialValue
         return true

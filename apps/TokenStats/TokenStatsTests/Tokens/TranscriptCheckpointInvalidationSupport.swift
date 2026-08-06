@@ -22,7 +22,6 @@ struct InvalidationFixture {
                 id: "checkpoint-invalid",
                 input: 11,
                 output: 13,
-                cacheWrite: 17,
                 cacheRead: 19
             ),
             codexTokenCountLine(

@@ -79,7 +79,6 @@ struct CodexCountingTests {
         #expect(usage.inputTokens == 600)      // 1,000 reported minus 400 cached
         #expect(usage.cacheReadTokens == 400)
         #expect(usage.outputTokens == 100)
-        #expect(usage.cacheCreationTokens == 0) // Codex reports no cache writes
     }
 
     /// A rollout that continues an earlier session opens with that session's
