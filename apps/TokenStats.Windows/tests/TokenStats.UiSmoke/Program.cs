@@ -2456,7 +2456,7 @@ internal static class Program
             !reset.Focusable ||
             font.Items.Count < 2 ||
             position.Items.Count != 9 ||
-            colors.Children.Count != 14)
+            colors.Children.Count != 13)
         {
             throw new InvalidOperationException(
                 "Appearance controls are not complete or keyboard reachable.");
