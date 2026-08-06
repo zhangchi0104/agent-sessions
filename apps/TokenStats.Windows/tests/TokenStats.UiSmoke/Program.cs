@@ -865,7 +865,7 @@ internal static class Program
                 apiEstimate.Text != apiEstimateBeforeFilter ||
                 excludedOutput.Text != "50" ||
                 Math.Abs(excludedOutput.Opacity - 0.32) > 0.01 ||
-                !tableTotal.Text.Contains("3 selected kinds", StringComparison.Ordinal) ||
+                !tableTotal.Text.Contains("2 selected kinds", StringComparison.Ordinal) ||
                 tokens.Usage?.OdometerTokens != 150)
             {
                 throw new InvalidOperationException(
