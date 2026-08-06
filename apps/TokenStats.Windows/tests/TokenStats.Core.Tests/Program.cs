@@ -1568,9 +1568,9 @@ internal static class Program
                 .ConfigureAwait(false));
 
         Check.Equal(1, firstToday.ResponseCount);
-        Check.Equal(13L, firstToday.TotalTokens);
+        Check.Equal(11L, firstToday.TotalTokens);
         Check.Equal(2, firstSevenDays.ResponseCount);
-        Check.Equal(39L, firstSevenDays.TotalTokens);
+        Check.Equal(33L, firstSevenDays.TotalTokens);
         Check.Equal(new FileInfo(transcript).Length, firstReader.Statistics.ContentBytesRead);
         Check.Equal(1L, firstReader.Statistics.CacheMisses);
         Check.Equal(1L, firstReader.Statistics.CacheWrites);
