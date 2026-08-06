@@ -25,7 +25,6 @@
     <SolidColorBrush x:Key="WarningBrush" Color="#FFA66800" />
     <SolidColorBrush x:Key="TokenInputBrush" Color="#FF216BC7" />
     <SolidColorBrush x:Key="TokenOutputBrush" Color="#FF177859" />
-    <SolidColorBrush x:Key="TokenCacheWriteBrush" Color="#FF9E6B0F" />
     <SolidColorBrush x:Key="TokenCacheReadBrush" Color="#FF665C9E" />
     <SolidColorBrush x:Key="TooltipBackgroundBrush" Color="#FFFFFFFF" />
 

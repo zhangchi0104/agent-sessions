@@ -249,7 +249,7 @@ struct AppearanceSettingsTests {
             #expect(reloaded.primaryAgent == .codex)
             #expect(reloaded.gaugeStyle == .bar)
             #expect(reloaded.tokenSummaryMetric == .apiEquivalent)
-            #expect(reloaded.selectedTokenKinds == Set([.directInput, .output, .cacheWrite]))
+            #expect(reloaded.selectedTokenKinds == Set([.directInput, .output]))
             #expect(reloaded.tokenValueDisplay == .valueAndPercentage)
             #expect(reloaded.selectedTokenRange == .thirtyDays)
             #expect(reloaded.order.first == .codex)
@@ -262,7 +262,6 @@ struct AppearanceSettingsTests {
         withDefaults { defaults in
             let settings = AppearanceSettings(defaults: defaults)
             #expect(settings.setTokenKind(.output, isSelected: false))
-            #expect(settings.setTokenKind(.cacheWrite, isSelected: false))
             #expect(settings.setTokenKind(.cacheRead, isSelected: false))
 
             #expect(settings.selectedTokenKinds == [.directInput])

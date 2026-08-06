@@ -116,7 +116,6 @@ private struct TokenSummaryHeroLayoutFixtureView: View {
         let usage = TokenUsage(
             inputTokens: inputTokens,
             outputTokens: 0,
-            cacheCreationTokens: 0,
             cacheReadTokens: 0,
             responseCount: 1
         )

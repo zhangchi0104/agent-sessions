@@ -1,15 +1,16 @@
 # Tokens Today stays an in-process estimate, not a shared-DB figure
 
 The **Token Odometer** is computed **in-process inside TokenStats** from local
-transcript files. Its shared raw total is the sum of the four disjoint Token
-Kinds: direct input, output, cache write, and cache read. Both clients keep
-parse ownership in process. ADR-0007 permits Windows to persist disposable
+transcript files. Its shared raw total is the sum of the three disjoint Token
+Kinds: direct input, output, and cache read. Provider cache-write fields are
+ignored because their reliable read path is not worth the feature's cost. Both
+clients keep parse ownership in process. ADR-0007 permits Windows to persist disposable
 per-file parse checkpoints, and ADR-0008 permits the equivalent optimization
 on macOS. Neither cache changes the source-of-truth boundary.
 
 Both native clients additionally derive two optional summaries from the same
 records: Billing tokens excludes cache read, while API equivalent applies the
-recorded Model's standard list prices to all four Token Kinds. Unknown Models
+recorded Model's standard list prices to all three Token Kinds. Unknown Models
 remain unpriced and make the estimate partial. These summaries do not redefine
 the Token Odometer.
 
@@ -113,7 +114,7 @@ with the Tokens tab would leave the tooltip stale.
 The selected total is a display projection: the sum of the currently enabled
 Token Kinds. Token Kind headings can be toggled, and cells can present a value,
 that kind's share of the row's selected total, or `value (percentage)`. None of
-those choices changes the raw four-kind Token Odometer, the objective
+those choices changes the raw three-kind Token Odometer, the objective
 Billing/API-equivalent summary, or the tray tooltip. A disabled Token Kind
 retains a dimmed raw value, has no composition percentage, and is excluded from
 the percentage denominator. None of these readings is promoted to a quota
@@ -149,7 +150,7 @@ daemon, no SQLite table, no IPC protocol, and no second source of truth.
 - File-system subscriptions remain armed while the tray process is resident,
   but idle operation performs no repeated enumeration; work follows transcript
   events and the existing coalescing policy.
-- The raw Token Odometer remains the sum of all four Token Kinds. A filtered
+- The raw Token Odometer remains the sum of all three Token Kinds. A filtered
   selected total is only a table projection and must be labelled as such in UI,
   accessibility text, tests, and documentation; it must not alter the objective
   Billing/API-equivalent summary.

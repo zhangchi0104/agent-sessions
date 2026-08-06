@@ -3,13 +3,13 @@
 //  TokenStats
 //
 //  The popover's Tokens tab: the Token Odometer for the selected range, as a
-//  table grouped by Coding Agent then Model, four Token Kinds to a row with a
+//  table grouped by Coding Agent then Model, three Token Kinds to a row with a
 //  proportion bar tucked beneath. An objective Billing/API-equivalent summary
 //  leads the tab; filtered per-agent subtotals remain a separate projection.
 //
 //  The colour key rides in the column header rather than a legend block: a
 //  spelled-out legend measures 298pt against the 298pt this popover has, which
-//  would make the wording of four labels a layout constraint. Full names live
+//  would make the wording of three labels a layout constraint. Full names live
 //  in the header tooltips and in CONTEXT.md.
 //
 
@@ -407,9 +407,7 @@ struct TokensTabView: View {
     /// Exact figures, plus the Model's full name — the column truncates it and
     /// `claude-haiku-4-5-20251001` needs 172pt against the ~135pt available.
     ///
-    /// A kind with no figure prints a dash rather than a zero. Codex reports no
-    /// cache-write field at all, so "Cache write 0" would assert a measurement
-    /// nobody made; CONTEXT.md calls that absence structural.
+    /// A kind with no figure prints a dash rather than a zero.
     private func rowTooltip(_ row: TokenOdometerModel.ModelTokens) -> String {
         let selectedTotal = row.usage.selectedTotal(appearance.selectedTokenKinds)
         let modelName = row.model.localizedDisplayName(using: localizer)
@@ -518,8 +516,6 @@ private extension TokenKind {
             .tokensKindDirectInputActionForm
         case .output:
             .tokensKindOutputActionForm
-        case .cacheWrite:
-            .tokensKindCacheWriteActionForm
         case .cacheRead:
             .tokensKindCacheReadActionForm
         }
@@ -532,8 +528,6 @@ private extension TokenKind {
             .tokensKindDirectInputRowPrefix
         case .output:
             .tokensKindOutputRowPrefix
-        case .cacheWrite:
-            .tokensKindCacheWriteRowPrefix
         case .cacheRead:
             .tokensKindCacheReadRowPrefix
         }
@@ -572,15 +566,13 @@ private struct TableHeightKey: PreferenceKey {
 
 extension TokenKind {
     /// The column header's label. The full name rides in the header tooltip,
-    /// which is what makes `C·W` discoverable.
+    /// which is what makes the compact labels discoverable.
     var abbreviation: LocalizedStringResource {
         switch self {
         case .directInput:
             LocalizedStringResource.tokensKindDirectInputAbbreviation
         case .output:
             LocalizedStringResource.tokensKindOutputAbbreviation
-        case .cacheWrite:
-            LocalizedStringResource.tokensKindCacheWriteAbbreviation
         case .cacheRead:
             LocalizedStringResource.tokensKindCacheReadAbbreviation
         }
@@ -597,7 +589,6 @@ extension TokenKind {
         switch self {
         case .directInput: Self.adaptive(light: (0.13, 0.42, 0.78), dark: (0.29, 0.60, 0.94))
         case .output: Self.adaptive(light: (0.09, 0.47, 0.35), dark: (0.22, 0.68, 0.53))
-        case .cacheWrite: Self.adaptive(light: (0.62, 0.42, 0.06), dark: (0.85, 0.62, 0.22))
         case .cacheRead: Self.adaptive(light: (0.40, 0.36, 0.62), dark: (0.56, 0.52, 0.75))
         }
     }
@@ -614,8 +605,7 @@ extension TokenKind {
 }
 
 /// One row's composition, drawn flush beneath its figures so it doubles as the
-/// row rule a dense table needs anyway. Codex rows show no cache-write segment,
-/// which is how the absence becomes legible without prior knowledge.
+/// row rule a dense table needs anyway.
 private struct ProportionBar: View {
     let usage: TokenUsage
     let selection: Set<TokenKind>

@@ -664,8 +664,6 @@ public sealed class TranscriptTokenReader
                 : new CodexRunningTotal(
                     entry.CodexRunningTotal.DirectInput,
                     entry.CodexRunningTotal.Output,
-                    entry.CodexRunningTotal.CacheWrite,
-                    entry.CodexRunningTotal.CacheWrite1Hour,
                     entry.CodexRunningTotal.CacheRead),
             LastAccessed = now,
             LastWriteUtc = entry.LastWriteUtc,
@@ -816,8 +814,6 @@ public sealed class TranscriptTokenReader
                 {
                     DirectInput = total.DirectInput,
                     Output = total.Output,
-                    CacheWrite = total.CacheWrite,
-                    CacheWrite1Hour = total.CacheWrite1Hour,
                     CacheRead = total.CacheRead,
                 },
         };
@@ -1187,38 +1183,6 @@ public sealed class TranscriptTokenReader
         usage.CacheReadTokens =
             Math.Max(ReadInteger(rawUsage, "cache_read_input_tokens"), 0);
 
-        var aggregateCacheWrite =
-            Math.Max(ReadInteger(rawUsage, "cache_creation_input_tokens"), 0);
-        usage.CacheWriteTokens = aggregateCacheWrite;
-        if (rawUsage.TryGetProperty("cache_creation", out var cacheCreation) &&
-            cacheCreation.ValueKind == JsonValueKind.Object)
-        {
-            var hasFiveMinute = TryReadNonNegativeInteger(
-                cacheCreation,
-                "ephemeral_5m_input_tokens",
-                out var fiveMinute);
-            var hasOneHour = TryReadNonNegativeInteger(
-                cacheCreation,
-                "ephemeral_1h_input_tokens",
-                out var oneHour);
-            if (hasFiveMinute || hasOneHour)
-            {
-                var detailedTotal = fiveMinute + oneHour;
-                var cacheWriteTotal = aggregateCacheWrite > 0
-                    ? aggregateCacheWrite
-                    : detailedTotal;
-                usage.CacheWrite1HourTokens = Math.Min(oneHour, cacheWriteTotal);
-                usage.CacheWriteTokens = Math.Min(
-                    fiveMinute,
-                    cacheWriteTotal - usage.CacheWrite1HourTokens);
-                usage.CacheWriteTokens += Math.Max(
-                    cacheWriteTotal -
-                    usage.CacheWrite1HourTokens -
-                    usage.CacheWriteTokens,
-                    0);
-            }
-        }
-
         usage.ResponseCount = 1;
         model = ReadString(message, "model");
         timestamp = ReadString(root, "timestamp");
@@ -1256,9 +1220,6 @@ public sealed class TranscriptTokenReader
                        OpeningBaseline(info, current);
         var directInput = current.DirectInput - previous.DirectInput;
         var output = current.Output - previous.Output;
-        var cacheWrite = current.CacheWrite - previous.CacheWrite;
-        var cacheWrite1Hour =
-            current.CacheWrite1Hour - previous.CacheWrite1Hour;
         var cacheRead = current.CacheRead - previous.CacheRead;
 
         // A reset or malformed running total contributes nothing, but it still
@@ -1267,8 +1228,6 @@ public sealed class TranscriptTokenReader
         // mark.
         if (directInput < 0 ||
             output < 0 ||
-            cacheWrite < 0 ||
-            cacheWrite1Hour < 0 ||
             cacheRead < 0)
         {
             state.CodexRunningTotal = current;
@@ -1278,8 +1237,6 @@ public sealed class TranscriptTokenReader
         state.CodexRunningTotal = current;
         usage.InputTokens = directInput;
         usage.OutputTokens = output;
-        usage.CacheWriteTokens = cacheWrite;
-        usage.CacheWrite1HourTokens = cacheWrite1Hour;
         usage.CacheReadTokens = cacheRead;
         if (usage.OdometerTokens == 0)
         {
@@ -1298,16 +1255,6 @@ public sealed class TranscriptTokenReader
         var cachedInput = Math.Max(
             ReadInteger(rawUsage, "cached_input_tokens"),
             0);
-        var cacheWrite = Math.Max(
-            Math.Max(
-                ReadInteger(rawUsage, "cache_write_input_tokens"),
-                ReadInteger(rawUsage, "cache_write_tokens")),
-            0);
-        var cacheWrite1Hour = Math.Max(
-            Math.Max(
-                ReadInteger(rawUsage, "cache_write_1h_input_tokens"),
-                ReadInteger(rawUsage, "cache_write_1h_tokens")),
-            0);
 
         if (rawUsage.TryGetProperty("input_tokens_details", out var details) &&
             details.ValueKind == JsonValueKind.Object)
@@ -1317,32 +1264,12 @@ public sealed class TranscriptTokenReader
                 Math.Max(
                     ReadInteger(details, "cached_tokens"),
                     ReadInteger(details, "cached_input_tokens")));
-            cacheWrite = Math.Max(
-                cacheWrite,
-                Math.Max(
-                    ReadInteger(details, "cache_write_tokens"),
-                    ReadInteger(details, "cache_write_input_tokens")));
-            cacheWrite1Hour = Math.Max(
-                cacheWrite1Hour,
-                Math.Max(
-                    ReadInteger(details, "cache_write_1h_tokens"),
-                    ReadInteger(details, "cache_write_1h_input_tokens")));
         }
 
         cachedInput = Math.Clamp(cachedInput, 0, totalInput);
-        cacheWrite1Hour = Math.Clamp(
-            cacheWrite1Hour,
-            0,
-            totalInput - cachedInput);
-        cacheWrite = Math.Clamp(
-            cacheWrite,
-            0,
-            totalInput - cachedInput - cacheWrite1Hour);
         return new CodexRunningTotal(
-            totalInput - cachedInput - cacheWrite - cacheWrite1Hour,
+            totalInput - cachedInput,
             Math.Max(ReadInteger(rawUsage, "output_tokens"), 0),
-            cacheWrite,
-            cacheWrite1Hour,
             cachedInput);
     }
 
@@ -1520,22 +1447,6 @@ public sealed class TranscriptTokenReader
             : 0;
     }
 
-    private static bool TryReadNonNegativeInteger(
-        JsonElement element,
-        string property,
-        out long value)
-    {
-        value = 0;
-        if (!element.TryGetProperty(property, out var raw) ||
-            raw.ValueKind != JsonValueKind.Number)
-        {
-            return false;
-        }
-
-        value = Math.Max(ReadInteger(element, property), 0);
-        return true;
-    }
-
     private static string? ReadString(JsonElement element, string property) =>
         element.TryGetProperty(property, out var raw) &&
         raw.ValueKind == JsonValueKind.String
@@ -1600,15 +1511,11 @@ public sealed class TranscriptTokenReader
     private readonly record struct CodexRunningTotal(
         long DirectInput,
         long Output,
-        long CacheWrite,
-        long CacheWrite1Hour,
         long CacheRead)
     {
         public CodexRunningTotal Subtracting(CodexRunningTotal other) => new(
             Math.Max(DirectInput - other.DirectInput, 0),
             Math.Max(Output - other.Output, 0),
-            Math.Max(CacheWrite - other.CacheWrite, 0),
-            Math.Max(CacheWrite1Hour - other.CacheWrite1Hour, 0),
             Math.Max(CacheRead - other.CacheRead, 0));
     }
 }

@@ -46,7 +46,7 @@ struct TokenSummaryPresentationTests {
     }
 
     @Test func billingSummaryExcludesOnlyCacheReads() {
-        let usage = tokens(input: 10, output: 20, cacheWrite: 30, cacheRead: 9_999)
+        let usage = tokens(input: 10, output: 20, cacheRead: 9_999)
         let summary = TokenSummaryPresentation.make(
             perAgent: [agent(.claudeCode, model: "claude-opus-5", usage: usage)],
             metric: .billingTokens,
@@ -55,10 +55,10 @@ struct TokenSummaryPresentationTests {
             locale: englishLocale
         )
 
-        #expect(summary.value == "60")
+        #expect(summary.value == "30")
         #expect(summary.compactValue == nil)
         #expect(summary.label == "Billing tokens · Today")
-        #expect(summary.numericValue == 60)
+        #expect(summary.numericValue == 30)
         #expect(summary.help.contains("Cache read 9,999"))
     }
 
@@ -528,13 +528,11 @@ struct TokenSummaryPresentationTests {
     private func tokens(
         input: Int = 0,
         output: Int = 0,
-        cacheWrite: Int = 0,
         cacheRead: Int = 0
     ) -> TokenUsage {
         TokenUsage(
             inputTokens: input,
             outputTokens: output,
-            cacheCreationTokens: cacheWrite,
             cacheReadTokens: cacheRead,
             responseCount: 1
         )

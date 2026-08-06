@@ -199,7 +199,6 @@ public partial class FlyoutWindow : Window
         {
             TokenKind.DirectInput => TokenKindSelection.DirectInput,
             TokenKind.Output => TokenKindSelection.Output,
-            TokenKind.CacheWrite => TokenKindSelection.CacheWrite,
             TokenKind.CacheRead => TokenKindSelection.CacheRead,
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
         };
@@ -316,8 +315,6 @@ public partial class FlyoutWindow : Window
             selection.Includes(TokenKind.DirectInput);
         OutputKindButton.IsChecked =
             selection.Includes(TokenKind.Output);
-        CacheWriteKindButton.IsChecked =
-            selection.Includes(TokenKind.CacheWrite);
         CacheReadKindButton.IsChecked =
             selection.Includes(TokenKind.CacheRead);
         PinButton.IsChecked = preferences.AlwaysOnTop;
@@ -443,7 +440,7 @@ public partial class FlyoutWindow : Window
         TokenSummaryPanel.ToolTip = usage is null
             ? $"No billing token usage for {displayedRange.Label()}."
             : $"{UsageFormatting.TokenBreakdown(usage)}. " +
-              "Billing tokens include direct input, cache writes, and output; " +
+              "Billing tokens include direct input and output; " +
               "cache reads remain visible in the table but are excluded from this total. " +
               "Token Kind display toggles do not change this objective summary.";
         AutomationProperties.SetName(
@@ -485,9 +482,8 @@ public partial class FlyoutWindow : Window
                 .Distinct(StringComparer.OrdinalIgnoreCase));
         ApiEstimatePanel.ToolTip =
             "Standard API-equivalent estimate by recorded model; includes all " +
-            "four Token Kinds at list rates regardless of the display toggles. " +
+            "three Token Kinds at list rates regardless of the display toggles. " +
             "The final total is rounded upward to the nearest cent. " +
-            "Claude cache writes without TTL detail use the default 5-minute rate. " +
             $"Models: {(models.Length > 0 ? models : "unknown")}. " +
             $"Prices reviewed {ApiPricingCatalog.LastReviewed:yyyy-MM-dd}." +
             unpriced;
@@ -546,7 +542,7 @@ public partial class FlyoutWindow : Window
             ToolTip = usage is null
                 ? "No token usage in this range."
                 : $"{usage.SelectedTotal(selection):N0} selected tokens " +
-                  $"of {usage.OdometerTokens:N0} across all four kinds",
+                  $"of {usage.OdometerTokens:N0} across all three kinds",
         };
         Grid.SetColumn(total, 1);
         header.Children.Add(total);
@@ -593,7 +589,6 @@ public partial class FlyoutWindow : Window
         {
             breakdown.Amount(TokenKind.DirectInput),
             breakdown.Amount(TokenKind.Output),
-            breakdown.Amount(TokenKind.CacheWrite),
             breakdown.Amount(TokenKind.CacheRead),
         };
         var modelName = string.IsNullOrWhiteSpace(model.Model)
@@ -606,7 +601,7 @@ public partial class FlyoutWindow : Window
         {
             Width = new GridLength(1, GridUnitType.Star),
         });
-        for (var index = 0; index < values.Length; index++)
+        for (var index = 0; index < 3; index++)
         {
             grid.ColumnDefinitions.Add(new ColumnDefinition
             {
@@ -663,7 +658,7 @@ public partial class FlyoutWindow : Window
         AutomationProperties.SetName(
             grid,
             $"{modelName}; direct input {values[0]:N0}; output {values[1]:N0}; " +
-            $"cache write {values[2]:N0}; cache read {values[3]:N0}");
+            $"cache read {values[2]:N0}");
         row.Children.Add(grid);
         row.Children.Add(BuildTokenProportionBar(values, selection));
         return row;
@@ -684,13 +679,13 @@ public partial class FlyoutWindow : Window
             ClipToBounds = true,
             ToolTip =
                 $"IN {values[0]:N0} · OUT {values[1]:N0} · " +
-                $"C·W {values[2]:N0} · C·R {values[3]:N0}",
+                $"C·R {values[2]:N0}",
         };
         AutomationProperties.SetName(
             bar,
             "Token proportions: " +
             $"direct input {values[0]:N0}, output {values[1]:N0}, " +
-            $"cache write {values[2]:N0}, cache read {values[3]:N0}");
+            $"cache read {values[2]:N0}");
         for (var index = 0; index < values.Length; index++)
         {
             var included = selection.Includes(TokenKindAt(index));
@@ -720,7 +715,6 @@ public partial class FlyoutWindow : Window
             {
                 0 => "TokenInputBrush",
                 1 => "TokenOutputBrush",
-                2 => "TokenCacheWriteBrush",
                 _ => "TokenCacheReadBrush",
             });
 
@@ -729,7 +723,6 @@ public partial class FlyoutWindow : Window
         {
             0 => "Direct input",
             1 => "Output",
-            2 => "Cache write",
             _ => "Cache read",
         };
 
@@ -738,8 +731,7 @@ public partial class FlyoutWindow : Window
         {
             0 => TokenKind.DirectInput,
             1 => TokenKind.Output,
-            2 => TokenKind.CacheWrite,
-            3 => TokenKind.CacheRead,
+            2 => TokenKind.CacheRead,
             _ => throw new ArgumentOutOfRangeException(nameof(index), index, null),
         };
 

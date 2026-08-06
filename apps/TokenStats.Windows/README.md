@@ -6,10 +6,10 @@ A native Windows notification-area app for TokenStats' two-tab flyout:
   fetched directly from each Coding Agent over TokenStats' independent OAuth
   session.
 - **Tokens** shows a local Token Odometer derived from native Windows transcript
-  directories for Today, 7 days, or 30 days. It groups four disjoint Token
+  directories for Today, 7 days, or 30 days. It groups three supported Token
   Kinds by Coding Agent and Model. Each Token Kind heading is also a filter;
   the enabled headings form a Windows-only **selected total** for table
-  composition without changing the underlying four-kind Odometer. Disabled
+  composition without changing the underlying three-kind Odometer. Disabled
   kinds remain visible as dimmed raw values.
 
 The tray tooltip carries a compact objective status summary for the persisted
@@ -24,13 +24,13 @@ The Tokens tab shows two Windows-specific summaries together for the selected
 reporting range. Billing tokens is the primary reading, while Estimated API
 value is a quieter reference beneath it:
 
-- **Billing tokens** is `direct input + cache writes + output`. Cache reads
+- **Billing tokens** is `direct input + output`. Cache reads
   remain visible in the Odometer table but are deliberately excluded from this
   summary. Display filters do not change the count.
 - **API equivalent** is an estimated USD value. Each transcript entry is
   attributed to its recorded model and valued using that model's standard
   official API list prices. Unlike Billing tokens, this estimate includes
-  cache reads at the applicable cached-input price. It always uses all four
+  cache reads at the applicable cached-input price. It always uses all three
   recorded Token Kinds, regardless of display filters. Entries whose model is
   missing or absent from the pricing catalog remain unpriced and make the
   displayed estimate explicitly partial. The final sum is rounded upward once
@@ -43,15 +43,15 @@ long-context surcharges, Priority/Flex/Batch processing, data residency or
 partner routing, private discounts, and separate tool charges. The estimate
 therefore applies standard API list prices only.
 
-The Odometer table itself always uses the cross-platform raw definition:
-`direct input + output + cache write + cache read`. The four columns are
-`IN`, `OUT`, `C·W`, and `C·R`; no category is counted twice.
+The Odometer table itself uses the supported raw definition:
+`direct input + output + cache read`. The three visible columns are
+`IN`, `OUT`, and `C·R`; no category is counted twice.
 
-On Windows, the four column headings can be toggled independently. The
+On Windows, the three column headings can be toggled independently. The
 **selected total** is the sum of the enabled Token Kinds over the selected
 range; it drives table subtotals, model ordering, and composition percentages.
 It does not change either summary, rewrite transcript records, or redefine the
-raw four-kind Token Odometer total.
+raw three-kind Token Odometer total.
 
 The **Display** Settings page controls whether each enabled Token Kind is shown
 as a numeric value, its percentage of that row's selected total, or both as
@@ -147,7 +147,7 @@ SmartScreen.
   summary modes settles immediately without animation. Value and range
   transitions follow the Windows client-area animation accessibility
   preference.
-- Token Kind filters update the table's selected total while the raw four-kind
+- Token Kind filters update the table's selected total while the raw three-kind
   Odometer and objective Billing/API-equivalent summaries remain unchanged.
   Enabled cells can show value, percentage, or value-and-percentage according to
   the Display preference; disabled cells retain a dimmed raw value and no

@@ -132,7 +132,6 @@ struct TokenSummaryPresentation: Equatable {
             )
             : nil
         let directInput = usage.inputTokens.formatted(.number.locale(localizer.locale))
-        let cacheWrite = usage.cacheCreationTokens.formatted(.number.locale(localizer.locale))
         let output = usage.outputTokens.formatted(.number.locale(localizer.locale))
         let cacheRead = usage.cacheReadTokens.formatted(.number.locale(localizer.locale))
         return TokenSummaryPresentation(
@@ -143,7 +142,6 @@ struct TokenSummaryPresentation: Equatable {
                 LocalizedStringResource.tokensSummaryBillingHelp(
                     count,
                     directInput,
-                    cacheWrite,
                     output,
                     cacheRead
                 )
