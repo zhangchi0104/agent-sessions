@@ -12,14 +12,15 @@ import SwiftUI
 /// Account management: connect or disconnect each Coding Agent.
 struct AccountsPane: View {
     let model: UsageModel
+    @State private var pendingAccounts: Set<CodingAgentID> = []
 
     var body: some View {
         Form {
-            // Accounts remains an unfiltered management surface: hiding an
-            // agent elsewhere must never hide the controls needed to sign in
-            // again or turn that agent's presentation back on.
-            ForEach(model.appearance.displayOrder, id: \.self) { id in
-                AccountSection(model: model, id: id)
+            ForEach(displayedAccounts, id: \.self) { id in
+                AccountSection(model: model, id: id) {
+                    pendingAccounts.remove(id)
+                    model.signOut(id)
+                }
             }
 
             // Descriptive copy reads as a caption below the account tiles
@@ -34,6 +35,80 @@ struct AccountsPane: View {
         }
         .formStyle(.grouped)
         .navigationTitle(Text(AccountsCopy.title))
+        .overlay {
+            if displayedAccounts.isEmpty {
+                ContentUnavailableView(
+                    AccountsCopy.emptyTitle,
+                    systemImage: "person.crop.circle.badge.plus",
+                    description: Text(AccountsCopy.emptyDescription)
+                )
+                .padding(.horizontal, 48)
+                .padding(.bottom, 44)
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            addAccountMenu
+                .padding(.trailing, 20)
+                .padding(.bottom, 16)
+        }
+    }
+
+    private var displayedAccounts: [CodingAgentID] {
+        AccountListPresentation.displayedAccounts(
+            in: model.appearance.displayOrder,
+            states: model.agentStates,
+            pending: pendingAccounts
+        )
+    }
+
+    private var availableAccounts: [CodingAgentID] {
+        AccountListPresentation.availableAccounts(
+            in: model.appearance.displayOrder,
+            states: model.agentStates,
+            pending: pendingAccounts
+        )
+    }
+
+    private var addAccountMenu: some View {
+        Menu {
+            ForEach(availableAccounts, id: \.self) { id in
+                Button {
+                    pendingAccounts.insert(id)
+                    model.signIn(id)
+                } label: {
+                    Text(id.integration.displayName)
+                }
+            }
+        } label: {
+            Image(systemName: "plus")
+                .frame(width: 24, height: 24)
+        }
+        .menuIndicator(.hidden)
+        .disabled(availableAccounts.isEmpty)
+        .accessibilityLabel(AccountsCopy.addAccountButton)
+        .accessibilityIdentifier("settings.accounts.add")
+        .help(AccountsCopy.addAccountButton)
+    }
+}
+
+/// Resolves the visible account rows and the add menu from the same set, so an
+/// account can never appear in both places or be added twice.
+enum AccountListPresentation {
+    static func displayedAccounts(
+        in displayOrder: [CodingAgentID],
+        states: CodingAgentStates,
+        pending: Set<CodingAgentID>
+    ) -> [CodingAgentID] {
+        displayOrder.filter { pending.contains($0) || states[$0] != .signedOut }
+    }
+
+    static func availableAccounts(
+        in displayOrder: [CodingAgentID],
+        states: CodingAgentStates,
+        pending: Set<CodingAgentID>
+    ) -> [CodingAgentID] {
+        let displayed = Set(displayedAccounts(in: displayOrder, states: states, pending: pending))
+        return displayOrder.filter { !displayed.contains($0) }
     }
 }
 
@@ -42,6 +117,7 @@ struct AccountsPane: View {
 private struct AccountSection: View {
     let model: UsageModel
     let id: CodingAgentID
+    let onSignOut: () -> Void
 
     var body: some View {
         Section {
@@ -56,7 +132,7 @@ private struct AccountSection: View {
                     }
                     ConnectionStatusLabel(status: status)
                     if isConnected {
-                        Button(role: .destructive, action: { model.signOut(id) }) {
+                        Button(role: .destructive, action: onSignOut) {
                             Text(AccountsCopy.signOutButton)
                         }
                     }
@@ -90,6 +166,12 @@ private struct AccountSection: View {
 
 private enum AccountsCopy {
     static let title = LocalizedStringResource.settingsAccountsTitle
+
+    static let addAccountButton = LocalizedStringResource.settingsAccountsAddButton
+
+    static let emptyTitle = LocalizedStringResource.settingsAccountsEmptyTitle
+
+    static let emptyDescription = LocalizedStringResource.settingsAccountsEmptyDescription
 
     static let keychainPrivacyFooter = LocalizedStringResource.settingsAccountsKeychainPrivacyFooter
 
