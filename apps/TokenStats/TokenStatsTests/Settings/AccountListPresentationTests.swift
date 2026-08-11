@@ -5,7 +5,6 @@
 
 import Foundation
 import Testing
-@testable import TokenStats
 
 struct AccountListPresentationTests {
     private let displayOrder: [CodingAgentID] = [.claudeCode, .codex]
