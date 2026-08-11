@@ -9,6 +9,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using TokenStats.App.Controls;
 using TokenStats.App.Infrastructure;
 using TokenStats.App.Services;
@@ -91,6 +92,66 @@ internal static class Program
             {
                 throw new InvalidOperationException(
                     "Windows v4 settings did not survive an ISO-JSON round trip.");
+            }
+
+            var legacySettingsPath = Path.Combine(
+                temporary,
+                "legacy-cache-write-settings.json");
+            var legacySeed = new AppSettingsStore(legacySettingsPath);
+            legacySeed.SaveAppearance(
+                AppearancePreferences.Default with
+                {
+                    PrimaryAgent = AgentId.Codex,
+                    GaugeStyle = GaugeStyle.Ring,
+                    TodayMetric = TodayMetricMode.Usage,
+                    SelectedTokenKinds =
+                        TokenKindSelection.DirectInput |
+                        TokenKindSelection.CacheRead,
+                    TokenValueDisplay = TokenValueDisplayMode.Percentage,
+                    SelectedTokenRange = TokenRange.SevenDays,
+                    AlwaysOnTop = true,
+                });
+            legacySeed.SaveVisualAppearance(customVisualAppearance);
+            legacySeed.SetOnboardingCompleted(true);
+            legacySeed.SaveLastSnapshot(
+                AgentId.Codex,
+                new UsageSnapshot(
+                    [new UsageWindow("weekly", 25, null)],
+                    DateTimeOffset.UnixEpoch));
+
+            var legacyDocument = JsonNode.Parse(
+                    File.ReadAllText(legacySettingsPath)) as JsonObject ??
+                throw new InvalidOperationException(
+                    "The seeded legacy settings document was not an object.");
+            var legacyAppearanceDocument =
+                legacyDocument["appearance"] as JsonObject ??
+                throw new InvalidOperationException(
+                    "The seeded legacy appearance was not an object.");
+            legacyAppearanceDocument["selectedTokenKinds"] =
+                "directInput, cacheWrite";
+            File.WriteAllText(
+                legacySettingsPath,
+                legacyDocument.ToJsonString(
+                    new JsonSerializerOptions { WriteIndented = true }));
+
+            var migratedSettings = new AppSettingsStore(legacySettingsPath);
+            if (migratedSettings.LastLoadError is not null ||
+                migratedSettings.Appearance.PrimaryAgent != AgentId.Codex ||
+                migratedSettings.Appearance.GaugeStyle != GaugeStyle.Ring ||
+                migratedSettings.Appearance.TodayMetric != TodayMetricMode.Usage ||
+                migratedSettings.Appearance.SelectedTokenKinds !=
+                    TokenKindSelection.DirectInput ||
+                migratedSettings.Appearance.TokenValueDisplay !=
+                    TokenValueDisplayMode.Percentage ||
+                migratedSettings.Appearance.SelectedTokenRange !=
+                    TokenRange.SevenDays ||
+                !migratedSettings.Appearance.AlwaysOnTop ||
+                !migratedSettings.OnboardingCompleted ||
+                migratedSettings.VisualAppearance != customVisualAppearance ||
+                migratedSettings.LoadLastSnapshot(AgentId.Codex) is null)
+            {
+                throw new InvalidOperationException(
+                    "Legacy cache-write selection reset unrelated settings.");
             }
 
             var malformedSettingsPath = Path.Combine(
@@ -233,7 +294,6 @@ internal static class Program
                         {
                             input_tokens = 100,
                             output_tokens = 50,
-                            cache_creation_input_tokens = 0,
                             cache_read_input_tokens = 0,
                         },
                     },
@@ -254,7 +314,6 @@ internal static class Program
                         {
                             input_tokens = 200,
                             output_tokens = 0,
-                            cache_creation_input_tokens = 0,
                             cache_read_input_tokens = 0,
                         },
                     },
@@ -278,7 +337,6 @@ internal static class Program
                         {
                             input_tokens = 0,
                             output_tokens = 0,
-                            cache_creation_input_tokens = 0,
                             cache_read_input_tokens = 900,
                         },
                     },
@@ -464,7 +522,6 @@ internal static class Program
                     ["WarningBrush"] = Rgb(0xA6, 0x68, 0x00),
                     ["TokenInputBrush"] = Rgb(0x21, 0x6B, 0xC7),
                     ["TokenOutputBrush"] = Rgb(0x17, 0x78, 0x59),
-                    ["TokenCacheWriteBrush"] = Rgb(0x9E, 0x6B, 0x0F),
                     ["TokenCacheReadBrush"] = Rgb(0x66, 0x5C, 0x9E),
                     ["TooltipBackgroundBrush"] = Rgb(0xFF, 0xFF, 0xFF),
                 });
@@ -495,7 +552,6 @@ internal static class Program
                     ["WarningBrush"] = Rgb(0xF1, 0xC7, 0x5B),
                     ["TokenInputBrush"] = Rgb(0x4A, 0x99, 0xF0),
                     ["TokenOutputBrush"] = Rgb(0x38, 0xAD, 0x87),
-                    ["TokenCacheWriteBrush"] = Rgb(0xD9, 0x9E, 0x38),
                     ["TokenCacheReadBrush"] = Rgb(0x8F, 0x85, 0xBF),
                     ["TooltipBackgroundBrush"] = Rgb(0x38, 0x3C, 0x42),
                 });
@@ -527,7 +583,6 @@ internal static class Program
                     ["WarningBrush"] = SystemColors.HotTrackColor,
                     ["TokenInputBrush"] = SystemColors.HighlightColor,
                     ["TokenOutputBrush"] = SystemColors.HotTrackColor,
-                    ["TokenCacheWriteBrush"] = SystemColors.WindowTextColor,
                     ["TokenCacheReadBrush"] = SystemColors.GrayTextColor,
                     ["TooltipBackgroundBrush"] = SystemColors.InfoColor,
                 });
@@ -813,7 +868,6 @@ internal static class Program
             {
                 FindNamed<ToggleButton>(flyout, "DirectInputKindButton"),
                 FindNamed<ToggleButton>(flyout, "OutputKindButton"),
-                FindNamed<ToggleButton>(flyout, "CacheWriteKindButton"),
                 FindNamed<ToggleButton>(flyout, "CacheReadKindButton"),
             };
 
@@ -843,18 +897,10 @@ internal static class Program
 
             if (FindTokenCell(flyout, "Direct input").Text != "100" ||
                 FindTokenCell(flyout, "Output").Text != "50" ||
-                FindTokenCell(flyout, "Cache write").Text != "–" ||
                 FindTokenCell(flyout, "Cache read").Text != "–")
             {
                 throw new InvalidOperationException(
-                    "Value mode did not render the four Token Kind cells.");
-            }
-            if (EnumerateVisualDescendants<TextBlock>(flyout).Any(text =>
-                    text.Text ==
-                    "IN direct input · OUT output · C·W cache write · C·R cache read"))
-            {
-                throw new InvalidOperationException(
-                    "The redundant Token Kind explanation row is still visible.");
+                    "Value mode did not render the three Token Kind cells.");
             }
 
             var billingSummaryBeforeFilter = summaryValue.Text;
@@ -880,7 +926,7 @@ internal static class Program
                 apiEstimate.Text != apiEstimateBeforeFilter ||
                 excludedOutput.Text != "50" ||
                 Math.Abs(excludedOutput.Opacity - 0.32) > 0.01 ||
-                !tableTotal.Text.Contains("3 selected kinds", StringComparison.Ordinal) ||
+                !tableTotal.Text.Contains("2 selected kinds", StringComparison.Ordinal) ||
                 tokens.Usage?.OdometerTokens != 150)
             {
                 throw new InvalidOperationException(
@@ -1297,7 +1343,6 @@ internal static class Program
                 [
                     Rgb(0x21, 0x6B, 0xC7),
                     Rgb(0x17, 0x78, 0x59),
-                    Rgb(0x9E, 0x6B, 0x0F),
                     Rgb(0x66, 0x5C, 0x9E),
                 ],
                 "Light");
@@ -1338,7 +1383,6 @@ internal static class Program
                 [
                     Rgb(0x4A, 0x99, 0xF0),
                     Rgb(0x38, 0xAD, 0x87),
-                    Rgb(0xD9, 0x9E, 0x38),
                     Rgb(0x8F, 0x85, 0xBF),
                 ],
                 "Dark");
@@ -1548,7 +1592,7 @@ internal static class Program
         IReadOnlyList<Color> expected,
         string theme)
     {
-        var labels = new[] { "IN", "OUT", "C·W", "C·R" };
+        var labels = new[] { "IN", "OUT", "C·R" };
         for (var index = 0; index < labels.Length; index++)
         {
             var heading = FindVisualDescendant<TextBlock>(
@@ -1564,7 +1608,7 @@ internal static class Program
             root,
             grid =>
                 Math.Abs(grid.Height - 4) < 0.01 &&
-                VisualTreeHelper.GetChildrenCount(grid) == 4);
+                VisualTreeHelper.GetChildrenCount(grid) == 3);
         for (var index = 0; index < expected.Count; index++)
         {
             if (VisualTreeHelper.GetChild(proportionBar, index) is not
@@ -1914,7 +1958,6 @@ internal static class Program
                         {
                             input_tokens = 7,
                             output_tokens = 3,
-                            cache_creation_input_tokens = 0,
                             cache_read_input_tokens = 0,
                         },
                     },
@@ -2178,7 +2221,6 @@ internal static class Program
                 {
                     input_tokens = input,
                     output_tokens = output,
-                    cache_creation_input_tokens = 0,
                     cache_read_input_tokens = 0,
                 },
             },
@@ -2475,7 +2517,7 @@ internal static class Program
             !reset.Focusable ||
             font.Items.Count < 2 ||
             position.Items.Count != 9 ||
-            colors.Children.Count != 14)
+            colors.Children.Count != 13)
         {
             throw new InvalidOperationException(
                 "Appearance controls are not complete or keyboard reachable.");

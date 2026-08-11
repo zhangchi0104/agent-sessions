@@ -5,7 +5,6 @@
 
 import Testing
 import Foundation
-@testable import TokenStats
 
 struct AppStateReducerTests {
 

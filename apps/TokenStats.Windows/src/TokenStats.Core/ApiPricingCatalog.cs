@@ -7,8 +7,6 @@ namespace TokenStats.Core;
 /// </summary>
 public sealed record ApiTokenRates(
     decimal RawInput,
-    decimal CacheWrite,
-    decimal CacheWrite1Hour,
     decimal CacheRead,
     decimal Output);
 
@@ -24,70 +22,65 @@ public sealed record ApiCostEstimate(
 
 public static class ApiPricingCatalog
 {
-    public static DateOnly LastReviewed { get; } = new(2026, 7, 27);
+    public static DateOnly LastReviewed { get; } = new(2026, 8, 4);
 
     public const string OpenAiPricingSource =
-        "https://developers.openai.com/api/docs/models";
+        "https://developers.openai.com/api/docs/pricing";
 
     public const string AnthropicPricingSource =
         "https://platform.claude.com/docs/en/about-claude/pricing";
 
     private static readonly PricingRule[] Rules =
     [
-        // OpenAI GPT-5.6 cache writes are billed at 1.25x raw input.
-        OpenAi("gpt-5.6-sol", 5m, 6.25m, 0.50m, 30m),
-        OpenAi("gpt-5.6-terra", 2.50m, 3.125m, 0.25m, 15m),
-        OpenAi("gpt-5.6-luna", 1m, 1.25m, 0.10m, 6m),
-        OpenAi("gpt-5.6", 5m, 6.25m, 0.50m, 30m),
-        OpenAi("gpt-5.5", 5m, 5m, 0.50m, 30m),
-        OpenAi("gpt-5.4", 2.50m, 2.50m, 0.25m, 15m),
-        OpenAi("gpt-5.3-codex", 1.75m, 1.75m, 0.175m, 14m),
-        OpenAi("gpt-5.2-codex", 1.75m, 1.75m, 0.175m, 14m),
-        OpenAi("gpt-5.2", 1.75m, 1.75m, 0.175m, 14m),
-        OpenAi("gpt-5.1-codex-mini", 0.25m, 0.25m, 0.025m, 2m),
-        OpenAi("gpt-5.1-codex-max", 1.25m, 1.25m, 0.125m, 10m),
-        OpenAi("gpt-5.1-codex", 1.25m, 1.25m, 0.125m, 10m),
-        OpenAi("gpt-5.1", 1.25m, 1.25m, 0.125m, 10m),
-        OpenAi("gpt-5-codex", 1.25m, 1.25m, 0.125m, 10m),
-        OpenAi("gpt-5", 1.25m, 1.25m, 0.125m, 10m),
-        OpenAi("codex-mini-latest", 1.50m, 1.50m, 0.375m, 6m),
+        OpenAi("gpt-5.6-sol", 5m, 0.50m, 30m),
+        OpenAi("gpt-5.6-terra", 2m, 0.20m, 12m),
+        OpenAi("gpt-5.6-luna", 0.20m, 0.02m, 1.20m),
+        OpenAi("gpt-5.6", 5m, 0.50m, 30m),
+        OpenAi("gpt-5.5", 5m, 0.50m, 30m),
+        OpenAi("gpt-5.4", 2.50m, 0.25m, 15m),
+        OpenAi("gpt-5.3-codex", 1.75m, 0.175m, 14m),
+        OpenAi("gpt-5.2-codex", 1.75m, 0.175m, 14m),
+        OpenAi("gpt-5.2", 1.75m, 0.175m, 14m),
+        OpenAi("gpt-5.1-codex-mini", 0.25m, 0.025m, 2m),
+        OpenAi("gpt-5.1-codex-max", 1.25m, 0.125m, 10m),
+        OpenAi("gpt-5.1-codex", 1.25m, 0.125m, 10m),
+        OpenAi("gpt-5.1", 1.25m, 0.125m, 10m),
+        OpenAi("gpt-5-codex", 1.25m, 0.125m, 10m),
+        OpenAi("gpt-5", 1.25m, 0.125m, 10m),
+        OpenAi("codex-mini-latest", 1.50m, 0.375m, 6m),
 
-        Anthropic("claude-fable-5", 10m, 12.50m, 20m, 1m, 50m),
-        Anthropic("claude-mythos-5", 10m, 12.50m, 20m, 1m, 50m),
-        Anthropic("claude-opus-5", 5m, 6.25m, 10m, 0.50m, 25m),
-        Anthropic("claude-opus-4-8", 5m, 6.25m, 10m, 0.50m, 25m),
-        Anthropic("claude-opus-4-7", 5m, 6.25m, 10m, 0.50m, 25m),
-        Anthropic("claude-opus-4-6", 5m, 6.25m, 10m, 0.50m, 25m),
-        Anthropic("claude-opus-4-5", 5m, 6.25m, 10m, 0.50m, 25m),
-        Anthropic("claude-opus-4-1", 15m, 18.75m, 30m, 1.50m, 75m),
-        Anthropic("claude-opus-4", 15m, 18.75m, 30m, 1.50m, 75m),
+        Anthropic("claude-fable-5", 10m, 1m, 50m),
+        Anthropic("claude-mythos-5", 10m, 1m, 50m),
+        Anthropic("claude-opus-5", 5m, 0.50m, 25m),
+        Anthropic("claude-opus-4-8", 5m, 0.50m, 25m),
+        Anthropic("claude-opus-4-7", 5m, 0.50m, 25m),
+        Anthropic("claude-opus-4-6", 5m, 0.50m, 25m),
+        Anthropic("claude-opus-4-5", 5m, 0.50m, 25m),
+        Anthropic("claude-opus-4-1", 15m, 1.50m, 75m),
+        Anthropic("claude-opus-4", 15m, 1.50m, 75m),
 
         // Sonnet 5 has an introductory list price through 2026-08-31.
         Anthropic(
             "claude-sonnet-5",
             2m,
-            2.50m,
-            4m,
             0.20m,
             10m,
             untilExclusive: new DateOnly(2026, 9, 1)),
         Anthropic(
             "claude-sonnet-5",
             3m,
-            3.75m,
-            6m,
             0.30m,
             15m,
             fromInclusive: new DateOnly(2026, 9, 1)),
-        Anthropic("claude-sonnet-4-6", 3m, 3.75m, 6m, 0.30m, 15m),
-        Anthropic("claude-sonnet-4-5", 3m, 3.75m, 6m, 0.30m, 15m),
-        Anthropic("claude-sonnet-4", 3m, 3.75m, 6m, 0.30m, 15m),
-        Anthropic("claude-3-7-sonnet", 3m, 3.75m, 6m, 0.30m, 15m),
-        Anthropic("claude-3-5-sonnet", 3m, 3.75m, 6m, 0.30m, 15m),
-        Anthropic("claude-haiku-4-5", 1m, 1.25m, 2m, 0.10m, 5m),
-        Anthropic("claude-3-5-haiku", 0.80m, 1m, 1.60m, 0.08m, 4m),
-        Anthropic("claude-3-haiku", 0.25m, 0.3125m, 0.50m, 0.025m, 1.25m),
-        Anthropic("claude-3-opus", 15m, 18.75m, 30m, 1.50m, 75m),
+        Anthropic("claude-sonnet-4-6", 3m, 0.30m, 15m),
+        Anthropic("claude-sonnet-4-5", 3m, 0.30m, 15m),
+        Anthropic("claude-sonnet-4", 3m, 0.30m, 15m),
+        Anthropic("claude-3-7-sonnet", 3m, 0.30m, 15m),
+        Anthropic("claude-3-5-sonnet", 3m, 0.30m, 15m),
+        Anthropic("claude-haiku-4-5", 1m, 0.10m, 5m),
+        Anthropic("claude-3-5-haiku", 0.80m, 0.08m, 4m),
+        Anthropic("claude-3-haiku", 0.25m, 0.025m, 1.25m),
+        Anthropic("claude-3-opus", 15m, 1.50m, 75m),
     ];
 
     public static ApiCostEstimate Estimate(
@@ -221,12 +214,6 @@ public static class ApiPricingCatalog
             cost += usage.OutputTokens * rates.Output;
         }
 
-        if (selection.Includes(TokenKind.CacheWrite))
-        {
-            cost += usage.CacheWriteTokens * rates.CacheWrite;
-            cost += usage.CacheWrite1HourTokens * rates.CacheWrite1Hour;
-        }
-
         if (selection.Includes(TokenKind.CacheRead))
         {
             cost += usage.CacheReadTokens * rates.CacheRead;
@@ -241,14 +228,11 @@ public static class ApiPricingCatalog
         TokenBreakdown.NonNegative(
             total.RawInputTokens - attributed.RawInputTokens,
             total.OutputTokens - attributed.OutputTokens,
-            total.CacheWriteTokens - attributed.CacheWriteTokens,
-            total.CacheWrite1HourTokens - attributed.CacheWrite1HourTokens,
             total.CacheReadTokens - attributed.CacheReadTokens);
 
     private static PricingRule OpenAi(
         string modelPrefix,
         decimal rawInput,
-        decimal cacheWrite,
         decimal cacheRead,
         decimal output) =>
         new(
@@ -256,8 +240,6 @@ public static class ApiPricingCatalog
             modelPrefix,
             new ApiTokenRates(
                 rawInput,
-                cacheWrite,
-                cacheWrite,
                 cacheRead,
                 output),
             null,
@@ -266,8 +248,6 @@ public static class ApiPricingCatalog
     private static PricingRule Anthropic(
         string modelPrefix,
         decimal rawInput,
-        decimal cacheWrite,
-        decimal cacheWrite1Hour,
         decimal cacheRead,
         decimal output,
         DateOnly? fromInclusive = null,
@@ -277,8 +257,6 @@ public static class ApiPricingCatalog
             modelPrefix,
             new ApiTokenRates(
                 rawInput,
-                cacheWrite,
-                cacheWrite1Hour,
                 cacheRead,
                 output),
             fromInclusive,

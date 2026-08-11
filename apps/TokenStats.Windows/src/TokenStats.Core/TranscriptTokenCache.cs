@@ -23,7 +23,9 @@ internal readonly record struct TranscriptTokenCacheLoadResult(
 internal sealed class TranscriptTokenCacheStore
 {
     internal const int SchemaVersion = 1;
-    internal const int ParserSemanticsVersion = 1;
+    // The aggregate input now excludes provider cache-write counters as well
+    // as cache reads, so prior entries must be rebuilt from the transcript.
+    internal const int ParserSemanticsVersion = 3;
     internal const long MaximumReadBytes = 64L * 1024 * 1024;
 
     private const int StreamBufferBytes = 16 * 1024;
@@ -401,8 +403,6 @@ internal sealed class TranscriptTokenUsageSnapshot
 {
     public long InputTokens { get; set; }
     public long OutputTokens { get; set; }
-    public long CacheWriteTokens { get; set; }
-    public long CacheWrite1HourTokens { get; set; }
     public long CacheReadTokens { get; set; }
     public int ResponseCount { get; set; }
     public List<TranscriptModelUsageSnapshot> ModelAttributions { get; set; } = [];
@@ -414,8 +414,6 @@ internal sealed class TranscriptTokenUsageSnapshot
         {
             InputTokens = usage.InputTokens,
             OutputTokens = usage.OutputTokens,
-            CacheWriteTokens = usage.CacheWriteTokens,
-            CacheWrite1HourTokens = usage.CacheWrite1HourTokens,
             CacheReadTokens = usage.CacheReadTokens,
             ResponseCount = usage.ResponseCount,
             ModelAttributions = usage.ModelUsage
@@ -430,8 +428,6 @@ internal sealed class TranscriptTokenUsageSnapshot
         {
             InputTokens = InputTokens,
             OutputTokens = OutputTokens,
-            CacheWriteTokens = CacheWriteTokens,
-            CacheWrite1HourTokens = CacheWrite1HourTokens,
             CacheReadTokens = CacheReadTokens,
             ResponseCount = ResponseCount,
         };
@@ -449,8 +445,6 @@ internal sealed class TranscriptTokenUsageSnapshot
     internal bool IsValid() =>
         InputTokens >= 0 &&
         OutputTokens >= 0 &&
-        CacheWriteTokens >= 0 &&
-        CacheWrite1HourTokens >= 0 &&
         CacheReadTokens >= 0 &&
         ResponseCount >= 0 &&
         ModelAttributions is not null &&
@@ -465,8 +459,6 @@ internal sealed class TranscriptModelUsageSnapshot
     public string? Model { get; set; }
     public long InputTokens { get; set; }
     public long OutputTokens { get; set; }
-    public long CacheWriteTokens { get; set; }
-    public long CacheWrite1HourTokens { get; set; }
     public long CacheReadTokens { get; set; }
     public int ResponseCount { get; set; }
 
@@ -477,8 +469,6 @@ internal sealed class TranscriptModelUsageSnapshot
         Model = usage.Model,
         InputTokens = usage.Breakdown.RawInputTokens,
         OutputTokens = usage.Breakdown.OutputTokens,
-        CacheWriteTokens = usage.Breakdown.CacheWriteTokens,
-        CacheWrite1HourTokens = usage.Breakdown.CacheWrite1HourTokens,
         CacheReadTokens = usage.Breakdown.CacheReadTokens,
         ResponseCount = usage.ResponseCount,
     };
@@ -487,8 +477,6 @@ internal sealed class TranscriptModelUsageSnapshot
     {
         InputTokens = InputTokens,
         OutputTokens = OutputTokens,
-        CacheWriteTokens = CacheWriteTokens,
-        CacheWrite1HourTokens = CacheWrite1HourTokens,
         CacheReadTokens = CacheReadTokens,
         ResponseCount = ResponseCount,
     };
@@ -500,8 +488,6 @@ internal sealed class TranscriptModelUsageSnapshot
          Model.Length <= 1_024) &&
         InputTokens >= 0 &&
         OutputTokens >= 0 &&
-        CacheWriteTokens >= 0 &&
-        CacheWrite1HourTokens >= 0 &&
         CacheReadTokens >= 0 &&
         ResponseCount >= 0;
 }
@@ -510,14 +496,10 @@ internal sealed class TranscriptCodexRunningTotalSnapshot
 {
     public long DirectInput { get; set; }
     public long Output { get; set; }
-    public long CacheWrite { get; set; }
-    public long CacheWrite1Hour { get; set; }
     public long CacheRead { get; set; }
 
     internal bool IsValid() =>
         DirectInput >= 0 &&
         Output >= 0 &&
-        CacheWrite >= 0 &&
-        CacheWrite1Hour >= 0 &&
         CacheRead >= 0;
 }

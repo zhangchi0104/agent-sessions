@@ -9,7 +9,6 @@
 
 import Foundation
 import Testing
-@testable import TokenStats
 
 @MainActor
 struct LocalizationFormattingTests {
@@ -460,12 +459,12 @@ struct LocalizationFormattingTests {
         #expect(
             english.localized(
                 LocalizedStringResource.tokensAgentSelectedTotalHelp(1, "1")
-            ) == "1 selected token of 1 total across all four kinds"
+            ) == "1 selected token of 1 total across all three kinds"
         )
         #expect(
             english.localized(
                 LocalizedStringResource.tokensAgentSelectedTotalHelp(2, "2")
-            ) == "2 selected tokens of 2 total across all four kinds"
+            ) == "2 selected tokens of 2 total across all three kinds"
         )
         #expect(
             english.localized(
@@ -484,72 +483,72 @@ struct LocalizationFormattingTests {
             (
                 "ru-RU",
                 1,
-                "Выбран 1 токен; всего по всем четырём типам: TOTAL"
+                "Выбран 1 токен; всего по всем трём типам: TOTAL"
             ),
             (
                 "ru-RU",
                 2,
-                "Выбрано 2 токена; всего по всем четырём типам: TOTAL"
+                "Выбрано 2 токена; всего по всем трём типам: TOTAL"
             ),
             (
                 "ru-RU",
                 5,
-                "Выбрано 5 токенов; всего по всем четырём типам: TOTAL"
+                "Выбрано 5 токенов; всего по всем трём типам: TOTAL"
             ),
             (
                 "ru-RU",
                 21,
-                "Выбран 21 токен; всего по всем четырём типам: TOTAL"
+                "Выбран 21 токен; всего по всем трём типам: TOTAL"
             ),
             (
                 "ru-RU",
                 22,
-                "Выбрано 22 токена; всего по всем четырём типам: TOTAL"
+                "Выбрано 22 токена; всего по всем трём типам: TOTAL"
             ),
             (
                 "ru-RU",
                 25,
-                "Выбрано 25 токенов; всего по всем четырём типам: TOTAL"
+                "Выбрано 25 токенов; всего по всем трём типам: TOTAL"
             ),
             (
                 "de-DE",
                 1,
-                "1 ausgewähltes Token von insgesamt TOTAL über alle vier Typen"
+                "1 ausgewähltes Token von insgesamt TOTAL über alle drei Typen"
             ),
             (
                 "de-DE",
                 2,
-                "2 ausgewählte Token von insgesamt TOTAL über alle vier Typen"
+                "2 ausgewählte Token von insgesamt TOTAL über alle drei Typen"
             ),
             (
                 "ja-JP",
                 1,
-                "選択合計は1トークンです（4種類すべての合計：TOTAL）"
+                "選択合計は1トークンです（3種類すべての合計：TOTAL）"
             ),
             (
                 "ja-JP",
                 2,
-                "選択合計は2トークンです（4種類すべての合計：TOTAL）"
+                "選択合計は2トークンです（3種類すべての合計：TOTAL）"
             ),
             (
                 "fr-FR",
                 0,
-                "0 token sélectionné sur un total de TOTAL pour les quatre types"
+                "0 token sélectionné sur un total de TOTAL pour les trois types"
             ),
             (
                 "fr-FR",
                 1,
-                "1 token sélectionné sur un total de TOTAL pour les quatre types"
+                "1 token sélectionné sur un total de TOTAL pour les trois types"
             ),
             (
                 "fr-FR",
                 2,
-                "2 tokens sélectionnés sur un total de TOTAL pour les quatre types"
+                "2 tokens sélectionnés sur un total de TOTAL pour les trois types"
             ),
             (
                 "fr-FR",
                 1_000_000,
-                "1\u{202F}000\u{202F}000 tokens sélectionnés sur un total de TOTAL pour les quatre types"
+                "1\u{202F}000\u{202F}000 tokens sélectionnés sur un total de TOTAL pour les trois types"
             ),
         ]
 

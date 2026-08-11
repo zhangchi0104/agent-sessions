@@ -7,7 +7,6 @@
 
 import Testing
 import Foundation
-@testable import TokenStats
 
 struct TokenStatsTests {
 
@@ -142,10 +141,7 @@ struct AppearanceSettingsTests {
 
     @MainActor
     private func withDefaults(_ test: (UserDefaults) -> Void) {
-        let suiteName = "TokenStatsTests.Appearance.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        test(defaults)
+        test(InMemoryUserDefaults())
     }
 
     @MainActor
@@ -253,7 +249,7 @@ struct AppearanceSettingsTests {
             #expect(reloaded.primaryAgent == .codex)
             #expect(reloaded.gaugeStyle == .bar)
             #expect(reloaded.tokenSummaryMetric == .apiEquivalent)
-            #expect(reloaded.selectedTokenKinds == Set([.directInput, .output, .cacheWrite]))
+            #expect(reloaded.selectedTokenKinds == Set([.directInput, .output]))
             #expect(reloaded.tokenValueDisplay == .valueAndPercentage)
             #expect(reloaded.selectedTokenRange == .thirtyDays)
             #expect(reloaded.order.first == .codex)
@@ -266,7 +262,6 @@ struct AppearanceSettingsTests {
         withDefaults { defaults in
             let settings = AppearanceSettings(defaults: defaults)
             #expect(settings.setTokenKind(.output, isSelected: false))
-            #expect(settings.setTokenKind(.cacheWrite, isSelected: false))
             #expect(settings.setTokenKind(.cacheRead, isSelected: false))
 
             #expect(settings.selectedTokenKinds == [.directInput])
@@ -305,10 +300,7 @@ struct LastKnownUsageStoreTests {
     }
 
     private func withStore(_ test: (LastKnownUsageStore) -> Void) {
-        let suiteName = "TokenStatsTests.LastKnownUsageStore.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let store = LastKnownUsageStore(defaults: defaults)
+        let store = LastKnownUsageStore(defaults: InMemoryUserDefaults())
 
         test(store)
     }

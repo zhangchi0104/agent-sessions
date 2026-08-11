@@ -3452,37 +3452,37 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Billing tokens count direct input, cache writes, and output. API equivalent estimates standard list-price cost from the Models recorded in local transcripts. Token Kind filters change neither summary."
+            "value": "Billing tokens count direct input and output. API equivalent estimates standard list-price cost from the Models recorded in local transcripts. Token Kind filters change neither summary."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "计费 Token 包含直接输入、缓存写入和输出。API 等值费用根据本地对话记录中的模型，按标准公开价格进行估算。Token 类型筛选不会改变任一摘要。"
+            "value": "计费 Token 包含直接输入和输出。API 等值费用根据本地对话记录中的模型，按标准公开价格进行估算。Token 类型筛选不会改变任一摘要。"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Abrechnungs-Token umfassen direkte Eingaben, Cache-Schreibvorgänge und Ausgaben. Das API-Äquivalent schätzt die Kosten zu Standardlistenpreisen anhand der Modelle in lokalen Transkripten. Filter für Token-Typen ändern keine der beiden Zusammenfassungen."
+            "value": "Abrechnungs-Token umfassen direkte Eingaben und Ausgaben. Das API-Äquivalent schätzt die Kosten zu Standardlistenpreisen anhand der Modelle in lokalen Transkripten. Filter für Token-Typen ändern keine der beiden Zusammenfassungen."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Les tokens facturables comprennent les entrées directes, les écritures en cache et les sorties. L’équivalent API estime le coût au tarif public standard à partir des modèles enregistrés dans les transcriptions locales. Les filtres de type de token ne modifient aucun de ces résumés."
+            "value": "Les tokens facturables comprennent les entrées directes et les sorties. L’équivalent API estime le coût au tarif public standard à partir des modèles enregistrés dans les transcriptions locales. Les filtres de type de token ne modifient aucun de ces résumés."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "課金対象トークンには、直接入力、キャッシュ書き込み、出力が含まれます。API 換算額は、ローカルの会話記録に記録されたモデルの標準定価から費用を推定します。トークン種別フィルタは、どちらの概要にも影響しません。"
+            "value": "課金対象トークンには、直接入力と出力が含まれます。API 換算額は、ローカルの会話記録に記録されたモデルの標準定価から費用を推定します。トークン種別フィルタは、どちらの概要にも影響しません。"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Расчётные токены включают прямой ввод, запись в кэш и вывод. Эквивалент API оценивает стоимость по стандартным ценам на основе моделей из локальных журналов. Фильтры типов токенов не влияют ни на один из итогов."
+            "value": "Расчётные токены включают прямой ввод и вывод. Эквивалент API оценивает стоимость по стандартным ценам на основе моделей из локальных журналов. Фильтры типов токенов не влияют ни на один из итогов."
           }
         }
       }
@@ -9083,13 +9083,13 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld selected token of %2$@ total across all four kinds"
+                  "value": "%1$lld selected token of %2$@ total across all three kinds"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld selected tokens of %2$@ total across all four kinds"
+                  "value": "%1$lld selected tokens of %2$@ total across all three kinds"
                 }
               }
             }
@@ -9101,13 +9101,13 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "已选合计 %1$lld 个 Token；全部四种 Token 类型共 %2$@ 个 Token"
+                  "value": "已选合计 %1$lld 个 Token；全部三种 Token 类型共 %2$@ 个 Token"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "已选合计 %1$lld 个 Token；全部四种 Token 类型共 %2$@ 个 Token"
+                  "value": "已选合计 %1$lld 个 Token；全部三种 Token 类型共 %2$@ 个 Token"
                 }
               }
             }
@@ -9119,13 +9119,13 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld ausgewähltes Token von insgesamt %2$@ über alle vier Typen"
+                  "value": "%1$lld ausgewähltes Token von insgesamt %2$@ über alle drei Typen"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld ausgewählte Token von insgesamt %2$@ über alle vier Typen"
+                  "value": "%1$lld ausgewählte Token von insgesamt %2$@ über alle drei Typen"
                 }
               }
             }
@@ -9137,19 +9137,19 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld token sélectionné sur un total de %2$@ pour les quatre types"
+                  "value": "%1$lld token sélectionné sur un total de %2$@ pour les trois types"
                 }
               },
               "many": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld tokens sélectionnés sur un total de %2$@ pour les quatre types"
+                  "value": "%1$lld tokens sélectionnés sur un total de %2$@ pour les trois types"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld tokens sélectionnés sur un total de %2$@ pour les quatre types"
+                  "value": "%1$lld tokens sélectionnés sur un total de %2$@ pour les trois types"
                 }
               }
             }
@@ -9161,7 +9161,7 @@
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "選択合計は%1$lldトークンです（4種類すべての合計：%2$@）"
+                  "value": "選択合計は%1$lldトークンです（3種類すべての合計：%2$@）"
                 }
               }
             }
@@ -9173,25 +9173,25 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Выбран %1$lld токен; всего по всем четырём типам: %2$@"
+                  "value": "Выбран %1$lld токен; всего по всем трём типам: %2$@"
                 }
               },
               "few": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Выбрано %1$lld токена; всего по всем четырём типам: %2$@"
+                  "value": "Выбрано %1$lld токена; всего по всем трём типам: %2$@"
                 }
               },
               "many": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Выбрано %1$lld токенов; всего по всем четырём типам: %2$@"
+                  "value": "Выбрано %1$lld токенов; всего по всем трём типам: %2$@"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Выбрано %1$lld токена; всего по всем четырём типам: %2$@"
+                  "value": "Выбрано %1$lld токена; всего по всем трём типам: %2$@"
                 }
               }
             }
@@ -9363,174 +9363,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Чтение кэша"
-          }
-        }
-      }
-    },
-    "tokens.kind.cache_write": {
-      "comment": "Token Kind for input tokens written to a prompt cache.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cache write"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "缓存写入"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cache-Schreibvorgang"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Écriture en cache"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "キャッシュ書き込み"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Запись в кэш"
-          }
-        }
-      }
-    },
-    "tokens.kind.cache_write.abbreviation": {
-      "comment": "Very short Token table heading for Cache write.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "C·W"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "缓·写"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "C·S"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "É·C"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "書込"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "К·З"
-          }
-        }
-      }
-    },
-    "tokens.kind.cache_write.action_form": {
-      "comment": "Contextual Cache write wording inserted into Token Kind toggle help and accessibility sentences. English is lowercase because it appears mid-sentence.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "cache write"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "缓存写入"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Token aus Cache-Schreibvorgängen"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "écriture en cache"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "キャッシュ書き込み"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "запись в кэш"
-          }
-        }
-      }
-    },
-    "tokens.kind.cache_write.row_prefix": {
-      "comment": "Contextual Cache write wording at the start of a Token table tooltip line. English is capitalized because it begins the line.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cache write"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "缓存写入"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cache-Schreibvorgänge"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Écriture en cache"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "キャッシュ書き込み"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Запись в кэш"
           }
         }
       }
@@ -10802,37 +10634,37 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Standard API-equivalent estimate by recorded Model; includes all four Token Kinds at list rates regardless of the display filters. The exact USD aggregate is converted first, then the displayed total is rounded upward once at the target currency's minor unit. Claude cache writes without TTL detail use the default 5-minute rate. Prices reviewed %@."
+            "value": "Standard API-equivalent estimate by recorded Model; includes all three Token Kinds at list rates regardless of the display filters. The exact USD aggregate is converted first, then the displayed total is rounded upward once at the target currency's minor unit. Prices reviewed %@."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "根据记录的模型，按标准公开价格估算 API 等值费用；无论显示筛选如何，均包含全部四种 Token 类型。先换算精确的 USD 合计，再按目标货币的最小单位将显示总额向上取整一次。Claude 缓存写入如无 TTL 详情，则采用默认的 5 分钟费率。价格审核日期：%@。"
+            "value": "根据记录的模型，按标准公开价格估算 API 等值费用；无论显示筛选如何，均包含全部三种 Token 类型。先换算精确的 USD 合计，再按目标货币的最小单位将显示总额向上取整一次。价格审核日期：%@。"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Standardmäßige Schätzung des API-Äquivalents anhand des aufgezeichneten Modells; umfasst unabhängig von den Anzeigefiltern alle vier Token-Typen zu Listenpreisen. Der exakte USD-Gesamtbetrag wird zuerst umgerechnet; anschließend wird der angezeigte Gesamtbetrag einmal auf die kleinste Einheit der Zielwährung aufgerundet. Für Claude-Cache-Schreibvorgänge ohne TTL-Angabe gilt standardmäßig der 5-Minuten-Tarif. Preise geprüft am %@."
+            "value": "Standardmäßige Schätzung des API-Äquivalents anhand des aufgezeichneten Modells; umfasst unabhängig von den Anzeigefiltern alle drei Token-Typen zu Listenpreisen. Der exakte USD-Gesamtbetrag wird zuerst umgerechnet; anschließend wird der angezeigte Gesamtbetrag einmal auf die kleinste Einheit der Zielwährung aufgerundet. Preise geprüft am %@."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Estimation standard de l’équivalent API d’après le modèle enregistré ; inclut les quatre types de token aux tarifs publics, quels que soient les filtres d’affichage. Le total exact en USD est d’abord converti, puis le total affiché est arrondi une seule fois à la hausse selon l’unité mineure de la devise cible. Pour les écritures dans le cache Claude sans détail de durée de vie (TTL), le tarif par défaut de 5 minutes est utilisé. Tarifs vérifiés le %@."
+            "value": "Estimation standard de l’équivalent API d’après le modèle enregistré ; inclut les trois types de token aux tarifs publics, quels que soient les filtres d’affichage. Le total exact en USD est d’abord converti, puis le total affiché est arrondi une seule fois à la hausse selon l’unité mineure de la devise cible. Tarifs vérifiés le %@."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "記録されたモデルに基づく標準 API 換算額の推定です。表示フィルタにかかわらず、4種類すべてのトークンを定価で含めます。正確な USD 合計を先に換算し、その後、表示する合計を換算先通貨の最小単位で一度だけ切り上げます。TTL の詳細がない Claude のキャッシュ書き込みには、デフォルトの5分料金を使用します。価格確認日：%@。"
+            "value": "記録されたモデルに基づく標準 API 換算額の推定です。表示フィルタにかかわらず、3種類すべてのトークンを定価で含めます。正確な USD 合計を先に換算し、その後、表示する合計を換算先通貨の最小単位で一度だけ切り上げます。価格確認日：%@。"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Стандартная оценка эквивалента API по модели, указанной в журнале; включает все четыре типа токенов по публичным тарифам независимо от фильтров отображения. Сначала пересчитывается точная сумма в USD, затем отображаемая итоговая сумма один раз округляется вверх до минимальной единицы целевой валюты. Для операций записи в кэш Claude без данных о TTL используется стандартный тариф на 5 минут. Цены проверены %@."
+            "value": "Стандартная оценка эквивалента API по модели, указанной в журнале; включает все три типа токенов по публичным тарифам независимо от фильтров отображения. Сначала пересчитывается точная сумма в USD, затем отображаемая итоговая сумма один раз округляется вверх до минимальной единицы целевой валюты. Цены проверены %@."
           }
         }
       }
@@ -10889,13 +10721,13 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Standard API-equivalent estimate by recorded Model; includes all four Token Kinds at list rates regardless of the display filters. The exact USD aggregate is converted first, then the displayed total is rounded upward once at the target currency's minor unit. Claude cache writes without TTL detail use the default 5-minute rate. Prices reviewed %2$@. Unpriced Models: %3$@ (%1$lld token)."
+                  "value": "Standard API-equivalent estimate by recorded Model; includes all three Token Kinds at list rates regardless of the display filters. The exact USD aggregate is converted first, then the displayed total is rounded upward once at the target currency's minor unit. Prices reviewed %2$@. Unpriced Models: %3$@ (%1$lld token)."
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Standard API-equivalent estimate by recorded Model; includes all four Token Kinds at list rates regardless of the display filters. The exact USD aggregate is converted first, then the displayed total is rounded upward once at the target currency's minor unit. Claude cache writes without TTL detail use the default 5-minute rate. Prices reviewed %2$@. Unpriced Models: %3$@ (%1$lld tokens)."
+                  "value": "Standard API-equivalent estimate by recorded Model; includes all three Token Kinds at list rates regardless of the display filters. The exact USD aggregate is converted first, then the displayed total is rounded upward once at the target currency's minor unit. Prices reviewed %2$@. Unpriced Models: %3$@ (%1$lld tokens)."
                 }
               }
             }
@@ -10907,13 +10739,13 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "根据记录的模型，按标准公开价格估算 API 等值费用；无论显示筛选如何，均包含全部四种 Token 类型。先换算精确的 USD 合计，再按目标货币的最小单位将显示总额向上取整一次。Claude 缓存写入如无 TTL 详情，则采用默认的 5 分钟费率。价格审核日期：%2$@。未定价模型：%3$@（%1$lld 个 Token）。"
+                  "value": "根据记录的模型，按标准公开价格估算 API 等值费用；无论显示筛选如何，均包含全部三种 Token 类型。先换算精确的 USD 合计，再按目标货币的最小单位将显示总额向上取整一次。价格审核日期：%2$@。未定价模型：%3$@（%1$lld 个 Token）。"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "根据记录的模型，按标准公开价格估算 API 等值费用；无论显示筛选如何，均包含全部四种 Token 类型。先换算精确的 USD 合计，再按目标货币的最小单位将显示总额向上取整一次。Claude 缓存写入如无 TTL 详情，则采用默认的 5 分钟费率。价格审核日期：%2$@。未定价模型：%3$@（%1$lld 个 Token）。"
+                  "value": "根据记录的模型，按标准公开价格估算 API 等值费用；无论显示筛选如何，均包含全部三种 Token 类型。先换算精确的 USD 合计，再按目标货币的最小单位将显示总额向上取整一次。价格审核日期：%2$@。未定价模型：%3$@（%1$lld 个 Token）。"
                 }
               }
             }
@@ -10925,13 +10757,13 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Standardmäßige Schätzung des API-Äquivalents anhand des aufgezeichneten Modells; umfasst unabhängig von den Anzeigefiltern alle vier Token-Typen zu Listenpreisen. Der exakte USD-Gesamtbetrag wird zuerst umgerechnet; anschließend wird der angezeigte Gesamtbetrag einmal auf die kleinste Einheit der Zielwährung aufgerundet. Für Claude-Cache-Schreibvorgänge ohne TTL-Angabe gilt standardmäßig der 5-Minuten-Tarif. Preise geprüft am %2$@. Modelle ohne Preis: %3$@ (%1$lld Token)."
+                  "value": "Standardmäßige Schätzung des API-Äquivalents anhand des aufgezeichneten Modells; umfasst unabhängig von den Anzeigefiltern alle drei Token-Typen zu Listenpreisen. Der exakte USD-Gesamtbetrag wird zuerst umgerechnet; anschließend wird der angezeigte Gesamtbetrag einmal auf die kleinste Einheit der Zielwährung aufgerundet. Preise geprüft am %2$@. Modelle ohne Preis: %3$@ (%1$lld Token)."
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Standardmäßige Schätzung des API-Äquivalents anhand des aufgezeichneten Modells; umfasst unabhängig von den Anzeigefiltern alle vier Token-Typen zu Listenpreisen. Der exakte USD-Gesamtbetrag wird zuerst umgerechnet; anschließend wird der angezeigte Gesamtbetrag einmal auf die kleinste Einheit der Zielwährung aufgerundet. Für Claude-Cache-Schreibvorgänge ohne TTL-Angabe gilt standardmäßig der 5-Minuten-Tarif. Preise geprüft am %2$@. Modelle ohne Preis: %3$@ (%1$lld Token)."
+                  "value": "Standardmäßige Schätzung des API-Äquivalents anhand des aufgezeichneten Modells; umfasst unabhängig von den Anzeigefiltern alle drei Token-Typen zu Listenpreisen. Der exakte USD-Gesamtbetrag wird zuerst umgerechnet; anschließend wird der angezeigte Gesamtbetrag einmal auf die kleinste Einheit der Zielwährung aufgerundet. Preise geprüft am %2$@. Modelle ohne Preis: %3$@ (%1$lld Token)."
                 }
               }
             }
@@ -10943,19 +10775,19 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Estimation standard de l’équivalent API d’après le modèle enregistré ; inclut les quatre types de token aux tarifs publics, quels que soient les filtres d’affichage. Le total exact en USD est d’abord converti, puis le total affiché est arrondi une seule fois à la hausse selon l’unité mineure de la devise cible. Pour les écritures dans le cache Claude sans détail de durée de vie (TTL), le tarif par défaut de 5 minutes est utilisé. Tarifs vérifiés le %2$@. Modèles sans tarif : %3$@ (%1$lld token)."
+                  "value": "Estimation standard de l’équivalent API d’après le modèle enregistré ; inclut les trois types de token aux tarifs publics, quels que soient les filtres d’affichage. Le total exact en USD est d’abord converti, puis le total affiché est arrondi une seule fois à la hausse selon l’unité mineure de la devise cible. Tarifs vérifiés le %2$@. Modèles sans tarif : %3$@ (%1$lld token)."
                 }
               },
               "many": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Estimation standard de l’équivalent API d’après le modèle enregistré ; inclut les quatre types de token aux tarifs publics, quels que soient les filtres d’affichage. Le total exact en USD est d’abord converti, puis le total affiché est arrondi une seule fois à la hausse selon l’unité mineure de la devise cible. Pour les écritures dans le cache Claude sans détail de durée de vie (TTL), le tarif par défaut de 5 minutes est utilisé. Tarifs vérifiés le %2$@. Modèles sans tarif : %3$@ (%1$lld tokens)."
+                  "value": "Estimation standard de l’équivalent API d’après le modèle enregistré ; inclut les trois types de token aux tarifs publics, quels que soient les filtres d’affichage. Le total exact en USD est d’abord converti, puis le total affiché est arrondi une seule fois à la hausse selon l’unité mineure de la devise cible. Tarifs vérifiés le %2$@. Modèles sans tarif : %3$@ (%1$lld tokens)."
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Estimation standard de l’équivalent API d’après le modèle enregistré ; inclut les quatre types de token aux tarifs publics, quels que soient les filtres d’affichage. Le total exact en USD est d’abord converti, puis le total affiché est arrondi une seule fois à la hausse selon l’unité mineure de la devise cible. Pour les écritures dans le cache Claude sans détail de durée de vie (TTL), le tarif par défaut de 5 minutes est utilisé. Tarifs vérifiés le %2$@. Modèles sans tarif : %3$@ (%1$lld tokens)."
+                  "value": "Estimation standard de l’équivalent API d’après le modèle enregistré ; inclut les trois types de token aux tarifs publics, quels que soient les filtres d’affichage. Le total exact en USD est d’abord converti, puis le total affiché est arrondi une seule fois à la hausse selon l’unité mineure de la devise cible. Tarifs vérifiés le %2$@. Modèles sans tarif : %3$@ (%1$lld tokens)."
                 }
               }
             }
@@ -10967,7 +10799,7 @@
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "記録されたモデルに基づく標準 API 換算額の推定です。表示フィルタにかかわらず、4種類すべてのトークンを定価で含めます。正確な USD 合計を先に換算し、その後、表示する合計を換算先通貨の最小単位で一度だけ切り上げます。TTL の詳細がない Claude のキャッシュ書き込みには、デフォルトの5分料金を使用します。価格確認日：%2$@。価格情報のないモデル：%3$@（%1$lldトークン）。"
+                  "value": "記録されたモデルに基づく標準 API 換算額の推定です。表示フィルタにかかわらず、3種類すべてのトークンを定価で含めます。正確な USD 合計を先に換算し、その後、表示する合計を換算先通貨の最小単位で一度だけ切り上げます。価格確認日：%2$@。価格情報のないモデル：%3$@（%1$lldトークン）。"
                 }
               }
             }
@@ -10979,25 +10811,25 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Стандартная оценка эквивалента API по модели, указанной в журнале; включает все четыре типа токенов по публичным тарифам независимо от фильтров отображения. Сначала пересчитывается точная сумма в USD, затем отображаемая итоговая сумма один раз округляется вверх до минимальной единицы целевой валюты. Для операций записи в кэш Claude без данных о TTL используется стандартный тариф на 5 минут. Цены проверены %2$@. Модели без цены: %3$@ (%1$lld токен)."
+                  "value": "Стандартная оценка эквивалента API по модели, указанной в журнале; включает все три типа токенов по публичным тарифам независимо от фильтров отображения. Сначала пересчитывается точная сумма в USD, затем отображаемая итоговая сумма один раз округляется вверх до минимальной единицы целевой валюты. Цены проверены %2$@. Модели без цены: %3$@ (%1$lld токен)."
                 }
               },
               "few": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Стандартная оценка эквивалента API по модели, указанной в журнале; включает все четыре типа токенов по публичным тарифам независимо от фильтров отображения. Сначала пересчитывается точная сумма в USD, затем отображаемая итоговая сумма один раз округляется вверх до минимальной единицы целевой валюты. Для операций записи в кэш Claude без данных о TTL используется стандартный тариф на 5 минут. Цены проверены %2$@. Модели без цены: %3$@ (%1$lld токена)."
+                  "value": "Стандартная оценка эквивалента API по модели, указанной в журнале; включает все три типа токенов по публичным тарифам независимо от фильтров отображения. Сначала пересчитывается точная сумма в USD, затем отображаемая итоговая сумма один раз округляется вверх до минимальной единицы целевой валюты. Цены проверены %2$@. Модели без цены: %3$@ (%1$lld токена)."
                 }
               },
               "many": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Стандартная оценка эквивалента API по модели, указанной в журнале; включает все четыре типа токенов по публичным тарифам независимо от фильтров отображения. Сначала пересчитывается точная сумма в USD, затем отображаемая итоговая сумма один раз округляется вверх до минимальной единицы целевой валюты. Для операций записи в кэш Claude без данных о TTL используется стандартный тариф на 5 минут. Цены проверены %2$@. Модели без цены: %3$@ (%1$lld токенов)."
+                  "value": "Стандартная оценка эквивалента API по модели, указанной в журнале; включает все три типа токенов по публичным тарифам независимо от фильтров отображения. Сначала пересчитывается точная сумма в USD, затем отображаемая итоговая сумма один раз округляется вверх до минимальной единицы целевой валюты. Цены проверены %2$@. Модели без цены: %3$@ (%1$lld токенов)."
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Стандартная оценка эквивалента API по модели, указанной в журнале; включает все четыре типа токенов по публичным тарифам независимо от фильтров отображения. Сначала пересчитывается точная сумма в USD, затем отображаемая итоговая сумма один раз округляется вверх до минимальной единицы целевой валюты. Для операций записи в кэш Claude без данных о TTL используется стандартный тариф на 5 минут. Цены проверены %2$@. Модели без цены: %3$@ (%1$lld токена)."
+                  "value": "Стандартная оценка эквивалента API по модели, указанной в журнале; включает все три типа токенов по публичным тарифам независимо от фильтров отображения. Сначала пересчитывается точная сумма в USD, затем отображаемая итоговая сумма один раз округляется вверх до минимальной единицы целевой валюты. Цены проверены %2$@. Модели без цены: %3$@ (%1$lld токена)."
                 }
               }
             }
@@ -12014,7 +11846,7 @@
       }
     },
     "tokens.summary.billing.help": {
-      "comment": "Detailed billing-token help. The first argument is the exact billing Token count and drives pluralization; the remaining arguments are localized counts for direct input, cache write, output, and cache read.",
+      "comment": "Detailed billing-token help. The first argument is the exact billing Token count and drives pluralization; the remaining arguments are localized counts for direct input, output, and cache read.",
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -12023,13 +11855,13 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld billing token. Direct input %2$@ · Cache write %3$@ · Output %4$@ · Cache read %5$@. Billing tokens include direct input, cache writes, and output; cache reads remain visible in the table but are excluded from this total. Token Kind filters do not change this summary."
+                  "value": "%1$lld billing token. Direct input %2$@ · Output %3$@ · Cache read %4$@. Billing tokens include direct input and output; cache reads remain visible in the table but are excluded from this total. Token Kind filters do not change this summary."
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld billing tokens. Direct input %2$@ · Cache write %3$@ · Output %4$@ · Cache read %5$@. Billing tokens include direct input, cache writes, and output; cache reads remain visible in the table but are excluded from this total. Token Kind filters do not change this summary."
+                  "value": "%1$lld billing tokens. Direct input %2$@ · Output %3$@ · Cache read %4$@. Billing tokens include direct input and output; cache reads remain visible in the table but are excluded from this total. Token Kind filters do not change this summary."
                 }
               }
             }
@@ -12041,13 +11873,13 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld 个计费 Token。直接输入 %2$@ · 缓存写入 %3$@ · 输出 %4$@ · 缓存读取 %5$@。计费 Token 包含直接输入、缓存写入和输出；缓存读取仍显示在表格中，但不计入此合计。Token 类型筛选不会改变此摘要。"
+                  "value": "%1$lld 个计费 Token。直接输入 %2$@ · 输出 %3$@ · 缓存读取 %4$@。计费 Token 包含直接输入和输出；缓存读取仍显示在表格中，但不计入此合计。Token 类型筛选不会改变此摘要。"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld 个计费 Token。直接输入 %2$@ · 缓存写入 %3$@ · 输出 %4$@ · 缓存读取 %5$@。计费 Token 包含直接输入、缓存写入和输出；缓存读取仍显示在表格中，但不计入此合计。Token 类型筛选不会改变此摘要。"
+                  "value": "%1$lld 个计费 Token。直接输入 %2$@ · 输出 %3$@ · 缓存读取 %4$@。计费 Token 包含直接输入和输出；缓存读取仍显示在表格中，但不计入此合计。Token 类型筛选不会改变此摘要。"
                 }
               }
             }
@@ -12059,13 +11891,13 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld Abrechnungs-Token. Direkte Eingabe %2$@ · Cache-Schreibvorgänge %3$@ · Ausgabe %4$@ · Cache-Lesevorgänge %5$@. Abrechnungs-Token umfassen direkte Eingaben, Cache-Schreibvorgänge und Ausgaben; Cache-Lesevorgänge bleiben in der Tabelle sichtbar, werden aber nicht in diese Summe einbezogen. Filter für Token-Typen ändern diese Zusammenfassung nicht."
+                  "value": "%1$lld Abrechnungs-Token. Direkte Eingabe %2$@ · Ausgabe %3$@ · Cache-Lesevorgänge %4$@. Abrechnungs-Token umfassen direkte Eingaben und Ausgaben; Cache-Lesevorgänge bleiben in der Tabelle sichtbar, werden aber nicht in diese Summe einbezogen. Filter für Token-Typen ändern diese Zusammenfassung nicht."
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld Abrechnungs-Token. Direkte Eingabe %2$@ · Cache-Schreibvorgänge %3$@ · Ausgabe %4$@ · Cache-Lesevorgänge %5$@. Abrechnungs-Token umfassen direkte Eingaben, Cache-Schreibvorgänge und Ausgaben; Cache-Lesevorgänge bleiben in der Tabelle sichtbar, werden aber nicht in diese Summe einbezogen. Filter für Token-Typen ändern diese Zusammenfassung nicht."
+                  "value": "%1$lld Abrechnungs-Token. Direkte Eingabe %2$@ · Ausgabe %3$@ · Cache-Lesevorgänge %4$@. Abrechnungs-Token umfassen direkte Eingaben und Ausgaben; Cache-Lesevorgänge bleiben in der Tabelle sichtbar, werden aber nicht in diese Summe einbezogen. Filter für Token-Typen ändern diese Zusammenfassung nicht."
                 }
               }
             }
@@ -12077,19 +11909,19 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld token facturable. Entrée directe %2$@ · Écriture en cache %3$@ · Sortie %4$@ · Lecture du cache %5$@. Les tokens facturables comprennent les entrées directes, les écritures en cache et les sorties ; les lectures du cache restent visibles dans le tableau, mais sont exclues de ce total. Les filtres de type de token ne modifient pas ce résumé."
+                  "value": "%1$lld token facturable. Entrée directe %2$@ · Sortie %3$@ · Lecture du cache %4$@. Les tokens facturables comprennent les entrées directes et les sorties ; les lectures du cache restent visibles dans le tableau, mais sont exclues de ce total. Les filtres de type de token ne modifient pas ce résumé."
                 }
               },
               "many": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld tokens facturables. Entrée directe %2$@ · Écriture en cache %3$@ · Sortie %4$@ · Lecture du cache %5$@. Les tokens facturables comprennent les entrées directes, les écritures en cache et les sorties ; les lectures du cache restent visibles dans le tableau, mais sont exclues de ce total. Les filtres de type de token ne modifient pas ce résumé."
+                  "value": "%1$lld tokens facturables. Entrée directe %2$@ · Sortie %3$@ · Lecture du cache %4$@. Les tokens facturables comprennent les entrées directes et les sorties ; les lectures du cache restent visibles dans le tableau, mais sont exclues de ce total. Les filtres de type de token ne modifient pas ce résumé."
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld tokens facturables. Entrée directe %2$@ · Écriture en cache %3$@ · Sortie %4$@ · Lecture du cache %5$@. Les tokens facturables comprennent les entrées directes, les écritures en cache et les sorties ; les lectures du cache restent visibles dans le tableau, mais sont exclues de ce total. Les filtres de type de token ne modifient pas ce résumé."
+                  "value": "%1$lld tokens facturables. Entrée directe %2$@ · Sortie %3$@ · Lecture du cache %4$@. Les tokens facturables comprennent les entrées directes et les sorties ; les lectures du cache restent visibles dans le tableau, mais sont exclues de ce total. Les filtres de type de token ne modifient pas ce résumé."
                 }
               }
             }
@@ -12101,7 +11933,7 @@
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "課金対象トークン数：%1$lld。直接入力 %2$@ · キャッシュ書き込み %3$@ · 出力 %4$@ · キャッシュ読み取り %5$@。課金対象トークンには直接入力、キャッシュ書き込み、出力が含まれます。キャッシュ読み取りは表に表示されますが、この合計には含まれません。トークン種別フィルタはこの概要に影響しません。"
+                  "value": "課金対象トークン数：%1$lld。直接入力 %2$@ · 出力 %3$@ · キャッシュ読み取り %4$@。課金対象トークンには直接入力と出力が含まれます。キャッシュ読み取りは表に表示されますが、この合計には含まれません。トークン種別フィルタはこの概要に影響しません。"
                 }
               }
             }
@@ -12113,25 +11945,25 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld расчётный токен. Прямой ввод %2$@ · Запись в кэш %3$@ · Вывод %4$@ · Чтение кэша %5$@. Расчётные токены включают прямой ввод, запись в кэш и вывод; чтение кэша остаётся видимым в таблице, но не входит в этот итог. Фильтры типов токенов не меняют этот итог."
+                  "value": "%1$lld расчётный токен. Прямой ввод %2$@ · Вывод %3$@ · Чтение кэша %4$@. Расчётные токены включают прямой ввод и вывод; чтение кэша остаётся видимым в таблице, но не входит в этот итог. Фильтры типов токенов не меняют этот итог."
                 }
               },
               "few": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld расчётных токена. Прямой ввод %2$@ · Запись в кэш %3$@ · Вывод %4$@ · Чтение кэша %5$@. Расчётные токены включают прямой ввод, запись в кэш и вывод; чтение кэша остаётся видимым в таблице, но не входит в этот итог. Фильтры типов токенов не меняют этот итог."
+                  "value": "%1$lld расчётных токена. Прямой ввод %2$@ · Вывод %3$@ · Чтение кэша %4$@. Расчётные токены включают прямой ввод и вывод; чтение кэша остаётся видимым в таблице, но не входит в этот итог. Фильтры типов токенов не меняют этот итог."
                 }
               },
               "many": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld расчётных токенов. Прямой ввод %2$@ · Запись в кэш %3$@ · Вывод %4$@ · Чтение кэша %5$@. Расчётные токены включают прямой ввод, запись в кэш и вывод; чтение кэша остаётся видимым в таблице, но не входит в этот итог. Фильтры типов токенов не меняют этот итог."
+                  "value": "%1$lld расчётных токенов. Прямой ввод %2$@ · Вывод %3$@ · Чтение кэша %4$@. Расчётные токены включают прямой ввод и вывод; чтение кэша остаётся видимым в таблице, но не входит в этот итог. Фильтры типов токенов не меняют этот итог."
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%1$lld расчётного токена. Прямой ввод %2$@ · Запись в кэш %3$@ · Вывод %4$@ · Чтение кэша %5$@. Расчётные токены включают прямой ввод, запись в кэш и вывод; чтение кэша остаётся видимым в таблице, но не входит в этот итог. Фильтры типов токенов не меняют этот итог."
+                  "value": "%1$lld расчётного токена. Прямой ввод %2$@ · Вывод %3$@ · Чтение кэша %4$@. Расчётные токены включают прямой ввод и вывод; чтение кэша остаётся видимым в таблице, но не входит в этот итог. Фильтры типов токенов не меняют этот итог."
                 }
               }
             }

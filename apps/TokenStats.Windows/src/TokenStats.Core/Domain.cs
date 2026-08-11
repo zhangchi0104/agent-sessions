@@ -78,15 +78,14 @@ public static class TokenRangeExtensions
 }
 
 /// <summary>
-/// The four disjoint columns in the Token Odometer, in display order.
-/// Cache-write TTL detail remains available in TokenBreakdown but is combined
-/// into one Odometer column.
+/// The three supported columns in the Token Odometer, in display order.
+/// Provider cache-write fields are intentionally not represented as a Token
+/// Kind because their read path is not worth the feature's cost.
 /// </summary>
 public enum TokenKind
 {
     DirectInput,
     Output,
-    CacheWrite,
     CacheRead,
 }
 
@@ -96,9 +95,8 @@ public enum TokenKindSelection
     None = 0,
     DirectInput = 1 << 0,
     Output = 1 << 1,
-    CacheWrite = 1 << 2,
-    CacheRead = 1 << 3,
-    All = DirectInput | Output | CacheWrite | CacheRead,
+    CacheRead = 1 << 2,
+    All = DirectInput | Output | CacheRead,
 }
 
 public enum TokenValueDisplayMode
@@ -132,7 +130,6 @@ public static class TokenKindSelectionExtensions
         {
             TokenKind.DirectInput => TokenKindSelection.DirectInput,
             TokenKind.Output => TokenKindSelection.Output,
-            TokenKind.CacheWrite => TokenKindSelection.CacheWrite,
             TokenKind.CacheRead => TokenKindSelection.CacheRead,
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
         };
@@ -320,12 +317,9 @@ public sealed class UsageException : Exception
 public readonly record struct TokenBreakdown(
     long RawInputTokens,
     long OutputTokens,
-    long CacheWriteTokens,
-    long CacheWrite1HourTokens,
     long CacheReadTokens)
 {
-    public long TokenMetricTotal =>
-        RawInputTokens + CacheWriteTokens + CacheWrite1HourTokens + OutputTokens;
+    public long TokenMetricTotal => RawInputTokens + OutputTokens;
 
     public long MeteredTokenTotal => TokenMetricTotal + CacheReadTokens;
 
@@ -334,8 +328,6 @@ public readonly record struct TokenBreakdown(
         {
             TokenKind.DirectInput => RawInputTokens,
             TokenKind.Output => OutputTokens,
-            TokenKind.CacheWrite =>
-                CacheWriteTokens + CacheWrite1HourTokens,
             TokenKind.CacheRead => CacheReadTokens,
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
         };
@@ -361,11 +353,6 @@ public readonly record struct TokenBreakdown(
             total += OutputTokens;
         }
 
-        if (selection.Includes(TokenKind.CacheWrite))
-        {
-            total += CacheWriteTokens + CacheWrite1HourTokens;
-        }
-
         if (selection.Includes(TokenKind.CacheRead))
         {
             total += CacheReadTokens;
@@ -377,20 +364,14 @@ public readonly record struct TokenBreakdown(
     public TokenBreakdown Add(TokenBreakdown other) => new(
         RawInputTokens + other.RawInputTokens,
         OutputTokens + other.OutputTokens,
-        CacheWriteTokens + other.CacheWriteTokens,
-        CacheWrite1HourTokens + other.CacheWrite1HourTokens,
         CacheReadTokens + other.CacheReadTokens);
 
     public static TokenBreakdown NonNegative(
         long rawInputTokens,
         long outputTokens,
-        long cacheWriteTokens,
-        long cacheWrite1HourTokens,
         long cacheReadTokens) => new(
         Math.Max(rawInputTokens, 0),
         Math.Max(outputTokens, 0),
-        Math.Max(cacheWriteTokens, 0),
-        Math.Max(cacheWrite1HourTokens, 0),
         Math.Max(cacheReadTokens, 0));
 }
 
@@ -407,35 +388,17 @@ public sealed record ModelTokenUsage(
 public sealed class TokenUsage
 {
     private readonly Dictionary<ModelUsageKey, ModelUsageAccumulator> modelUsage = [];
-    private long cacheWriteTokens;
 
     /// <summary>Non-cached input tokens.</summary>
     public long InputTokens { get; set; }
     public long OutputTokens { get; set; }
 
-    /// <summary>Default/5-minute cache writes.</summary>
-    public long CacheWriteTokens
-    {
-        get => cacheWriteTokens;
-        set => cacheWriteTokens = value;
-    }
-
-    /// <summary>
-    /// Backward-compatible name used by older callers and transcript fixtures.
-    /// </summary>
-    public long CacheCreationTokens
-    {
-        get => CacheWriteTokens;
-        set => CacheWriteTokens = value;
-    }
-
-    public long CacheWrite1HourTokens { get; set; }
     public long CacheReadTokens { get; set; }
     public int ResponseCount { get; set; }
 
     /// <summary>
     /// The user-facing Billing tokens metric:
-    /// direct input + cache writes + output.
+    /// direct input + output.
     /// Cache reads are deliberately excluded.
     /// </summary>
     public long BillableTokens => Breakdown.TokenMetricTotal;
@@ -447,15 +410,13 @@ public sealed class TokenUsage
 
     /// <summary>
     /// Token Odometer total. Unlike the existing user-facing Token metric, all
-    /// four Odometer columns, including cache reads, contribute.
+    /// three Odometer columns, including cache reads, contribute.
     /// </summary>
     public long OdometerTokens => MeteredTokens;
 
     public TokenBreakdown Breakdown => new(
         InputTokens,
         OutputTokens,
-        CacheWriteTokens,
-        CacheWrite1HourTokens,
         CacheReadTokens);
 
     public long Amount(TokenKind kind) => Breakdown.Amount(kind);
@@ -540,8 +501,6 @@ public sealed class TokenUsage
         {
             InputTokens = InputTokens,
             OutputTokens = OutputTokens,
-            CacheWriteTokens = CacheWriteTokens,
-            CacheWrite1HourTokens = CacheWrite1HourTokens,
             CacheReadTokens = CacheReadTokens,
             ResponseCount = ResponseCount,
         };
@@ -563,8 +522,6 @@ public sealed class TokenUsage
     {
         InputTokens += other.InputTokens;
         OutputTokens += other.OutputTokens;
-        CacheWriteTokens += other.CacheWriteTokens;
-        CacheWrite1HourTokens += other.CacheWrite1HourTokens;
         CacheReadTokens += other.CacheReadTokens;
         ResponseCount += other.ResponseCount;
     }

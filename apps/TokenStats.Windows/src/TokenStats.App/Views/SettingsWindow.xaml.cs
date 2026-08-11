@@ -28,7 +28,6 @@ public partial class SettingsWindow : Window
         new(nameof(ThemeColorOverrides.Warning), "Warning", "WarningBrush"),
         new(nameof(ThemeColorOverrides.TokenInput), "Input tokens", "TokenInputBrush"),
         new(nameof(ThemeColorOverrides.TokenOutput), "Output tokens", "TokenOutputBrush"),
-        new(nameof(ThemeColorOverrides.TokenCacheWrite), "Cache write", "TokenCacheWriteBrush"),
         new(nameof(ThemeColorOverrides.TokenCacheRead), "Cache read", "TokenCacheReadBrush"),
     ];
     private readonly UsageCoordinator _coordinator;
@@ -930,7 +929,6 @@ public partial class SettingsWindow : Window
             nameof(ThemeColorOverrides.Warning) => colors.Warning,
             nameof(ThemeColorOverrides.TokenInput) => colors.TokenInput,
             nameof(ThemeColorOverrides.TokenOutput) => colors.TokenOutput,
-            nameof(ThemeColorOverrides.TokenCacheWrite) => colors.TokenCacheWrite,
             nameof(ThemeColorOverrides.TokenCacheRead) => colors.TokenCacheRead,
             _ => null,
         };
@@ -961,8 +959,6 @@ public partial class SettingsWindow : Window
                 colors with { TokenInput = value },
             nameof(ThemeColorOverrides.TokenOutput) =>
                 colors with { TokenOutput = value },
-            nameof(ThemeColorOverrides.TokenCacheWrite) =>
-                colors with { TokenCacheWrite = value },
             nameof(ThemeColorOverrides.TokenCacheRead) =>
                 colors with { TokenCacheRead = value },
             _ => colors,

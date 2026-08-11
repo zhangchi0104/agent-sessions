@@ -7,13 +7,6 @@
 	objects = {
 
 /* Begin PBXContainerItemProxy section */
-		0BBC1D3A2FC67594004E2460 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 0BBC1D222FC67592004E2460 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 0BBC1D292FC67592004E2460;
-			remoteInfo = TokenStats;
-		};
 		0BBC1D442FC67594004E2460 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0BBC1D222FC67592004E2460 /* Project object */;
@@ -140,9 +133,9 @@
 			buildRules = (
 			);
 			dependencies = (
-				0BBC1D3B2FC67594004E2460 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
+				0BBC1D2C2FC67592004E2460 /* TokenStats */,
 				0BBC1D3C2FC67594004E2460 /* TokenStatsTests */,
 			);
 			name = TokenStatsTests;
@@ -190,7 +183,6 @@
 					};
 					0BBC1D382FC67594004E2460 = {
 						CreatedOnToolsVersion = 26.4;
-						TestTargetID = 0BBC1D292FC67592004E2460;
 					};
 					0BBC1D422FC67594004E2460 = {
 						CreatedOnToolsVersion = 26.4;
@@ -273,11 +265,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		0BBC1D3B2FC67594004E2460 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 0BBC1D292FC67592004E2460 /* TokenStats */;
-			targetProxy = 0BBC1D3A2FC67594004E2460 /* PBXContainerItemProxy */;
-		};
 		0BBC1D452FC67594004E2460 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 0BBC1D292FC67592004E2460 /* TokenStats */;
@@ -499,38 +486,40 @@
 		0BBC1D512FC67594004E2460 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
 				CURRENT_PROJECT_VERSION = 1;
+				EXCLUDED_SOURCE_FILE_NAMES = TokenStatsApp.swift;
 				GENERATE_INFOPLIST_FILE = YES;
+				LM_SKIP_METADATA_EXTRACTION = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.otakuma.TokenStatsTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TokenStats.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TokenStats";
 			};
 			name = Debug;
 		};
 		0BBC1D522FC67594004E2460 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
 				CURRENT_PROJECT_VERSION = 1;
+				EXCLUDED_SOURCE_FILE_NAMES = TokenStatsApp.swift;
 				GENERATE_INFOPLIST_FILE = YES;
+				LM_SKIP_METADATA_EXTRACTION = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.otakuma.TokenStatsTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TokenStats.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TokenStats";
 			};
 			name = Release;
 		};

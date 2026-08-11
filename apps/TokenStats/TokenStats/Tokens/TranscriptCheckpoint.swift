@@ -114,7 +114,9 @@ nonisolated enum TranscriptCheckpointKey {
 /// reader's domain state. Sorted arrays make the checksum encoding canonical.
 nonisolated enum TranscriptCheckpointCodec {
     static let schemaVersion = 1
-    static let parserSemanticsVersion = 1
+    // Cache-write token accounting was removed; old checkpoints must rebuild
+    // from the authoritative transcript under the three-kind schema.
+    static let parserSemanticsVersion = 2
     static let maximumEntryBytes = 64 * 1024 * 1024
     static let fingerprintWindowBytes = 4 * 1024
     static let maximumResponseHashes = 1_000_000
@@ -249,8 +251,6 @@ nonisolated enum TranscriptCheckpointCodec {
         }
         guard bucketTotal.inputTokens <= continuation.usage.inputTokens,
               bucketTotal.outputTokens <= continuation.usage.outputTokens,
-              bucketTotal.cacheCreationTokens
-                  <= continuation.usage.cacheCreationTokens,
               bucketTotal.cacheReadTokens <= continuation.usage.cacheReadTokens,
               bucketTotal.responseCount <= continuation.usage.responseCount
         else {
@@ -281,7 +281,6 @@ nonisolated enum TranscriptCheckpointCodec {
     private static func isValid(_ usage: TokenUsage) -> Bool {
         guard usage.inputTokens >= 0,
               usage.outputTokens >= 0,
-              usage.cacheCreationTokens >= 0,
               usage.cacheReadTokens >= 0,
               usage.responseCount >= 0
         else {
@@ -292,7 +291,6 @@ nonisolated enum TranscriptCheckpointCodec {
         for value in [
             usage.inputTokens,
             usage.outputTokens,
-            usage.cacheCreationTokens,
             usage.cacheReadTokens,
         ] {
             let next = total.addingReportingOverflow(value)
@@ -635,14 +633,12 @@ nonisolated enum TranscriptCheckpointCodec {
     private struct UsageDTO: Codable {
         let inputTokens: Int
         let outputTokens: Int
-        let cacheWriteTokens: Int
         let cacheReadTokens: Int
         let responseCount: Int
 
         init(_ value: TokenUsage) {
             inputTokens = value.inputTokens
             outputTokens = value.outputTokens
-            cacheWriteTokens = value.cacheCreationTokens
             cacheReadTokens = value.cacheReadTokens
             responseCount = value.responseCount
         }
@@ -651,7 +647,6 @@ nonisolated enum TranscriptCheckpointCodec {
             TokenUsage(
                 inputTokens: inputTokens,
                 outputTokens: outputTokens,
-                cacheCreationTokens: cacheWriteTokens,
                 cacheReadTokens: cacheReadTokens,
                 responseCount: responseCount
             )

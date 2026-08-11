@@ -16,7 +16,6 @@
 //
 
 import Foundation
-@testable import TokenStats
 
 /// A throwaway scan root holding transcript files the reader will parse.
 struct TempTranscripts {
@@ -83,7 +82,6 @@ func claudeUsageLine(
     model: String = "claude-opus-5",
     input: Int = 0,
     output: Int = 0,
-    cacheWrite: Int = 0,
     cacheRead: Int = 0,
     daysAgo: Int = 0,
     timestamp: String? = nil
@@ -91,7 +89,7 @@ func claudeUsageLine(
     """
     {"timestamp":"\(timestamp ?? stamp(daysAgo: daysAgo))","message":{"id":"\(id)","model":"\(model)",\
     "usage":{"input_tokens":\(input),"output_tokens":\(output),\
-    "cache_creation_input_tokens":\(cacheWrite),"cache_read_input_tokens":\(cacheRead)}}}
+    "cache_read_input_tokens":\(cacheRead)}}}
     """
 }
 
@@ -186,8 +184,11 @@ func breakdown(
     id: CodingAgentID = .claudeCode,
     range: TokenRange = .today
 ) async throws -> [ModelName: TokenUsage] {
-    let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                      roots: [TranscriptRoot(id: id, label: "Agent", path: root.path)])
+    let odometer = TokenOdometerModel(
+        reader: TranscriptTokenReader(),
+        roots: [TranscriptRoot(id: id, label: "Agent", path: root.path)],
+        changeSource: EmittingTicks()
+    )
     let task = Task { await odometer.observeWhileVisible() }
     defer { task.cancel() }
     _ = await waitUntil { odometer.hasLoaded }

@@ -8,7 +8,6 @@
 
 import Foundation
 import Testing
-@testable import TokenStats
 
 struct TranscriptCheckpointInvalidationTests {
     @Test func acceptedCollectionBoundsRemainCompatibleWithTheVersionOneContract() {
@@ -125,7 +124,7 @@ struct TranscriptCheckpointInvalidationTests {
         let rebuilt = await fixture.makeReader()
             .readTranscript(at: fixture.transcriptURL.path)
 
-        #expect(rebuilt.usage?.totalTokens == 126)
+        #expect(rebuilt.usage?.totalTokens == 109)
         #expect(rebuilt.statistics.checkpointInvalidations == 1)
         #expect(rebuilt.statistics.transcriptContentBytesRead == fixture.sourceBytes)
         #expect(rebuilt.statistics.checkpointWrites == 1)
@@ -217,7 +216,7 @@ struct TranscriptCheckpointInvalidationTests {
         let rebuilt = await fixture.makeReader(timeZone: losAngeles)
             .readTranscript(at: fixture.transcriptURL.path)
 
-        #expect(rebuilt.usage?.totalTokens == 126)
+        #expect(rebuilt.usage?.totalTokens == 109)
         #expect(rebuilt.statistics.checkpointInvalidations == 1)
         #expect(rebuilt.statistics.transcriptContentBytesRead == fixture.sourceBytes)
         #expect(rebuilt.statistics.checkpointWrites == 1)
@@ -276,7 +275,6 @@ struct TranscriptCheckpointInvalidationTests {
             let usage: [String: Any] = [
                 "inputTokens": NSNumber(value: Int.max),
                 "outputTokens": 0,
-                "cacheWriteTokens": 0,
                 "cacheReadTokens": 0,
                 "responseCount": 1,
             ]

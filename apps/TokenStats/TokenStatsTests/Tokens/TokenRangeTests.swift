@@ -11,7 +11,6 @@
 
 import Foundation
 import Testing
-@testable import TokenStats
 
 @MainActor
 struct TokenRangeTests {
@@ -19,8 +18,11 @@ struct TokenRangeTests {
         let root = try TempTranscripts("claude")
         try root.write("a.jsonl", [claudeUsageLine(id: "m1", input: 100, output: 50)])
 
-        let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                          roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)])
+        let odometer = TokenOdometerModel(
+            reader: TranscriptTokenReader(),
+            roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)],
+            changeSource: EmittingTicks()
+        )
         #expect(odometer.selectedRange == .today)
     }
 
@@ -36,8 +38,11 @@ struct TokenRangeTests {
             claudeUsageLine(id: "old", input: 999, output: 999, daysAgo: 10),
         ])
 
-        let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                          roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)])
+        let odometer = TokenOdometerModel(
+            reader: TranscriptTokenReader(),
+            roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)],
+            changeSource: EmittingTicks()
+        )
         let first = Task { await odometer.observeWhileVisible() }
         #expect(await waitUntil { odometer.hasLoaded })
         odometer.select(.thirtyDays)
@@ -75,7 +80,8 @@ struct TokenRangeTests {
         let odometer = TokenOdometerModel(
             reader: TranscriptTokenReader(),
             roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)],
-            initialRange: .thirtyDays
+            initialRange: .thirtyDays,
+            changeSource: EmittingTicks()
         )
         let task = Task { await odometer.observeWhileVisible() }
         defer { task.cancel() }
@@ -94,8 +100,11 @@ struct TokenRangeTests {
         let root = try TempTranscripts("claude")
         try root.write("a.jsonl", [claudeUsageLine(id: "m1", input: 100, output: 50)])
 
-        let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                          roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)])
+        let odometer = TokenOdometerModel(
+            reader: TranscriptTokenReader(),
+            roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)],
+            changeSource: EmittingTicks()
+        )
         let task = Task { await odometer.observeWhileVisible() }
         defer { task.cancel() }
         #expect(await waitUntil { odometer.hasLoaded && odometer.displayedRange == .today })
@@ -120,8 +129,11 @@ struct TokenRangeTests {
             claudeUsageLine(id: "old", input: 999, output: 999, daysAgo: 10),
         ])
 
-        let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                          roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)])
+        let odometer = TokenOdometerModel(
+            reader: TranscriptTokenReader(),
+            roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)],
+            changeSource: EmittingTicks()
+        )
         let task = Task { await odometer.observeWhileVisible() }
         defer { task.cancel() }
 
@@ -142,8 +154,11 @@ struct TokenRangeTests {
             claudeUsageLine(id: "outside-month", input: 40_000, output: 0, daysAgo: 40),
         ])
 
-        let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                          roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)])
+        let odometer = TokenOdometerModel(
+            reader: TranscriptTokenReader(),
+            roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)],
+            changeSource: EmittingTicks()
+        )
         let task = Task { await odometer.observeWhileVisible() }
         defer { task.cancel() }
 
@@ -169,8 +184,11 @@ struct TokenRangeTests {
             ofItemAtPath: root.url.appendingPathComponent("old.jsonl").path
         )
 
-        let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                          roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)])
+        let odometer = TokenOdometerModel(
+            reader: TranscriptTokenReader(),
+            roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)],
+            changeSource: EmittingTicks()
+        )
         let task = Task { await odometer.observeWhileVisible() }
         defer { task.cancel() }
 
@@ -191,8 +209,11 @@ struct TokenRangeTests {
             claudeUsageLine(id: "old", input: 999, output: 999, daysAgo: 10),
         ])
 
-        let odometer = TokenOdometerModel(reader: TranscriptTokenReader(),
-                                          roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)])
+        let odometer = TokenOdometerModel(
+            reader: TranscriptTokenReader(),
+            roots: [TranscriptRoot(id: .claudeCode, label: "Agent", path: root.path)],
+            changeSource: EmittingTicks()
+        )
         let task = Task { await odometer.observeWhileVisible() }
         defer { task.cancel() }
         #expect(await waitUntil { odometer.hasLoaded })
@@ -224,7 +245,8 @@ struct TokenRangeTests {
         let odometer = TokenOdometerModel(
             reader: TranscriptTokenReader(),
             roots: [TranscriptRoot(id: .claudeCode, label: "Claude Code", path: busy.path),
-                    TranscriptRoot(id: .codex, label: "Codex", path: idle.path)]
+                    TranscriptRoot(id: .codex, label: "Codex", path: idle.path)],
+            changeSource: EmittingTicks()
         )
         let task = Task { await odometer.observeWhileVisible() }
         defer { task.cancel() }

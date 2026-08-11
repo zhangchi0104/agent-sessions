@@ -151,7 +151,6 @@ public static class UsageFormatting
         {
             TokenKind.DirectInput => "IN",
             TokenKind.Output => "OUT",
-            TokenKind.CacheWrite => "C·W",
             TokenKind.CacheRead => "C·R",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
         };
@@ -232,15 +231,8 @@ public static class UsageFormatting
 
     public static string TokenBreakdown(TokenUsage usage)
     {
-        var cacheWrite = usage.CacheWriteTokens + usage.CacheWrite1HourTokens;
-        var input = usage.InputTokens + cacheWrite + usage.CacheReadTokens;
-        var cacheWriteText = usage.CacheWrite1HourTokens > 0
-            ? $"cache write {cacheWrite:N0} " +
-              $"(default/5m {usage.CacheWriteTokens:N0}, " +
-              $"1h {usage.CacheWrite1HourTokens:N0})"
-            : $"cache write {cacheWrite:N0}";
+        var input = usage.InputTokens + usage.CacheReadTokens;
         return $"input {input:N0} (direct {usage.InputTokens:N0}, " +
-               $"{cacheWriteText}, " +
                $"cache read {usage.CacheReadTokens:N0}) · output {usage.OutputTokens:N0}";
     }
 

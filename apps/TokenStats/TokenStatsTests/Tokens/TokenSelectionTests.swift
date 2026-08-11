@@ -2,14 +2,13 @@
 //  TokenSelectionTests.swift
 //  TokenStatsTests
 //
-//  The Token Kind headings are a display projection over the raw four-kind
+//  The Token Kind headings are a display projection over the raw three-kind
 //  Odometer. They may change selected subtotals and percentages, but never the
 //  objective raw or Billing-token readings.
 //
 
 import Foundation
 import Testing
-@testable import TokenStats
 
 struct TokenSelectionTests {
     private let englishLocale = Locale(identifier: "en-US")
@@ -17,22 +16,21 @@ struct TokenSelectionTests {
     private let usage = TokenUsage(
         inputTokens: 10,
         outputTokens: 20,
-        cacheCreationTokens: 30,
         cacheReadTokens: 40,
         responseCount: 1
     )
 
     @Test func selectedTotalIncludesOnlyEnabledKinds() {
         #expect(usage.selectedTotal([.directInput, .cacheRead]) == 50)
-        #expect(usage.selectedTotal(Set(TokenKind.allCases)) == 100)
+        #expect(usage.selectedTotal(Set(TokenKind.allCases)) == 70)
         #expect(usage.selectedTotal([]) == 0)
     }
 
     @Test func filteringDoesNotChangeObjectiveTotals() {
         _ = usage.selectedTotal([.directInput])
 
-        #expect(usage.totalTokens == 100)
-        #expect(usage.billingTokens == 60)
+        #expect(usage.totalTokens == 70)
+        #expect(usage.billingTokens == 30)
     }
 
     @Test func enabledKindsSupportAllThreeValueFormats() {

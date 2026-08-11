@@ -186,8 +186,6 @@ nonisolated struct TranscriptJSONLParser {
             var response = TokenUsage()
             response.inputTokens = usage.inputTokens ?? 0
             response.outputTokens = usage.outputTokens ?? 0
-            response.cacheCreationTokens =
-                usage.cacheCreationInputTokens ?? 0
             response.cacheReadTokens = usage.cacheReadInputTokens ?? 0
             response.responseCount = 1
             try record(
@@ -356,7 +354,6 @@ nonisolated private struct TranscriptLine: Decodable {
         struct Usage: Decodable {
             let inputTokens: Int?
             let outputTokens: Int?
-            let cacheCreationInputTokens: Int?
             let cacheReadInputTokens: Int?
         }
 

@@ -9,7 +9,6 @@
 
 import Testing
 import Foundation
-@testable import TokenStats
 
 struct CodexUsageSnapshotParserTests {
 

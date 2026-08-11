@@ -8,7 +8,6 @@
 
 import Testing
 import Foundation
-@testable import TokenStats
 
 @Suite(.serialized)
 struct CodexUsageProviderTests {

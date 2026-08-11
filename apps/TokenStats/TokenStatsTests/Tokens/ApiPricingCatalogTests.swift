@@ -7,16 +7,15 @@
 
 import Foundation
 import Testing
-@testable import TokenStats
 
 struct ApiPricingCatalogTests {
-    private let reviewed = ApiPricingDate(year: 2026, month: 7, day: 27)
+    private let reviewed = ApiPricingDate(year: 2026, month: 8, day: 4)
 
     @Test func metadataMatchesTheWindowsCatalog() {
         #expect(ApiPricingCatalog.lastReviewed == reviewed)
         #expect(
             ApiPricingCatalog.openAIPricingSource ==
-                "https://developers.openai.com/api/docs/models"
+                "https://developers.openai.com/api/docs/pricing"
         )
         #expect(
             ApiPricingCatalog.anthropicPricingSource ==
@@ -26,41 +25,41 @@ struct ApiPricingCatalogTests {
 
     @Test func everyWindowsPriceRuleResolvesToTheSameRates() throws {
         let cases: [(ApiPricingAgent, String, ApiTokenRates)] = [
-            (.codex, "gpt-5.6-sol", openAI("5", "6.25", "0.50", "30")),
-            (.codex, "gpt-5.6-terra", openAI("2.50", "3.125", "0.25", "15")),
-            (.codex, "gpt-5.6-luna", openAI("1", "1.25", "0.10", "6")),
-            (.codex, "gpt-5.6", openAI("5", "6.25", "0.50", "30")),
-            (.codex, "gpt-5.5", openAI("5", "5", "0.50", "30")),
-            (.codex, "gpt-5.4", openAI("2.50", "2.50", "0.25", "15")),
-            (.codex, "gpt-5.3-codex", openAI("1.75", "1.75", "0.175", "14")),
-            (.codex, "gpt-5.2-codex", openAI("1.75", "1.75", "0.175", "14")),
-            (.codex, "gpt-5.2", openAI("1.75", "1.75", "0.175", "14")),
-            (.codex, "gpt-5.1-codex-mini", openAI("0.25", "0.25", "0.025", "2")),
-            (.codex, "gpt-5.1-codex-max", openAI("1.25", "1.25", "0.125", "10")),
-            (.codex, "gpt-5.1-codex", openAI("1.25", "1.25", "0.125", "10")),
-            (.codex, "gpt-5.1", openAI("1.25", "1.25", "0.125", "10")),
-            (.codex, "gpt-5-codex", openAI("1.25", "1.25", "0.125", "10")),
-            (.codex, "gpt-5", openAI("1.25", "1.25", "0.125", "10")),
-            (.codex, "codex-mini-latest", openAI("1.50", "1.50", "0.375", "6")),
+            (.codex, "gpt-5.6-sol", openAI("5", "0.50", "30")),
+            (.codex, "gpt-5.6-terra", openAI("2", "0.20", "12")),
+            (.codex, "gpt-5.6-luna", openAI("0.20", "0.02", "1.20")),
+            (.codex, "gpt-5.6", openAI("5", "0.50", "30")),
+            (.codex, "gpt-5.5", openAI("5", "0.50", "30")),
+            (.codex, "gpt-5.4", openAI("2.50", "0.25", "15")),
+            (.codex, "gpt-5.3-codex", openAI("1.75", "0.175", "14")),
+            (.codex, "gpt-5.2-codex", openAI("1.75", "0.175", "14")),
+            (.codex, "gpt-5.2", openAI("1.75", "0.175", "14")),
+            (.codex, "gpt-5.1-codex-mini", openAI("0.25", "0.025", "2")),
+            (.codex, "gpt-5.1-codex-max", openAI("1.25", "0.125", "10")),
+            (.codex, "gpt-5.1-codex", openAI("1.25", "0.125", "10")),
+            (.codex, "gpt-5.1", openAI("1.25", "0.125", "10")),
+            (.codex, "gpt-5-codex", openAI("1.25", "0.125", "10")),
+            (.codex, "gpt-5", openAI("1.25", "0.125", "10")),
+            (.codex, "codex-mini-latest", openAI("1.50", "0.375", "6")),
 
-            (.claudeCode, "claude-fable-5", anthropic("10", "12.50", "20", "1", "50")),
-            (.claudeCode, "claude-mythos-5", anthropic("10", "12.50", "20", "1", "50")),
-            (.claudeCode, "claude-opus-5", anthropic("5", "6.25", "10", "0.50", "25")),
-            (.claudeCode, "claude-opus-4-8", anthropic("5", "6.25", "10", "0.50", "25")),
-            (.claudeCode, "claude-opus-4-7", anthropic("5", "6.25", "10", "0.50", "25")),
-            (.claudeCode, "claude-opus-4-6", anthropic("5", "6.25", "10", "0.50", "25")),
-            (.claudeCode, "claude-opus-4-5", anthropic("5", "6.25", "10", "0.50", "25")),
-            (.claudeCode, "claude-opus-4-1", anthropic("15", "18.75", "30", "1.50", "75")),
-            (.claudeCode, "claude-opus-4", anthropic("15", "18.75", "30", "1.50", "75")),
-            (.claudeCode, "claude-sonnet-4-6", anthropic("3", "3.75", "6", "0.30", "15")),
-            (.claudeCode, "claude-sonnet-4-5", anthropic("3", "3.75", "6", "0.30", "15")),
-            (.claudeCode, "claude-sonnet-4", anthropic("3", "3.75", "6", "0.30", "15")),
-            (.claudeCode, "claude-3-7-sonnet", anthropic("3", "3.75", "6", "0.30", "15")),
-            (.claudeCode, "claude-3-5-sonnet", anthropic("3", "3.75", "6", "0.30", "15")),
-            (.claudeCode, "claude-haiku-4-5", anthropic("1", "1.25", "2", "0.10", "5")),
-            (.claudeCode, "claude-3-5-haiku", anthropic("0.80", "1", "1.60", "0.08", "4")),
-            (.claudeCode, "claude-3-haiku", anthropic("0.25", "0.3125", "0.50", "0.025", "1.25")),
-            (.claudeCode, "claude-3-opus", anthropic("15", "18.75", "30", "1.50", "75")),
+            (.claudeCode, "claude-fable-5", anthropic("10", "1", "50")),
+            (.claudeCode, "claude-mythos-5", anthropic("10", "1", "50")),
+            (.claudeCode, "claude-opus-5", anthropic("5", "0.50", "25")),
+            (.claudeCode, "claude-opus-4-8", anthropic("5", "0.50", "25")),
+            (.claudeCode, "claude-opus-4-7", anthropic("5", "0.50", "25")),
+            (.claudeCode, "claude-opus-4-6", anthropic("5", "0.50", "25")),
+            (.claudeCode, "claude-opus-4-5", anthropic("5", "0.50", "25")),
+            (.claudeCode, "claude-opus-4-1", anthropic("15", "1.50", "75")),
+            (.claudeCode, "claude-opus-4", anthropic("15", "1.50", "75")),
+            (.claudeCode, "claude-sonnet-4-6", anthropic("3", "0.30", "15")),
+            (.claudeCode, "claude-sonnet-4-5", anthropic("3", "0.30", "15")),
+            (.claudeCode, "claude-sonnet-4", anthropic("3", "0.30", "15")),
+            (.claudeCode, "claude-3-7-sonnet", anthropic("3", "0.30", "15")),
+            (.claudeCode, "claude-3-5-sonnet", anthropic("3", "0.30", "15")),
+            (.claudeCode, "claude-haiku-4-5", anthropic("1", "0.10", "5")),
+            (.claudeCode, "claude-3-5-haiku", anthropic("0.80", "0.08", "4")),
+            (.claudeCode, "claude-3-haiku", anthropic("0.25", "0.025", "1.25")),
+            (.claudeCode, "claude-3-opus", anthropic("15", "1.50", "75")),
         ]
 
         for (agent, model, expected) in cases {
@@ -91,8 +90,8 @@ struct ApiPricingCatalogTests {
             )
         )
 
-        #expect(introductory == anthropic("2", "2.50", "4", "0.20", "10"))
-        #expect(standard == anthropic("3", "3.75", "6", "0.30", "15"))
+        #expect(introductory == anthropic("2", "0.20", "10"))
+        #expect(standard == anthropic("3", "0.30", "15"))
     }
 
     @Test func onlyDatedSnapshotsExtendAKnownModelPrefix() {
@@ -101,7 +100,7 @@ struct ApiPricingCatalogTests {
                 for: .codex,
                 model: "GPT-5.6-SOL-2026-07-27",
                 pricingDate: reviewed
-            ) == openAI("5", "6.25", "0.50", "30")
+            ) == openAI("5", "0.50", "30")
         )
         #expect(
             ApiPricingCatalog.rates(
@@ -119,17 +118,15 @@ struct ApiPricingCatalogTests {
         )
     }
 
-    @Test func estimateUsesAllFourKindsAndTheDefaultCacheWriteRate() {
+    @Test func estimateUsesThreeKinds() {
         let codex = usage(
             input: 1_000_000,
             output: 1_000_000,
-            cacheWrite: 1_000_000,
             cacheRead: 1_000_000
         )
         let claude = usage(
             input: 1_000_000,
             output: 1_000_000,
-            cacheWrite: 1_000_000,
             cacheRead: 1_000_000
         )
 
@@ -149,15 +146,14 @@ struct ApiPricingCatalogTests {
             pricingDate: reviewed
         )
 
-        // Codex: 5 + 30 + 6.25 + 0.50 = 41.75.
-        // Claude: 5 + 25 + default/5m 6.25 + 0.50 = 36.75.
-        // The 10.00 one-hour Claude rate must not be used without TTL detail.
-        #expect(estimate.costUSD == decimal("78.50"))
-        #expect(estimate.pricedTokens == 8_000_000)
+        // Codex: 5 + 30 + 0.50 = 35.50.
+        // Claude: 5 + 25 + 0.50 = 30.50.
+        #expect(estimate.costUSD == decimal("66.00"))
+        #expect(estimate.pricedTokens == 6_000_000)
         #expect(estimate.unpricedTokens == 0)
         #expect(estimate.isAvailable)
         #expect(!estimate.isPartial)
-        #expect(estimate.formattedCostUSD == "$78.50")
+        #expect(estimate.formattedCostUSD == "$66.00")
     }
 
     @MainActor
@@ -249,7 +245,6 @@ struct ApiPricingCatalogTests {
                     usage: usage(
                         input: 1_000_000,
                         output: 1_000_000,
-                        cacheWrite: 1_000_000,
                         cacheRead: 1_000_000
                     )
                 ),
@@ -316,30 +311,24 @@ struct ApiPricingCatalogTests {
     private func usage(
         input: Int = 0,
         output: Int = 0,
-        cacheWrite: Int = 0,
         cacheRead: Int = 0
     ) -> TokenUsage {
         var result = TokenUsage()
         result.inputTokens = input
         result.outputTokens = output
-        result.cacheCreationTokens = cacheWrite
         result.cacheReadTokens = cacheRead
         result.responseCount =
-            input + output + cacheWrite + cacheRead == 0 ? 0 : 1
+            input + output + cacheRead == 0 ? 0 : 1
         return result
     }
 
     private func openAI(
         _ rawInput: String,
-        _ cacheWrite: String,
         _ cacheRead: String,
         _ output: String
     ) -> ApiTokenRates {
-        let write = decimal(cacheWrite)
         return ApiTokenRates(
             rawInput: decimal(rawInput),
-            cacheWrite: write,
-            cacheWrite1Hour: write,
             cacheRead: decimal(cacheRead),
             output: decimal(output)
         )
@@ -347,15 +336,11 @@ struct ApiPricingCatalogTests {
 
     private func anthropic(
         _ rawInput: String,
-        _ cacheWrite: String,
-        _ cacheWrite1Hour: String,
         _ cacheRead: String,
         _ output: String
     ) -> ApiTokenRates {
         ApiTokenRates(
             rawInput: decimal(rawInput),
-            cacheWrite: decimal(cacheWrite),
-            cacheWrite1Hour: decimal(cacheWrite1Hour),
             cacheRead: decimal(cacheRead),
             output: decimal(output)
         )

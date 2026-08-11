@@ -7,7 +7,7 @@
       buildImplicitDependencies = "YES">
       <BuildActionEntries>
          <BuildActionEntry
-            buildForTesting = "NO"
+            buildForTesting = "YES"
             buildForRunning = "YES"
             buildForProfiling = "YES"
             buildForArchiving = "YES"
@@ -17,20 +17,6 @@
                BlueprintIdentifier = "0BBC1D292FC67592004E2460"
                BuildableName = "TokenStats.app"
                BlueprintName = "TokenStats"
-               ReferencedContainer = "container:TokenStats.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "NO"
-            buildForProfiling = "NO"
-            buildForArchiving = "NO"
-            buildForAnalyzing = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "0BBC1D382FC67594004E2460"
-               BuildableName = "TokenStatsTests.xctest"
-               BlueprintName = "TokenStatsTests"
                ReferencedContainer = "container:TokenStats.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -46,9 +32,9 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "0BBC1D382FC67594004E2460"
-               BuildableName = "TokenStatsTests.xctest"
-               BlueprintName = "TokenStatsTests"
+               BlueprintIdentifier = "0BBC1D422FC67594004E2460"
+               BuildableName = "TokenStatsUITests.xctest"
+               BlueprintName = "TokenStatsUITests"
                ReferencedContainer = "container:TokenStats.xcodeproj">
             </BuildableReference>
          </TestableReference>

@@ -9,7 +9,6 @@
 import CryptoKit
 import Foundation
 import Testing
-@testable import TokenStats
 
 enum InvalidEnvelopeState: String, CaseIterable {
     case schemaVersion
@@ -119,7 +118,6 @@ enum InvalidEnvelopeState: String, CaseIterable {
                 first["usage"] = [
                     "inputTokens": 0,
                     "outputTokens": 0,
-                    "cacheWriteTokens": 0,
                     "cacheReadTokens": 0,
                     "responseCount": 1,
                 ]

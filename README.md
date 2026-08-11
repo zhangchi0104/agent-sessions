@@ -1,97 +1,221 @@
-# TokenStats
+<a id="readme-top"></a>
 
-Native macOS menu-bar and Windows notification-area apps that show how much of
-each Coding Agent's **Usage Window** you have left and when it resets. Claude
-Code and Codex are both supported.
+<div align="center">
+  <img src="apps/TokenStats/TokenStats/Assets.xcassets/AppIcon.appiconset/app-icon-512.png" alt="TokenStats icon" width="128">
 
-The popover carries two tabs:
+  <h1>TokenStats</h1>
 
-- **Usage** — one **Usage Window** set per agent, read from that agent's own
-  authoritative usage endpoint over its own OAuth session: percent consumed and
-  time to reset, drawn as a dial, an arc, or a bar.
-- **Tokens** — the **Token Odometer**: the raw sum of tokens across the agent
-  transcript files on this computer over a chosen range of up to 30 days,
-  broken down by Coding Agent, then Model, then Token Kind. An odometer, not a
-  quota. The Windows client can also present the same records as estimated
-  standard API-equivalent usage.
+  <p>Compress Coding Agent usage windows and local token flow into one glanceable, native status-area instrument panel.</p>
 
-See [`apps/TokenStats/CONTEXT.md`](apps/TokenStats/CONTEXT.md) for the domain
-glossary and [`apps/TokenStats/docs/adr/`](apps/TokenStats/docs/adr/) for the
-design decisions.
+  <p>
+    <a href="README.zh_cn.md">中文 README</a>
+    ·
+    <a href="apps/TokenStats/CONTEXT.md">Domain glossary</a>
+    ·
+    <a href="https://github.com/zhangchi0104/agent-sessions/releases">Download releases</a>
+  </p>
+
+  <p>
+    <a href="https://github.com/zhangchi0104/agent-sessions/actions/workflows/test-tokenstats.yml"><img src="https://github.com/zhangchi0104/agent-sessions/actions/workflows/test-tokenstats.yml/badge.svg?branch=main" alt="macOS CI"></a>
+    <a href="https://github.com/zhangchi0104/agent-sessions/actions/workflows/test-tokenstats-windows.yml"><img src="https://github.com/zhangchi0104/agent-sessions/actions/workflows/test-tokenstats-windows.yml/badge.svg?branch=main" alt="Windows CI"></a>
+    <a href="https://github.com/zhangchi0104/agent-sessions/releases"><img src="https://img.shields.io/github/v/release/zhangchi0104/agent-sessions?display_name=tag&sort=semver&logo=github" alt="Latest release"></a>
+    <a href="https://github.com/zhangchi0104/agent-sessions/stargazers"><img src="https://img.shields.io/github/stars/zhangchi0104/agent-sessions?style=flat&logo=github" alt="GitHub stars"></a>
+    <a href="https://github.com/zhangchi0104/agent-sessions/commits/main"><img src="https://img.shields.io/github/last-commit/zhangchi0104/agent-sessions?branch=main" alt="Last commit"></a>
+  </p>
+
+  <p>
+    <img src="https://img.shields.io/badge/macOS-SwiftUI%20%2B%20AppKit-f05138?logo=swift&logoColor=white" alt="macOS: SwiftUI plus AppKit">
+    <img src="https://img.shields.io/badge/Windows-C%23%20%2B%20WPF-512BD4?logo=csharp&logoColor=white" alt="Windows: C sharp plus WPF">
+    <img src="https://img.shields.io/badge/platform-macOS%2026%20%7C%20Windows%2010%2B-08866D" alt="Supported platforms">
+  </p>
+</div>
+
+> [!IMPORTANT]
+> TokenStats intentionally exposes two separate readings: **Usage Windows** come from each Coding Agent's authoritative usage endpoint; the **Token Odometer** is estimated from local transcripts. The latter is not a quota, invoice, or remaining allowance.
+
+## What problem does it solve?
+
+Claude Code and Codex are powerful, but “how much of this usage window is left?” and “how many tokens did my recent work move?” usually require separate places to look. TokenStats answers both from a native menu-bar or notification-area surface.
+
+| Reading | Source | What it shows |
+| --- | --- | --- |
+| **Usage Window** | The Coding Agent's authoritative usage endpoint | Consumed percentage, window name, reset time |
+| **Token Odometer** | Local transcript files | Today / 7 days / 30 days, grouped by Agent → Model → Token Kind |
+| **Billing tokens** | A fixed Token Odometer projection | direct input + cache write + output |
+| **API equivalent** | Model-attributed public API list-price estimate | An estimate, not an invoice or subscription charge |
+
+## Two data paths
+
+```mermaid
+flowchart LR
+  A["Claude Code / Codex"] -->|"independent OAuth"| U["Usage Window<br/>authoritative usage and reset"]
+  A -->|"local transcripts"| T["Token Odometer<br/>on-device estimate"]
+  U --> V["Usage tab"]
+  T --> K["Tokens tab"]
+  K --> P["Billing tokens / API equivalent"]
+```
+
+The two sources never collapse into one ambiguous “total”: endpoint data answers “how much of the quota window is consumed,” while local files answer “how many tokens are present in the local record.”
+
+## Native clients for two desktops
+
+| Platform | Shell | Key capabilities | Distribution status |
+| --- | --- | --- | --- |
+| **macOS** | SwiftUI + AppKit menu-bar app | Usage / Tokens tabs, independent OAuth, Token Kind filters, API-equivalent amount, localization | Signed and notarized `.dmg` files are published through GitHub Releases |
+| **Windows** | C# + WPF notification-area app | Usage / Tokens tabs, tray summary, appearance controls, transcript watcher, win-x64 / win-arm64 | CI publishes self-contained portable builds; installer and Authenticode signing remain release-engineering work |
+
+The clients share product semantics while respecting macOS and Windows conventions for windows, status areas, accessibility, and themes.
+
+### The four Token Kinds
+
+The raw total is made from four disjoint dimensions so tokens are not counted twice:
+
+```text
+direct input + output + cache write + cache read
+```
+
+Each Token Kind can also act as a table display filter. The **selected total** changes only the table projection; it does not rewrite the raw Odometer or change the objective Billing tokens/API-equivalent summaries.
+
+<details>
+<summary>Expand: important data boundaries</summary>
+
+- Codex `archived_sessions` is intentionally excluded from scanning; historical Odometer values can fall after active sessions are archived.
+- Windows Billing tokens exclude cache reads, while API equivalent prices cache reads as cached input.
+- Missing or unpriced Models make the API-equivalent estimate explicitly partial instead of inventing a complete amount.
+- TokenStats does not read Claude Code's or Codex's own stored login credentials; each Coding Agent has an independent OAuth session and credential store.
+
+</details>
 
 ## Install
 
-For macOS, download the latest codesigned, notarized `.dmg` from the
-[releases](https://github.com/zhangchi0104/agent-sessions/releases). Tags are
-scoped `tokenstats-v*`; betas are marked pre-release.
+### macOS
 
-The Windows app currently builds from source under
-[`apps/TokenStats.Windows`](apps/TokenStats.Windows/README.md). Authenticode
-signing and installer publication are the remaining release-engineering step.
+1. Open [GitHub Releases](https://github.com/zhangchi0104/agent-sessions/releases).
+2. Download the latest `TokenStats-*.dmg`.
+3. Drag `TokenStats.app` into Applications and launch it from the menu bar.
+4. Sign in to the Claude Code or Codex accounts you want to monitor inside TokenStats.
 
-## Develop on macOS
+macOS release artifacts are Developer ID signed and notarized by the release workflow. Debug and local Release builds use ad-hoc signing by default and do not require an Apple Developer account.
 
-Requires Xcode 26 (the project is a macOS 26 / Xcode 26 format).
+### Windows
+
+Windows currently ships as source plus CI portable artifacts rather than a signed installer. The self-contained executable does not require a separate .NET installation, but an unsigned portable build may trigger SmartScreen.
+
+## Develop locally
+
+### macOS: SwiftUI + AppKit
+
+Requirements: macOS 26 and Xcode 26.6. The project uses the Xcode 26 project format.
 
 ```sh
 cd apps/TokenStats
-npm test         # xcodebuild test against the shared TokenStats scheme
-npm run dev      # build Debug and launch the app
-npm run build    # build Release
+
+# Static checks, app compilation, isolation checks, and unit tests.
+# UI automation is not started by this command.
+npm test
+
+# Foreground UI automation: use an isolated macOS user, VM, or CI desktop.
+npm run test:ui
+
+# Build Debug and launch the menu-bar app.
+npm run dev
+
+# Build Release.
+npm run build
 ```
 
-Debug and local Release builds use ad-hoc signing by default, so a fresh
-checkout needs no Apple Developer account. To use your own stable Apple
-Development identity, copy the example and edit the local file by hand:
+If you need a local Apple Development Team, copy the ignored configuration template and enter your Team ID:
 
 ```sh
 cp Config/Signing.local.xcconfig.example Config/Signing.local.xcconfig
 ```
 
-Set `DEVELOPMENT_TEAM` in `Config/Signing.local.xcconfig` to your Team ID. The
-local file is ignored by Git, so pulls and commits neither overwrite nor share
-it. Do not persist your team with Xcode's **Signing & Capabilities → Team**
-picker: that writes the personal value into the tracked Xcode project. The
-checked-in defaults remain ad-hoc, and `npm test` explicitly uses ad-hoc
-signing regardless of the local file. Like any ignored file, the local config
-can be removed by destructive cleanup such as `git clean -fdx`.
+Do not persist a personal Team through Xcode's **Signing & Capabilities → Team** picker: Xcode can write personal signing values back into the tracked `project.pbxproj`.
 
-The [`Test TokenStats`](.github/workflows/test-tokenstats.yml) workflow runs the
-same `npm test` on every pull request.
+### Windows: C# + WPF
 
-## Develop on Windows
-
-Requires Windows 10/11 and the .NET 8 SDK.
+Requirements: Windows 10 version 1809 or newer, Windows 11, and the .NET 8 SDK.
 
 ```powershell
 cd apps\TokenStats.Windows
+
+# Restore, build, Core tests, and WPF UI smoke.
 .\scripts\build.ps1
+
+# Run locally.
 dotnet run --project src\TokenStats.App\TokenStats.App.csproj
+
+# Create portable builds.
+.\scripts\publish.ps1 -Runtime win-x64
+.\scripts\publish.ps1 -Runtime win-arm64
 ```
 
-The Windows project is a native WPF tray app with no third-party runtime
-packages. See its [README](apps/TokenStats.Windows/README.md) for build,
-security, and platform behavior details.
+### Test entry points
 
-## Layout
+| Command | Coverage |
+| --- | --- |
+| `cd apps/TokenStats && npm test` | Localization, signing isolation, release-toolchain checks, app compilation, Swift unit tests |
+| `cd apps/TokenStats && npm run test:ui` | Foreground macOS UI automation; never implicit in default `npm test` |
+| `cd apps/TokenStats.Windows && .\scripts\build.ps1 -Configuration Release` | .NET restore/build, Core console harness, WPF UI smoke |
 
-```txt
+## Repository map
+
+```text
 .
-├── apps/TokenStats/             # macOS app (Swift/SwiftUI)
-├── apps/TokenStats.Windows/     # Windows app (C#/WPF)
-└── docs/
-    ├── adr/             # superseded decisions from the removed session-tracking tools
-    └── specs/           # working specs
+├── apps/
+│   ├── TokenStats/                 # macOS SwiftUI + AppKit client
+│   └── TokenStats.Windows/         # Windows C# + WPF client
+├── docs/
+│   ├── adr/                        # Architecture decision records
+│   ├── goals/                      # Product goals
+│   └── specs/                      # Working specifications
+├── .github/workflows/              # macOS / Windows CI and macOS release
+├── PRODUCT.md                      # Product boundaries and language principles
+└── DESIGN.md                       # Native Instrument Panel design system
 ```
 
-The app keeps its `apps/TokenStats/` path rather than moving to the repository
-root, so its history stays continuous.
+Recommended reading:
 
-## Release
+- [Product semantics and glossary](apps/TokenStats/CONTEXT.md)
+- [Windows development and behavior](apps/TokenStats.Windows/README.md)
+- [Architecture decisions](apps/TokenStats/docs/adr/)
+- [Release pipeline](apps/TokenStats/docs/release.md)
+- [Localization contract](apps/TokenStats/docs/localization.md)
 
-Releases are automated. The
-[`Release TokenStats`](.github/workflows/release-tokenstats.yml) workflow runs
-semantic-release on pushes touching `apps/TokenStats/**`: `dev` ships a beta
-`.dmg`, `main` a stable one, each codesigned, notarized, and attached to a
-`tokenstats-v*` GitHub Release. See
-[`apps/TokenStats/docs/release.md`](apps/TokenStats/docs/release.md).
+## Languages
+
+The app ships with English, Simplified Chinese, German, French, Japanese, and Russian. Language selection changes TokenStats-owned copy only; Model IDs, URLs, paths, JSON fields, and raw diagnostics remain invariant.
+
+README editions:
+
+- 中文：[README.zh_cn.md](README.zh_cn.md)，点击阅读
+- English: current page
+
+## CI and releases
+
+- `main` is the stable channel and produces normal-version macOS DMG releases.
+- `dev` is the beta channel and produces `-beta.N` pre-releases.
+- macOS releases use semantic-release to derive versions from Conventional Commits, then sign, notarize, and upload a GitHub Release.
+- Windows CI publishes unsigned portable artifacts for `win-x64` and `win-arm64`.
+- UI automation runs on a dedicated macOS CI desktop; the default unit-test path does not take over a user's foreground desktop.
+
+Use [Conventional Commits](https://www.conventionalcommits.org/), for example `feat(TokenStats): ...`, `fix(windows): ...`, or `docs: ...`.
+
+## Contributing
+
+Use [Issues](https://github.com/zhangchi0104/agent-sessions/issues) for bug reports and ideas. Before opening a pull request:
+
+1. Read [CONTEXT.md](apps/TokenStats/CONTEXT.md) to preserve the Usage Window / Token Odometer boundary.
+2. Run the platform-specific test entry points.
+3. Include screenshots or a recording for UI changes and state which platform was actually verified.
+4. Never commit OAuth tokens, signing credentials, local SQLite files, or build artifacts.
+
+## GitHub project pulse
+
+[![Star History Chart](https://api.star-history.com/svg?repos=zhangchi0104/agent-sessions&type=Date)](https://www.star-history.com/#zhangchi0104/agent-sessions&Date)
+
+<div align="center">
+  <sub>Made for developers who want a precise readout, not another dashboard.</sub>
+  <br>
+  <a href="#readme-top">Back to top</a>
+</div>

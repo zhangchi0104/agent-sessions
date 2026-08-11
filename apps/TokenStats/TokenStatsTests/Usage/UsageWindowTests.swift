@@ -7,7 +7,6 @@
 
 import Foundation
 import Testing
-@testable import TokenStats
 
 struct UsageWindowTests {
 
