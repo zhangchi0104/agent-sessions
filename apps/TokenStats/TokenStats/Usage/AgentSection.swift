@@ -2,10 +2,10 @@
 //  AgentSection.swift
 //  TokenStats
 //
-//  One Coding Agent's section of the popover: name (with the Primary badge
-//  per the Appearance setting), the agent's Usage Window gauges, the
+//  One connected Coding Agent's section of the popover: name (with the Primary
+//  badge per the Appearance setting), the agent's Usage Window gauges, and the
 //  right-aligned last-updated / staleness line with inline-expandable error
-//  diagnostics, and the signed-out state's pointer to Settings.
+//  diagnostics.
 //
 
 import SwiftUI
@@ -13,7 +13,6 @@ import SwiftUI
 struct AgentSection: View {
     let model: UsageModel
     let id: CodingAgentID
-    @Environment(\.openWindow) private var openWindow
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.locale) private var locale
     @State private var isDiagnosticsExpanded = false
@@ -39,7 +38,8 @@ struct AgentSection: View {
     @ViewBuilder private var content: some View {
         switch model.agentStates[id] {
         case .signedOut:
-            signedOut
+            // Exhaustiveness only; PopoverView never instantiates a signed-out section.
+            EmptyView()
         case .loading:
             if model.isRefreshing(id) {
                 Text(
@@ -71,29 +71,6 @@ struct AgentSection: View {
                        diagnostics: model.diagnostics[id])
         }
     }
-
-    // MARK: - Signed out
-
-    /// Signed-out agents stay lightweight in the popover: account management
-    /// (and the sign-in flows) live on the dedicated Settings page.
-    @ViewBuilder private var signedOut: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(
-                LocalizedStringResource.usageSignedOutMessage(displayName)
-            )
-                .font(.callout)
-                .foregroundStyle(.secondary)
-
-            Button(
-                LocalizedStringResource.usageSignInButton
-            ) {
-                PopoverView.openSettingsWindow(openWindow)
-            }
-            .controlSize(.small)
-        }
-    }
-
-    // MARK: - Signed in
 
     /// Which windows this agent shows, in what order, and at what size all come
     /// from its registry entry — this view just draws whatever it declares.

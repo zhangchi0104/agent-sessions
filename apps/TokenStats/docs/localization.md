@@ -29,7 +29,7 @@ Use stable semantic keys grouped from broad to narrow, for example:
 settings.general.language.title
 settings.general.language.restart.message
 usage.window.weekly
-tokens.summary.metric.api_equivalent
+tokens.summary.estimated_api_value
 ```
 
 Key rules:

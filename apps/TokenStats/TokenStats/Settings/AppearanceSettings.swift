@@ -49,24 +49,6 @@ enum GaugeStyle: String, CaseIterable, Codable, Identifiable {
     var isCircular: Bool { self != .bar }
 }
 
-/// Which objective summary leads the Tokens tab. The raw Token Odometer and
-/// Token Kind table remain unchanged whichever presentation is selected.
-nonisolated enum TokenSummaryMetric: String, CaseIterable, Codable, Identifiable {
-    case apiEquivalent
-    case billingTokens
-
-    var id: Self { self }
-
-    var title: LocalizedStringResource {
-        switch self {
-        case .apiEquivalent:
-            LocalizedStringResource.tokensSummaryMetricApiEquivalent
-        case .billingTokens:
-            LocalizedStringResource.tokensSummaryMetricBillingTokens
-        }
-    }
-}
-
 /// How an enabled Token Kind cell presents its share of the row's selected
 /// total. Disabled kinds always keep a dimmed raw value with no percentage.
 nonisolated enum TokenValueDisplayMode: String, CaseIterable, Codable, Identifiable {
@@ -133,8 +115,6 @@ final class AppearanceSettings {
     private(set) var menuBarVisibleAgents: Set<CodingAgentID>
     /// The shape every Usage Window is drawn with.
     var gaugeStyle: GaugeStyle { didSet { persist() } }
-    /// The objective summary shown above the Token Odometer.
-    var tokenSummaryMetric: TokenSummaryMetric { didSet { persist() } }
     /// Token Kinds included in the table's selected total. Mutated only through
     /// `setTokenKind` so the last enabled kind cannot be turned off.
     private(set) var selectedTokenKinds: Set<TokenKind>
@@ -150,7 +130,6 @@ final class AppearanceSettings {
     private static let tokensVisibleAgentsKey = "appearance.tokensVisibleAgents"
     private static let menuBarVisibleAgentsKey = "appearance.menuBarVisibleAgents"
     private static let styleKey = "appearance.gaugeStyle"
-    private static let tokenSummaryMetricKey = "appearance.tokenSummaryMetric"
     private static let selectedTokenKindsKey = "appearance.selectedTokenKinds"
     private static let tokenValueDisplayKey = "appearance.tokenValueDisplay"
     private static let selectedTokenRangeKey = "appearance.selectedTokenRange"
@@ -183,10 +162,6 @@ final class AppearanceSettings {
         let savedStyle = (defaults.string(forKey: Self.styleKey))
             .flatMap(GaugeStyle.init(rawValue:))
         self.gaugeStyle = savedStyle ?? .arc270
-
-        let savedSummaryMetric = defaults.string(forKey: Self.tokenSummaryMetricKey)
-            .flatMap(TokenSummaryMetric.init(rawValue:))
-        self.tokenSummaryMetric = savedSummaryMetric ?? .billingTokens
 
         let savedTokenKinds = (defaults.array(forKey: Self.selectedTokenKindsKey) as? [String] ?? [])
             .compactMap(TokenKind.init(rawValue:))
@@ -347,7 +322,6 @@ final class AppearanceSettings {
             forKey: Self.menuBarVisibleAgentsKey
         )
         defaults.set(gaugeStyle.rawValue, forKey: Self.styleKey)
-        defaults.set(tokenSummaryMetric.rawValue, forKey: Self.tokenSummaryMetricKey)
         defaults.set(
             TokenKind.allCases.filter(selectedTokenKinds.contains).map(\.rawValue),
             forKey: Self.selectedTokenKindsKey

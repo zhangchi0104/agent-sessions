@@ -20,25 +20,6 @@ struct TokensPane: View {
 
     var body: some View {
         Form {
-            Section {
-                Picker(selection: $appearance.tokenSummaryMetric) {
-                    ForEach(TokenSummaryMetric.allCases) { metric in
-                        Text(metric.title).tag(metric)
-                    }
-                } label: {
-                    Text(TokensSettingsCopy.tokenSummaryTitle)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-            } header: {
-                Text(TokensSettingsCopy.tokenSummaryTitle)
-            } footer: {
-                Text(TokensSettingsCopy.tokenSummaryFooter)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
             currencySection
 
             Section {
@@ -998,8 +979,6 @@ private extension ExchangeRateProviderID {
 
 private enum TokensSettingsCopy {
     static let title = LocalizedStringResource.settingsTokensTitle
-    static let tokenSummaryTitle = LocalizedStringResource.settingsAppearanceTokenSummaryTitle
-    static let tokenSummaryFooter = LocalizedStringResource.settingsAppearanceTokenSummaryFooter
     static let tokenValuesTitle = LocalizedStringResource.settingsAppearanceTokenValuesTitle
     static let tokenValuesFooter = LocalizedStringResource.settingsAppearanceTokenValuesFooter
 

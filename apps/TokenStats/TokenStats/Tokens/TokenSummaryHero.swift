@@ -2,12 +2,55 @@
 //  TokenSummaryHero.swift
 //  TokenStats
 //
-//  The objective summary at the top of the Tokens tab. It can present Billing
-//  tokens or an API-equivalent list-price estimate without changing the raw
-//  Token Odometer or the Token Kind table projection.
+//  The fixed objective summary at the top of the Tokens tab. Billing tokens
+//  lead, with an API-equivalent list-price estimate beneath; neither changes
+//  the raw Token Odometer or the Token Kind table projection.
 //
 
 import SwiftUI
+
+/// Both objective Tokens-tab readings, built together from one agent set.
+@MainActor
+struct TokenSummaryReadings: Equatable {
+    let billing: TokenSummaryPresentation
+    let apiEquivalent: TokenApiEquivalentPresentation
+
+    static func make(
+        perAgent: [TokenOdometerModel.AgentTokens],
+        range: TokenRange,
+        hasLoaded: Bool,
+        pricingDate: Date = Date(),
+        currencyContext: CurrencyDisplayContext = .usd,
+        locale: Locale
+    ) -> TokenSummaryReadings {
+        let localizer = AppLocalizer(locale: locale)
+        guard hasLoaded else {
+            return TokenSummaryReadings(
+                billing: .reading(range: range, localizer: localizer),
+                apiEquivalent: .reading(
+                    range: range,
+                    currencyContext: currencyContext,
+                    localizer: localizer
+                )
+            )
+        }
+
+        var total = TokenUsage()
+        for agent in perAgent { total.add(agent.usage) }
+        let usage = total.responseCount > 0 ? total : nil
+        return TokenSummaryReadings(
+            billing: .billing(usage: usage, range: range, localizer: localizer),
+            apiEquivalent: .make(
+                perAgent: perAgent,
+                usage: usage,
+                range: range,
+                pricingDate: pricingDate,
+                currencyContext: currencyContext,
+                localizer: localizer
+            )
+        )
+    }
+}
 
 @MainActor
 struct TokenSummaryPresentation: Equatable {
@@ -22,70 +65,29 @@ struct TokenSummaryPresentation: Equatable {
     /// The semantic number behind `value`, used only by SwiftUI's native
     /// numeric transition. Nil means the reading is unavailable.
     let numericValue: Double?
-    /// Identifies the semantic unit behind `numericValue`. A changed identity
-    /// replaces the value with a short crossfade instead of rolling digits
-    /// between unrelated units such as tokens, USD, and CNY.
-    let transitionIdentity: String
 
-    static func make(
-        perAgent: [TokenOdometerModel.AgentTokens],
-        metric: TokenSummaryMetric,
+    fileprivate static func reading(
         range: TokenRange,
-        hasLoaded: Bool,
-        pricingDate: Date = Date(),
-        currencyContext: CurrencyDisplayContext = .usd,
-        locale: Locale
+        localizer: AppLocalizer
     ) -> TokenSummaryPresentation {
-        let localizer = AppLocalizer(locale: locale)
         let rangeSentenceForm = range.localizedSentenceForm(using: localizer)
-        let identity = transitionIdentity(metric: metric, currencyContext: currencyContext)
-        guard hasLoaded else {
-            return TokenSummaryPresentation(
-                value: "—",
-                compactValue: nil,
-                label: localizer.localized(
-                    LocalizedStringResource.tokensSummaryReadingLabel(rangeSentenceForm)
-                ),
-                help: localizer.localized(
-                    LocalizedStringResource.tokensSummaryReadingHelp(rangeSentenceForm)
-                ),
-                accessibilityLabel: localizer.localized(
-                    LocalizedStringResource.tokensSummaryReadingAccessibility(rangeSentenceForm)
-                ),
-                numericValue: nil,
-                transitionIdentity: identity
-            )
-        }
-
-        var total = TokenUsage()
-        for agent in perAgent { total.add(agent.usage) }
-        let usage = total.responseCount > 0 ? total : nil
-
-        switch metric {
-        case .billingTokens:
-            return billingPresentation(usage: usage, range: range, localizer: localizer)
-        case .apiEquivalent:
-            let rows = perAgent.flatMap { agent in
-                agent.byModel.map { row in
-                    (agent: agent.id, model: row.model, usage: row.usage)
-                }
-            }
-            let estimate = ApiPricingCatalog.estimate(
-                rows,
-                totalUsage: usage,
-                on: pricingDate
-            )
-            return apiEquivalentPresentation(
-                usage: usage,
-                estimate: estimate,
-                range: range,
-                currencyContext: currencyContext,
-                localizer: localizer
-            )
-        }
+        return TokenSummaryPresentation(
+            value: "—",
+            compactValue: nil,
+            label: localizer.localized(
+                LocalizedStringResource.tokensSummaryReadingLabel(rangeSentenceForm)
+            ),
+            help: localizer.localized(
+                LocalizedStringResource.tokensSummaryReadingHelp(rangeSentenceForm)
+            ),
+            accessibilityLabel: localizer.localized(
+                LocalizedStringResource.tokensSummaryReadingAccessibility(rangeSentenceForm)
+            ),
+            numericValue: nil
+        )
     }
 
-    private static func billingPresentation(
+    fileprivate static func billing(
         usage: TokenUsage?,
         range: TokenRange,
         localizer: AppLocalizer
@@ -106,8 +108,7 @@ struct TokenSummaryPresentation: Equatable {
                 accessibilityLabel: localizer.localized(
                     LocalizedStringResource.tokensSummaryBillingEmptyAccessibility(rangeSentenceForm)
                 ),
-                numericValue: nil,
-                transitionIdentity: TokenSummaryMetric.billingTokens.rawValue
+                numericValue: nil
             )
         }
 
@@ -149,36 +150,58 @@ struct TokenSummaryPresentation: Equatable {
             accessibilityLabel: localizer.localized(
                 LocalizedStringResource.tokensSummaryBillingAccessibility(count, rangeSentenceForm)
             ),
-            numericValue: Double(count),
-            transitionIdentity: TokenSummaryMetric.billingTokens.rawValue
+            numericValue: Double(count)
         )
     }
+}
 
-    private static func apiEquivalentPresentation(
-        usage: TokenUsage?,
-        estimate: ApiCostEstimate,
+@MainActor
+struct TokenApiEquivalentPresentation: Equatable {
+    let value: String
+    let help: String
+    let accessibilityLabel: String
+    /// The semantic number behind `value`, used only by SwiftUI's native
+    /// numeric transition. Nil means the reading is unavailable.
+    let numericValue: Double?
+    /// Identifies the semantic unit behind `numericValue`. A changed identity
+    /// replaces the value with a short crossfade instead of rolling digits
+    /// between unrelated currencies.
+    let transitionIdentity: String
+
+    fileprivate static func reading(
         range: TokenRange,
         currencyContext: CurrencyDisplayContext,
         localizer: AppLocalizer
-    ) -> TokenSummaryPresentation {
-        let rangeHeadingForm = range.localizedHeadingForm(using: localizer)
+    ) -> TokenApiEquivalentPresentation {
         let rangeSentenceForm = range.localizedSentenceForm(using: localizer)
-        let currencyLabel = localizedCurrencyLabel(currencyContext, localizer: localizer)
-        let label = localizer.localized(
-            LocalizedStringResource.tokensSummaryApiEquivalentLabel(
-                currencyLabel,
-                rangeHeadingForm
-            )
+        return TokenApiEquivalentPresentation(
+            value: "—",
+            help: localizer.localized(
+                LocalizedStringResource.tokensSummaryEstimatedApiValueReadingHelp(rangeSentenceForm)
+            ),
+            accessibilityLabel: localizer.localized(
+                LocalizedStringResource.tokensSummaryEstimatedApiValueReadingAccessibility(
+                    rangeSentenceForm
+                )
+            ),
+            numericValue: nil,
+            transitionIdentity: transitionIdentity(currencyContext)
         )
-        let identity = transitionIdentity(
-            metric: .apiEquivalent,
-            currencyContext: currencyContext
-        )
+    }
+
+    fileprivate static func make(
+        perAgent: [TokenOdometerModel.AgentTokens],
+        usage: TokenUsage?,
+        range: TokenRange,
+        pricingDate: Date,
+        currencyContext: CurrencyDisplayContext,
+        localizer: AppLocalizer
+    ) -> TokenApiEquivalentPresentation {
+        let identity = transitionIdentity(currencyContext)
+        let rangeSentenceForm = range.localizedSentenceForm(using: localizer)
         guard usage != nil else {
-            return TokenSummaryPresentation(
+            return TokenApiEquivalentPresentation(
                 value: "—",
-                compactValue: nil,
-                label: label,
                 help: localizer.localized(
                     LocalizedStringResource.tokensSummaryApiEquivalentEmptyHelp(rangeSentenceForm)
                 ),
@@ -190,6 +213,16 @@ struct TokenSummaryPresentation: Equatable {
             )
         }
 
+        let rows = perAgent.flatMap { agent in
+            agent.byModel.map { row in
+                (agent: agent.id, model: row.model, usage: row.usage)
+            }
+        }
+        let estimate = ApiPricingCatalog.estimate(
+            rows,
+            totalUsage: usage,
+            on: pricingDate
+        )
         let reviewed = reviewedDate(locale: localizer.locale)
         let unpricedModels = localizedUnpricedModels(estimate, localizer: localizer)
         let methodology: String
@@ -224,10 +257,8 @@ struct TokenSummaryPresentation: Equatable {
                     )
                 )
             }
-            return TokenSummaryPresentation(
+            return TokenApiEquivalentPresentation(
                 value: "—",
-                compactValue: nil,
-                label: label,
                 help: methodology + " " + disclosure,
                 accessibilityLabel: accessibilityParts.joined(separator: " "),
                 numericValue: nil,
@@ -270,10 +301,8 @@ struct TokenSummaryPresentation: Equatable {
                 )
             )
         }
-        return TokenSummaryPresentation(
+        return TokenApiEquivalentPresentation(
             value: displayedCost,
-            compactValue: nil,
-            label: label,
             help: exactHelp + " " + disclosure,
             accessibilityLabel: accessibilityParts.joined(separator: " "),
             numericValue: amount.numericValue,
@@ -281,22 +310,30 @@ struct TokenSummaryPresentation: Equatable {
         )
     }
 
-    private static func localizedCurrencyLabel(
-        _ context: CurrencyDisplayContext,
-        localizer: AppLocalizer
+    static func reviewedDate(
+        locale: Locale,
+        timeZone: TimeZone = .current
     ) -> String {
-        let code = context.currencyCode.rawValue
-        if context.isFallback {
-            return localizer.localized(
-                LocalizedStringResource.tokensSummaryApiEquivalentCurrencyFallbackLabel(code)
-            )
-        }
-        if context.isStale {
-            return localizer.localized(
-                LocalizedStringResource.tokensSummaryApiEquivalentCurrencyStaleLabel(code)
-            )
-        }
-        return code
+        let reviewed = ApiPricingCatalog.lastReviewed
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let date = calendar.date(from: DateComponents(
+            calendar: calendar,
+            timeZone: timeZone,
+            year: reviewed.year,
+            month: reviewed.month,
+            day: reviewed.day
+        )) ?? Date(timeIntervalSince1970: 0)
+        var format = Date.FormatStyle()
+            .year()
+            .month()
+            .day()
+            .locale(locale)
+        // `lastReviewed` is a civil date, not an instant. Constructing and
+        // rendering it in the same zone prevents a west/east-zone conversion
+        // from moving the displayed review date to an adjacent day.
+        format.timeZone = timeZone
+        return date.formatted(format)
     }
 
     private static func localizedUnpricedModels(
@@ -324,13 +361,8 @@ struct TokenSummaryPresentation: Equatable {
         )
     }
 
-    private static func transitionIdentity(
-        metric: TokenSummaryMetric,
-        currencyContext: CurrencyDisplayContext
-    ) -> String {
-        guard metric == .apiEquivalent else { return metric.rawValue }
-        return [
-            metric.rawValue,
+    private static func transitionIdentity(_ currencyContext: CurrencyDisplayContext) -> String {
+        [
             currencyContext.requestedCode.rawValue,
             currencyContext.currencyCode.rawValue,
             currencyContext.isFallback ? "fallback" : "converted",
@@ -447,32 +479,6 @@ struct TokenSummaryPresentation: Equatable {
                 .locale(locale)
         )
     }
-
-    static func reviewedDate(
-        locale: Locale,
-        timeZone: TimeZone = .current
-    ) -> String {
-        let reviewed = ApiPricingCatalog.lastReviewed
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = timeZone
-        let date = calendar.date(from: DateComponents(
-            calendar: calendar,
-            timeZone: timeZone,
-            year: reviewed.year,
-            month: reviewed.month,
-            day: reviewed.day
-        )) ?? Date(timeIntervalSince1970: 0)
-        var format = Date.FormatStyle()
-            .year()
-            .month()
-            .day()
-            .locale(locale)
-        // `lastReviewed` is a civil date, not an instant. Constructing and
-        // rendering it in the same zone prevents a west/east-zone conversion
-        // from moving the displayed review date to an adjacent day.
-        format.timeZone = timeZone
-        return date.formatted(format)
-    }
 }
 
 extension TokenRange {
@@ -507,15 +513,14 @@ extension TokenRange {
 }
 
 struct TokenSummaryHero: View {
-    /// Stable layout contract for the value, label, and the space between them.
-    /// The table below remains content-sized; only this hero is isolated from
-    /// popover height changes.
+    /// Stable layout contract for the primary value, its label, and the API
+    /// estimate row. The table below remains content-sized; only this summary
+    /// is isolated from popover height changes.
     static let valueFontSize: CGFloat = 42
     static let valueSlotHeight: CGFloat = 52
-    static let fixedHeight: CGFloat = 76
+    static let fixedHeight: CGFloat = 100
 
     let perAgent: [TokenOdometerModel.AgentTokens]
-    let metric: TokenSummaryMetric
     let range: TokenRange
     let hasLoaded: Bool
     let currencyContext: CurrencyDisplayContext
@@ -523,14 +528,12 @@ struct TokenSummaryHero: View {
 
     init(
         perAgent: [TokenOdometerModel.AgentTokens],
-        metric: TokenSummaryMetric,
         range: TokenRange,
         hasLoaded: Bool,
         currencyContext: CurrencyDisplayContext = .usd,
         accessibilityIdentifier: String = "tokens.summary.hero"
     ) {
         self.perAgent = perAgent
-        self.metric = metric
         self.range = range
         self.hasLoaded = hasLoaded
         self.currencyContext = currencyContext
@@ -539,15 +542,13 @@ struct TokenSummaryHero: View {
 
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// `nil` until this view has settled its first presentation. That first
-    /// value appears immediately, matching v1's conditionally inserted hero.
-    @State private var presentedIdentity: String?
+    /// False until this view has settled its first number. The initial value
+    /// appears immediately, matching v1's conditionally inserted hero.
     @State private var hasPresentedNumber = false
 
-    private var presentation: TokenSummaryPresentation {
+    private var readings: TokenSummaryReadings {
         .make(
             perAgent: perAgent,
-            metric: metric,
             range: range,
             hasLoaded: hasLoaded,
             currencyContext: currencyContext,
@@ -555,47 +556,57 @@ struct TokenSummaryHero: View {
         )
     }
 
-    private var shouldAnimate: Bool {
+    private func shouldAnimateBilling(_ presentation: TokenSummaryPresentation) -> Bool {
         !reduceMotion
             && hasPresentedNumber
-            && presentedIdentity == presentation.transitionIdentity
             && presentation.numericValue != nil
     }
 
     var body: some View {
+        let readings = self.readings
+
+        VStack(alignment: .leading, spacing: 10) {
+            billingSummary(readings.billing)
+            apiEstimateRow(readings.apiEquivalent)
+        }
+        .frame(
+            maxWidth: .infinity,
+            minHeight: Self.fixedHeight,
+            maxHeight: Self.fixedHeight,
+            alignment: .topLeading
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(accessibilityIdentifier)
+        .onAppear {
+            hasPresentedNumber = readings.billing.numericValue != nil
+        }
+        .onChange(of: readings.billing.numericValue) { _, newValue in
+            if newValue != nil { hasPresentedNumber = true }
+        }
+    }
+
+    private func billingSummary(_ presentation: TokenSummaryPresentation) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            ZStack(alignment: .bottomLeading) {
-                Text(presentation.value)
-                    // SwiftUI owns the same-unit per-digit motion. Changing
-                    // metric or currency replaces this child instead.
-                    .font(.system(size: Self.valueFontSize, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .contentTransition(
-                        .numericText(value: presentation.numericValue ?? 0)
-                    )
-                    .animation(
-                        shouldAnimate ? .snappy(duration: 0.6) : nil,
-                        value: presentation.numericValue
-                    )
-                    .id(presentation.transitionIdentity)
-                    .transition(
-                        reduceMotion
-                            ? .identity
-                            : .opacity.combined(with: .scale(scale: 0.98))
-                    )
-            }
-            .animation(
-                reduceMotion ? nil : .easeInOut(duration: 0.25),
-                value: presentation.transitionIdentity
-            )
-            .frame(
-                maxWidth: .infinity,
-                minHeight: Self.valueSlotHeight,
-                maxHeight: Self.valueSlotHeight,
-                alignment: .bottomLeading
-            )
+            Text(presentation.value)
+                // SwiftUI owns the same-unit per-digit motion as the selected
+                // reporting range or transcript totals change.
+                .font(.system(size: Self.valueFontSize, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .contentTransition(
+                    .numericText(value: presentation.numericValue ?? 0)
+                )
+                .animation(
+                    shouldAnimateBilling(presentation) ? .snappy(duration: 0.6) : nil,
+                    value: presentation.numericValue
+                )
+                .frame(
+                    maxWidth: .infinity,
+                    minHeight: Self.valueSlotHeight,
+                    maxHeight: Self.valueSlotHeight,
+                    alignment: .bottomLeading
+                )
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(presentation.label)
                     .font(.callout)
@@ -612,27 +623,42 @@ struct TokenSummaryHero: View {
             }
             .foregroundStyle(.secondary)
         }
-        .frame(
-            maxWidth: .infinity,
-            minHeight: Self.fixedHeight,
-            maxHeight: Self.fixedHeight,
-            alignment: .topLeading
-        )
         .help(presentation.help)
         .accessibilityElement(children: .ignore)
-        .accessibilityIdentifier(accessibilityIdentifier)
         .accessibilityLabel(presentation.accessibilityLabel)
-        .onAppear {
-            presentedIdentity = presentation.transitionIdentity
-            hasPresentedNumber = presentation.numericValue != nil
+    }
+
+    private func apiEstimateRow(_ presentation: TokenApiEquivalentPresentation) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(LocalizedStringResource.tokensSummaryEstimatedApiValue)
+                .font(.callout)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Spacer(minLength: 8)
+            ZStack(alignment: .trailing) {
+                Text(presentation.value)
+                    .font(.callout.weight(.semibold))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .contentTransition(
+                        .numericText(value: presentation.numericValue ?? 0)
+                    )
+                    .animation(
+                        reduceMotion ? nil : .snappy(duration: 0.45),
+                        value: presentation.numericValue
+                    )
+                    .id(presentation.transitionIdentity)
+                    .transition(reduceMotion ? .identity : .opacity)
+            }
+            .animation(
+                reduceMotion ? nil : .easeInOut(duration: 0.2),
+                value: presentation.transitionIdentity
+            )
         }
-        .onChange(of: presentation.transitionIdentity) { _, newIdentity in
-            // Units changed, so settle rather than implying a numeric delta.
-            presentedIdentity = newIdentity
-            hasPresentedNumber = presentation.numericValue != nil
-        }
-        .onChange(of: presentation.numericValue) { _, newValue in
-            if newValue != nil { hasPresentedNumber = true }
-        }
+        .foregroundStyle(.secondary)
+        .help(presentation.help)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(presentation.accessibilityLabel)
     }
 }

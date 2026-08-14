@@ -16,7 +16,8 @@ struct UsageSnapshot: Equatable, Codable {
 }
 
 enum AppState: Equatable {
-    /// No credentials — show a neutral placeholder and a sign-in action.
+    /// No credentials. The Usage tab omits this agent; reconnecting restores
+    /// its saved visibility and order.
     case signedOut
     /// Signed in, first data not yet available.
     case loading
@@ -24,6 +25,8 @@ enum AppState: Equatable {
     case fresh(UsageSnapshot)
     /// Showing a last-known snapshot whose refresh failed; disclose its age.
     case staleDisclosed(UsageSnapshot)
+
+    var isConnected: Bool { self != .signedOut }
 }
 
 enum AppEvent: Equatable {

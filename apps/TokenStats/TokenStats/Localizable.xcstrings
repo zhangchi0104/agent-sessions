@@ -3445,90 +3445,6 @@
         }
       }
     },
-    "settings.appearance.token_summary.footer": {
-      "comment": "Explains the Billing tokens and API equivalent summary choices. Model and Token Kind are product terms.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Billing tokens count direct input and output. API equivalent estimates standard list-price cost from the Models recorded in local transcripts. Token Kind filters change neither summary."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "计费 Token 包含直接输入和输出。API 等值费用根据本地对话记录中的模型，按标准公开价格进行估算。Token 类型筛选不会改变任一摘要。"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Abrechnungs-Token umfassen direkte Eingaben und Ausgaben. Das API-Äquivalent schätzt die Kosten zu Standardlistenpreisen anhand der Modelle in lokalen Transkripten. Filter für Token-Typen ändern keine der beiden Zusammenfassungen."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Les tokens facturables comprennent les entrées directes et les sorties. L’équivalent API estime le coût au tarif public standard à partir des modèles enregistrés dans les transcriptions locales. Les filtres de type de token ne modifient aucun de ces résumés."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "課金対象トークンには、直接入力と出力が含まれます。API 換算額は、ローカルの会話記録に記録されたモデルの標準定価から費用を推定します。トークン種別フィルタは、どちらの概要にも影響しません。"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Расчётные токены включают прямой ввод и вывод. Эквивалент API оценивает стоимость по стандартным ценам на основе моделей из локальных журналов. Фильтры типов токенов не влияют ни на один из итогов."
-          }
-        }
-      }
-    },
-    "settings.appearance.token_summary.title": {
-      "comment": "Section and picker title for choosing the objective Token Odometer summary. Token is a technical term.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tokens summary"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Token 摘要"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Token-Zusammenfassung"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Résumé des tokens"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "トークン概要"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Итог по токенам"
-          }
-        }
-      }
-    },
     "settings.appearance.token_value.percentage": {
       "comment": "Token table display mode showing only composition percentages.",
       "extractionState": "manual",
@@ -9872,85 +9788,85 @@
       }
     },
     "tokens.range.picker.accessibility": {
-      "comment": "VoiceOver label for the Token Odometer range picker.",
+      "comment": "VoiceOver label for the reporting-range picker that scopes the whole Tokens tab.",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Token Odometer range"
+            "value": "Tokens reporting range"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Token 计量范围"
+            "value": "Token 统计范围"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeitraum des Token-Zählers"
+            "value": "Berichtszeitraum für Token"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Période du compteur de tokens"
+            "value": "Période couverte des tokens"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "トークン積算計の期間"
+            "value": "トークンの集計期間"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Диапазон счётчика токенов"
+            "value": "Отчётный период по токенам"
           }
         }
       }
     },
     "tokens.range.picker.title": {
-      "comment": "Title for the Token Odometer range picker.",
+      "comment": "Visible label for the reporting-range picker that scopes the whole Tokens tab.",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Range"
+            "value": "Reporting range"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "范围"
+            "value": "统计范围"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeitraum"
+            "value": "Berichtszeitraum"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Période"
+            "value": "Période couverte"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "期間"
+            "value": "集計期間"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Диапазон"
+            "value": "Отчётный период"
           }
         }
       }
@@ -10669,48 +10585,6 @@
         }
       }
     },
-    "tokens.summary.api_equivalent.label": {
-      "comment": "API-equivalent cost summary label. The first argument is an ISO currency code or localized fallback label; the second is the localized heading-context Token Odometer range.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "API-equivalent · %1$@ · %2$@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "API 等值费用 · %1$@ · %2$@"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "API-Äquivalent · %1$@ · %2$@"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Équivalent API · %1$@ · %2$@"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "API 換算額 · %1$@ · %2$@"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Эквивалент API · %1$@ · %2$@"
-          }
-        }
-      }
-    },
     "tokens.summary.api_equivalent.partial.help": {
       "comment": "Detailed partial API-equivalent estimate help. The first argument is the unpriced Token count and drives pluralization; the second is the localized review date; the third is a locale-aware list of localized fallback labels and invariant Model IDs.",
       "extractionState": "manual",
@@ -10833,48 +10707,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "tokens.summary.api_equivalent.currency.fallback.label": {
-      "comment": "Label fragment for an API-equivalent value that fell back to USD. The argument is the effective ISO currency code.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ fallback"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ 回退"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ersatzweise %@"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repli sur %@"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ にフォールバック"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Резервная валюта: %@"
           }
         }
       }
@@ -11295,48 +11127,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Статус курса: устаревший курс из кэша."
-          }
-        }
-      }
-    },
-    "tokens.summary.api_equivalent.currency.stale.label": {
-      "comment": "Visible label fragment for an API-equivalent conversion that uses a stale cached rate. The argument is the effective ISO currency code.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ stale"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ 可能已过期"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ veraltet"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ obsolète"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@（古いレート）"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ · устаревший курс"
           }
         }
       }
@@ -12013,170 +11803,128 @@
         }
       }
     },
-    "tokens.summary.metric.api_equivalent": {
-      "comment": "Token summary metric that estimates equivalent API list-price cost.",
+    "tokens.summary.estimated_api_value": {
+      "comment": "Label for the secondary API-equivalent estimate beneath the primary Billing tokens summary.",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "API equivalent"
+            "value": "Estimated API value"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "API 等值费用"
+            "value": "API 估算值"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "API-Äquivalent"
+            "value": "Geschätzter API-Wert"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Équivalent API"
+            "value": "Valeur API estimée"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "API 換算額"
+            "value": "API 換算額（推定）"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Эквивалент API"
+            "value": "Оценка стоимости API"
           }
         }
       }
     },
-    "tokens.summary.metric.billing_tokens": {
-      "comment": "Token summary metric for billable token kinds.",
+    "tokens.summary.estimated_api_value.reading.accessibility": {
+      "comment": "VoiceOver label while the Estimated API value row is waiting for transcript usage. The argument is the localized sentence-context form of the Token Odometer range.",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Billing tokens"
+            "value": "Reading estimated API value for %@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "计费 Token"
+            "value": "正在读取%@的 API 估算值"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Abrechnungs-Token"
+            "value": "Geschätzter API-Wert für %@ wird gelesen"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tokens facturables"
+            "value": "Lecture de la valeur API estimée pour %@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "課金対象トークン"
+            "value": "%@の API 換算額（推定）を読み込み中"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Расчётные токены"
+            "value": "Чтение оценки стоимости API за %@"
           }
         }
       }
     },
-    "tokens.summary.picker.accessibility": {
-      "comment": "VoiceOver label for the Token summary metric picker.",
+    "tokens.summary.estimated_api_value.reading.help": {
+      "comment": "Help text while the Estimated API value row is waiting for transcript usage. The argument is the localized sentence-context form of the Token Odometer range.",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tokens summary"
+            "value": "Reading estimated API value for %@."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Token 摘要"
+            "value": "正在读取%@的 API 估算值。"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Token-Zusammenfassung"
+            "value": "Geschätzter API-Wert für %@ wird gelesen."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Résumé des tokens"
+            "value": "Lecture de la valeur API estimée pour %@."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "トークン概要"
+            "value": "%@の API 換算額（推定）を読み込み中です。"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Итог по токенам"
-          }
-        }
-      }
-    },
-    "tokens.summary.picker.title": {
-      "comment": "Accessibility title for the Token summary metric picker.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tokens summary"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Token 摘要"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Token-Zusammenfassung"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Résumé des tokens"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "トークン概要"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Итог по токенам"
+            "value": "Чтение оценки стоимости API за %@."
           }
         }
       }
@@ -12639,6 +12387,90 @@
           "stringUnit": {
             "state": "translated",
             "value": "Показать сведения об ошибке"
+          }
+        }
+      }
+    },
+    "usage.empty.description": {
+      "comment": "Empty-state guidance when no connected Coding Agent is visible in the Usage tab.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect an account, or choose to show it in Usage from Settings."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请连接账户，或在“设置”中将已连接账户设为在“用量”页显示。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbinden Sie ein Konto oder legen Sie in den Einstellungen fest, dass es unter „Nutzung“ angezeigt wird."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connectez un compte ou activez son affichage dans Utilisation depuis les Réglages."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウントを接続するか、「設定」で「使用状況」に表示するよう設定してください。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подключите учётную запись или включите её отображение в разделе «Использование» в настройках."
+          }
+        }
+      }
+    },
+    "usage.empty.title": {
+      "comment": "Empty-state heading when no connected Coding Agent is visible in the Usage tab.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No usage to show"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有可显示的用量"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Nutzung zum Anzeigen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune utilisation à afficher"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示する使用状況がありません"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет данных для отображения"
           }
         }
       }
@@ -13353,90 +13185,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "время сброса неизвестно"
-          }
-        }
-      }
-    },
-    "usage.sign_in.button": {
-      "comment": "Button that opens Settings so the user can sign in to a Coding Agent.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sign in…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "登录…"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anmelden …"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Se connecter…"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "サインイン…"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Войти…"
-          }
-        }
-      }
-    },
-    "usage.signed_out.message": {
-      "comment": "Signed-out message. The argument is an unlocalized Coding Agent brand name.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Not signed in to %@."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "尚未登录 %@。"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nicht bei %@ angemeldet."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Non connecté à %@."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ にサインインしていません。"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Вход в %@ не выполнен."
           }
         }
       }

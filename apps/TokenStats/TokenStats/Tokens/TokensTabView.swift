@@ -4,8 +4,8 @@
 //
 //  The popover's Tokens tab: the Token Odometer for the selected range, as a
 //  table grouped by Coding Agent then Model, three Token Kinds to a row with a
-//  proportion bar tucked beneath. An objective Billing/API-equivalent summary
-//  leads the tab; filtered per-agent subtotals remain a separate projection.
+//  proportion bar tucked beneath. One reporting-range control scopes the whole
+//  tab; Billing tokens lead a fixed summary with Estimated API value beneath.
 //
 //  The colour key rides in the column header rather than a legend block: a
 //  spelled-out legend measures 298pt against the 298pt this popover has, which
@@ -69,9 +69,9 @@ struct TokensTabView: View {
     /// popover has no height of its own — it is exactly as tall as its content
     /// — so without a ceiling a user with many Models gets a window taller
     /// than the screen. 11 Model rows measured ~539pt in the layout prototype.
-    // The summary hero and its selector add about 100pt over the original
-    // table-only layout. Lower the table cap by the same amount so the popover
-    // still fits a compact Mac display; additional Model rows scroll here.
+    // The reporting-range row and fixed two-line summary add about 130pt over
+    // the original table-only layout. Keep the table cap conservative so the
+    // popover still fits a compact Mac display; additional Model rows scroll.
     private static let tableHeightCap: CGFloat = 360
 
     @State private var tableHeight: CGFloat = 0
@@ -99,16 +99,14 @@ struct TokensTabView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            summaryMetricPicker
+            rangePicker
             TokenSummaryHero(
                 perAgent: visibleAgents,
-                metric: appearance.tokenSummaryMetric,
                 range: odometer.displayedRange,
                 hasLoaded: odometer.hasLoaded,
                 currencyContext: currencyContext
             )
             .opacity(isScanning ? 0.6 : 1)
-            rangePicker
             headingRow
             // The dim has to clear macOS's own disabled-text alpha: the rows it
             // covers are already drawn below full strength, and the two
@@ -122,53 +120,38 @@ struct TokensTabView: View {
         .task { await odometer.observeWhileVisible() }
     }
 
-    private var summaryMetricPicker: some View {
-        Picker(
-            LocalizedStringResource.tokensSummaryPickerTitle,
-            selection: Binding(
-            get: { appearance.tokenSummaryMetric },
-            set: { metric in
-                // The hero owns the unit-aware transition: metric switches
-                // crossfade, while value changes within one unit keep the
-                // native numeric transition.
-                appearance.tokenSummaryMetric = metric
+    private var rangePicker: some View {
+        HStack(spacing: 12) {
+            Text(LocalizedStringResource.tokensRangePickerTitle)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Spacer(minLength: 8)
+            Picker(
+                LocalizedStringResource.tokensRangePickerTitle,
+                selection: rangeSelection
+            ) {
+                ForEach(TokenRange.allCases, id: \.self) { range in
+                    Text(range.title).tag(range)
+                }
             }
-        )) {
-            ForEach(TokenSummaryMetric.allCases) { metric in
-                Text(metric.title).tag(metric)
-            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .fixedSize()
+            .accessibilityLabel(
+                LocalizedStringResource.tokensRangePickerAccessibility
+            )
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .accessibilityLabel(
-            LocalizedStringResource.tokensSummaryPickerAccessibility
-        )
+        .frame(minHeight: 24)
     }
 
-    private var rangePicker: some View {
-        Picker(
-            LocalizedStringResource.tokensRangePickerTitle,
-            selection: Binding(
+    private var rangeSelection: Binding<TokenRange> {
+        Binding(
             get: { odometer.selectedRange },
             set: { range in
                 appearance.selectedTokenRange = range
                 odometer.select(range)
             }
-        )) {
-            ForEach(TokenRange.allCases, id: \.self) { range in
-                Text(range.title).tag(range)
-            }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        // Centred, not stretched. A segmented control on macOS draws at its
-        // intrinsic width and centres itself in whatever frame it is given —
-        // handing it a definite 300pt (measured, not guessed) leaves the
-        // segments exactly this wide, so there is nothing to be gained by
-        // measuring. It sits narrower than the table below it by design.
-        .frame(maxWidth: .infinity)
-        .accessibilityLabel(
-            LocalizedStringResource.tokensRangePickerAccessibility
         )
     }
 

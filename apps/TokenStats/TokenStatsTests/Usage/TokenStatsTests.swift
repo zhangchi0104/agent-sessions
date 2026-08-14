@@ -71,6 +71,24 @@ struct TokenStatsTests {
         #expect(text == "—")
     }
 
+    @Test func usageTabExcludesSignedOutAgentsAndKeepsConnectedOrder() {
+        var states = CodingAgentStates()
+
+        #expect(
+            states.connected(in: [.claudeCode, .codex]).isEmpty
+        )
+
+        states[.codex] = .loading
+        #expect(
+            states.connected(in: [.claudeCode, .codex]) == [.codex]
+        )
+
+        states[.claudeCode] = .staleDisclosed(snapshot())
+        #expect(
+            states.connected(in: [.claudeCode, .codex]) == [.claudeCode, .codex]
+        )
+    }
+
     @Test func resetCountdownUsesDaysAndHoursPastADay() {
         let now = Date(timeIntervalSince1970: 0)
         let resetAt = now.addingTimeInterval((2 * 24 + 3) * 3600)
@@ -154,7 +172,6 @@ struct AppearanceSettingsTests {
             #expect(settings.usageVisibleAgents == Set(CodingAgentID.allCases))
             #expect(settings.tokensVisibleAgents == Set(CodingAgentID.allCases))
             #expect(settings.menuBarVisibleAgents == Set(CodingAgentID.allCases))
-            #expect(settings.tokenSummaryMetric == .billingTokens)
             #expect(settings.selectedTokenKinds == Set(TokenKind.allCases))
             #expect(settings.tokenValueDisplay == .value)
             #expect(settings.selectedTokenRange == .today)
@@ -238,7 +255,6 @@ struct AppearanceSettingsTests {
             let settings = AppearanceSettings(defaults: defaults)
             settings.primaryAgent = .codex
             settings.gaugeStyle = .bar
-            settings.tokenSummaryMetric = .apiEquivalent
             #expect(settings.setTokenKind(.cacheRead, isSelected: false))
             settings.tokenValueDisplay = .valueAndPercentage
             settings.selectedTokenRange = .thirtyDays
@@ -248,7 +264,6 @@ struct AppearanceSettingsTests {
             let reloaded = AppearanceSettings(defaults: defaults)
             #expect(reloaded.primaryAgent == .codex)
             #expect(reloaded.gaugeStyle == .bar)
-            #expect(reloaded.tokenSummaryMetric == .apiEquivalent)
             #expect(reloaded.selectedTokenKinds == Set([.directInput, .output]))
             #expect(reloaded.tokenValueDisplay == .valueAndPercentage)
             #expect(reloaded.selectedTokenRange == .thirtyDays)

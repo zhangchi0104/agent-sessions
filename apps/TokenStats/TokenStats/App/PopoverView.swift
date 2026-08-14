@@ -3,8 +3,8 @@
 //  TokenStats
 //
 //  The popover anchored to the menu-bar item: a glass tab bar switching
-//  between the Usage tab (one AgentSection per Coding Agent in the user's
-//  Appearance order, primary first) and the Tokens tab (the Token Odometer
+//  between the Usage tab (one AgentSection per connected Coding Agent in the
+//  user's Appearance order, primary first) and the Tokens tab (the Token Odometer
 //  broken down by Coding Agent, Model and Token Kind). The Tokens tab keeps
 //  itself current from a file watch, so the header's refresh control reaches
 //  the Usage Windows only. The footer carries that refresh control and a single
@@ -53,15 +53,50 @@ struct PopoverView: View {
         .frame(width: 332)
     }
 
-    /// The Usage tab: one section per Coding Agent in the user's display
-    /// order. Usage Window gauges and nothing else.
+    /// The Usage tab: one section per connected Coding Agent in the user's
+    /// display order. Usage Window gauges and nothing else.
     @ViewBuilder private var usage: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            ForEach(Array(model.appearance.usageDisplayOrder.enumerated()), id: \.element) { index, id in
-                if index > 0 { Divider() }
-                AgentSection(model: model, id: id)
+        let displayedAgents = model.agentStates.connected(
+            in: model.appearance.usageDisplayOrder
+        )
+
+        if displayedAgents.isEmpty {
+            usageEmptyState
+        } else {
+            VStack(alignment: .leading, spacing: 16) {
+                ForEach(Array(displayedAgents.enumerated()), id: \.element) { index, id in
+                    if index > 0 { Divider() }
+                    AgentSection(model: model, id: id)
+                }
             }
         }
+    }
+
+    private var usageEmptyState: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "person.crop.circle.badge.plus")
+                .font(.title2)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+
+            Text(LocalizedStringResource.usageEmptyTitle)
+                .font(.headline)
+
+            Text(LocalizedStringResource.usageEmptyDescription)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button(LocalizedStringResource.popoverSettingsButton) {
+                Self.openSettingsWindow(openWindow)
+            }
+            .controlSize(.small)
+            .accessibilityIdentifier("usage.empty.settings")
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .accessibilityIdentifier("usage.empty")
     }
 
     /// Footer menu: open the dedicated Settings page (account management) or quit.
