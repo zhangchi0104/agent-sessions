@@ -14,25 +14,30 @@ struct TokenSummaryPresentationTests {
     private let englishLocale = Locale(identifier: "en-US")
 
     @Test func unloadedSummaryNamesTheRangeBeingRead() {
-        let summary = TokenSummaryPresentation.make(
+        let readings = TokenSummaryReadings.make(
             perAgent: [],
-            metric: .billingTokens,
             range: .thirtyDays,
             hasLoaded: false,
             locale: englishLocale
         )
 
-        #expect(summary.value == "—")
-        #expect(summary.compactValue == nil)
-        #expect(summary.label == "Reading 30 days…")
-        #expect(summary.numericValue == nil)
+        #expect(readings.billing.value == "—")
+        #expect(readings.billing.compactValue == nil)
+        #expect(readings.billing.label == "Reading 30 days…")
+        #expect(readings.billing.numericValue == nil)
+        #expect(readings.apiEquivalent.value == "—")
+        #expect(readings.apiEquivalent.numericValue == nil)
+        #expect(readings.apiEquivalent.help == "Reading estimated API value for 30 days.")
+        #expect(
+            readings.apiEquivalent.accessibilityLabel
+                == "Reading estimated API value for 30 days"
+        )
     }
 
     @Test func currentDayUsesAContextualSentenceFormInsteadOfThePickerTitle() {
         let localizer = AppLocalizer(locale: englishLocale)
-        let summary = TokenSummaryPresentation.make(
+        let readings = TokenSummaryReadings.make(
             perAgent: [],
-            metric: .billingTokens,
             range: .today,
             hasLoaded: false,
             locale: englishLocale
@@ -40,20 +45,24 @@ struct TokenSummaryPresentationTests {
 
         #expect(TokenRange.today.localizedHeadingForm(using: localizer) == "Today")
         #expect(TokenRange.today.localizedSentenceForm(using: localizer) == "today")
-        #expect(summary.label == "Reading today…")
-        #expect(summary.help == "Reading token usage for today.")
-        #expect(summary.accessibilityLabel == "Reading token usage for today")
+        #expect(readings.billing.label == "Reading today…")
+        #expect(readings.billing.help == "Reading token usage for today.")
+        #expect(readings.billing.accessibilityLabel == "Reading token usage for today")
+        #expect(readings.apiEquivalent.help == "Reading estimated API value for today.")
+        #expect(
+            readings.apiEquivalent.accessibilityLabel
+                == "Reading estimated API value for today"
+        )
     }
 
     @Test func billingSummaryExcludesOnlyCacheReads() {
         let usage = tokens(input: 10, output: 20, cacheRead: 9_999)
-        let summary = TokenSummaryPresentation.make(
+        let summary = TokenSummaryReadings.make(
             perAgent: [agent(.claudeCode, model: "claude-opus-5", usage: usage)],
-            metric: .billingTokens,
             range: .today,
             hasLoaded: true,
             locale: englishLocale
-        )
+        ).billing
 
         #expect(summary.value == "30")
         #expect(summary.compactValue == nil)
@@ -79,7 +88,7 @@ struct TokenSummaryPresentationTests {
         ]
 
         for testCase in cases {
-            let summary = TokenSummaryPresentation.make(
+            let summary = TokenSummaryReadings.make(
                 perAgent: [
                     agent(
                         .claudeCode,
@@ -87,11 +96,10 @@ struct TokenSummaryPresentationTests {
                         usage: tokens(input: testCase.count)
                     ),
                 ],
-                metric: .billingTokens,
                 range: .today,
                 hasLoaded: true,
                 locale: testCase.locale
-            )
+            ).billing
 
             #expect(summary.value == testCase.exact)
             #expect(summary.compactValue == testCase.compact)
@@ -100,13 +108,12 @@ struct TokenSummaryPresentationTests {
 
     @Test func largeBillingSummaryUsesExactHeroAndCompactSecondaryValue() {
         let usage = tokens(input: 52_000_000)
-        let summary = TokenSummaryPresentation.make(
+        let summary = TokenSummaryReadings.make(
             perAgent: [agent(.claudeCode, model: "claude-opus-5", usage: usage)],
-            metric: .billingTokens,
             range: .thirtyDays,
             hasLoaded: true,
             locale: englishLocale
-        )
+        ).billing
 
         #expect(summary.value == "52,000,000")
         #expect(summary.compactValue == "52.00M")
@@ -145,13 +152,12 @@ struct TokenSummaryPresentationTests {
                     == testCase.sharedCompact
             )
             let usage = tokens(input: testCase.count)
-            let summary = TokenSummaryPresentation.make(
+            let summary = TokenSummaryReadings.make(
                 perAgent: [agent(.claudeCode, model: "claude-opus-5", usage: usage)],
-                metric: .billingTokens,
                 range: .thirtyDays,
                 hasLoaded: true,
                 locale: testCase.locale
-            )
+            ).billing
 
             #expect(summary.value == testCase.exact)
             #expect(summary.compactValue == testCase.heroCompact)
@@ -163,18 +169,15 @@ struct TokenSummaryPresentationTests {
 
     @Test func apiEquivalentUsesTheRecordedAgentAndModel() {
         let usage = tokens(input: 1_000_000)
-        let summary = TokenSummaryPresentation.make(
+        let summary = TokenSummaryReadings.make(
             perAgent: [agent(.codex, model: "gpt-5.6-sol", usage: usage)],
-            metric: .apiEquivalent,
             range: .sevenDays,
             hasLoaded: true,
             pricingDate: Date(timeIntervalSince1970: 1_785_283_200),
             locale: englishLocale
-        )
+        ).apiEquivalent
 
         #expect(summary.value == "$5.00")
-        #expect(summary.compactValue == nil)
-        #expect(summary.label == "API-equivalent · USD · 7 days")
         #expect(summary.numericValue == 5)
         #expect(summary.help.contains("Original USD estimate $5.00"))
         #expect(summary.help.contains("1 USD = 1 USD"))
@@ -193,7 +196,6 @@ struct TokenSummaryPresentationTests {
         // USD is $0.005 before presentation rounding. Converting that exact
         // aggregate yields CNY 0.036 -> 0.04, rather than $0.01 -> CNY 0.08.
         #expect(summary.numericValue == 0.04)
-        #expect(summary.label == "API-equivalent · CNY · Today")
         #expect(summary.help.contains("Original USD estimate $0.01"))
         #expect(summary.help.contains("1 USD = 7.2 CNY"))
         #expect(summary.accessibilityLabel.contains("Original USD estimate $0.01"))
@@ -210,7 +212,6 @@ struct TokenSummaryPresentationTests {
         )
 
         #expect(summary.numericValue == 1)
-        #expect(summary.label == "API-equivalent · JPY · Today")
         #expect(summary.help.contains("1 USD = 150 JPY"))
     }
 
@@ -225,7 +226,6 @@ struct TokenSummaryPresentationTests {
         )
 
         #expect(summary.numericValue == 0.002)
-        #expect(summary.label == "API-equivalent · KWD · Today")
         #expect(summary.help.contains("1 USD = 0.30715 KWD"))
     }
 
@@ -242,7 +242,6 @@ struct TokenSummaryPresentationTests {
 
         #expect(summary.value == "$5.00")
         #expect(summary.numericValue == 5)
-        #expect(summary.label == "API-equivalent · USD fallback · Today")
         #expect(summary.help.contains("No usable CNY exchange rate"))
         #expect(summary.help.contains("No FX conversion was applied"))
         #expect(!summary.help.contains("Exchange rate: 1 USD = 1 USD"))
@@ -266,7 +265,6 @@ struct TokenSummaryPresentationTests {
         #expect(summary.help.contains("Rate date: Jul 31, 2026"))
         #expect(summary.help.contains("Fetched: Aug 1, 2026"))
         #expect(summary.help.contains("Rate status: stale cached rate"))
-        #expect(summary.label == "API-equivalent · CNY stale · Today")
         #expect(summary.accessibilityLabel.contains("Rate date: Jul 31, 2026"))
         #expect(summary.accessibilityLabel.contains("stale cached rate"))
     }
@@ -310,13 +308,12 @@ struct TokenSummaryPresentationTests {
             [claude, codex], inOrder: [.codex]
         )
         let usage = TokenAgentProjection.usage(of: visible)
-        let summary = TokenSummaryPresentation.make(
+        let summary = TokenSummaryReadings.make(
             perAgent: visible,
-            metric: .billingTokens,
             range: .today,
             hasLoaded: true,
             locale: englishLocale
-        )
+        ).billing
 
         #expect(visible.map(\.id) == [.codex])
         #expect(usage?.billingTokens == codexUsage.billingTokens)
@@ -325,13 +322,12 @@ struct TokenSummaryPresentationTests {
 
     @Test func unknownModelsStayExplicitlyUnpriced() {
         let usage = tokens(output: 400)
-        let summary = TokenSummaryPresentation.make(
+        let summary = TokenSummaryReadings.make(
             perAgent: [agent(.codex, model: "codex-auto-review", usage: usage)],
-            metric: .apiEquivalent,
             range: .today,
             hasLoaded: true,
             locale: englishLocale
-        )
+        ).apiEquivalent
 
         #expect(summary.value == "—")
         #expect(summary.numericValue == nil)
@@ -343,8 +339,8 @@ struct TokenSummaryPresentationTests {
     private func apiEquivalentSummary(
         inputTokens: Int,
         currencyContext: CurrencyDisplayContext
-    ) -> TokenSummaryPresentation {
-        TokenSummaryPresentation.make(
+    ) -> TokenApiEquivalentPresentation {
+        TokenSummaryReadings.make(
             perAgent: [
                 agent(
                     .codex,
@@ -352,13 +348,12 @@ struct TokenSummaryPresentationTests {
                     usage: tokens(input: inputTokens)
                 ),
             ],
-            metric: .apiEquivalent,
             range: .today,
             hasLoaded: true,
             pricingDate: isoDate("2026-07-31T00:00:00Z"),
             currencyContext: currencyContext,
             locale: englishLocale
-        )
+        ).apiEquivalent
     }
 
     private func context(
@@ -388,16 +383,15 @@ struct TokenSummaryPresentationTests {
 
     @Test func unpricedModelListUsesTheEffectiveLocalesListGrammar() {
         let chinese = Locale(identifier: "zh-Hans-CN")
-        let summary = TokenSummaryPresentation.make(
+        let summary = TokenSummaryReadings.make(
             perAgent: [
                 agent(.claudeCode, model: "claude-future-model", usage: tokens(output: 10)),
                 agent(.codex, model: "codex-future-model", usage: tokens(output: 20)),
             ],
-            metric: .apiEquivalent,
             range: .today,
             hasLoaded: true,
             locale: chinese
-        )
+        ).apiEquivalent
 
         #expect(summary.help.contains("Claude Code：claude-future-model和Codex：codex-future-model"))
         #expect(summary.help.contains(", ") == false)
@@ -407,11 +401,11 @@ struct TokenSummaryPresentationTests {
         let west = try #require(TimeZone(identifier: "Pacific/Honolulu"))
         let east = try #require(TimeZone(identifier: "Pacific/Kiritimati"))
 
-        let westText = TokenSummaryPresentation.reviewedDate(
+        let westText = TokenApiEquivalentPresentation.reviewedDate(
             locale: englishLocale,
             timeZone: west
         )
-        let eastText = TokenSummaryPresentation.reviewedDate(
+        let eastText = TokenApiEquivalentPresentation.reviewedDate(
             locale: englishLocale,
             timeZone: east
         )

@@ -90,7 +90,6 @@ private struct TokenSummaryHeroLayoutFixtureView: View {
                 ZStack {
                     TokenSummaryHero(
                         perAgent: [agent(inputTokens: fixture.inputTokens)],
-                        metric: .billingTokens,
                         range: fixture.range,
                         hasLoaded: true,
                         accessibilityIdentifier: "\(fixture.id).content"

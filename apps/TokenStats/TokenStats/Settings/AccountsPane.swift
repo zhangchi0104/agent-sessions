@@ -99,7 +99,7 @@ enum AccountListPresentation {
         states: CodingAgentStates,
         pending: Set<CodingAgentID>
     ) -> [CodingAgentID] {
-        displayOrder.filter { pending.contains($0) || states[$0] != .signedOut }
+        displayOrder.filter { pending.contains($0) || states.isConnected($0) }
     }
 
     static func availableAccounts(
@@ -157,7 +157,7 @@ private struct AccountSection: View {
         }
     }
 
-    private var isConnected: Bool { model.agentStates[id] != .signedOut }
+    private var isConnected: Bool { model.agentStates.isConnected(id) }
 
     private var status: ConnectionStatus {
         ConnectionStatus(state: model.agentStates[id], awaitingCode: model.isAwaitingCode(id))

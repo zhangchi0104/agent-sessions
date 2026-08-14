@@ -82,12 +82,12 @@ final class TokenStatsUITests: XCTestCase {
             let frame = waitForFrame(
                 of: hero,
                 width: 300,
-                height: 76,
+                height: 100,
                 identifier: identifier
             )
             XCTAssertFalse(frame.isEmpty, "Empty TokenSummaryHero frame: \(identifier)")
             XCTAssertEqual(frame.width, 300, accuracy: 1, identifier)
-            XCTAssertEqual(frame.height, 76, accuracy: 1, identifier)
+            XCTAssertEqual(frame.height, 100, accuracy: 1, identifier)
             heights.append(frame.height)
         }
 

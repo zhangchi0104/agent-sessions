@@ -33,6 +33,8 @@ _Avoid_: session (in TokenStats a session is a conversation, never a billing per
 
 Claude Code can also return an `extra_usage` usage-credit meter. It is not a Usage Window because no reset timestamp is exposed, and TokenStats intentionally does not show it in the popover.
 
+On macOS, the Usage tab renders sections only for connected Coding Agents that are enabled for that surface. A disconnected account has no placeholder section; reconnecting it restores its saved visibility and order.
+
 > **Flagged ambiguity — "session limit":** Claude Code's own UI calls the 5-hour Usage Window the "session limit" and the weekly one the "weekly limit." We do **not** adopt "session limit," because a session is a conversation, not a billing period. The 5-hour period is always a **Usage Window**.
 
 **Token Odometer**:
@@ -52,7 +54,7 @@ A table projection over the Token Odometer: the sum of the Token Kinds whose col
 _Avoid_: calling the selected total the Token Odometer total; treating a Token Kind percentage as a Usage Window percentage.
 
 **Presentation settings**:
-The preferences that change how existing readings are presented without changing their source data: objective Token summary, Token Kind figure format and selection, range, gauge style, and related status-area behavior. Windows groups these under **Display**. macOS places Coding Agent and Usage Window presentation under **Display**, and Token Odometer presentation under **Tokens**. Theme remains a separate concern.
+The preferences that change how existing readings are presented without changing their source data: Token Kind figure format and selection, range, display currency, gauge style, and related status-area behavior. The Tokens tab itself uses a fixed hierarchy—Billing tokens first, Estimated API value beneath—rather than a summary preference. Windows groups its presentation choices under **Display**. macOS places Coding Agent and Usage Window presentation under **Display**, and Token Odometer presentation under **Tokens**. Theme remains a separate concern.
 _Avoid_: treating a presentation choice as a change to transcript accounting or Usage Window consumption.
 
 **Display currency**:

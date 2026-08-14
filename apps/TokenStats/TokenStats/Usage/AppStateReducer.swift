@@ -56,6 +56,16 @@ struct CodingAgentStates: Equatable {
         get { states[id] ?? .signedOut }
         set { states[id] = newValue }
     }
+
+    func isConnected(_ id: CodingAgentID) -> Bool {
+        self[id].isConnected
+    }
+
+    /// Agents that currently have credentials, in the caller's display order.
+    /// Sign-out does not mutate that order, so reconnecting restores position.
+    func connected(in order: [CodingAgentID]) -> [CodingAgentID] {
+        order.filter(isConnected)
+    }
 }
 
 enum CodingAgentEvent: Equatable {
