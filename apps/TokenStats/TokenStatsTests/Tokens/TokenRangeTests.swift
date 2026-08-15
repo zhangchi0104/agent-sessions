@@ -235,9 +235,9 @@ struct TokenRangeTests {
         #expect(odometer.usage?.totalTokens == 150 + 1_998)
     }
 
-    /// A Coding Agent with nothing in range is reported as present-and-empty,
-    /// not omitted — an empty group is an everyday state and says so in words.
-    @Test func anAgentWithNoUsageInRangeIsStillListed() async throws {
+    /// The Odometer retains a present-but-empty root so the presentation layer
+    /// can distinguish a completed empty scan before omitting its agent row.
+    @Test func odometerRetainsAnAgentWithNoUsageInRange() async throws {
         let busy = try TempTranscripts("claude")
         try busy.write("a.jsonl", [claudeUsageLine(id: "m1", input: 100, output: 50)])
         let idle = try TempTranscripts("codex")
@@ -252,8 +252,8 @@ struct TokenRangeTests {
         defer { task.cancel() }
 
         #expect(await waitUntil { odometer.perAgent.count == 2 })
-        // The busy agent really did parse, so an empty Codex group is a
-        // measurement rather than the whole scan having come back blank.
+        // The busy agent really did parse, so empty Codex data is a measurement
+        // rather than the whole scan having come back blank.
         let busySlice = try #require(odometer.perAgent.first { $0.label == "Claude Code" })
         #expect(busySlice.usage.totalTokens == 150)
         let idleSlice = try #require(odometer.perAgent.first { $0.label == "Codex" })

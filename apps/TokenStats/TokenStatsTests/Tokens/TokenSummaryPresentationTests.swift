@@ -320,6 +320,40 @@ struct TokenSummaryPresentationTests {
         #expect(summary.value == "50")
     }
 
+    @Test func tokensProjectionExcludesAgentsWithoutUsageInRange() {
+        let emptyClaude = TokenOdometerModel.AgentTokens(
+            id: .claudeCode,
+            label: CodingAgentID.claudeCode.integration.displayName,
+            usage: TokenUsage(),
+            byModel: []
+        )
+        let codexUsage = tokens(input: 20, output: 30)
+        let codex = agent(.codex, model: "gpt-5.6-sol", usage: codexUsage)
+
+        let visible = TokenAgentProjection.visible(
+            [emptyClaude, codex], inOrder: [.claudeCode, .codex]
+        )
+
+        #expect(visible.map(\.id) == [.codex])
+        #expect(TokenAgentProjection.usage(of: visible) == codexUsage)
+    }
+
+    @Test func tokensProjectionKeepsAnAgentWithOnlyCacheReadUsage() {
+        let cacheOnly = agent(
+            .claudeCode,
+            model: "claude-opus-5",
+            usage: tokens(cacheRead: 40)
+        )
+
+        let visible = TokenAgentProjection.visible(
+            [cacheOnly], inOrder: [.claudeCode]
+        )
+
+        #expect(visible.map(\.id) == [.claudeCode])
+        #expect(visible.first?.usage.billingTokens == 0)
+        #expect(visible.first?.usage.totalTokens == 40)
+    }
+
     @Test func unknownModelsStayExplicitlyUnpriced() {
         let usage = tokens(output: 400)
         let summary = TokenSummaryReadings.make(
