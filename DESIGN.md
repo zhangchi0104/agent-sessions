@@ -199,7 +199,7 @@ The machine-readable frontmatter records both Windows light and dark values wher
 
 ## Layout
 
-TokenStats uses a single compact vertical flow rather than a dashboard grid. The header, primary tab switcher, active reading, supporting table or gauges, and footer form one scanning axis.
+TokenStats uses a single compact vertical flow rather than a dashboard grid. The header, primary tab switcher, active reading, supporting table or gauges, and footer form one scanning axis. On macOS, the Billing-token reading leads the summary row while Estimated API value stays smaller and right-aligned in that same row.
 
 The macOS popover is 332pt wide with 16pt outer padding and 16pt section spacing. Its primary tab bar spans the available width; the Token Odometer table keeps compact 42pt value columns and scrolls only after reaching its measured height cap. The Windows flyout is 424 device-independent pixels wide, capped at 760px high, with a 12px outer shadow margin, 16px surface inset, and 14px housing radius. Its Reporting range menu sits above both the Billing-token summary and Odometer table so its scope is unambiguous; the API estimate appears as secondary text beneath the primary reading. Token Kind columns are 64px each. Both layouts grow with real content and introduce vertical scrolling only when content cannot fit the available work area.
 
