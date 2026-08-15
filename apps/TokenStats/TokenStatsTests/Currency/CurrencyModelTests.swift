@@ -335,9 +335,10 @@ struct CurrencyModelTests {
             ),
             attempt: oldAttempt
         ))
+        let requestGate = RateProviderRequestGate()
         let provider = RateProviderStub(
             responses: [.failure],
-            delay: .milliseconds(100)
+            requestGate: requestGate
         )
         let model = CurrencyModel(
             provider: provider,
@@ -356,10 +357,10 @@ struct CurrencyModelTests {
         try await waitForRequests(1, from: provider)
         let initialRefresh = model.start()
         await initialRefresh?.value
+        await requestGate.open()
 
         let succeeded = await validation.value
         #expect(!succeeded)
-        try await Task.sleep(for: .milliseconds(150))
         #expect(await provider.sources == [candidate])
         #expect(model.activeSource == .default)
         #expect(model.lastAttempt == oldAttempt)
@@ -769,22 +770,51 @@ private enum RateProviderResponse: Sendable {
 private actor RateProviderStub: ExchangeRateProviding {
     private var responses: [RateProviderResponse]
     private let delay: Duration?
+    private let requestGate: RateProviderRequestGate?
     private(set) var count = 0
     private(set) var sources: [ExchangeRateSource] = []
 
-    init(responses: [RateProviderResponse], delay: Duration? = nil) {
+    init(
+        responses: [RateProviderResponse],
+        delay: Duration? = nil,
+        requestGate: RateProviderRequestGate? = nil
+    ) {
         self.responses = responses
         self.delay = delay
+        self.requestGate = requestGate
     }
 
     func fetchRates(from source: ExchangeRateSource) async throws -> [ExchangeRateQuote] {
         count += 1
         sources.append(source)
+        if let requestGate { await requestGate.wait() }
         if let delay { try await Task.sleep(for: delay) }
         guard !responses.isEmpty else { throw TestRateError.noResponse }
         switch responses.removeFirst() {
         case let .success(quotes): return quotes
         case .failure: throw TestRateError.failed
+        }
+    }
+}
+
+private actor RateProviderRequestGate {
+    private var isOpen = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+        guard !isOpen else { return }
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+
+    func open() {
+        guard !isOpen else { return }
+        isOpen = true
+        let pending = waiters
+        waiters.removeAll()
+        for continuation in pending {
+            continuation.resume()
         }
     }
 }
