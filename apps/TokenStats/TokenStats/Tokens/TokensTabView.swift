@@ -5,7 +5,8 @@
 //  The popover's Tokens tab: the Token Odometer for the selected range, as a
 //  table grouped by Coding Agent then Model, three Token Kinds to a row with a
 //  proportion bar tucked beneath. One reporting-range control scopes the whole
-//  tab; Billing tokens lead a fixed summary with Estimated API value beneath.
+//  tab; Billing tokens lead a fixed summary row with Estimated API value on
+//  its trailing edge.
 //
 //  The colour key rides in the column header rather than a legend block: a
 //  spelled-out legend measures 298pt against the 298pt this popover has, which
@@ -69,9 +70,9 @@ struct TokensTabView: View {
     /// popover has no height of its own — it is exactly as tall as its content
     /// — so without a ceiling a user with many Models gets a window taller
     /// than the screen. 11 Model rows measured ~539pt in the layout prototype.
-    // The reporting-range row and fixed two-line summary add about 130pt over
-    // the original table-only layout. Keep the table cap conservative so the
-    // popover still fits a compact Mac display; additional Model rows scroll.
+    /// The reporting-range row and fixed summary add about 120pt over
+    /// the original table-only layout. Keep the table cap conservative so the
+    /// popover still fits a compact Mac display; additional Model rows scroll.
     private static let tableHeightCap: CGFloat = 360
 
     @State private var tableHeight: CGFloat = 0

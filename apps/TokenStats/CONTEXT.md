@@ -54,7 +54,7 @@ A table projection over the Token Odometer: the sum of the Token Kinds whose col
 _Avoid_: calling the selected total the Token Odometer total; treating a Token Kind percentage as a Usage Window percentage.
 
 **Presentation settings**:
-The preferences that change how existing readings are presented without changing their source data: Token Kind figure format and selection, range, display currency, gauge style, and related status-area behavior. The Tokens tab itself uses a fixed hierarchy—Billing tokens first, Estimated API value beneath—rather than a summary preference. Windows groups its presentation choices under **Display**. macOS places Coding Agent and Usage Window presentation under **Display**, and Token Odometer presentation under **Tokens**. Theme remains a separate concern.
+The preferences that change how existing readings are presented without changing their source data: Token Kind figure format and selection, range, display currency, gauge style, and related status-area behavior. The macOS Tokens tab itself uses a fixed hierarchy—Billing tokens as the leading primary reading and Estimated API value as the smaller trailing reading in the same summary row—rather than a summary preference. Windows groups its presentation choices under **Display**. macOS places Coding Agent and Usage Window presentation under **Display**, and Token Odometer presentation under **Tokens**. Theme remains a separate concern.
 _Avoid_: treating a presentation choice as a change to transcript accounting or Usage Window consumption.
 
 **Display currency**:

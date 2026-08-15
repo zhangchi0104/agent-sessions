@@ -3,8 +3,8 @@
 //  TokenStats
 //
 //  The fixed objective summary at the top of the Tokens tab. Billing tokens
-//  lead, with an API-equivalent list-price estimate beneath; neither changes
-//  the raw Token Odometer or the Token Kind table projection.
+//  lead on the left, with an API-equivalent list-price estimate trailing in the
+//  same row; neither changes the raw Token Odometer or Token Kind projection.
 //
 
 import SwiftUI
@@ -55,7 +55,7 @@ struct TokenSummaryReadings: Equatable {
 @MainActor
 struct TokenSummaryPresentation: Equatable {
     let value: String
-    /// A width-efficient restatement for the secondary label row. The hero
+    /// A width-efficient restatement for the Billing caption row. The hero
     /// keeps the exact Billing-token count; this preserves the quick compact
     /// reading without making it the primary value.
     let compactValue: String?
@@ -513,12 +513,13 @@ extension TokenRange {
 }
 
 struct TokenSummaryHero: View {
-    /// Stable layout contract for the primary value, its label, and the API
-    /// estimate row. The table below remains content-sized; only this summary
-    /// is isolated from popover height changes.
+    /// Stable layout contract for the primary leading reading and the smaller
+    /// trailing API estimate. The table below remains content-sized; only this
+    /// summary is isolated from popover height changes.
     static let valueFontSize: CGFloat = 42
     static let valueSlotHeight: CGFloat = 52
-    static let fixedHeight: CGFloat = 100
+    static let fixedHeight: CGFloat = 88
+    private static let apiColumnWidth: CGFloat = 116
 
     let perAgent: [TokenOdometerModel.AgentTokens]
     let range: TokenRange
@@ -565,9 +566,12 @@ struct TokenSummaryHero: View {
     var body: some View {
         let readings = self.readings
 
-        VStack(alignment: .leading, spacing: 10) {
+        HStack(alignment: .top, spacing: 12) {
             billingSummary(readings.billing)
-            apiEstimateRow(readings.apiEquivalent)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .layoutPriority(1)
+            apiEstimateSummary(readings.apiEquivalent)
+                .frame(width: Self.apiColumnWidth, alignment: .trailing)
         }
         .frame(
             maxWidth: .infinity,
@@ -593,7 +597,8 @@ struct TokenSummaryHero: View {
                 .font(.system(size: Self.valueFontSize, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .lineLimit(1)
-                .minimumScaleFactor(0.6)
+                .allowsTightening(true)
+                .minimumScaleFactor(0.5)
                 .contentTransition(
                     .numericText(value: presentation.numericValue ?? 0)
                 )
@@ -607,18 +612,32 @@ struct TokenSummaryHero: View {
                     maxHeight: Self.valueSlotHeight,
                     alignment: .bottomLeading
                 )
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(presentation.label)
-                    .font(.callout)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                Spacer(minLength: 8)
+            Group {
                 if let compactValue = presentation.compactValue {
-                    Text(compactValue)
-                        .font(.caption.weight(.semibold))
-                        .monospacedDigit()
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(presentation.label)
+                                .font(.callout)
+                                .fixedSize(horizontal: true, vertical: false)
+                            Spacer(minLength: 8)
+                            Text(compactValue)
+                                .font(.caption.weight(.semibold))
+                                .monospacedDigit()
+                                .fixedSize(horizontal: true, vertical: false)
+                        }
+
+                        Text(presentation.label)
+                            .font(.callout)
+                            .lineLimit(1)
+                            .allowsTightening(true)
+                            .minimumScaleFactor(0.7)
+                    }
+                } else {
+                    Text(presentation.label)
+                        .font(.callout)
                         .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
+                        .allowsTightening(true)
+                        .minimumScaleFactor(0.7)
                 }
             }
             .foregroundStyle(.secondary)
@@ -628,19 +647,15 @@ struct TokenSummaryHero: View {
         .accessibilityLabel(presentation.accessibilityLabel)
     }
 
-    private func apiEstimateRow(_ presentation: TokenApiEquivalentPresentation) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(LocalizedStringResource.tokensSummaryEstimatedApiValue)
-                .font(.callout)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            Spacer(minLength: 8)
+    private func apiEstimateSummary(_ presentation: TokenApiEquivalentPresentation) -> some View {
+        VStack(alignment: .trailing, spacing: 4) {
             ZStack(alignment: .trailing) {
                 Text(presentation.value)
                     .font(.callout.weight(.semibold))
                     .monospacedDigit()
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .allowsTightening(true)
+                    .minimumScaleFactor(0.65)
                     .contentTransition(
                         .numericText(value: presentation.numericValue ?? 0)
                     )
@@ -651,10 +666,22 @@ struct TokenSummaryHero: View {
                     .id(presentation.transitionIdentity)
                     .transition(reduceMotion ? .identity : .opacity)
             }
+            .frame(
+                maxWidth: .infinity,
+                minHeight: Self.valueSlotHeight,
+                maxHeight: Self.valueSlotHeight,
+                alignment: .bottomTrailing
+            )
             .animation(
                 reduceMotion ? nil : .easeInOut(duration: 0.2),
                 value: presentation.transitionIdentity
             )
+
+            Text(LocalizedStringResource.tokensSummaryEstimatedApiValue)
+                .font(.callout)
+                .lineLimit(1)
+                .allowsTightening(true)
+                .minimumScaleFactor(0.8)
         }
         .foregroundStyle(.secondary)
         .help(presentation.help)

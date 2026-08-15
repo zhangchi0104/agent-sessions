@@ -11804,7 +11804,7 @@
       }
     },
     "tokens.summary.estimated_api_value": {
-      "comment": "Label for the secondary API-equivalent estimate beneath the primary Billing tokens summary.",
+      "comment": "Label for the secondary API-equivalent estimate at the trailing edge of the Billing tokens summary row.",
       "extractionState": "manual",
       "localizations": {
         "en": {
