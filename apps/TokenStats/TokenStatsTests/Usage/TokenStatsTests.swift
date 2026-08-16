@@ -142,12 +142,12 @@ struct AppearanceSettingsTests {
 
     @Test func displayOrderLeadsWithPrimaryThenSavedOrder() {
         let resolved = AgentDisplayOrder.resolve(primary: .codex, order: [.claudeCode, .codex])
-        #expect(resolved == [.codex, .claudeCode])
+        #expect(resolved == [.codex, .claudeCode, .cursor])
     }
 
     @Test func displayOrderKeepsSavedOrderWhenPrimaryIsAlreadyFirst() {
         let resolved = AgentDisplayOrder.resolve(primary: .claudeCode, order: [.claudeCode, .codex])
-        #expect(resolved == [.claudeCode, .codex])
+        #expect(resolved == [.claudeCode, .codex, .cursor])
     }
 
     @Test func displayOrderAppendsAgentsMissingFromTheSavedOrder() {
@@ -170,7 +170,7 @@ struct AppearanceSettingsTests {
             #expect(settings.gaugeStyle == .arc270)
             #expect(Set(settings.order) == Set(CodingAgentID.allCases))
             #expect(settings.usageVisibleAgents == Set(CodingAgentID.allCases))
-            #expect(settings.tokensVisibleAgents == Set(CodingAgentID.allCases))
+            #expect(settings.tokensVisibleAgents == [.claudeCode, .codex])
             #expect(settings.menuBarVisibleAgents == Set(CodingAgentID.allCases))
             #expect(settings.selectedTokenKinds == Set(TokenKind.allCases))
             #expect(settings.tokenValueDisplay == .value)
@@ -183,8 +183,10 @@ struct AppearanceSettingsTests {
         withDefaults { defaults in
             let settings = AppearanceSettings(defaults: defaults)
             #expect(settings.setVisible(.codex, on: .usage, isVisible: false))
+            #expect(settings.setVisible(.cursor, on: .usage, isVisible: false))
             #expect(settings.setVisible(.claudeCode, on: .tokens, isVisible: false))
             #expect(settings.setVisible(.codex, on: .menuBar, isVisible: false))
+            #expect(settings.setVisible(.cursor, on: .menuBar, isVisible: false))
 
             let reloaded = AppearanceSettings(defaults: defaults)
             #expect(reloaded.usageVisibleAgents == [.claudeCode])
@@ -202,6 +204,7 @@ struct AppearanceSettingsTests {
             let settings = AppearanceSettings(defaults: defaults)
 
             #expect(settings.setVisible(.codex, on: .usage, isVisible: false))
+            #expect(settings.setVisible(.cursor, on: .usage, isVisible: false))
             #expect(settings.setVisible(.codex, on: .usage, isVisible: false))
             #expect(!settings.setVisible(.claudeCode, on: .usage, isVisible: false))
             #expect(settings.usageVisibleAgents == [.claudeCode])
@@ -220,9 +223,9 @@ struct AppearanceSettingsTests {
             settings.primaryAgent = .codex
 
             #expect(settings.setVisible(.codex, on: .usage, isVisible: false))
-            #expect(settings.usageDisplayOrder == [.claudeCode])
+            #expect(settings.usageDisplayOrder == [.claudeCode, .cursor])
             #expect(settings.setVisible(.codex, on: .usage, isVisible: true))
-            #expect(settings.usageDisplayOrder == [.codex, .claudeCode])
+            #expect(settings.usageDisplayOrder == [.codex, .claudeCode, .cursor])
 
             // The global Primary preference is unchanged by a per-surface
             // visibility choice.
@@ -233,6 +236,7 @@ struct AppearanceSettingsTests {
     @MainActor
     @Test func corruptVisibleAgentPreferenceRepairsToClaude() {
         withDefaults { defaults in
+            defaults.set(1, forKey: "appearance.schemaVersion")
             defaults.set([], forKey: "appearance.usageVisibleAgents")
             defaults.set(["future-agent"], forKey: "appearance.tokensVisibleAgents")
             defaults.set(["codex", "future-agent"], forKey: "appearance.menuBarVisibleAgents")
@@ -246,6 +250,25 @@ struct AppearanceSettingsTests {
                     == ["claudeCode"])
             #expect(defaults.array(forKey: "appearance.tokensVisibleAgents") as? [String]
                     == ["claudeCode"])
+        }
+    }
+
+    @MainActor
+    @Test func existingTwoAgentVisibilityAddsCursorToUsageSurfacesOnce() {
+        withDefaults { defaults in
+            defaults.set(["claudeCode", "codex"], forKey: "appearance.usageVisibleAgents")
+            defaults.set(["claudeCode", "codex"], forKey: "appearance.tokensVisibleAgents")
+            defaults.set(["claudeCode", "codex"], forKey: "appearance.menuBarVisibleAgents")
+
+            let migrated = AppearanceSettings(defaults: defaults)
+            #expect(migrated.usageVisibleAgents == [.claudeCode, .codex, .cursor])
+            #expect(migrated.tokensVisibleAgents == [.claudeCode, .codex])
+            #expect(migrated.menuBarVisibleAgents == [.claudeCode, .codex, .cursor])
+            #expect(defaults.integer(forKey: "appearance.schemaVersion") == 1)
+
+            #expect(migrated.setVisible(.cursor, on: .usage, isVisible: false))
+            let reloaded = AppearanceSettings(defaults: defaults)
+            #expect(reloaded.usageVisibleAgents == [.claudeCode, .codex])
         }
     }
 
@@ -268,7 +291,19 @@ struct AppearanceSettingsTests {
             #expect(reloaded.tokenValueDisplay == .valueAndPercentage)
             #expect(reloaded.selectedTokenRange == .thirtyDays)
             #expect(reloaded.order.first == .codex)
-            #expect(reloaded.displayOrder == [.codex, .claudeCode])
+            #expect(reloaded.displayOrder == [.codex, .claudeCode, .cursor])
+        }
+    }
+
+    @MainActor
+    @Test func cursorCannotBeEnabledOnTheUnsupportedTokensSurface() {
+        withDefaults { defaults in
+            let settings = AppearanceSettings(defaults: defaults)
+
+            #expect(settings.tokensVisibleAgents == [.claudeCode, .codex])
+            #expect(settings.isVisible(.cursor, on: .tokens) == false)
+            #expect(settings.setVisible(.cursor, on: .tokens, isVisible: true) == false)
+            #expect(settings.tokensDisplayOrder.contains(.cursor) == false)
         }
     }
 

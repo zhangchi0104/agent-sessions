@@ -166,6 +166,61 @@ public sealed class CodexAuthSession : IAgentAuthSession
     public void SignOut() => _cache.SignOut();
 }
 
+public sealed class CursorAuthSession : IAgentAuthSession
+{
+    private readonly AgentTokenCache _cache;
+    private readonly OAuthHttpClient _client;
+
+    public CursorAuthSession(
+        ITokenStore store,
+        OAuthHttpClient client,
+        Func<DateTimeOffset>? now = null)
+    {
+        _client = client;
+        _cache = new AgentTokenCache(
+            store,
+            (expired, cancellationToken) =>
+                client.RefreshCursorAsync(expired, cancellationToken),
+            now);
+    }
+
+    public bool IsSignedIn => _cache.IsSignedIn;
+    public string? AccountId => null;
+
+    public Task<string> ValidAccessTokenAsync(
+        CancellationToken cancellationToken = default) =>
+        _cache.ValidAccessTokenAsync(cancellationToken);
+
+    public async Task BeginSignInAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var pkce = OAuthHelpers.MakePkce();
+        var uuid = Guid.NewGuid().ToString();
+        BrowserLauncher.Open(CursorOAuthFlow.AuthorizeUrl(pkce, uuid));
+        var tokens = await _client.WaitForCursorLoginAsync(
+                pkce,
+                uuid,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(tokens.RefreshToken))
+        {
+            throw new InvalidOperationException(
+                "Sign-in did not return a refresh token; cannot stay signed in.");
+        }
+
+        await _cache.AdoptAsync(tokens, cancellationToken).ConfigureAwait(false);
+    }
+
+    public Task CompleteSignInAsync(
+        string pastedCode,
+        CancellationToken cancellationToken = default) =>
+        Task.FromException(
+            new InvalidOperationException(
+                "Cursor completes sign-in automatically in the browser."));
+
+    public void SignOut() => _cache.SignOut();
+}
+
 public static class BrowserLauncher
 {
     public static void Open(string url)

@@ -97,7 +97,7 @@ public partial class SettingsWindow : Window
         _isRendering = true;
         try
         {
-            RenderAccounts();
+            RenderSubscriptions();
             var appearance = _settings.Appearance;
             PrimaryAgentCombo.SelectedValue = appearance.PrimaryAgent;
             DialStyle.IsChecked = appearance.GaugeStyle == GaugeStyle.Dial;
@@ -138,9 +138,9 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private void RenderAccounts()
+    private void RenderSubscriptions()
     {
-        AccountsPanel.Children.Clear();
+        SubscriptionsPanel.Children.Clear();
         foreach (var agent in _coordinator.Agents)
         {
             var card = new Border
@@ -196,13 +196,23 @@ public partial class SettingsWindow : Window
                     _loginBusy.Contains(agent.Definition.Id) ||
                     (agent.IsSigningIn &&
                      agent.Definition.SignInStyle == SignInStyle.SelfCompleting);
+                string signInText;
+                if (signInBusy)
+                {
+                    signInText = "Waiting for browser…";
+                }
+                else if (agent.AwaitingCode)
+                {
+                    signInText = "Re-open browser";
+                }
+                else
+                {
+                    signInText = "Sign in";
+                }
+
                 var signIn = new Button
                 {
-                    Content = signInBusy
-                        ? "Waiting for browser…"
-                        : agent.AwaitingCode
-                            ? "Re-open browser"
-                            : "Sign in",
+                    Content = signInText,
                     IsEnabled = !signInBusy,
                     VerticalAlignment = VerticalAlignment.Center,
                 };
@@ -265,7 +275,7 @@ public partial class SettingsWindow : Window
                 });
             }
 
-            AccountsPanel.Children.Add(card);
+            SubscriptionsPanel.Children.Add(card);
         }
     }
 
@@ -276,7 +286,7 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        RenderAccounts();
+        RenderSubscriptions();
         try
         {
             await _coordinator.BeginSignInAsync(id).ConfigureAwait(true);
@@ -284,7 +294,7 @@ public partial class SettingsWindow : Window
         finally
         {
             _loginBusy.Remove(id);
-            RenderAccounts();
+            RenderSubscriptions();
         }
     }
 
@@ -295,7 +305,7 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        RenderAccounts();
+        RenderSubscriptions();
         try
         {
             await _coordinator.CompleteSignInAsync(id, code).ConfigureAwait(true);
@@ -307,7 +317,7 @@ public partial class SettingsWindow : Window
         finally
         {
             _loginBusy.Remove(id);
-            RenderAccounts();
+            RenderSubscriptions();
         }
     }
 
@@ -328,6 +338,24 @@ public partial class SettingsWindow : Window
         };
         foreach (var sample in samples)
         {
+            double width;
+            double height;
+            if (style == GaugeStyle.Bar)
+            {
+                width = 360;
+                height = 70;
+            }
+            else if (sample.Slot.Emphasized)
+            {
+                width = 108;
+                height = 154;
+            }
+            else
+            {
+                width = 94;
+                height = 142;
+            }
+
             panel.Children.Add(new UsageGauge
             {
                 Label = sample.Slot.Label,
@@ -336,8 +364,8 @@ public partial class SettingsWindow : Window
                 Remaining = sample.Remaining,
                 ResetText = sample.Reset,
                 IsAvailable = true,
-                Width = style == GaugeStyle.Bar ? 360 : sample.Slot.Emphasized ? 108 : 94,
-                Height = style == GaugeStyle.Bar ? 70 : sample.Slot.Emphasized ? 154 : 142,
+                Width = width,
+                Height = height,
                 Margin = new Thickness(4),
             });
         }
@@ -382,7 +410,7 @@ public partial class SettingsWindow : Window
         // SelectedIndex is applied while InitializeComponent is still creating
         // the later page fields, so the first event can legitimately arrive
         // before those named elements exist.
-        if (AccountsPage is null ||
+        if (SubscriptionsPage is null ||
             DisplayPage is null ||
             AppearancePage is null ||
             AboutPage is null ||
@@ -392,7 +420,7 @@ public partial class SettingsWindow : Window
         }
 
         var selected = item.Tag as string;
-        AccountsPage.Visibility = selected == "accounts"
+        SubscriptionsPage.Visibility = selected == "subscriptions"
             ? Visibility.Visible
             : Visibility.Collapsed;
         DisplayPage.Visibility = selected == "display"
@@ -1039,9 +1067,8 @@ public partial class SettingsWindow : Window
 
     private static Border BrandBadge(AgentDefinition definition)
     {
-        var color = definition.Id == AgentId.ClaudeCode
-            ? Color.FromRgb(0xD8, 0x78, 0x57)
-            : Color.FromRgb(0x0A, 0xA3, 0x80);
+        var brand = AgentIntegrationRegistry.Get(definition.Id).Brand;
+        var color = Color.FromRgb(brand.Red, brand.Green, brand.Blue);
         return new Border
         {
             Width = 32,

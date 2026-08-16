@@ -345,7 +345,7 @@ public sealed class UsageCoordinator : IAsyncDisposable
                 restartTooSoon)
             {
                 _loginErrors[id] =
-                    "A sign-in is already in progress for this account.";
+                    "A sign-in is already in progress for this subscription.";
             }
             else
             {

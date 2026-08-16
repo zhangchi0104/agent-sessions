@@ -1,26 +1,26 @@
 //
-//  AccountListPresentationTests.swift
+//  SubscriptionListPresentationTests.swift
 //  TokenStatsTests
 //
 
 import Foundation
 import Testing
 
-struct AccountListPresentationTests {
+struct SubscriptionListPresentationTests {
     private let displayOrder: [CodingAgentID] = [.claudeCode, .codex]
 
-    @Test func signedOutAccountsAreAvailableInsteadOfDisplayed() {
+    @Test func signedOutSubscriptionsAreAvailableInsteadOfDisplayed() {
         let states = CodingAgentStates()
 
         #expect(
-            AccountListPresentation.displayedAccounts(
+            SubscriptionListPresentation.displayedSubscriptions(
                 in: displayOrder,
                 states: states,
                 pending: []
             ).isEmpty
         )
         #expect(
-            AccountListPresentation.availableAccounts(
+            SubscriptionListPresentation.availableSubscriptions(
                 in: displayOrder,
                 states: states,
                 pending: []
@@ -28,19 +28,19 @@ struct AccountListPresentationTests {
         )
     }
 
-    @Test func connectedAndPendingAccountsCannotBeAddedAgain() {
+    @Test func connectedAndPendingSubscriptionsCannotBeAddedAgain() {
         var states = CodingAgentStates()
         states[.claudeCode] = .loading
 
         #expect(
-            AccountListPresentation.displayedAccounts(
+            SubscriptionListPresentation.displayedSubscriptions(
                 in: displayOrder,
                 states: states,
                 pending: [.codex]
             ) == displayOrder
         )
         #expect(
-            AccountListPresentation.availableAccounts(
+            SubscriptionListPresentation.availableSubscriptions(
                 in: displayOrder,
                 states: states,
                 pending: [.codex]
@@ -48,12 +48,12 @@ struct AccountListPresentationTests {
         )
     }
 
-    @Test func accountRowsKeepTheUsersDisplayOrder() {
+    @Test func subscriptionRowsKeepTheUsersDisplayOrder() {
         var states = CodingAgentStates()
         states[.claudeCode] = .loading
 
         #expect(
-            AccountListPresentation.displayedAccounts(
+            SubscriptionListPresentation.displayedSubscriptions(
                 in: [.codex, .claudeCode],
                 states: states,
                 pending: [.codex]

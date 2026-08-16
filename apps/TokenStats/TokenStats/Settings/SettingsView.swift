@@ -35,7 +35,7 @@ struct SettingsView: View {
                 switch selection ?? .general {
                 case .general:
                     GeneralPane(localization: localization, relauncher: relauncher)
-                case .accounts: AccountsPane(model: model)
+                case .subscriptions: SubscriptionsPane(model: model)
                 case .display: DisplayPane(appearance: model.appearance)
                 case .tokens:
                     TokensPane(appearance: model.appearance, currencyModel: currencyModel)

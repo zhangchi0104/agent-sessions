@@ -84,7 +84,7 @@ enum AgentDisplayOrder {
 }
 
 /// The three independent surfaces whose agent visibility can be customized.
-/// Visibility is presentation-only: it never disconnects an account or stops
+/// Visibility is presentation-only: it never disconnects a subscription or stops
 /// the background usage/transcript work for that agent.
 nonisolated enum AgentDisplaySurface: String, CaseIterable, Codable, Identifiable {
     case usage
@@ -129,6 +129,8 @@ final class AppearanceSettings {
     private static let usageVisibleAgentsKey = "appearance.usageVisibleAgents"
     private static let tokensVisibleAgentsKey = "appearance.tokensVisibleAgents"
     private static let menuBarVisibleAgentsKey = "appearance.menuBarVisibleAgents"
+    private static let schemaVersionKey = "appearance.schemaVersion"
+    private static let currentSchemaVersion = 1
     private static let styleKey = "appearance.gaugeStyle"
     private static let selectedTokenKindsKey = "appearance.selectedTokenKinds"
     private static let tokenValueDisplayKey = "appearance.tokenValueDisplay"
@@ -150,13 +152,19 @@ final class AppearanceSettings {
         self.order = order
 
         self.usageVisibleAgents = Self.loadVisibleAgents(
-            defaults: defaults, key: Self.usageVisibleAgentsKey
+            defaults: defaults,
+            key: Self.usageVisibleAgentsKey,
+            allowed: Self.supportedAgents(on: .usage)
         )
         self.tokensVisibleAgents = Self.loadVisibleAgents(
-            defaults: defaults, key: Self.tokensVisibleAgentsKey
+            defaults: defaults,
+            key: Self.tokensVisibleAgentsKey,
+            allowed: Self.supportedAgents(on: .tokens)
         )
         self.menuBarVisibleAgents = Self.loadVisibleAgents(
-            defaults: defaults, key: Self.menuBarVisibleAgentsKey
+            defaults: defaults,
+            key: Self.menuBarVisibleAgentsKey,
+            allowed: Self.supportedAgents(on: .menuBar)
         )
 
         let savedStyle = (defaults.string(forKey: Self.styleKey))
@@ -175,6 +183,8 @@ final class AppearanceSettings {
         let savedTokenRange = defaults.string(forKey: Self.selectedTokenRangeKey)
             .flatMap(TokenRange.init(rawValue:))
         self.selectedTokenRange = savedTokenRange ?? .today
+
+        migrateSettingsIfNeeded()
     }
 
     /// The resolved order for display: primary first, then the saved order.
@@ -221,6 +231,7 @@ final class AppearanceSettings {
     func setVisible(_ id: CodingAgentID,
                     on surface: AgentDisplaySurface,
                     isVisible: Bool) -> Bool {
+        guard Self.supportedAgents(on: surface).contains(id) else { return false }
         var next = visibleAgents(on: surface)
         if isVisible {
             next.insert(id)
@@ -286,16 +297,17 @@ final class AppearanceSettings {
     }
 
     private static func loadVisibleAgents(defaults: UserDefaults,
-                                          key: String) -> Set<CodingAgentID> {
-        // A missing key is a migration-safe default: preserve the current
-        // all-agents presentation for existing installations.
+                                          key: String,
+                                          allowed: Set<CodingAgentID>) -> Set<CodingAgentID> {
+        // A missing key enables every agent supported by this surface.
         guard defaults.object(forKey: key) != nil else {
-            return Set(CodingAgentID.allCases)
+            return allowed
         }
 
         let saved = (defaults.array(forKey: key) as? [String] ?? [])
             .compactMap(CodingAgentID.init(rawValue:))
-        guard !saved.isEmpty else {
+        let supported = Set(saved).intersection(allowed)
+        guard !supported.isEmpty else {
             // A present-but-empty or otherwise corrupt value must not violate
             // the non-empty surface invariant. Claude is the existing default
             // primary and the stable repair target.
@@ -303,7 +315,41 @@ final class AppearanceSettings {
             defaults.set([CodingAgentID.claudeCode.rawValue], forKey: key)
             return fallback
         }
-        return Set(saved)
+        return supported
+    }
+
+    private static func supportedAgents(on surface: AgentDisplaySurface) -> Set<CodingAgentID> {
+        switch surface {
+        case .usage, .menuBar:
+            return Set(CodingAgentID.allCases)
+        case .tokens:
+            return Set(CodingAgentRegistry.all.compactMap { integration in
+                integration.transcriptRoot == nil ? nil : integration.id
+            })
+        }
+    }
+
+    private func migrateSettingsIfNeeded() {
+        let storedVersion = defaults.integer(forKey: Self.schemaVersionKey)
+        guard storedVersion < Self.currentSchemaVersion else { return }
+
+        var visibilityChanged = false
+        if storedVersion < 1 {
+            // Version 1 introduced Cursor. Only explicit pre-existing lists
+            // need repair; missing lists already resolve to all agents that
+            // support the surface.
+            if defaults.object(forKey: Self.usageVisibleAgentsKey) != nil,
+               usageVisibleAgents.insert(.cursor).inserted {
+                visibilityChanged = true
+            }
+            if defaults.object(forKey: Self.menuBarVisibleAgentsKey) != nil,
+               menuBarVisibleAgents.insert(.cursor).inserted {
+                visibilityChanged = true
+            }
+        }
+
+        defaults.set(Self.currentSchemaVersion, forKey: Self.schemaVersionKey)
+        if visibilityChanged { persist() }
     }
 
     private func persist() {

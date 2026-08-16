@@ -2238,6 +2238,7 @@ internal static class Program
         {
             [AgentId.ClaudeCode] = blocking,
             [AgentId.Codex] = new StaticProvider(AgentId.Codex),
+            [AgentId.Cursor] = new StaticProvider(AgentId.Cursor),
         };
         var coordinator = new UsageCoordinator(settings, auth, providers);
         try

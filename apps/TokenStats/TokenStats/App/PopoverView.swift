@@ -8,7 +8,7 @@
 //  broken down by Coding Agent, Model and Token Kind). The Tokens tab keeps
 //  itself current from a file watch, so the header's refresh control reaches
 //  the Usage Windows only. The footer carries that refresh control and a single
-//  Settings control that reaches account management (sign in / sign out per
+//  Settings control that reaches subscription management (sign in / sign out per
 //  agent) and Quit. All copy follows the glossary (Usage Window, never
 //  "session"; full agent names in the popover).
 //
@@ -99,7 +99,7 @@ struct PopoverView: View {
         .accessibilityIdentifier("usage.empty")
     }
 
-    /// Footer menu: open the dedicated Settings page (account management) or quit.
+    /// Footer menu: open the dedicated Settings page (subscription management) or quit.
     private var settings: some View {
         Menu {
             Button(

@@ -24,7 +24,7 @@ struct AgentFacts: Sendable {
     /// The slot drawn larger, or nil when every window is equal.
     let emphasizedWindow: UsageWindowIdentity?
     /// Appended to the user's home directory.
-    let transcriptSubpath: String
+    let transcriptSubpath: String?
 }
 
 private let expectedAgents: [AgentFacts] = [
@@ -42,6 +42,13 @@ private let expectedAgents: [AgentFacts] = [
                windowIdentities: [],
                emphasizedWindow: nil,
                transcriptSubpath: "/.codex/sessions"),
+    AgentFacts(id: .cursor,
+               displayName: "Cursor",
+               shortLabel: "R",
+               signInStyle: .selfCompleting,
+               windowIdentities: [],
+               emphasizedWindow: nil,
+               transcriptSubpath: nil),
 ]
 
 @MainActor
@@ -74,7 +81,7 @@ struct CodingAgentRegistryTests {
         #expect(agent.displayName == expected.displayName)
         #expect(agent.shortLabel == expected.shortLabel)
         #expect(agent.signInStyle == expected.signInStyle)
-        #expect(agent.transcriptRoot == realHomeDirectory() + expected.transcriptSubpath)
+        #expect(agent.transcriptRoot == expected.transcriptSubpath.map { realHomeDirectory() + $0 })
     }
 
     @Test(arguments: expectedAgents)
@@ -127,6 +134,11 @@ struct CodingAgentRegistryTests {
 
         #expect(both.map(\.title) == ["5-hour", "Weekly"])
         #expect(both.allSatisfy { $0.isEnabled })
+    }
+
+    @Test func cursorHasNoTokenOdometerTranscriptRoot() {
+        #expect(CodingAgentRegistry.transcriptRoots.map(\.id) == [.claudeCode, .codex])
+        #expect(CodingAgentRegistry.transcriptRoots.contains { $0.id == .cursor } == false)
     }
 
     @Test(arguments: expectedAgents)

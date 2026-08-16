@@ -25,7 +25,7 @@ struct OnboardingView: View {
     /// The disclosure leads so the user reads what TokenStats accesses before the
     /// one sensitive action, signing in.
     enum Step: Int, CaseIterable {
-        case disclosure, accounts, done
+        case disclosure, subscriptions, done
 
         /// The adjacent steps, or nil at the ends — keeps the index arithmetic
         /// out of the navigation callsites.
@@ -92,7 +92,7 @@ struct OnboardingView: View {
     @ViewBuilder private var content: some View {
         switch step {
         case .disclosure: OnboardingDisclosureStep()
-        case .accounts: OnboardingAccountsStep(model: model)
+        case .subscriptions: OnboardingSubscriptionsStep(model: model)
         case .done: OnboardingDoneStep(model: model)
         }
     }

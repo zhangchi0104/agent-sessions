@@ -14,6 +14,8 @@ struct UsageWindowTests {
         let identities: [UsageWindowIdentity] = [
             .shortTerm,
             .weekly,
+            .cursorModels,
+            .otherModels,
             .modelWeekly(model: "Fable"),
             .duration(seconds: 7_200),
             .provider(raw: "Provider special"),
@@ -34,6 +36,8 @@ struct UsageWindowTests {
         let cases: [(String, UsageWindowIdentity)] = [
             ("5-hour", .shortTerm),
             ("Weekly", .weekly),
+            ("Cursor Models", .cursorModels),
+            ("Other Models", .otherModels),
             ("Fable", .modelWeekly(model: "Fable")),
         ]
 
@@ -79,12 +83,16 @@ struct UsageWindowTests {
                 locale: "en-US",
                 shortTerm: "5-hour",
                 weekly: "Weekly",
+                cursorModels: "Cursor Models",
+                otherModels: "Other Models",
                 duration: "2 hours"
             ),
             (
                 locale: "zh-Hans-CN",
                 shortTerm: "5 小时",
                 weekly: "每周",
+                cursorModels: "Cursor 模型",
+                otherModels: "其他模型",
                 duration: "2小时"
             ),
         ]
@@ -94,6 +102,12 @@ struct UsageWindowTests {
 
             #expect(UsageWindowIdentity.shortTerm.localizedTitle(using: localizer) == expected.shortTerm)
             #expect(UsageWindowIdentity.weekly.localizedTitle(using: localizer) == expected.weekly)
+            #expect(
+                UsageWindowIdentity.cursorModels.localizedTitle(using: localizer) == expected.cursorModels
+            )
+            #expect(
+                UsageWindowIdentity.otherModels.localizedTitle(using: localizer) == expected.otherModels
+            )
             #expect(
                 UsageWindowIdentity.duration(seconds: 2 * 60 * 60)
                     .localizedTitle(using: localizer) == expected.duration

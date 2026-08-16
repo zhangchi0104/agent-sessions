@@ -26,7 +26,7 @@ struct CodexIntegration: CodingAgentIntegration {
                             sideLineWidth: 6, centerLineWidth: 6, circularSpacing: 32)
     )
 
-    var transcriptRoot: String { realHomeDirectory() + "/.codex/sessions" }
+    var transcriptRoot: String? { realHomeDirectory() + "/.codex/sessions" }
 
     let auth: any AgentAuthSession
 

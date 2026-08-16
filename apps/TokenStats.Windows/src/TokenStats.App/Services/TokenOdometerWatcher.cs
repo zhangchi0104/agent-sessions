@@ -70,10 +70,8 @@ public sealed class TokenOdometerWatcher : IAsyncDisposable
 
         _reader = reader;
         _roots = roots ??
-            AgentRegistry.All
-                .Select(definition => (
-                    definition.DisplayName,
-                    definition.TranscriptRoot))
+            AgentRegistry.TranscriptRoots
+                .Select(source => (source.Label, source.Path))
                 .ToArray();
         _now = now ?? (() => DateTimeOffset.Now);
         _localTimeZone = localTimeZone ?? TimeZoneInfo.Local;

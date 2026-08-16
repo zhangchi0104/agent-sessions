@@ -189,3 +189,97 @@ public static class CodexOAuthFlow
         }
     }
 }
+
+public static class CursorOAuthFlow
+{
+    public const string ClientId = "KbZUR41cY7W6zRSdpSUJ7I7mLYBKOCmB";
+    public const string AuthorizeEndpoint = "https://cursor.com/loginDeepControl";
+    public const string PollEndpoint = "https://api2.cursor.sh/auth/poll";
+    public const string TokenEndpoint = "https://api2.cursor.sh/oauth/token";
+
+    public static string AuthorizeUrl(Pkce pkce, string uuid) =>
+        OAuthHelpers.BuildUrl(
+            AuthorizeEndpoint,
+            new Dictionary<string, string>
+            {
+                ["challenge"] = pkce.Challenge,
+                ["uuid"] = uuid,
+                ["mode"] = "login",
+                ["redirectTarget"] = "cli",
+            });
+
+    public static string PollUrl(Pkce pkce, string uuid) =>
+        OAuthHelpers.BuildUrl(
+            PollEndpoint,
+            new Dictionary<string, string>
+            {
+                ["uuid"] = uuid,
+                ["verifier"] = pkce.Verifier,
+            });
+
+    public static OAuthTokens ParsePollTokens(
+        string json,
+        DateTimeOffset? now = null)
+    {
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        var accessToken = root.GetProperty("accessToken").GetString() ??
+                          throw new JsonException("Missing accessToken.");
+        return new OAuthTokens(
+            accessToken,
+            root.GetProperty("refreshToken").GetString() ??
+                throw new JsonException("Missing refreshToken."),
+            Expiration(accessToken, now ?? DateTimeOffset.Now));
+    }
+
+    public static OAuthTokens ParseRefreshTokens(
+        string json,
+        OAuthTokens previous,
+        DateTimeOffset? now = null)
+    {
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        var accessToken = root.GetProperty("access_token").GetString() ??
+                          throw new JsonException("Missing access_token.");
+        var refreshToken = root.TryGetProperty("refresh_token", out var refresh)
+            ? refresh.GetString()
+            : null;
+        var current = now ?? DateTimeOffset.Now;
+        var expiresAt = root.TryGetProperty("expires_in", out var expires) &&
+                        expires.TryGetDouble(out var seconds)
+            ? current.AddSeconds(seconds)
+            : Expiration(accessToken, current);
+        return new OAuthTokens(
+            accessToken,
+            string.IsNullOrWhiteSpace(refreshToken) ? accessToken : refreshToken,
+            expiresAt,
+            previous.AccountId);
+    }
+
+    private static DateTimeOffset Expiration(
+        string accessToken,
+        DateTimeOffset now)
+    {
+        var segments = accessToken.Split('.');
+        if (segments.Length >= 2 &&
+            OAuthHelpers.DecodeBase64Url(segments[1]) is { } payload)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(payload);
+                if (document.RootElement.TryGetProperty("exp", out var expiration) &&
+                    expiration.TryGetInt64(out var seconds) &&
+                    seconds > 0)
+                {
+                    return DateTimeOffset.FromUnixTimeSeconds(seconds);
+                }
+            }
+            catch (JsonException)
+            {
+                // Fall through to the conservative one-hour lifetime.
+            }
+        }
+
+        return now.AddHours(1);
+    }
+}

@@ -967,7 +967,7 @@
         }
       }
     },
-    "onboarding.accounts.primary_subscription.footer": {
+    "onboarding.subscriptions.primary_subscription.footer": {
       "comment": "Explains how the selected primary subscription is presented.",
       "extractionState": "manual",
       "localizations": {
@@ -1009,7 +1009,7 @@
         }
       }
     },
-    "onboarding.accounts.primary_subscription.title": {
+    "onboarding.subscriptions.primary_subscription.title": {
       "comment": "Label for choosing which Coding Agent subscription is presented first.",
       "extractionState": "manual",
       "localizations": {
@@ -1051,86 +1051,86 @@
         }
       }
     },
-    "onboarding.accounts.subtitle": {
-      "comment": "Instructions for the optional account connection step. TokenStats is the app name and Settings is its settings window.",
+    "onboarding.subscriptions.subtitle": {
+      "comment": "Instructions for the optional subscription connection step. TokenStats is the app name and Settings is its settings window.",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sign in so TokenStats can read your usage. Connect one or both — or skip and do it later in Settings."
+            "value": "Sign in so TokenStats can read your usage. Connect the subscriptions you want to track — or skip and do it later in Settings."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "登录后，TokenStats 即可读取你的用量。你可以连接一个或两个 Coding Agent，也可以跳过此步，稍后在“设置”中操作。"
+            "value": "登录后，TokenStats 即可读取你的用量。连接你想跟踪的订阅，也可以跳过此步，稍后在“设置”中操作。"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Melden Sie sich an, damit TokenStats Ihre Nutzung auslesen kann. Verbinden Sie einen oder beide Coding Agents – oder überspringen Sie diesen Schritt und erledigen Sie dies später in den Einstellungen."
+            "value": "Melden Sie sich an, damit TokenStats Ihre Nutzung auslesen kann. Verbinden Sie die Abonnements, die Sie verfolgen möchten – oder überspringen Sie diesen Schritt und erledigen Sie dies später in den Einstellungen."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Connectez-vous pour permettre à TokenStats de lire votre utilisation. Connectez un ou deux comptes, ou ignorez cette étape et faites-le plus tard dans Réglages."
+            "value": "Connectez-vous pour permettre à TokenStats de lire votre utilisation. Connectez les abonnements à suivre, ou ignorez cette étape et faites-le plus tard dans Réglages."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "TokenStats が使用状況を読み取れるようにサインインします。1つまたは両方の Coding Agent を接続するか、この手順をスキップして後で「設定」から接続できます。"
+            "value": "TokenStats が使用状況を読み取れるようにサインインします。追跡するサブスクリプションを接続するか、この手順をスキップして後で「設定」から接続できます。"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Войдите, чтобы TokenStats мог получать данные об использовании. Подключите один или оба Coding Agent либо пропустите этот шаг и сделайте это позже в Настройках."
+            "value": "Войдите, чтобы TokenStats мог получать данные об использовании. Подключите подписки, которые хотите отслеживать, либо пропустите этот шаг и сделайте это позже в Настройках."
           }
         }
       }
     },
-    "onboarding.accounts.title": {
-      "comment": "Title for the onboarding step where Coding Agent accounts are connected.",
+    "onboarding.subscriptions.title": {
+      "comment": "Title for the onboarding step where Coding Agent subscriptions are connected.",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Connect your agents"
+            "value": "Connect subscriptions"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "连接你的 Coding Agent"
+            "value": "连接订阅"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Coding Agents verbinden"
+            "value": "Abonnements verbinden"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Connectez vos Coding Agents"
+            "value": "Connecter des abonnements"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Coding Agent を接続"
+            "value": "サブスクリプションを接続"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Подключите Coding Agent"
+            "value": "Подключите подписки"
           }
         }
       }
@@ -1436,37 +1436,37 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The next step connects your accounts. Here's exactly what TokenStats accesses — and what it never does."
+            "value": "The next step connects your subscriptions. Here's exactly what TokenStats accesses — and what it never does."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "下一步将连接你的账户。下面将准确说明 TokenStats 会访问哪些内容，以及绝不会进行哪些操作。"
+            "value": "下一步将连接你的订阅。下面将准确说明 TokenStats 会访问哪些内容，以及绝不会进行哪些操作。"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Im nächsten Schritt werden Ihre Konten verbunden. Hier erfahren Sie genau, worauf TokenStats zugreift – und was TokenStats niemals tut."
+            "value": "Im nächsten Schritt werden Ihre Abonnements verbunden. Hier erfahren Sie genau, worauf TokenStats zugreift – und was TokenStats niemals tut."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "L’étape suivante connecte vos comptes. Voici précisément les données auxquelles TokenStats accède et ce qu’il ne fait jamais."
+            "value": "L’étape suivante connecte vos abonnements. Voici précisément les données auxquelles TokenStats accède et ce qu’il ne fait jamais."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "次の手順でアカウントを接続します。TokenStats がアクセスする内容と、決して行わないことを正確に説明します。"
+            "value": "次の手順でサブスクリプションを接続します。TokenStats がアクセスする内容と、決して行わないことを正確に説明します。"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "На следующем шаге будут подключены ваши учётные записи. Здесь точно указано, к чему TokenStats получает доступ и чего никогда не делает."
+            "value": "На следующем шаге будут подключены ваши подписки. Здесь точно указано, к чему TokenStats получает доступ и чего никогда не делает."
           }
         }
       }
@@ -1514,7 +1514,7 @@
       }
     },
     "onboarding.done.connected_agents.summary": {
-      "comment": "Summary of connected Coding Agent accounts. The first number is connected and the second is available. Configure plural variants for the connected count.",
+      "comment": "Summary of connected Coding Agent subscriptions. The first number is connected and the second is available. Configure plural variants for the connected count.",
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -1682,7 +1682,7 @@
       }
     },
     "onboarding.done.no_connected_agents.summary": {
-      "comment": "Summary shown when onboarding finishes without a connected Coding Agent account.",
+      "comment": "Summary shown when onboarding finishes without a connected Coding Agent subscription.",
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -2605,176 +2605,176 @@
         }
       }
     },
-    "settings.accounts.add.button": {
-      "comment": "Accessibility label and help text for the add-account menu in Settings.",
+    "settings.subscriptions.add.button": {
+      "comment": "Accessibility label and help text for the add-subscription menu in Settings.",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Add account"
+            "value": "Add subscription"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "添加账户"
+            "value": "添加订阅"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konto hinzufügen"
+            "value": "Abonnement hinzufügen"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ajouter un compte"
+            "value": "Ajouter un abonnement"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "アカウントを追加"
+            "value": "サブスクリプションを追加"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Добавить учётную запись"
+            "value": "Добавить подписку"
           }
         }
       }
     },
-    "settings.accounts.empty.description": {
-      "comment": "Empty-state guidance in Accounts Settings. Claude Code and Codex are product names.",
+    "settings.subscriptions.empty.description": {
+      "comment": "Empty-state guidance in Subscriptions Settings. Claude Code, Codex, and Cursor are product names.",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Add Claude Code or Codex to start tracking its usage."
+            "value": "Add Claude Code, Codex, or Cursor to start tracking its usage."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "添加 Claude Code 或 Codex，开始跟踪其用量。"
+            "value": "添加 Claude Code、Codex 或 Cursor，开始跟踪其用量。"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fügen Sie Claude Code oder Codex hinzu, um die Nutzung zu erfassen."
+            "value": "Fügen Sie Claude Code, Codex oder Cursor hinzu, um die Nutzung zu erfassen."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ajoutez Claude Code ou Codex pour commencer à suivre son utilisation."
+            "value": "Ajoutez Claude Code, Codex ou Cursor pour commencer à suivre son utilisation."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Claude Code または Codex を追加して、使用状況の追跡を開始します。"
+            "value": "Claude Code、Codex、または Cursor を追加して、使用状況の追跡を開始します。"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Добавьте Claude Code или Codex, чтобы начать отслеживать использование."
+            "value": "Добавьте Claude Code, Codex или Cursor, чтобы начать отслеживать использование."
           }
         }
       }
     },
-    "settings.accounts.empty.title": {
-      "comment": "Empty-state heading shown when TokenStats has no connected Coding Agent accounts.",
+    "settings.subscriptions.empty.title": {
+      "comment": "Empty-state heading shown when TokenStats has no connected Coding Agent subscriptions.",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No accounts added"
+            "value": "No subscriptions added"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "尚未添加账户"
+            "value": "尚未添加订阅"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Keine Konten hinzugefügt"
+            "value": "Keine Abonnements hinzugefügt"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aucun compte ajouté"
+            "value": "Aucun abonnement ajouté"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "アカウントが追加されていません"
+            "value": "サブスクリプションが追加されていません"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Нет добавленных учётных записей"
+            "value": "Нет добавленных подписок"
           }
         }
       }
     },
-    "settings.accounts.keychain_privacy.footer": {
-      "comment": "Privacy note below the account controls. TokenStats is the app name and Keychain is Apple's credential store.",
+    "settings.subscriptions.keychain_privacy.footer": {
+      "comment": "Privacy note below the subscription controls. TokenStats is the app name and Keychain is Apple's credential store.",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "TokenStats stores each account's tokens in your Keychain and never sends them anywhere else."
+            "value": "TokenStats stores each subscription's sign-in tokens in your Keychain and never sends them anywhere else."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "TokenStats 会将每个账户的 Token 保存在钥匙串中，绝不会发送到其他位置。"
+            "value": "TokenStats 会将每项订阅的登录 Token 保存在钥匙串中，绝不会将其发送到其他位置。"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "TokenStats speichert die Token jedes Kontos in Ihrem Schlüsselbund und sendet sie niemals an einen anderen Ort."
+            "value": "TokenStats speichert die Anmelde-Token jedes Abonnements in Ihrem Schlüsselbund und sendet sie niemals an einen anderen Ort."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "TokenStats stocke les tokens de chaque compte dans votre trousseau et ne les envoie jamais ailleurs."
+            "value": "TokenStats stocke les tokens de connexion de chaque abonnement dans votre trousseau et ne les envoie jamais ailleurs."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "TokenStats は各アカウントのトークンをキーチェーンに保存し、他の場所には送信しません。"
+            "value": "TokenStats は各サブスクリプションのサインイントークンをキーチェーンに保存し、他の場所には送信しません。"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "TokenStats хранит токены каждой учётной записи в Связке ключей и никуда больше их не отправляет."
+            "value": "TokenStats хранит токены входа для каждой подписки в Связке ключей и никуда больше их не отправляет."
           }
         }
       }
     },
-    "settings.accounts.sign_out.button": {
-      "comment": "Button that disconnects one Coding Agent account from TokenStats.",
+    "settings.subscriptions.sign_out.button": {
+      "comment": "Button that disconnects one Coding Agent subscription from TokenStats.",
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -2815,44 +2815,44 @@
         }
       }
     },
-    "settings.accounts.title": {
-      "comment": "Navigation title for the Settings pane where Coding Agent accounts are managed.\nTitle of the Accounts settings pane.",
+    "settings.subscriptions.title": {
+      "comment": "Navigation title for the Settings pane where Coding Agent subscriptions are managed.\nTitle of the Subscriptions settings pane.",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Accounts"
+            "value": "Subscriptions"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "账户"
+            "value": "订阅"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konten"
+            "value": "Abonnements"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Comptes"
+            "value": "Abonnements"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "アカウント"
+            "value": "サブスクリプション"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Учётные записи"
+            "value": "Подписки"
           }
         }
       }
@@ -12398,37 +12398,37 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Connect an account, or choose to show it in Usage from Settings."
+            "value": "Connect a subscription, or choose to show it in Usage from Settings."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "请连接账户，或在“设置”中将已连接账户设为在“用量”页显示。"
+            "value": "请连接订阅，或在“设置”中将已连接订阅设为在“用量”页显示。"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verbinden Sie ein Konto oder legen Sie in den Einstellungen fest, dass es unter „Nutzung“ angezeigt wird."
+            "value": "Verbinden Sie ein Abonnement oder legen Sie in den Einstellungen fest, dass es unter „Nutzung“ angezeigt wird."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Connectez un compte ou activez son affichage dans Utilisation depuis les Réglages."
+            "value": "Connectez un abonnement ou activez son affichage dans Utilisation depuis les Réglages."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "アカウントを接続するか、「設定」で「使用状況」に表示するよう設定してください。"
+            "value": "サブスクリプションを接続するか、「設定」で「使用状況」に表示するよう設定してください。"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Подключите учётную запись или включите её отображение в разделе «Использование» в настройках."
+            "value": "Подключите подписку или включите её отображение в разделе «Использование» в настройках."
           }
         }
       }
@@ -12602,7 +12602,7 @@
       }
     },
     "usage.error.not_signed_in.detail": {
-      "comment": "Expandable Usage diagnostic when a request is attempted without a connected Coding Agent account.",
+      "comment": "Expandable Usage diagnostic when a request is attempted without a connected Coding Agent subscription.",
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -13271,6 +13271,30 @@
             "value": "Обновлено %@"
           }
         }
+      }
+    },
+    "usage.window.cursor_models": {
+      "comment": "Title of Cursor's included Cursor Models usage bucket.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Cursor Models" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Cursor 模型" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Cursor-Modelle" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Modèles Cursor" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Cursorモデル" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Модели Cursor" } }
+      }
+    },
+    "usage.window.other_models": {
+      "comment": "Title of Cursor's included Other Models usage bucket.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Other Models" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "其他模型" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Andere Modelle" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Autres modèles" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "その他のモデル" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Другие модели" } }
       }
     },
     "usage.window.short_term": {

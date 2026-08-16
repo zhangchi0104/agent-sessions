@@ -16,6 +16,8 @@ import Foundation
 nonisolated enum UsageWindowIdentity: Hashable, Codable, Sendable {
     case shortTerm
     case weekly
+    case cursorModels
+    case otherModels
     case modelWeekly(model: String)
     case duration(seconds: Int)
     case provider(raw: String)
@@ -30,6 +32,8 @@ nonisolated enum UsageWindowIdentity: Hashable, Codable, Sendable {
     private enum Kind: String, Codable {
         case shortTerm
         case weekly
+        case cursorModels
+        case otherModels
         case modelWeekly
         case duration
         case provider
@@ -42,6 +46,10 @@ nonisolated enum UsageWindowIdentity: Hashable, Codable, Sendable {
             self = .shortTerm
         case .weekly:
             self = .weekly
+        case .cursorModels:
+            self = .cursorModels
+        case .otherModels:
+            self = .otherModels
         case .modelWeekly:
             self = .modelWeekly(model: try container.decode(String.self, forKey: .model))
         case .duration:
@@ -58,6 +66,10 @@ nonisolated enum UsageWindowIdentity: Hashable, Codable, Sendable {
             try container.encode(Kind.shortTerm, forKey: .kind)
         case .weekly:
             try container.encode(Kind.weekly, forKey: .kind)
+        case .cursorModels:
+            try container.encode(Kind.cursorModels, forKey: .kind)
+        case .otherModels:
+            try container.encode(Kind.otherModels, forKey: .kind)
         case .modelWeekly(let model):
             try container.encode(Kind.modelWeekly, forKey: .kind)
             try container.encode(model, forKey: .model)
@@ -78,6 +90,10 @@ nonisolated enum UsageWindowIdentity: Hashable, Codable, Sendable {
             return "5-hour"
         case .weekly:
             return "Weekly"
+        case .cursorModels:
+            return "Cursor Models"
+        case .otherModels:
+            return "Other Models"
         case .modelWeekly(let model):
             return model
         case .duration(let seconds):
@@ -96,6 +112,14 @@ nonisolated enum UsageWindowIdentity: Hashable, Codable, Sendable {
         case .weekly:
             return localizer.localized(
                 LocalizedStringResource.usageWindowWeekly
+            )
+        case .cursorModels:
+            return localizer.localized(
+                LocalizedStringResource.usageWindowCursorModels
+            )
+        case .otherModels:
+            return localizer.localized(
+                LocalizedStringResource.usageWindowOtherModels
             )
         case .modelWeekly(let model):
             return model
@@ -129,6 +153,10 @@ nonisolated enum UsageWindowIdentity: Hashable, Codable, Sendable {
             return .shortTerm
         case "Weekly":
             return .weekly
+        case "Cursor Models":
+            return .cursorModels
+        case "Other Models":
+            return .otherModels
         case "Fable":
             return .modelWeekly(model: "Fable")
         default:

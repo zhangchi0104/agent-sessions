@@ -368,3 +368,102 @@ public static class CodexUsageParser
         !element.TryGetProperty(property, out var raw) ||
         raw.ValueKind == JsonValueKind.Null;
 }
+
+public static class CursorUsageParser
+{
+    public static IReadOnlyList<UsageWindow> Parse(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        if (root.TryGetProperty("enabled", out var enabled) &&
+            enabled.ValueKind == JsonValueKind.False)
+        {
+            return [];
+        }
+
+        if (!TryGetProperty(root, "planUsage", "plan_usage", out var plan) ||
+            plan.ValueKind != JsonValueKind.Object)
+        {
+            return [];
+        }
+
+        DateTimeOffset? resetAt = null;
+        if (TryGetFiniteDouble(
+                root,
+                "billingCycleEnd",
+                "billing_cycle_end",
+                out var milliseconds) &&
+            milliseconds > 0 &&
+            milliseconds <= long.MaxValue)
+        {
+            try
+            {
+                resetAt = DateTimeOffset.FromUnixTimeMilliseconds(
+                    (long)Math.Truncate(milliseconds));
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                resetAt = null;
+            }
+        }
+
+        if (!TryGetFiniteDouble(
+                plan,
+                "autoPercentUsed",
+                "auto_percent_used",
+                out var cursorModelsPercent) ||
+            !TryGetFiniteDouble(
+                plan,
+                "apiPercentUsed",
+                "api_percent_used",
+                out var otherModelsPercent))
+        {
+            return [];
+        }
+
+        return
+        [
+            new UsageWindow(
+                "Cursor Models",
+                Math.Clamp(cursorModelsPercent, 0, 100),
+                resetAt),
+            new UsageWindow(
+                "Other Models",
+                Math.Clamp(otherModelsPercent, 0, 100),
+                resetAt),
+        ];
+    }
+
+    private static bool TryGetFiniteDouble(
+        JsonElement element,
+        string camelCase,
+        string snakeCase,
+        out double value)
+    {
+        value = 0;
+        if (!TryGetProperty(element, camelCase, snakeCase, out var raw))
+        {
+            return false;
+        }
+
+        var decoded = raw.ValueKind switch
+        {
+            JsonValueKind.Number => raw.TryGetDouble(out value),
+            JsonValueKind.String => double.TryParse(
+                raw.GetString(),
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out value),
+            _ => false,
+        };
+        return decoded && double.IsFinite(value);
+    }
+
+    private static bool TryGetProperty(
+        JsonElement element,
+        string camelCase,
+        string snakeCase,
+        out JsonElement value) =>
+        element.TryGetProperty(camelCase, out value) ||
+        element.TryGetProperty(snakeCase, out value);
+}

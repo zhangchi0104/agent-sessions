@@ -181,6 +181,18 @@ struct ApiPricingCatalogTests {
         #expect(estimate.formattedCost(locale: Locale(identifier: "en-US")) == "$5.00")
     }
 
+    @MainActor
+    @Test func cursorCannotEnterTheTokenPricingDomain() {
+        #expect(ApiPricingAgent(.cursor) == nil)
+        #expect(
+            ApiModelUsage(
+                agentID: .cursor,
+                model: .named("cursor-model"),
+                usage: usage(input: 1)
+            ) == nil
+        )
+    }
+
     @Test func unknownAndUnattributedModelsMakeTheEstimatePartial() {
         let estimate = ApiPricingCatalog.estimate(
             modelUsage: [
