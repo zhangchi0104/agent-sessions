@@ -138,6 +138,65 @@ struct TokenStatsTests {
 
 }
 
+@MainActor
+struct UsageModelSignInTests {
+
+    @Test func selfCompletingSignInIgnoresRepeatedClicksUntilPollingFinishes() async throws {
+        let auth = ControlledSignInAuthSession()
+        let defaults = InMemoryUserDefaults()
+        let model = UsageModel(
+            appearance: AppearanceSettings(defaults: defaults),
+            lastKnown: LastKnownUsageStore(defaults: defaults),
+            integrations: [CursorIntegration(auth: auth)]
+        )
+
+        model.signIn(.cursor)
+        #expect(model.isSigningIn(.cursor))
+
+        model.signIn(.cursor)
+        for _ in 0..<100 where !auth.hasPendingSignIn {
+            await Task.yield()
+        }
+
+        #expect(auth.beginSignInCount == 1)
+        try #require(auth.hasPendingSignIn)
+
+        auth.failSignIn()
+        for _ in 0..<100 where model.isSigningIn(.cursor) {
+            await Task.yield()
+        }
+
+        #expect(!model.isSigningIn(.cursor))
+        #expect(model.loginError[.cursor] != nil)
+    }
+}
+
+@MainActor
+private final class ControlledSignInAuthSession: AgentAuthSession {
+    private var signInContinuation: CheckedContinuation<Void, any Error>?
+    private(set) var beginSignInCount = 0
+
+    var isSignedIn: Bool { false }
+    var hasPendingSignIn: Bool { signInContinuation != nil }
+
+    func validAccessToken() async throws -> String { throw UsageError.notSignedIn }
+    func signOut() {}
+
+    func beginSignIn() async throws {
+        beginSignInCount += 1
+        try await withCheckedThrowingContinuation { continuation in
+            signInContinuation = continuation
+        }
+    }
+
+    func failSignIn() {
+        signInContinuation?.resume(
+            throwing: UsageError.loginFailed("Synthetic sign-in failure")
+        )
+        signInContinuation = nil
+    }
+}
+
 struct AppearanceSettingsTests {
 
     @Test func displayOrderLeadsWithPrimaryThenSavedOrder() {

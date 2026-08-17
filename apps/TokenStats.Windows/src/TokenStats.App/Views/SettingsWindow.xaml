@@ -109,7 +109,7 @@
                     <TextBlock
                         Margin="0,6,0,0"
                         Style="{StaticResource SecondaryText}"
-                        Text="Nothing to arrange yet — the primary leads and the only other subscription follows." />
+                        Text="Use the arrow buttons to arrange subscriptions after the primary." />
 
                     <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Tray summary" />
                     <StackPanel Orientation="Horizontal">

@@ -13,17 +13,19 @@ import SwiftUI
 enum ConnectionStatus {
     case connected
     case awaitingCode
+    case signingIn
     case signedOut
 
-    /// The join of the two axes this status sits on, as a pure function of
-    /// both: what the usage state says about the subscription, and whether a
-    /// sign-in for it is mid-flight. Usage state wins — an agent that is
-    /// serving data is connected whatever a stale flag says.
-    init(state: AppState, awaitingCode: Bool) {
+    /// Joins usage state with the two sign-in phases: browser polling and the
+    /// paste-code handoff. Usage state wins — an agent that is serving data is
+    /// connected whatever a stale sign-in flag says.
+    init(state: AppState, awaitingCode: Bool, signingIn: Bool = false) {
         if state != .signedOut {
             self = .connected
         } else if awaitingCode {
             self = .awaitingCode
+        } else if signingIn {
+            self = .signingIn
         } else {
             self = .signedOut
         }
@@ -35,6 +37,8 @@ enum ConnectionStatus {
             return LocalizedStringResource.accountStatusConnected
         case .awaitingCode:
             return LocalizedStringResource.accountStatusAwaitingCode
+        case .signingIn:
+            return LocalizedStringResource.accountStatusSigningIn
         case .signedOut:
             return LocalizedStringResource.accountStatusSignedOut
         }
@@ -45,7 +49,7 @@ enum ConnectionStatus {
     fileprivate var accent: Color? {
         switch self {
         case .connected: return .green
-        case .awaitingCode: return .orange
+        case .awaitingCode, .signingIn: return .orange
         case .signedOut: return nil
         }
     }

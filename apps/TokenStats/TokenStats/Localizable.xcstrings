@@ -925,6 +925,48 @@
         }
       }
     },
+    "account.status.signing_in": {
+      "comment": "Status label while a self-completing Coding Agent browser sign-in is in progress.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signing in…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在登录…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmeldung läuft …"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connexion en cours…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインイン中…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выполняется вход…"
+          }
+        }
+      }
+    },
     "command.settings.title": {
       "comment": "Application menu command that opens the TokenStats settings window.",
       "extractionState": "manual",
@@ -1346,43 +1388,43 @@
       }
     },
     "onboarding.disclosure.providers.detail": {
-      "comment": "Privacy disclosure about usage and public exchange-rate requests. Claude, OpenAI, Frankfurter, Settings, USD, HTTPS, URL, TokenStats, and API are product or technical terms.",
+      "comment": "Privacy disclosure about usage and public exchange-rate requests. Claude, OpenAI, Cursor, Frankfurter, Settings, USD, HTTPS, URL, TokenStats, and API are product or technical terms.",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Usage is fetched directly from Claude and OpenAI. TokenStats can automatically request a public USD exchange-rate table at most once every 24 hours. Frankfurter is the default; Settings lets you choose one supported HTTPS service and endpoint. TokenStats contacts only that selection and never fails over automatically. TokenStats adds no account, token, usage, transcript, calculated cost, or region data. The selected host receives the configured URL path and query plus ordinary connection metadata, so never put credentials or API keys in the URL."
+            "value": "Usage is fetched directly from Claude, OpenAI, and Cursor. TokenStats can automatically request a public USD exchange-rate table at most once every 24 hours. Frankfurter is the default; Settings lets you choose one supported HTTPS service and endpoint. TokenStats contacts only that selection and never fails over automatically. TokenStats adds no account, token, usage, transcript, calculated cost, or region data. The selected host receives the configured URL path and query plus ordinary connection metadata, so never put credentials or API keys in the URL."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "用量数据直接从 Claude 和 OpenAI 获取。TokenStats 每 24 小时最多自动请求一次公开的 USD 汇率表。Frankfurter 是默认服务；你可以在“设置”中选择其他受支持的 HTTPS 服务和端点。TokenStats 只会联系你选择的服务，绝不会自动故障转移。TokenStats 不会添加或发送任何账户、Token、用量、对话记录、计算金额或地区数据。所选主机会收到配置的 URL 路径、查询参数及常规网络连接元数据，因此请勿在 URL 中放入凭据或 API 密钥。"
+            "value": "用量数据直接从 Claude、OpenAI 和 Cursor 获取。TokenStats 每 24 小时最多自动请求一次公开的 USD 汇率表。Frankfurter 是默认服务；你可以在“设置”中选择其他受支持的 HTTPS 服务和端点。TokenStats 只会联系你选择的服务，绝不会自动故障转移。TokenStats 不会添加或发送任何账户、Token、用量、对话记录、计算金额或地区数据。所选主机会收到配置的 URL 路径、查询参数及常规网络连接元数据，因此请勿在 URL 中放入凭据或 API 密钥。"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Nutzungsdaten werden direkt von Claude und OpenAI abgerufen. TokenStats kann höchstens einmal alle 24 Stunden automatisch eine öffentliche USD-Wechselkurstabelle anfordern. Frankfurter ist die Standardeinstellung; in den Einstellungen können Sie einen unterstützten HTTPS-Dienst und Endpunkt auswählen. TokenStats kontaktiert nur diese Auswahl und wechselt bei Fehlern nie automatisch zu einem anderen Dienst. TokenStats fügt der Anfrage keine Konto-, Token-, Nutzungs-, Transkript- oder Regionsdaten und keine Daten zu berechneten Kosten hinzu. Der ausgewählte Host erhält den konfigurierten URL-Pfad und die Abfrageparameter sowie übliche Verbindungsmetadaten. Hinterlegen Sie daher niemals Anmeldedaten oder API-Schlüssel in der URL."
+            "value": "Die Nutzungsdaten werden direkt von Claude, OpenAI und Cursor abgerufen. TokenStats kann höchstens einmal alle 24 Stunden automatisch eine öffentliche USD-Wechselkurstabelle anfordern. Frankfurter ist die Standardeinstellung; in den Einstellungen können Sie einen unterstützten HTTPS-Dienst und Endpunkt auswählen. TokenStats kontaktiert nur diese Auswahl und wechselt bei Fehlern nie automatisch zu einem anderen Dienst. TokenStats fügt der Anfrage keine Konto-, Token-, Nutzungs-, Transkript- oder Regionsdaten und keine Daten zu berechneten Kosten hinzu. Der ausgewählte Host erhält den konfigurierten URL-Pfad und die Abfrageparameter sowie übliche Verbindungsmetadaten. Hinterlegen Sie daher niemals Anmeldedaten oder API-Schlüssel in der URL."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Les données d’utilisation sont récupérées directement auprès de Claude et d’OpenAI. TokenStats peut demander automatiquement une table publique de taux de change basée sur l’USD, au maximum une fois toutes les 24 heures. Frankfurter est le service par défaut ; les Réglages permettent de choisir un service HTTPS et un point de terminaison compatibles. TokenStats contacte uniquement le service sélectionné et ne bascule jamais automatiquement vers un autre. TokenStats n’ajoute aucune donnée de compte, de token, d’utilisation, de transcription, de coût calculé ou de région. L’hôte sélectionné reçoit le chemin et la chaîne de requête de l’URL configurée, ainsi que les métadonnées de connexion habituelles. N’insérez donc jamais d’identifiants ni de clés API dans l’URL."
+            "value": "Les données d’utilisation sont récupérées directement auprès de Claude, d’OpenAI et de Cursor. TokenStats peut demander automatiquement une table publique de taux de change basée sur l’USD, au maximum une fois toutes les 24 heures. Frankfurter est le service par défaut ; les Réglages permettent de choisir un service HTTPS et un point de terminaison compatibles. TokenStats contacte uniquement le service sélectionné et ne bascule jamais automatiquement vers un autre. TokenStats n’ajoute aucune donnée de compte, de token, d’utilisation, de transcription, de coût calculé ou de région. L’hôte sélectionné reçoit le chemin et la chaîne de requête de l’URL configurée, ainsi que les métadonnées de connexion habituelles. N’insérez donc jamais d’identifiants ni de clés API dans l’URL."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "使用状況は Claude と OpenAI から直接取得されます。TokenStats は、公開されている USD 為替レート表を24時間に最大1回、自動的にリクエストできます。デフォルトは Frankfurter です。「設定」では、対応している HTTPS サービスとエンドポイントを1つ選択できます。TokenStats は選択先にのみ接続し、自動的に別のサービスへフェイルオーバーすることはありません。TokenStats は、アカウント、トークン、使用状況、会話記録、算出した費用、地域のデータをそのリクエストに一切追加しません。選択したホストには、設定した URL のパスとクエリ、および通常の接続メタデータが送信されます。URL に認証情報や API キーを絶対に含めないでください。"
+            "value": "使用状況は Claude、OpenAI、Cursor から直接取得されます。TokenStats は、公開されている USD 為替レート表を24時間に最大1回、自動的にリクエストできます。デフォルトは Frankfurter です。「設定」では、対応している HTTPS サービスとエンドポイントを1つ選択できます。TokenStats は選択先にのみ接続し、自動的に別のサービスへフェイルオーバーすることはありません。TokenStats は、アカウント、トークン、使用状況、会話記録、算出した費用、地域のデータをそのリクエストに一切追加しません。選択したホストには、設定した URL のパスとクエリ、および通常の接続メタデータが送信されます。URL に認証情報や API キーを絶対に含めないでください。"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Данные об использовании загружаются напрямую из Claude и OpenAI. TokenStats может автоматически запрашивать общедоступную таблицу курсов валют относительно USD не чаще одного раза в 24 часа. По умолчанию используется Frankfurter; в настройках можно выбрать один из поддерживаемых сервисов HTTPS и его конечную точку. TokenStats обращается только к выбранному сервису и никогда не переключается на другой автоматически. TokenStats не добавляет к запросу и не отправляет данные об учетной записи, токенах, использовании, расшифровках, рассчитанной стоимости или регионе. Выбранный хост получает настроенный путь URL и параметры запроса, а также обычные метаданные соединения, поэтому никогда не указывайте учетные данные или ключи API в URL."
+            "value": "Данные об использовании загружаются напрямую из Claude, OpenAI и Cursor. TokenStats может автоматически запрашивать общедоступную таблицу курсов валют относительно USD не чаще одного раза в 24 часа. По умолчанию используется Frankfurter; в настройках можно выбрать один из поддерживаемых сервисов HTTPS и его конечную точку. TokenStats обращается только к выбранному сервису и никогда не переключается на другой автоматически. TokenStats не добавляет к запросу и не отправляет данные об учетной записи, токенах, использовании, расшифровках, рассчитанной стоимости или регионе. Выбранный хост получает настроенный путь URL и параметры запроса, а также обычные метаданные соединения, поэтому никогда не указывайте учетные данные или ключи API в URL."
           }
         }
       }

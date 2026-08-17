@@ -78,7 +78,7 @@
                     </Border>
                     <Border Margin="0,0,0,10" Style="{StaticResource CardBorder}">
                         <StackPanel>
-                            <TextBlock FontWeight="SemiBold" Text="Only Anthropic and OpenAI are contacted" />
+                            <TextBlock FontWeight="SemiBold" Text="Only Anthropic, OpenAI, and Cursor are contacted" />
                             <TextBlock
                                 Margin="0,3,0,0"
                                 MaxWidth="420"

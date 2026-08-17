@@ -75,7 +75,8 @@ private struct OnboardingSubscriptionRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(id.integration.displayName).font(.body.weight(.semibold))
                     ConnectionStatusLabel(status: ConnectionStatus(state: model.agentStates[id],
-                                                                   awaitingCode: model.isAwaitingCode(id)),
+                                                                   awaitingCode: model.isAwaitingCode(id),
+                                                                   signingIn: model.isSigningIn(id)),
                                           font: .caption, style: .tintedText)
                 }
                 Spacer(minLength: 0)
@@ -101,7 +102,7 @@ private struct OnboardingSubscriptionRow: View {
     }
 
     @ViewBuilder private var trailing: some View {
-        if model.isRefreshing(id) {
+        if model.isRefreshing(id) || model.isSigningIn(id) {
             ProgressView().controlSize(.small)
         } else if isConnected {
             Image(systemName: "checkmark.circle.fill")

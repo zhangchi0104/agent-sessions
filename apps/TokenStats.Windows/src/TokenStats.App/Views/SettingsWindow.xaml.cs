@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -386,6 +387,7 @@ public partial class SettingsWindow : Window
             };
             row.ColumnDefinitions.Add(new ColumnDefinition());
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             row.Children.Add(new TextBlock { Text = definition.DisplayName });
             if (definition.Id == appearance.PrimaryAgent)
             {
@@ -398,9 +400,75 @@ public partial class SettingsWindow : Window
                 Grid.SetColumn(primary, 1);
                 row.Children.Add(primary);
             }
+            else
+            {
+                var controls = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Margin = new Thickness(12, 0, 0, 0),
+                };
+                controls.Children.Add(AgentOrderButton(
+                    definition,
+                    offset: -1,
+                    symbol: "↑",
+                    direction: "up",
+                    isEnabled: index > 1));
+                controls.Children.Add(AgentOrderButton(
+                    definition,
+                    offset: 1,
+                    symbol: "↓",
+                    direction: "down",
+                    isEnabled: index < order.Count - 1));
+                Grid.SetColumn(controls, 2);
+                row.Children.Add(controls);
+            }
 
             AgentOrderPanel.Children.Add(row);
         }
+    }
+
+    private Button AgentOrderButton(
+        AgentDefinition definition,
+        int offset,
+        string symbol,
+        string direction,
+        bool isEnabled)
+    {
+        var label = $"Move {definition.DisplayName} {direction}";
+        var button = new Button
+        {
+            Content = symbol,
+            Width = 30,
+            MinHeight = 26,
+            Margin = new Thickness(offset < 0 ? 0 : 5, 0, 0, 0),
+            Padding = new Thickness(0),
+            ToolTip = label,
+            IsEnabled = isEnabled,
+        };
+        AutomationProperties.SetName(button, label);
+        button.Click += (_, _) => MoveAgentInOrder(definition.Id, offset);
+        return button;
+    }
+
+    private void MoveAgentInOrder(AgentId id, int offset)
+    {
+        if (_isRendering || offset == 0)
+        {
+            return;
+        }
+
+        var appearance = _settings.Appearance;
+        var order = appearance.DisplayOrder().ToList();
+        var currentIndex = order.IndexOf(id);
+        var targetIndex = currentIndex + offset;
+        if (currentIndex <= 0 || targetIndex <= 0 || targetIndex >= order.Count)
+        {
+            return;
+        }
+
+        (order[currentIndex], order[targetIndex]) =
+            (order[targetIndex], order[currentIndex]);
+        TrySaveDisplayPreferences(appearance with { Order = order });
     }
 
     private void Navigation_OnSelectionChanged(

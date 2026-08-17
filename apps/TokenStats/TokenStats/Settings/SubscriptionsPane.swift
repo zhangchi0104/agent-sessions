@@ -131,7 +131,7 @@ private struct SubscriptionSection: View {
             // a button stranded on a near-empty row beneath it.
             LabeledContent {
                 HStack(spacing: 10) {
-                    if model.isRefreshing(id) {
+                    if model.isRefreshing(id) || model.isSigningIn(id) {
                         ProgressView().controlSize(.small)
                     }
                     ConnectionStatusLabel(status: status)
@@ -164,7 +164,11 @@ private struct SubscriptionSection: View {
     private var isConnected: Bool { model.agentStates.isConnected(id) }
 
     private var status: ConnectionStatus {
-        ConnectionStatus(state: model.agentStates[id], awaitingCode: model.isAwaitingCode(id))
+        ConnectionStatus(
+            state: model.agentStates[id],
+            awaitingCode: model.isAwaitingCode(id),
+            signingIn: model.isSigningIn(id)
+        )
     }
 }
 

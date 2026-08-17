@@ -27,6 +27,10 @@ final class UsageModel {
     private(set) var diagnostics: [CodingAgentID: String] = [:]
     /// Sign-in failure messages per agent.
     private(set) var loginError: [CodingAgentID: String] = [:]
+    /// Agents whose browser sign-in task has not finished yet. Unlike
+    /// `awaitingCode`, this covers the whole self-completing flow so a second
+    /// click cannot start another poll against the same subscription.
+    private(set) var signingIn: Set<CodingAgentID> = []
     /// Agents whose sign-in has opened the browser and is now waiting for the
     /// user to bring a code back. Only a `.pasteCode` agent is ever inserted, so
     /// a reader asks whether *this* agent is waiting and never has to know which
@@ -96,6 +100,8 @@ final class UsageModel {
 
     func isAwaitingCode(_ id: CodingAgentID) -> Bool { awaitingCode.contains(id) }
 
+    func isSigningIn(_ id: CodingAgentID) -> Bool { signingIn.contains(id) }
+
     // MARK: - Triggers
 
     func refreshManually(_ id: CodingAgentID) {
@@ -112,10 +118,13 @@ final class UsageModel {
     /// the time this finishes; a `.pasteCode` agent then waits for the user to
     /// bring a code back to `submitPastedCode`.
     func signIn(_ id: CodingAgentID) {
+        guard !signingIn.contains(id) else { return }
         let agent = integration(for: id)
         loginError[id] = nil
         if agent.signInStyle == .pasteCode { awaitingCode.insert(id) }
+        signingIn.insert(id)
         Task {
+            defer { signingIn.remove(id) }
             do {
                 try await agent.auth.beginSignIn(localizer: localizer)
                 loginError[id] = nil
