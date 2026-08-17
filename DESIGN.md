@@ -199,7 +199,7 @@ The machine-readable frontmatter records both Windows light and dark values wher
 
 ## Layout
 
-TokenStats uses a single compact vertical flow rather than a dashboard grid. The header, primary tab switcher, active reading, supporting table or gauges, and footer form one scanning axis. On macOS, the Billing-token reading leads the summary row while Estimated API value stays smaller and right-aligned in that same row.
+TokenStats uses a single compact vertical flow rather than a dashboard grid. The header, primary tab switcher, active reading, supporting table or gauges, and footer form one scanning axis. On macOS, the Billing-token reading leads the summary while the smaller API-equivalent currency amount sits unlabeled at the trailing edge of its caption row.
 
 The macOS popover is 332pt wide with 16pt outer padding and 16pt section spacing. Its primary tab bar spans the available width; the Token Odometer table keeps compact 42pt value columns and scrolls only after reaching its measured height cap. The Windows flyout is 424 device-independent pixels wide, capped at 760px high, with a 12px outer shadow margin, 16px surface inset, and 14px housing radius. Its Reporting range menu sits above both the Billing-token summary and Odometer table so its scope is unambiguous; the API estimate appears as secondary text beneath the primary reading. Token Kind columns are 64px each. Both layouts grow with real content and introduce vertical scrolling only when content cannot fit the available work area.
 
@@ -276,6 +276,7 @@ Components are quietly tactile and native: their states are clear, their silhoue
 ### Token Odometer Table
 
 - Group by Coding Agent, then Model, with the four Token Kind columns fixed in Input / Output / Cache Write / Cache Read order.
+- On macOS, show only Coding Agents with nonzero raw usage in the displayed range. When none qualify, replace the empty columns and agent sections with one range-scoped empty state.
 - Model values use tabular digits and secondary labels. Structurally unavailable measurements use an em dash rather than a fabricated zero.
 - A 3px stacked proportion line sits directly below each model row and doubles as the row rule.
 

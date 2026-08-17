@@ -11803,50 +11803,8 @@
         }
       }
     },
-    "tokens.summary.estimated_api_value": {
-      "comment": "Label for the secondary API-equivalent estimate at the trailing edge of the Billing tokens summary row.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estimated API value"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "API 估算值"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Geschätzter API-Wert"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Valeur API estimée"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "API 換算額（推定）"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Оценка стоимости API"
-          }
-        }
-      }
-    },
     "tokens.summary.estimated_api_value.reading.accessibility": {
-      "comment": "VoiceOver label while the Estimated API value row is waiting for transcript usage. The argument is the localized sentence-context form of the Token Odometer range.",
+      "comment": "VoiceOver label while the trailing API-equivalent amount is waiting for transcript usage. The argument is the localized sentence-context form of the Token Odometer range.",
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -11888,7 +11846,7 @@
       }
     },
     "tokens.summary.estimated_api_value.reading.help": {
-      "comment": "Help text while the Estimated API value row is waiting for transcript usage. The argument is the localized sentence-context form of the Token Odometer range.",
+      "comment": "Help text while the trailing API-equivalent amount is waiting for transcript usage. The argument is the localized sentence-context form of the Token Odometer range.",
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -12098,7 +12056,7 @@
       }
     },
     "tokens.table.empty_range": {
-      "comment": "Message under a Coding Agent with no Token usage in the selected range.",
+      "comment": "Tokens-table empty state when no visible Coding Agent has Token usage in the selected range.",
       "extractionState": "manual",
       "localizations": {
         "en": {

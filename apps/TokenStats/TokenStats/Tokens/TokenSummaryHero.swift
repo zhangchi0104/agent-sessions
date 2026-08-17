@@ -3,8 +3,8 @@
 //  TokenStats
 //
 //  The fixed objective summary at the top of the Tokens tab. Billing tokens
-//  lead on the left, with an API-equivalent list-price estimate trailing in the
-//  same row; neither changes the raw Token Odometer or Token Kind projection.
+//  lead, with the API-equivalent list-price amount trailing on the caption row;
+//  neither changes the raw Token Odometer or Token Kind projection.
 //
 
 import SwiftUI
@@ -513,13 +513,13 @@ extension TokenRange {
 }
 
 struct TokenSummaryHero: View {
-    /// Stable layout contract for the primary leading reading and the smaller
-    /// trailing API estimate. The table below remains content-sized; only this
-    /// summary is isolated from popover height changes.
+    /// Stable layout contract for the primary reading and the smaller trailing
+    /// API amount on its caption row. The table below remains content-sized;
+    /// only this summary is isolated from popover height changes.
     static let valueFontSize: CGFloat = 42
     static let valueSlotHeight: CGFloat = 52
     static let fixedHeight: CGFloat = 88
-    private static let apiColumnWidth: CGFloat = 116
+    private static let apiValueWidth: CGFloat = 116
 
     let perAgent: [TokenOdometerModel.AgentTokens]
     let range: TokenRange
@@ -566,12 +566,11 @@ struct TokenSummaryHero: View {
     var body: some View {
         let readings = self.readings
 
-        HStack(alignment: .top, spacing: 12) {
+        ZStack(alignment: .bottomTrailing) {
             billingSummary(readings.billing)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .layoutPriority(1)
-            apiEstimateSummary(readings.apiEquivalent)
-                .frame(width: Self.apiColumnWidth, alignment: .trailing)
+            apiEstimateValue(readings.apiEquivalent)
+                .frame(width: Self.apiValueWidth, alignment: .trailing)
         }
         .frame(
             maxWidth: .infinity,
@@ -641,48 +640,36 @@ struct TokenSummaryHero: View {
                 }
             }
             .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.trailing, Self.apiValueWidth + 12)
         }
         .help(presentation.help)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
     }
 
-    private func apiEstimateSummary(_ presentation: TokenApiEquivalentPresentation) -> some View {
-        VStack(alignment: .trailing, spacing: 4) {
-            ZStack(alignment: .trailing) {
-                Text(presentation.value)
-                    .font(.callout.weight(.semibold))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .allowsTightening(true)
-                    .minimumScaleFactor(0.65)
-                    .contentTransition(
-                        .numericText(value: presentation.numericValue ?? 0)
-                    )
-                    .animation(
-                        reduceMotion ? nil : .snappy(duration: 0.45),
-                        value: presentation.numericValue
-                    )
-                    .id(presentation.transitionIdentity)
-                    .transition(reduceMotion ? .identity : .opacity)
-            }
-            .frame(
-                maxWidth: .infinity,
-                minHeight: Self.valueSlotHeight,
-                maxHeight: Self.valueSlotHeight,
-                alignment: .bottomTrailing
-            )
-            .animation(
-                reduceMotion ? nil : .easeInOut(duration: 0.2),
-                value: presentation.transitionIdentity
-            )
-
-            Text(LocalizedStringResource.tokensSummaryEstimatedApiValue)
-                .font(.callout)
+    private func apiEstimateValue(_ presentation: TokenApiEquivalentPresentation) -> some View {
+        ZStack(alignment: .trailing) {
+            Text(presentation.value)
+                .font(.callout.weight(.semibold))
+                .monospacedDigit()
                 .lineLimit(1)
                 .allowsTightening(true)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.65)
+                .contentTransition(
+                    .numericText(value: presentation.numericValue ?? 0)
+                )
+                .animation(
+                    reduceMotion ? nil : .snappy(duration: 0.45),
+                    value: presentation.numericValue
+                )
+                .id(presentation.transitionIdentity)
+                .transition(reduceMotion ? .identity : .opacity)
         }
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: 0.2),
+            value: presentation.transitionIdentity
+        )
         .foregroundStyle(.secondary)
         .help(presentation.help)
         .accessibilityElement(children: .ignore)

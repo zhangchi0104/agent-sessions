@@ -5,8 +5,8 @@
 //  The popover's Tokens tab: the Token Odometer for the selected range, as a
 //  table grouped by Coding Agent then Model, three Token Kinds to a row with a
 //  proportion bar tucked beneath. One reporting-range control scopes the whole
-//  tab; Billing tokens lead a fixed summary row with Estimated API value on
-//  its trailing edge.
+//  tab; Billing tokens lead a fixed summary with the API-equivalent currency
+//  amount on the trailing edge of its caption row.
 //
 //  The colour key rides in the column header rather than a legend block: a
 //  spelled-out legend measures 298pt against the 298pt this popover has, which
@@ -86,9 +86,10 @@ struct TokensTabView: View {
     private var isScanning: Bool { odometer.pendingRange != nil || odometer.hasLoaded == false }
 
     /// The Odometer continues to retain every agent's raw reading so changing
-    /// this presentation preference never starts or cancels a transcript scan.
-    /// This projection is the single filtered list shared by the hero, heading,
-    /// and table, keeping every Tokens total on the same agent set.
+    /// this presentation never starts or cancels a transcript scan. Agents with
+    /// no raw usage in the displayed range stay out of the UI; this projection
+    /// is shared by the hero, heading, and table so every Tokens total uses the
+    /// same agent set.
     private var visibleAgents: [TokenOdometerModel.AgentTokens] {
         TokenAgentProjection.visible(odometer.perAgent,
                                     inOrder: appearance.tokensDisplayOrder)
@@ -219,9 +220,16 @@ struct TokensTabView: View {
 
     @ViewBuilder private var table: some View {
         VStack(alignment: .leading, spacing: 8) {
-            header
-            ForEach(visibleAgents, id: \.id) { agent in
-                agentGroup(agent)
+            if visibleAgents.isEmpty && odometer.hasLoaded {
+                Text(LocalizedStringResource.tokensTableEmptyRange)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                header
+                ForEach(visibleAgents, id: \.id) { agent in
+                    agentGroup(agent)
+                }
             }
         }
     }
@@ -284,34 +292,20 @@ struct TokensTabView: View {
             HStack {
                 Text(agent.label.uppercased())
                 Spacer()
-                if agent.byModel.isEmpty == false {
-                    Text(TokenUsage.compact(selectedTotal, locale: locale))
-                        .monospacedDigit()
-                        .help(agentSelectedTotalHelp(agent, selectedTotal: selectedTotal))
-                }
+                Text(TokenUsage.compact(selectedTotal, locale: locale))
+                    .monospacedDigit()
+                    .help(agentSelectedTotalHelp(agent, selectedTotal: selectedTotal))
             }
             .font(.system(size: 12, weight: .semibold))
             .foregroundStyle(.secondary)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(agent.byModel.isEmpty
-                                ? Text(agent.label)
-                                : Text(agentSelectedTotalAccessibilityLabel(
-                                    agent,
-                                    selectedTotal: selectedTotal
-                                )))
+            .accessibilityLabel(Text(agentSelectedTotalAccessibilityLabel(
+                agent,
+                selectedTotal: selectedTotal
+            )))
 
-            if agent.byModel.isEmpty {
-                // An ordinary state, not an error: an agent with nothing in the
-                // selected range says so rather than leaving a bare heading.
-                Text(
-                    LocalizedStringResource.tokensTableEmptyRange
-                )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(sortedRows(agent.byModel), id: \.model) { row in
-                    modelRow(row)
-                }
+            ForEach(sortedRows(agent.byModel), id: \.model) { row in
+                modelRow(row)
             }
         }
     }
@@ -520,8 +514,9 @@ private extension TokenKind {
 }
 
 /// Pure Tokens-tab projection shared by the view and tests. The Odometer keeps
-/// all agent slices; the selected surface order decides which slices take part
-/// in the visible table and its objective summaries.
+/// all agent slices; the selected surface order and raw usage decide which ones
+/// take part in the visible table and its objective summaries. Token Kind
+/// selection cannot hide an agent because disabled kinds remain informative.
 @MainActor
 enum TokenAgentProjection {
     static func visible(
@@ -530,6 +525,7 @@ enum TokenAgentProjection {
     ) -> [TokenOdometerModel.AgentTokens] {
         let byID = Dictionary(uniqueKeysWithValues: agents.map { ($0.id, $0) })
         return order.compactMap { byID[$0] }
+            .filter { $0.usage.totalTokens > 0 }
     }
 
     static func usage(of agents: [TokenOdometerModel.AgentTokens]) -> TokenUsage? {
