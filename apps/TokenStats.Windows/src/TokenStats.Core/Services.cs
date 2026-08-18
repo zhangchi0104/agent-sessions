@@ -166,11 +166,31 @@ public interface IUsageProvider
 
 public sealed class OAuthHttpClient
 {
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(20);
     private readonly HttpClient _httpClient;
+    private readonly TimeProvider _timeProvider;
+    private readonly TimeSpan _cursorLoginTimeout;
+    private readonly TimeSpan _cursorPollInterval;
 
-    public OAuthHttpClient(HttpClient httpClient)
+    public OAuthHttpClient(
+        HttpClient httpClient,
+        TimeProvider? timeProvider = null,
+        TimeSpan? cursorLoginTimeout = null,
+        TimeSpan? cursorPollInterval = null)
     {
         _httpClient = httpClient;
+        _timeProvider = timeProvider ?? TimeProvider.System;
+        _cursorLoginTimeout = cursorLoginTimeout ?? TimeSpan.FromMinutes(5);
+        _cursorPollInterval = cursorPollInterval ?? TimeSpan.FromSeconds(1);
+        if (_cursorLoginTimeout < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(cursorLoginTimeout));
+        }
+
+        if (_cursorPollInterval < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(cursorPollInterval));
+        }
     }
 
     public async Task<OAuthTokens> ExchangeClaudeCodeAsync(
@@ -258,6 +278,90 @@ public sealed class OAuthHttpClient
         };
     }
 
+    public async Task<OAuthTokens> WaitForCursorLoginAsync(
+        Pkce pkce,
+        string uuid,
+        CancellationToken cancellationToken = default)
+    {
+        var pollUrl = CursorOAuthFlow.PollUrl(pkce, uuid);
+        var startedAt = _timeProvider.GetTimestamp();
+        while (true)
+        {
+            var remaining = RemainingCursorLoginTime(startedAt);
+            if (remaining <= TimeSpan.Zero)
+            {
+                break;
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken);
+            timeout.CancelAfter(remaining < RequestTimeout ? remaining : RequestTimeout);
+            try
+            {
+                using var response = await _httpClient.GetAsync(pollUrl, timeout.Token)
+                    .ConfigureAwait(false);
+                var body = await response.Content.ReadAsStringAsync(timeout.Token)
+                    .ConfigureAwait(false);
+                if (response.IsSuccessStatusCode)
+                {
+                    return CursorOAuthFlow.ParsePollTokens(body);
+                }
+
+                if (response.StatusCode != System.Net.HttpStatusCode.NotFound)
+                {
+                    throw UsageException.BadResponse((int)response.StatusCode, body);
+                }
+            }
+            catch (OperationCanceledException)
+                when (!cancellationToken.IsCancellationRequested)
+            {
+                if (RemainingCursorLoginTime(startedAt) <= TimeSpan.Zero)
+                {
+                    break;
+                }
+
+                continue;
+            }
+
+            remaining = RemainingCursorLoginTime(startedAt);
+            if (remaining <= TimeSpan.Zero)
+            {
+                break;
+            }
+
+            var delay = remaining < _cursorPollInterval
+                ? remaining
+                : _cursorPollInterval;
+            await Task.Delay(delay, _timeProvider, cancellationToken).ConfigureAwait(false);
+        }
+
+        throw new TimeoutException("Cursor sign-in timed out.");
+    }
+
+    private TimeSpan RemainingCursorLoginTime(long startedAt)
+    {
+        var remaining = _cursorLoginTimeout - _timeProvider.GetElapsedTime(startedAt);
+        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+    }
+
+    public async Task<OAuthTokens> RefreshCursorAsync(
+        OAuthTokens previous,
+        CancellationToken cancellationToken = default)
+    {
+        var body = new Dictionary<string, string>
+        {
+            ["grant_type"] = "refresh_token",
+            ["client_id"] = CursorOAuthFlow.ClientId,
+            ["refresh_token"] = previous.RefreshToken,
+        };
+        var json = await PostJsonAsync(
+            CursorOAuthFlow.TokenEndpoint,
+            body,
+            cancellationToken).ConfigureAwait(false);
+        return CursorOAuthFlow.ParseRefreshTokens(json, previous);
+    }
+
     private async Task<string> PostJsonAsync(
         string endpoint,
         IReadOnlyDictionary<string, string> body,
@@ -290,7 +394,7 @@ public sealed class OAuthHttpClient
         CancellationToken cancellationToken)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(20));
+        timeout.CancelAfter(RequestTimeout);
         using var response = await _httpClient.SendAsync(request, timeout.Token)
             .ConfigureAwait(false);
         var body = await response.Content.ReadAsStringAsync(timeout.Token)
@@ -400,6 +504,56 @@ public sealed class CodexUsageProvider : IUsageProvider
         var windows = CodexUsageParser.Parse(body);
         if (windows.Count == 0 &&
             !CodexUsageParser.IsRecognizedNoLimit(body))
+        {
+            throw UsageException.NoWindows(body);
+        }
+
+        return windows;
+    }
+}
+
+public sealed class CursorUsageProvider : IUsageProvider
+{
+    public const string UsageEndpoint =
+        "https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage";
+    private readonly HttpClient _httpClient;
+    private readonly Func<CancellationToken, Task<string>> _accessToken;
+
+    public CursorUsageProvider(
+        HttpClient httpClient,
+        Func<CancellationToken, Task<string>> accessToken)
+    {
+        _httpClient = httpClient;
+        _accessToken = accessToken;
+    }
+
+    public async Task<IReadOnlyList<UsageWindow>> FetchUsageAsync(
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, UsageEndpoint)
+        {
+            Content = new StringContent("{}", Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            await _accessToken(cancellationToken).ConfigureAwait(false));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        request.Headers.TryAddWithoutValidation("Connect-Protocol-Version", "1");
+        request.Headers.TryAddWithoutValidation("x-request-id", Guid.NewGuid().ToString());
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(20));
+        using var response = await _httpClient.SendAsync(request, timeout.Token)
+            .ConfigureAwait(false);
+        var body = await response.Content.ReadAsStringAsync(timeout.Token)
+            .ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw UsageException.BadResponse((int)response.StatusCode, body);
+        }
+
+        var windows = CursorUsageParser.Parse(body);
+        if (windows.Count == 0)
         {
             throw UsageException.NoWindows(body);
         }

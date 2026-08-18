@@ -43,6 +43,7 @@ enum AppStateReducer {
 enum CodingAgentID: String, CaseIterable, Codable, Hashable {
     case claudeCode
     case codex
+    case cursor
 }
 
 struct CodingAgentStates: Equatable {

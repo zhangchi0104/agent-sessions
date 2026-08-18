@@ -88,7 +88,9 @@ protocol CodingAgentIntegration {
     var signInStyle: SignInStyle { get }
     var gaugeLayout: GaugeLayout { get }
     /// The directory the Token Odometer scans for this agent's transcripts.
-    var transcriptRoot: String { get }
+    /// nil means the integration supplies authoritative subscription usage but
+    /// has no compatible local transcript source for the Token Odometer.
+    var transcriptRoot: String? { get }
 
     func makeProvider() -> UsageProvider
 }

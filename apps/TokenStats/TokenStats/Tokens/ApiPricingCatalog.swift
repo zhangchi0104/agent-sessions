@@ -27,10 +27,11 @@ nonisolated enum ApiPricingAgent: String, Hashable, Sendable {
 
 nonisolated extension ApiPricingAgent {
     @MainActor
-    init(_ agentID: CodingAgentID) {
+    init?(_ agentID: CodingAgentID) {
         switch agentID {
         case .claudeCode: self = .claudeCode
         case .codex: self = .codex
+        case .cursor: return nil
         }
     }
 }
@@ -92,8 +93,9 @@ nonisolated struct ApiModelUsage: Equatable, Sendable {
     }
 
     @MainActor
-    init(agentID: CodingAgentID, model: ModelName, usage: TokenUsage) {
-        self.init(agent: ApiPricingAgent(agentID), model: model, usage: usage)
+    init?(agentID: CodingAgentID, model: ModelName, usage: TokenUsage) {
+        guard let agent = ApiPricingAgent(agentID) else { return nil }
+        self.init(agent: agent, model: model, usage: usage)
     }
 }
 
@@ -256,7 +258,7 @@ nonisolated enum ApiPricingCatalog {
         includedKinds: Set<TokenKind> = Set(TokenKind.allCases)
     ) -> ApiCostEstimate {
         estimate(
-            modelUsage: modelUsage.map {
+            modelUsage: modelUsage.compactMap {
                 ApiModelUsage(
                     agentID: $0.agent,
                     model: $0.model,

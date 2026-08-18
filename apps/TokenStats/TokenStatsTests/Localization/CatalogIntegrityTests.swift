@@ -112,6 +112,25 @@ struct CatalogIntegrityTests {
         }
     }
 
+    @Test func providerDisclosureNamesEveryUsageServiceInEveryLanguage() throws {
+        let catalog = try sourceCatalog()
+        let entry = try #require(
+            catalog.strings["onboarding.disclosure.providers.detail"]
+        )
+
+        for language in Self.requiredLanguages {
+            let localization = try #require(entry.localizations?[language])
+            for unit in Self.stringUnits(in: localization) {
+                for service in ["Claude", "OpenAI", "Cursor"] {
+                    #expect(
+                        unit.value.contains(service),
+                        "Provider disclosure is missing \(service) in \(language)"
+                    )
+                }
+            }
+        }
+    }
+
     @Test func everyPluralVariationDefinesItsLanguagesRequiredCLDRCategories() throws {
         let catalog = try sourceCatalog()
         var pluralKeys: Set<String> = []

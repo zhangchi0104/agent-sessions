@@ -63,7 +63,7 @@ public partial class OnboardingWindow : Window
             DisclosureStep.Visibility = _step == 0
                 ? Visibility.Visible
                 : Visibility.Collapsed;
-            AccountsStep.Visibility = _step == 1
+            SubscriptionsStep.Visibility = _step == 1
                 ? Visibility.Visible
                 : Visibility.Collapsed;
             DoneStep.Visibility = _step == 2
@@ -76,7 +76,7 @@ public partial class OnboardingWindow : Window
             UpdateStepDots();
 
             OnboardingPrimaryCombo.SelectedValue = _settings.Appearance.PrimaryAgent;
-            RenderAccounts();
+            RenderSubscriptions();
             ConnectedSummary.Text = _coordinator.ConnectedCount switch
             {
                 0 => "No agents connected yet",
@@ -91,9 +91,9 @@ public partial class OnboardingWindow : Window
         }
     }
 
-    private void RenderAccounts()
+    private void RenderSubscriptions()
     {
-        OnboardingAccountsPanel.Children.Clear();
+        OnboardingSubscriptionsPanel.Children.Clear();
         foreach (var agent in _coordinator.Agents)
         {
             var card = new Border
@@ -139,13 +139,23 @@ public partial class OnboardingWindow : Window
                     _busy.Contains(agent.Definition.Id) ||
                     (agent.IsSigningIn &&
                      agent.Definition.SignInStyle == SignInStyle.SelfCompleting);
+                string connectText;
+                if (signInBusy)
+                {
+                    connectText = "Waiting…";
+                }
+                else if (agent.AwaitingCode)
+                {
+                    connectText = "Re-open browser";
+                }
+                else
+                {
+                    connectText = "Connect";
+                }
+
                 var connect = new Button
                 {
-                    Content = signInBusy
-                        ? "Waiting…"
-                        : agent.AwaitingCode
-                            ? "Re-open browser"
-                            : "Connect",
+                    Content = connectText,
                     IsEnabled = !signInBusy,
                 };
                 connect.Click += async (_, _) =>
@@ -207,7 +217,7 @@ public partial class OnboardingWindow : Window
                 });
             }
 
-            OnboardingAccountsPanel.Children.Add(card);
+            OnboardingSubscriptionsPanel.Children.Add(card);
         }
     }
 
@@ -295,7 +305,7 @@ public partial class OnboardingWindow : Window
         {
             MessageBox.Show(
                 this,
-                $"Could not save the primary account setting.\n\n{exception.Message}",
+                $"Could not save the primary subscription setting.\n\n{exception.Message}",
                 "TokenStats",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);

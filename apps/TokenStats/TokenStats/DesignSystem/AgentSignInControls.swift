@@ -34,6 +34,7 @@ struct AgentSignInControls: View {
             Button(signInButtonTitle) {
                 model.signIn(id)
             }
+            .disabled(model.isSigningIn(id))
             if model.isAwaitingCode(id) {
                 Text(
                     LocalizedStringResource.accountSignInPasteCodeInstruction
@@ -56,6 +57,7 @@ struct AgentSignInControls: View {
             }
         case .selfCompleting:
             Button(signInButtonTitle) { model.signIn(id) }
+                .disabled(model.isSigningIn(id))
             Text(
                 LocalizedStringResource.accountSignInAutomaticInstruction
             )

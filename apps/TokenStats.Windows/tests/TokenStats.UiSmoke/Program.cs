@@ -1823,6 +1823,7 @@ internal static class Program
                 snapshotDirectory,
                 background,
                 SnapshotNames("onboarding", suffix, theme));
+            VerifyOnboardingDisclosure(onboarding);
         }
         finally
         {
@@ -2238,6 +2239,7 @@ internal static class Program
         {
             [AgentId.ClaudeCode] = blocking,
             [AgentId.Codex] = new StaticProvider(AgentId.Codex),
+            [AgentId.Cursor] = new StaticProvider(AgentId.Cursor),
         };
         var coordinator = new UsageCoordinator(settings, auth, providers);
         try
@@ -2441,6 +2443,8 @@ internal static class Program
                 "The Display pane's new controls are not keyboard-readable.");
         }
 
+        VerifyAgentOrdering(settingsWindow, settings);
+
         percentage.IsChecked = true;
         PumpDispatcher(settingsWindow.Dispatcher);
         if (settings.Appearance.TokenValueDisplay !=
@@ -2476,6 +2480,65 @@ internal static class Program
         {
             throw new InvalidOperationException(
                 "The Display pane did not save the unpinned preference.");
+        }
+    }
+
+    private static void VerifyAgentOrdering(
+        SettingsWindow settingsWindow,
+        AppSettingsStore settings)
+    {
+        var panel = FindNamed<StackPanel>(settingsWindow, "AgentOrderPanel");
+        var moveCursorUp = EnumerateVisualDescendants<Button>(panel)
+            .Single(button =>
+                AutomationProperties.GetName(button) == "Move Cursor up");
+        if (!moveCursorUp.IsEnabled)
+        {
+            throw new InvalidOperationException(
+                "The third subscription cannot move ahead of the second one.");
+        }
+
+        moveCursorUp.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        PumpDispatcher(settingsWindow.Dispatcher);
+        var movedOrder = new[]
+        {
+            AgentId.ClaudeCode,
+            AgentId.Cursor,
+            AgentId.Codex,
+        };
+        if (!settings.Appearance.DisplayOrder().SequenceEqual(movedOrder) ||
+            !new AppSettingsStore(settings.SettingsPath)
+                .Appearance.DisplayOrder().SequenceEqual(movedOrder))
+        {
+            throw new InvalidOperationException(
+                "The subscription order control did not persist its change.");
+        }
+
+        panel = FindNamed<StackPanel>(settingsWindow, "AgentOrderPanel");
+        var moveCursorDown = EnumerateVisualDescendants<Button>(panel)
+            .Single(button =>
+                AutomationProperties.GetName(button) == "Move Cursor down");
+        moveCursorDown.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        PumpDispatcher(settingsWindow.Dispatcher);
+        if (!settings.Appearance.DisplayOrder().SequenceEqual(
+                AgentRegistry.All.Select(agent => agent.Id)))
+        {
+            throw new InvalidOperationException(
+                "The subscription order control could not restore the order.");
+        }
+    }
+
+    private static void VerifyOnboardingDisclosure(OnboardingWindow onboarding)
+    {
+        var disclosure = EnumerateVisualDescendants<TextBlock>(onboarding)
+            .Select(text => text.Text)
+            .Where(text => !string.IsNullOrWhiteSpace(text))
+            .ToArray();
+        if (!disclosure.Contains(
+                "Only Anthropic, OpenAI, and Cursor are contacted",
+                StringComparer.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "The onboarding network disclosure does not name Cursor.");
         }
     }
 

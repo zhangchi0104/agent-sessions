@@ -24,7 +24,7 @@ struct ClaudeCodeIntegration: CodingAgentIntegration {
         .init(identity: .modelWeekly(model: "Fable")),
     ])
 
-    var transcriptRoot: String { realHomeDirectory() + "/.claude/projects" }
+    var transcriptRoot: String? { realHomeDirectory() + "/.claude/projects" }
 
     let auth: any AgentAuthSession
 

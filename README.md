@@ -35,7 +35,7 @@
 
 ## What problem does it solve?
 
-Claude Code and Codex are powerful, but “how much of this usage window is left?” and “how many tokens did my recent work move?” usually require separate places to look. TokenStats answers both from a native menu-bar or notification-area surface.
+Claude Code, Codex, and Cursor are powerful, but “how much of this usage window is left?” and “how many tokens did my recent work move?” usually require separate places to look. TokenStats answers the authoritative quota question for all three and shows local token flow where a compatible transcript source exists.
 
 | Reading | Source | What it shows |
 | --- | --- | --- |
@@ -48,8 +48,8 @@ Claude Code and Codex are powerful, but “how much of this usage window is left
 
 ```mermaid
 flowchart LR
-  A["Claude Code / Codex"] -->|"independent OAuth"| U["Usage Window<br/>authoritative usage and reset"]
-  A -->|"local transcripts"| T["Token Odometer<br/>on-device estimate"]
+  A["Claude Code / Codex / Cursor"] -->|"independent login"| U["Usage Window<br/>authoritative usage and reset"]
+  C["Claude Code / Codex"] -->|"local transcripts"| T["Token Odometer<br/>on-device estimate"]
   U --> V["Usage tab"]
   T --> K["Tokens tab"]
   K --> P["Billing tokens / API equivalent"]
@@ -80,9 +80,10 @@ Each Token Kind can also act as a table display filter. The **selected total** c
 <summary>Expand: important data boundaries</summary>
 
 - Codex `archived_sessions` is intentionally excluded from scanning; historical Odometer values can fall after active sessions are archived.
+- Cursor provides authoritative Cursor Models and Other Models billing-cycle Usage Windows but no compatible local Token Odometer source.
 - Windows Billing tokens exclude cache reads, while API equivalent prices cache reads as cached input.
 - Missing or unpriced Models make the API-equivalent estimate explicitly partial instead of inventing a complete amount.
-- TokenStats does not read Claude Code's or Codex's own stored login credentials; each Coding Agent has an independent OAuth session and credential store.
+- TokenStats does not read Claude Code's, Codex's, or Cursor's own stored login credentials; each Coding Agent has an independent login and credential store.
 
 </details>
 
@@ -93,7 +94,7 @@ Each Token Kind can also act as a table display filter. The **selected total** c
 1. Open [GitHub Releases](https://github.com/zhangchi0104/agent-sessions/releases).
 2. Download the latest `TokenStats-*.dmg`.
 3. Drag `TokenStats.app` into Applications and launch it from the menu bar.
-4. Sign in to the Claude Code or Codex accounts you want to monitor inside TokenStats.
+4. Connect the Claude Code, Codex, or Cursor subscriptions you want to monitor inside TokenStats.
 
 macOS release artifacts are Developer ID signed and notarized by the release workflow. Debug and local Release builds use ad-hoc signing by default and do not require an Apple Developer account.
 

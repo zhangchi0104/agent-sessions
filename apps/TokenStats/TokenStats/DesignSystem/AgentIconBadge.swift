@@ -4,7 +4,7 @@
 //
 //  The rounded-tile brand glyph that leads a Coding Agent's row, following the
 //  macOS System Settings convention of a colored icon before the label. Shared
-//  by the Settings account rows, the Appearance order rows, and the onboarding
+//  by the Settings subscription rows, the Appearance order rows, and the onboarding
 //  connect tiles.
 //
 

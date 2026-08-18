@@ -1,79 +1,79 @@
 //
-//  AccountsPane.swift
+//  SubscriptionsPane.swift
 //  TokenStats
 //
-//  Settings → Accounts: connect or disconnect each Coding Agent and run the
+//  Settings → Subscriptions: connect or disconnect each Coding Agent and run the
 //  sign-in flows. Tokens are stored in TokenStats' own Keychain item (see
 //  docs/claude-code-integration.md).
 //
 
 import SwiftUI
 
-/// Account management: connect or disconnect each Coding Agent.
-struct AccountsPane: View {
+/// Subscription management: connect or disconnect each Coding Agent.
+struct SubscriptionsPane: View {
     let model: UsageModel
-    @State private var pendingAccounts: Set<CodingAgentID> = []
+    @State private var pendingSubscriptions: Set<CodingAgentID> = []
 
     var body: some View {
         Form {
-            ForEach(displayedAccounts, id: \.self) { id in
-                AccountSection(model: model, id: id) {
-                    pendingAccounts.remove(id)
+            ForEach(displayedSubscriptions, id: \.self) { id in
+                SubscriptionSection(model: model, id: id) {
+                    pendingSubscriptions.remove(id)
                     model.signOut(id)
                 }
             }
 
-            // Descriptive copy reads as a caption below the account tiles
+            // Descriptive copy reads as a caption below the subscription tiles
             // (a footer renders as plain secondary text), so it no longer
-            // competes with the tappable account cards above it.
+            // competes with the tappable subscription cards above it.
             Section {} footer: {
-                Text(AccountsCopy.keychainPrivacyFooter)
+                Text(SubscriptionsCopy.keychainPrivacyFooter)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .formStyle(.grouped)
-        .navigationTitle(Text(AccountsCopy.title))
+        .navigationTitle(Text(SubscriptionsCopy.title))
         .overlay {
-            if displayedAccounts.isEmpty {
+            if displayedSubscriptions.isEmpty {
                 ContentUnavailableView(
-                    AccountsCopy.emptyTitle,
-                    systemImage: "person.crop.circle.badge.plus",
-                    description: Text(AccountsCopy.emptyDescription)
+                    SubscriptionsCopy.emptyTitle,
+                    systemImage: "creditcard",
+                    description: Text(SubscriptionsCopy.emptyDescription)
                 )
                 .padding(.horizontal, 48)
                 .padding(.bottom, 44)
             }
         }
         .overlay(alignment: .bottomTrailing) {
-            addAccountMenu
+            addSubscriptionMenu
                 .padding(.trailing, 20)
                 .padding(.bottom, 16)
         }
     }
 
-    private var displayedAccounts: [CodingAgentID] {
-        AccountListPresentation.displayedAccounts(
+    private var displayedSubscriptions: [CodingAgentID] {
+        SubscriptionListPresentation.displayedSubscriptions(
             in: model.appearance.displayOrder,
             states: model.agentStates,
-            pending: pendingAccounts
+            pending: pendingSubscriptions
         )
     }
 
-    private var availableAccounts: [CodingAgentID] {
-        AccountListPresentation.availableAccounts(
+    private var availableSubscriptions: [CodingAgentID] {
+        SubscriptionListPresentation.availableSubscriptions(
             in: model.appearance.displayOrder,
             states: model.agentStates,
-            pending: pendingAccounts
+            pending: pendingSubscriptions
         )
     }
 
-    private var addAccountMenu: some View {
+    private var addSubscriptionMenu: some View {
         Menu {
-            ForEach(availableAccounts, id: \.self) { id in
+            ForEach(availableSubscriptions, id: \.self) { id in
                 Button {
-                    pendingAccounts.insert(id)
+                    pendingSubscriptions.insert(id)
                     model.signIn(id)
                 } label: {
                     Text(id.integration.displayName)
@@ -84,17 +84,17 @@ struct AccountsPane: View {
                 .frame(width: 24, height: 24)
         }
         .menuIndicator(.hidden)
-        .disabled(availableAccounts.isEmpty)
-        .accessibilityLabel(AccountsCopy.addAccountButton)
-        .accessibilityIdentifier("settings.accounts.add")
-        .help(AccountsCopy.addAccountButton)
+        .disabled(availableSubscriptions.isEmpty)
+        .accessibilityLabel(SubscriptionsCopy.addSubscriptionButton)
+        .accessibilityIdentifier("settings.subscriptions.add")
+        .help(SubscriptionsCopy.addSubscriptionButton)
     }
 }
 
-/// Resolves the visible account rows and the add menu from the same set, so an
-/// account can never appear in both places or be added twice.
-enum AccountListPresentation {
-    static func displayedAccounts(
+/// Resolves the visible subscription rows and add menu from the same set, so a
+/// subscription can never appear in both places or be added twice.
+enum SubscriptionListPresentation {
+    static func displayedSubscriptions(
         in displayOrder: [CodingAgentID],
         states: CodingAgentStates,
         pending: Set<CodingAgentID>
@@ -102,19 +102,23 @@ enum AccountListPresentation {
         displayOrder.filter { pending.contains($0) || states.isConnected($0) }
     }
 
-    static func availableAccounts(
+    static func availableSubscriptions(
         in displayOrder: [CodingAgentID],
         states: CodingAgentStates,
         pending: Set<CodingAgentID>
     ) -> [CodingAgentID] {
-        let displayed = Set(displayedAccounts(in: displayOrder, states: states, pending: pending))
+        let displayed = Set(displayedSubscriptions(
+            in: displayOrder,
+            states: states,
+            pending: pending
+        ))
         return displayOrder.filter { !displayed.contains($0) }
     }
 }
 
-/// One Coding Agent's account block: a status row plus the state-dependent
+/// One Coding Agent's subscription block: a status row plus the state-dependent
 /// connect / disconnect controls and any sign-in error.
-private struct AccountSection: View {
+private struct SubscriptionSection: View {
     let model: UsageModel
     let id: CodingAgentID
     let onSignOut: () -> Void
@@ -123,17 +127,17 @@ private struct AccountSection: View {
         Section {
             // Header row: agent name on the left; status + (when connected)
             // the Sign-out control share the trailing edge so a connected
-            // account reads as one compact row instead of a status line with
+            // subscription reads as one compact row instead of a status line with
             // a button stranded on a near-empty row beneath it.
             LabeledContent {
                 HStack(spacing: 10) {
-                    if model.isRefreshing(id) {
+                    if model.isRefreshing(id) || model.isSigningIn(id) {
                         ProgressView().controlSize(.small)
                     }
                     ConnectionStatusLabel(status: status)
                     if isConnected {
                         Button(role: .destructive, action: onSignOut) {
-                            Text(AccountsCopy.signOutButton)
+                            Text(SubscriptionsCopy.signOutButton)
                         }
                     }
                 }
@@ -160,20 +164,24 @@ private struct AccountSection: View {
     private var isConnected: Bool { model.agentStates.isConnected(id) }
 
     private var status: ConnectionStatus {
-        ConnectionStatus(state: model.agentStates[id], awaitingCode: model.isAwaitingCode(id))
+        ConnectionStatus(
+            state: model.agentStates[id],
+            awaitingCode: model.isAwaitingCode(id),
+            signingIn: model.isSigningIn(id)
+        )
     }
 }
 
-private enum AccountsCopy {
-    static let title = LocalizedStringResource.settingsAccountsTitle
+private enum SubscriptionsCopy {
+    static let title = LocalizedStringResource.settingsSubscriptionsTitle
 
-    static let addAccountButton = LocalizedStringResource.settingsAccountsAddButton
+    static let addSubscriptionButton = LocalizedStringResource.settingsSubscriptionsAddButton
 
-    static let emptyTitle = LocalizedStringResource.settingsAccountsEmptyTitle
+    static let emptyTitle = LocalizedStringResource.settingsSubscriptionsEmptyTitle
 
-    static let emptyDescription = LocalizedStringResource.settingsAccountsEmptyDescription
+    static let emptyDescription = LocalizedStringResource.settingsSubscriptionsEmptyDescription
 
-    static let keychainPrivacyFooter = LocalizedStringResource.settingsAccountsKeychainPrivacyFooter
+    static let keychainPrivacyFooter = LocalizedStringResource.settingsSubscriptionsKeychainPrivacyFooter
 
-    static let signOutButton = LocalizedStringResource.settingsAccountsSignOutButton
+    static let signOutButton = LocalizedStringResource.settingsSubscriptionsSignOutButton
 }

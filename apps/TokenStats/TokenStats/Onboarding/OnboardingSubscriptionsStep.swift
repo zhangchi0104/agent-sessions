@@ -1,23 +1,26 @@
 //
-//  OnboardingAccountsStep.swift
+//  OnboardingSubscriptionsStep.swift
 //  TokenStats
 //
 //  Onboarding step 2. Connects the Coding Agents and picks the primary
 //  subscription, driving the same UsageModel sign-in flows the Settings
-//  Accounts pane uses — so progress here shows up everywhere.
+//  Subscriptions pane uses — so progress here shows up everywhere.
 //
 
 import SwiftUI
 
-struct OnboardingAccountsStep: View {
+struct OnboardingSubscriptionsStep: View {
     let model: UsageModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            OnboardingStepHeading(AccountsOnboardingCopy.title, AccountsOnboardingCopy.subtitle)
+            OnboardingStepHeading(
+                OnboardingSubscriptionsCopy.title,
+                OnboardingSubscriptionsCopy.subtitle
+            )
             VStack(spacing: 12) {
                 ForEach(CodingAgentID.allCases, id: \.self) { id in
-                    OnboardingAccountRow(model: model, id: id)
+                    OnboardingSubscriptionRow(model: model, id: id)
                 }
             }
             primaryPicker
@@ -26,7 +29,7 @@ struct OnboardingAccountsStep: View {
 
     private var primaryPicker: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(AccountsOnboardingCopy.primarySubscriptionTitle)
+            Text(OnboardingSubscriptionsCopy.primarySubscriptionTitle)
                 .font(.callout.weight(.semibold))
             Picker(selection: Binding(
                 get: { model.appearance.primaryAgent },
@@ -35,11 +38,11 @@ struct OnboardingAccountsStep: View {
                     Text(id.integration.displayName).tag(id)
                 }
             } label: {
-                Text(AccountsOnboardingCopy.primarySubscriptionTitle)
+                Text(OnboardingSubscriptionsCopy.primarySubscriptionTitle)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            Text(AccountsOnboardingCopy.primarySubscriptionFooter)
+            Text(OnboardingSubscriptionsCopy.primarySubscriptionFooter)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -47,19 +50,19 @@ struct OnboardingAccountsStep: View {
     }
 }
 
-private enum AccountsOnboardingCopy {
-    static let title = LocalizedStringResource.onboardingAccountsTitle
+private enum OnboardingSubscriptionsCopy {
+    static let title = LocalizedStringResource.onboardingSubscriptionsTitle
 
-    static let subtitle = LocalizedStringResource.onboardingAccountsSubtitle
+    static let subtitle = LocalizedStringResource.onboardingSubscriptionsSubtitle
 
-    static let primarySubscriptionTitle = LocalizedStringResource.onboardingAccountsPrimarySubscriptionTitle
+    static let primarySubscriptionTitle = LocalizedStringResource.onboardingSubscriptionsPrimarySubscriptionTitle
 
-    static let primarySubscriptionFooter = LocalizedStringResource.onboardingAccountsPrimarySubscriptionFooter
+    static let primarySubscriptionFooter = LocalizedStringResource.onboardingSubscriptionsPrimarySubscriptionFooter
 }
 
 /// One agent's connect tile: identity, status, and the state-dependent sign-in
 /// controls.
-private struct OnboardingAccountRow: View {
+private struct OnboardingSubscriptionRow: View {
     let model: UsageModel
     let id: CodingAgentID
 
@@ -72,7 +75,8 @@ private struct OnboardingAccountRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(id.integration.displayName).font(.body.weight(.semibold))
                     ConnectionStatusLabel(status: ConnectionStatus(state: model.agentStates[id],
-                                                                   awaitingCode: model.isAwaitingCode(id)),
+                                                                   awaitingCode: model.isAwaitingCode(id),
+                                                                   signingIn: model.isSigningIn(id)),
                                           font: .caption, style: .tintedText)
                 }
                 Spacer(minLength: 0)
@@ -98,7 +102,7 @@ private struct OnboardingAccountRow: View {
     }
 
     @ViewBuilder private var trailing: some View {
-        if model.isRefreshing(id) {
+        if model.isRefreshing(id) || model.isSigningIn(id) {
             ProgressView().controlSize(.small)
         } else if isConnected {
             Image(systemName: "checkmark.circle.fill")

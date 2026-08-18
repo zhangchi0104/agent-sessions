@@ -65,7 +65,7 @@
                     <TextBlock
                         Margin="0,5,0,18"
                         Style="{StaticResource SecondaryText}"
-                        Text="The next step connects your accounts. Here is exactly what TokenStats accesses." />
+                        Text="The next step connects your subscriptions. Here is exactly what TokenStats accesses." />
                     <Border Margin="0,0,0,10" Style="{StaticResource CardBorder}">
                         <StackPanel>
                             <TextBlock FontWeight="SemiBold" Text="Tokens stay in Credential Manager" />
@@ -78,7 +78,7 @@
                     </Border>
                     <Border Margin="0,0,0,10" Style="{StaticResource CardBorder}">
                         <StackPanel>
-                            <TextBlock FontWeight="SemiBold" Text="Only Anthropic and OpenAI are contacted" />
+                            <TextBlock FontWeight="SemiBold" Text="Only Anthropic, OpenAI, and Cursor are contacted" />
                             <TextBlock
                                 Margin="0,3,0,0"
                                 MaxWidth="420"
@@ -98,13 +98,13 @@
                     </Border>
                 </StackPanel>
 
-                <StackPanel x:Name="AccountsStep" Visibility="Collapsed">
-                    <TextBlock FontSize="18" FontWeight="SemiBold" Text="Connect your agents" />
+                <StackPanel x:Name="SubscriptionsStep" Visibility="Collapsed">
+                    <TextBlock FontSize="18" FontWeight="SemiBold" Text="Connect subscriptions" />
                     <TextBlock
                         Margin="0,5,0,18"
                         Style="{StaticResource SecondaryText}"
-                        Text="Connect one, both, or neither. You can always do this later in Settings." />
-                    <StackPanel x:Name="OnboardingAccountsPanel" />
+                        Text="Connect the subscriptions you want to track, or skip and do this later in Settings." />
+                    <StackPanel x:Name="OnboardingSubscriptionsPanel" />
                     <TextBlock Margin="0,18,0,6" FontWeight="SemiBold" Text="Primary subscription" />
                     <ComboBox
                         x:Name="OnboardingPrimaryCombo"

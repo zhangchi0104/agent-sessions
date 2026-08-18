@@ -22,6 +22,7 @@ enum CodingAgentRegistry {
     static let all: [any CodingAgentIntegration] = [
         ClaudeCodeIntegration(),
         CodexIntegration(),
+        CursorIntegration(),
     ]
 
     /// Traps on a duplicate id, so two integrations can never claim one agent.
@@ -39,6 +40,10 @@ enum CodingAgentRegistry {
     /// The id travels with each root so a consumer can re-order them into the
     /// user's Appearance display order, which is what the popover shows.
     static var transcriptRoots: [TranscriptRoot] {
-        all.map { TranscriptRoot(id: $0.id, label: $0.displayName, path: $0.transcriptRoot) }
+        all.compactMap { integration in
+            integration.transcriptRoot.map {
+                TranscriptRoot(id: integration.id, label: integration.displayName, path: $0)
+            }
+        }
     }
 }

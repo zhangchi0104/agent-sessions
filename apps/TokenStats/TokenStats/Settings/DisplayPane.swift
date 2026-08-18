@@ -115,9 +115,9 @@ struct DisplayPane: View {
                         }
                         .frame(minWidth: 180, alignment: .leading)
 
-                        visibilityToggle(for: id, on: .usage)
-                        visibilityToggle(for: id, on: .tokens)
-                        visibilityToggle(for: id, on: .menuBar)
+                        visibilityCell(for: id, on: .usage)
+                        visibilityCell(for: id, on: .tokens)
+                        visibilityCell(for: id, on: .menuBar)
                     }
                 }
             }
@@ -138,6 +138,20 @@ struct DisplayPane: View {
             .foregroundStyle(.secondary)
             .frame(width: Self.surfaceColumnWidth)
             .multilineTextAlignment(.center)
+    }
+
+    @ViewBuilder
+    private func visibilityCell(for id: CodingAgentID,
+                                on surface: AgentDisplaySurface) -> some View {
+        if surface == .tokens, id.integration.transcriptRoot == nil {
+            // i18n-ignore: invariant em dash marks an unsupported surface
+            Text(verbatim: "—")
+                .foregroundStyle(.tertiary)
+                .frame(width: Self.surfaceColumnWidth)
+                .accessibilityHidden(true)
+        } else {
+            visibilityToggle(for: id, on: surface)
+        }
     }
 
     private func visibilityToggle(for id: CodingAgentID,

@@ -4,6 +4,7 @@ public enum AgentId
 {
     ClaudeCode,
     Codex,
+    Cursor,
 }
 
 public enum SignInStyle
@@ -186,13 +187,18 @@ public readonly record struct ModelName : IComparable<ModelName>
 
 public sealed record GaugeSlot(string Label, bool Emphasized = false);
 
+public sealed record AgentTranscriptRoot(
+    AgentId Id,
+    string Label,
+    string Path);
+
 public sealed record AgentDefinition(
     AgentId Id,
     string DisplayName,
     string ShortLabel,
     SignInStyle SignInStyle,
     IReadOnlyList<GaugeSlot> GaugeSlots,
-    string TranscriptRoot);
+    string? TranscriptRoot);
 
 public static class AgentRegistry
 {
@@ -219,7 +225,21 @@ public static class AgentRegistry
             SignInStyle.SelfCompleting,
             [],
             Path.Combine(UserHome, ".codex", "sessions")),
+        new(
+            AgentId.Cursor,
+            "Cursor",
+            "R",
+            SignInStyle.SelfCompleting,
+            [],
+            null),
     ];
+
+    public static IReadOnlyList<AgentTranscriptRoot> TranscriptRoots { get; } =
+        All.Select(definition => definition.TranscriptRoot is { } path
+            ? new AgentTranscriptRoot(definition.Id, definition.DisplayName, path)
+            : null)
+            .OfType<AgentTranscriptRoot>()
+            .ToArray();
 
     public static AgentDefinition Get(AgentId id) =>
         All.First(agent => agent.Id == id);

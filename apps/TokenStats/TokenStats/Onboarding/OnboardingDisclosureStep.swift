@@ -4,7 +4,7 @@
 //
 //  Onboarding step 1. What the upcoming sensitive step touches — shown before
 //  any sign-in so the user consents with eyes open. Mirrors the privacy stance
-//  stated in the Settings Accounts pane.
+//  stated in the Settings Subscriptions pane.
 //
 
 import SwiftUI

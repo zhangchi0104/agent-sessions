@@ -54,7 +54,7 @@
                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                         </Style>
                     </ListBox.Resources>
-                    <ListBoxItem Content="Accounts" Tag="accounts" />
+                    <ListBoxItem Content="Subscriptions" Tag="subscriptions" />
                     <ListBoxItem Content="Display" Tag="display" />
                     <ListBoxItem Content="Appearance" Tag="appearance" />
                     <ListBoxItem Content="About" Tag="about" />
@@ -64,20 +64,20 @@
 
         <Grid Grid.Column="1">
             <ScrollViewer
-                x:Name="AccountsPage"
+                x:Name="SubscriptionsPage"
                 Padding="28,24"
                 VerticalScrollBarVisibility="Auto">
                 <StackPanel>
-                    <TextBlock FontSize="24" FontWeight="SemiBold" Text="Accounts" />
+                    <TextBlock FontSize="24" FontWeight="SemiBold" Text="Subscriptions" />
                     <TextBlock
                         Margin="0,4,0,20"
                         Style="{StaticResource SecondaryText}"
-                        Text="Connect the Coding Agents whose Usage Windows you want to see." />
-                    <StackPanel x:Name="AccountsPanel" />
+                        Text="Connect the Coding Agent subscriptions whose Usage Windows you want to see." />
+                    <StackPanel x:Name="SubscriptionsPanel" />
                     <TextBlock
                         Margin="2,16,2,0"
                         Style="{StaticResource SecondaryText}"
-                        Text="Tokens are stored in Windows Credential Manager and are used only to read usage." />
+                        Text="Sign-in tokens for each subscription are stored in Windows Credential Manager and used only to read usage." />
                 </StackPanel>
             </ScrollViewer>
 
@@ -109,7 +109,7 @@
                     <TextBlock
                         Margin="0,6,0,0"
                         Style="{StaticResource SecondaryText}"
-                        Text="Nothing to arrange yet — the primary leads and the only other subscription follows." />
+                        Text="Use the arrow buttons to arrange subscriptions after the primary." />
 
                     <TextBlock Margin="0,22,0,8" Style="{StaticResource SectionTitle}" Text="Tray summary" />
                     <StackPanel Orientation="Horizontal">

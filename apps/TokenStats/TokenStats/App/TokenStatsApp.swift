@@ -42,7 +42,7 @@ struct TokenStatsApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        // The dedicated settings window for managing accounts. It uses a named
+        // The dedicated settings window for managing subscriptions. It uses a named
         // Window so the menu-bar popover and Command-comma can target the same
         // native Settings surface.
         Window(appDelegate.localization.localizer.localized(Self.settingsWindowTitle),
@@ -226,7 +226,7 @@ private struct TestingCodingAgentIntegration: CodingAgentIntegration {
     var brand: AgentBrand { wrapped.brand }
     var signInStyle: SignInStyle { wrapped.signInStyle }
     var gaugeLayout: GaugeLayout { wrapped.gaugeLayout }
-    var transcriptRoot: String { wrapped.transcriptRoot }
+    var transcriptRoot: String? { wrapped.transcriptRoot }
 
     func makeProvider() -> UsageProvider { TestingUsageProvider() }
 }

@@ -2,28 +2,30 @@
 //  ConnectionStatusLabel.swift
 //  TokenStats
 //
-//  How one Coding Agent's account state is worded and colored. Settings and
+//  How one Coding Agent subscription's connection state is worded and colored. Settings and
 //  onboarding both show it, and used to derive and phrase it separately; this
 //  is the single definition, with a style for each surface's treatment.
 //
 
 import SwiftUI
 
-/// The connection state shown for one account.
+/// The connection state shown for one subscription.
 enum ConnectionStatus {
     case connected
     case awaitingCode
+    case signingIn
     case signedOut
 
-    /// The join of the two axes this status sits on, as a pure function of
-    /// both: what the usage state says about the account, and whether a
-    /// sign-in for it is mid-flight. Usage state wins — an agent that is
-    /// serving data is connected whatever a stale flag says.
-    init(state: AppState, awaitingCode: Bool) {
+    /// Joins usage state with the two sign-in phases: browser polling and the
+    /// paste-code handoff. Usage state wins — an agent that is serving data is
+    /// connected whatever a stale sign-in flag says.
+    init(state: AppState, awaitingCode: Bool, signingIn: Bool = false) {
         if state != .signedOut {
             self = .connected
         } else if awaitingCode {
             self = .awaitingCode
+        } else if signingIn {
+            self = .signingIn
         } else {
             self = .signedOut
         }
@@ -35,6 +37,8 @@ enum ConnectionStatus {
             return LocalizedStringResource.accountStatusConnected
         case .awaitingCode:
             return LocalizedStringResource.accountStatusAwaitingCode
+        case .signingIn:
+            return LocalizedStringResource.accountStatusSigningIn
         case .signedOut:
             return LocalizedStringResource.accountStatusSignedOut
         }
@@ -45,13 +49,13 @@ enum ConnectionStatus {
     fileprivate var accent: Color? {
         switch self {
         case .connected: return .green
-        case .awaitingCode: return .orange
+        case .awaitingCode, .signingIn: return .orange
         case .signedOut: return nil
         }
     }
 }
 
-/// One account's status, drawn either as a dot beside a neutral label (the
+/// One subscription's status, drawn either as a dot beside a neutral label (the
 /// Settings row, which already carries its own controls) or as the label itself
 /// in the status color (the onboarding tile, which has no room for a dot).
 struct ConnectionStatusLabel: View {

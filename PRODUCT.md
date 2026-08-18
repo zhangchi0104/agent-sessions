@@ -8,7 +8,7 @@ adaptive
 
 ## Users
 
-TokenStats is for individual developers who use Claude Code or Codex frequently and need a quick, dependable view of both their current usage allowance and the volume of tokens their local coding-agent work has consumed.
+TokenStats is for individual developers who use Claude Code, Codex, or Cursor frequently and need a quick, dependable view of their current usage allowance and, where compatible local transcripts exist, the volume of tokens their coding-agent work has consumed.
 
 They use it as an ambient desktop utility rather than a destination application: it lives in the macOS menu bar or Windows notification area and should answer the user's immediate usage question at a glance.
 
@@ -28,7 +28,7 @@ TokenStats combines agent-authoritative Usage Windows with a local, model-attrib
 ## Operating Context
 
 - TokenStats is a native desktop product with a SwiftUI macOS menu-bar app and a WPF Windows notification-area companion.
-- The product supports Claude Code and Codex as distinct Coding Agents.
+- The product supports Claude Code, Codex, and Cursor as distinct Coding Agents. Cursor currently supplies Usage Windows only, not Token Odometer data.
 - Users open a compact two-tab flyout from the system status area. **Usage** presents authoritative Usage Windows; **Tokens** presents the local Token Odometer.
 - The Token Odometer supports Today, 7-day, and 30-day ranges and groups results by Coding Agent, then Model, then Token Kind.
 - TokenStats runs alongside the user's existing coding-agent workflows. It does not require users to change how they start or conduct those workflows.
@@ -41,6 +41,7 @@ TokenStats combines agent-authoritative Usage Windows with a local, model-attrib
 - The Token Odometer's raw total is the sum of four disjoint Token Kinds: direct input, output, cache write, and cache read. It must not double-count tokens.
 - Models are reported from transcript data, including agent-initiated models the user did not select. They are not product settings.
 - Codex archived sessions are intentionally excluded from transcript scanning, so historical Codex totals may shrink when active sessions are archived.
+- Cursor has no compatible Token Odometer transcript source; its authoritative Cursor Models and Other Models billing-cycle Usage Windows remain separate from token estimates.
 - Windows may show Billing tokens and a standard-list-price API-equivalent estimate. Neither is an invoice, and missing or unrecognized Models can make the estimate partial.
 - OAuth credentials are stored separately for each Coding Agent. TokenStats does not read the agents' own stored login credentials.
 - TokenStats tracks usage only. Session lifecycle tracking, agent-attention status, and workflow orchestration are outside the product's scope.

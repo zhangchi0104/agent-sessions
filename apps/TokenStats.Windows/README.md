@@ -2,9 +2,9 @@
 
 A native Windows notification-area app for TokenStats' two-tab flyout:
 
-- **Usage** shows the authoritative Usage Windows for Claude Code and Codex,
-  fetched directly from each Coding Agent over TokenStats' independent OAuth
-  session.
+- **Usage** shows the authoritative Usage Windows for Claude Code, Codex, and
+  Cursor, fetched directly from each Coding Agent over TokenStats' independent
+  login session.
 - **Tokens** shows a local Token Odometer derived from native Windows transcript
   directories for Today, 7 days, or 30 days. It groups three supported Token
   Kinds by Coding Agent and Model. Each Token Kind heading is also a filter;
@@ -105,10 +105,14 @@ SmartScreen.
 
 - Only one instance runs. A second launch activates the first.
 - OAuth tokens are separate per Coding Agent in Windows Credential Manager.
-- The app never reads Claude Code's or Codex's own stored login credentials.
+- The app never reads Claude Code's, Codex's, or Cursor's own stored login credentials.
 - Claude login asks the user to paste the browser's `code#state`.
 - Codex login listens only on loopback, trying the registered ports 1455 then
   1457 and timing out after five minutes.
+- Cursor login opens its PKCE approval page and polls Cursor's auth endpoint for
+  up to five minutes. Its Cursor Models and Other Models billing-cycle windows
+  are authoritative subscription data; Cursor has no compatible Token Odometer
+  transcript source.
 - Codex Usage Windows are named and classified from the returned window
   duration and rendered dynamically. If the response has no short-term
   window, the flyout does not invent a fixed 5-hour placeholder.

@@ -30,6 +30,26 @@ struct ConnectionStatusTests {
         #expect(ConnectionStatus(state: .signedOut, awaitingCode: true) == .awaitingCode)
     }
 
+    @Test func selfCompletingBrowserFlowReadsAsSigningIn() {
+        #expect(
+            ConnectionStatus(
+                state: .signedOut,
+                awaitingCode: false,
+                signingIn: true
+            ) == .signingIn
+        )
+    }
+
+    @Test func awaitingCodeWinsOverTheBriefBrowserLaunchState() {
+        #expect(
+            ConnectionStatus(
+                state: .signedOut,
+                awaitingCode: true,
+                signingIn: true
+            ) == .awaitingCode
+        )
+    }
+
     @Test(arguments: [AppState.loading,
                       .fresh(.init(windows: [], fetchedAt: .init())),
                       .staleDisclosed(.init(windows: [], fetchedAt: .init()))])

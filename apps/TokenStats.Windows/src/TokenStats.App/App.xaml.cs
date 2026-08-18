@@ -41,30 +41,12 @@ public partial class App : System.Windows.Application
         SystemEvents.PowerModeChanged += SystemEvents_OnPowerModeChanged;
 
         _httpClient = new HttpClient();
-        var oauthClient = new OAuthHttpClient(_httpClient);
-        var claudeAuth = new ClaudeAuthSession(
-            new CredentialTokenStore("claude"),
-            oauthClient);
-        var codexAuth = new CodexAuthSession(
-            new CredentialTokenStore("codex"),
-            oauthClient);
-        var auth = new Dictionary<AgentId, IAgentAuthSession>
-        {
-            [AgentId.ClaudeCode] = claudeAuth,
-            [AgentId.Codex] = codexAuth,
-        };
-        var providers = new Dictionary<AgentId, IUsageProvider>
-        {
-            [AgentId.ClaudeCode] = new ClaudeUsageProvider(
-                _httpClient,
-                claudeAuth.ValidAccessTokenAsync),
-            [AgentId.Codex] = new CodexUsageProvider(
-                _httpClient,
-                codexAuth.ValidAccessTokenAsync,
-                () => codexAuth.AccountId),
-        };
+        var agentRuntime = AgentIntegrationRegistry.CreateRuntimeSet(_httpClient);
 
-        _coordinator = new UsageCoordinator(_settings, auth, providers);
+        _coordinator = new UsageCoordinator(
+            _settings,
+            agentRuntime.Auth,
+            agentRuntime.Providers);
         _tokenOdometer = new TokenOdometerWatcher(
             new TranscriptTokenReader(
                 cacheDirectory: Path.Combine(

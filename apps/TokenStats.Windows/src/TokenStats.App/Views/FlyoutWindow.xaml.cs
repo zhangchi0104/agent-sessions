@@ -860,7 +860,8 @@ public partial class FlyoutWindow : Window
         UsageSnapshot snapshot)
     {
         var style = _coordinator.Appearance.GaugeStyle;
-        var slots = definition.Id == AgentId.Codex
+        var dynamicLayout = definition.GaugeSlots.Count == 0;
+        var slots = dynamicLayout
             ? snapshot.Windows
                 .Select(window => new GaugeSlot(
                     window.Label,
@@ -894,10 +895,19 @@ public partial class FlyoutWindow : Window
         foreach (var slot in slots)
         {
             var gauge = CreateGauge(slot, snapshot, style);
-            var codex = definition.Id == AgentId.Codex;
-            gauge.Width = codex ? 128 : slot.Emphasized ? 112 : 96;
-            gauge.Height = codex ? 154 : slot.Emphasized ? 164 : 146;
-            gauge.Margin = new Thickness(codex ? 6 : 2, 0, codex ? 6 : 2, 0);
+            if (dynamicLayout)
+            {
+                gauge.Width = 128;
+                gauge.Height = 154;
+                gauge.Margin = new Thickness(6, 0, 6, 0);
+            }
+            else
+            {
+                gauge.Width = slot.Emphasized ? 112 : 96;
+                gauge.Height = slot.Emphasized ? 164 : 146;
+                gauge.Margin = new Thickness(2, 0, 2, 0);
+            }
+
             row.Children.Add(gauge);
         }
 
