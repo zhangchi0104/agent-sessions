@@ -141,7 +141,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ),
             roots: transcriptRoots,
             initialRange: appearance.selectedTokenRange,
-            changeSource: transcriptChangeSource
+            changeSource: transcriptChangeSource,
+            valuationHistoryStore: ApiValuationHistoryStore(
+                defaults: persistenceDefaults
+            )
         )
         currencyModel = CurrencyModel(
             provider: exchangeRateProvider,

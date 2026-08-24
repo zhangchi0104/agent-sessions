@@ -53,12 +53,31 @@ actor TranscriptTokenReader {
         range: TokenRange,
         now: Date
     ) -> [ModelName: TokenUsage] {
+        let daily = dailyBreakdown(
+            underTranscriptRoot: root,
+            range: range,
+            now: now
+        )
+        var result: [ModelName: TokenUsage] = [:]
+        for item in daily {
+            result[item.model, default: TokenUsage()].add(item.usage)
+        }
+        return result.filter { $0.value.responseCount > 0 }
+    }
+
+    /// The same range scan as `breakdown`, preserving the local calendar day
+    /// needed by effective-dated price observations.
+    func dailyBreakdown(
+        underTranscriptRoot root: String,
+        range: TokenRange,
+        now: Date
+    ) -> [TranscriptDailyModelUsage] {
         let rangeStart = range.start(from: now)
         guard let enumerator = FileManager.default.enumerator(
             at: URL(fileURLWithPath: root),
             includingPropertiesForKeys: [.contentModificationDateKey]
         ) else {
-            return [:]
+            return []
         }
 
         let dayKeys = Set((0..<range.days).compactMap { offset in
@@ -68,7 +87,11 @@ actor TranscriptTokenReader {
                 to: rangeStart
             ).map(dayKeyFormatter.string)
         })
-        var inRange: [ModelName: TokenUsage] = [:]
+        struct DailyKey: Hashable {
+            let day: String
+            let model: ModelName
+        }
+        var inRange: [DailyKey: TokenUsage] = [:]
         for case let url as URL in enumerator {
             guard url.pathExtension == "jsonl",
                   let modificationDate = try? url.resourceValues(
@@ -88,12 +111,26 @@ actor TranscriptTokenReader {
             guard let parsed = states[url.path]?.parsed else {
                 continue
             }
-            for (model, usage) in parsed.breakdown(forDayKeys: dayKeys) {
-                inRange[model, default: TokenUsage()].add(usage)
+            for item in parsed.dailyBreakdown(forDayKeys: dayKeys) {
+                let key = DailyKey(day: item.day, model: item.model)
+                inRange[key, default: TokenUsage()].add(item.usage)
             }
         }
         evictStaleStates()
-        return inRange.filter { $0.value.responseCount > 0 }
+        return inRange
+            .filter { $0.value.responseCount > 0 }
+            .map {
+                TranscriptDailyModelUsage(
+                    day: $0.key.day,
+                    model: $0.key.model,
+                    usage: $0.value
+                )
+            }
+            .sorted {
+                $0.day == $1.day
+                    ? $0.model.fallbackName < $1.model.fallbackName
+                    : $0.day < $1.day
+            }
     }
 
     /// Totals for the transcript at `path`, or nil when the file is missing or

@@ -19,6 +19,12 @@ nonisolated struct TranscriptFileState: Equatable, Sendable {
     ) -> [ModelName: TokenUsage] {
         parserState.breakdown(forDayKeys: dayKeys)
     }
+
+    func dailyBreakdown(
+        forDayKeys dayKeys: Set<String>
+    ) -> [TranscriptDailyModelUsage] {
+        parserState.dailyBreakdown(forDayKeys: dayKeys)
+    }
 }
 
 nonisolated struct TranscriptFileTransition: Equatable, Sendable {

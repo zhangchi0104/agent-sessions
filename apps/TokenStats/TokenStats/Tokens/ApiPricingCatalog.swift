@@ -62,6 +62,21 @@ nonisolated struct ApiPricingDate: Equatable, Hashable, Comparable, Sendable {
         )
     }
 
+    init?(dayKey: String) {
+        let parts = dayKey.split(separator: "-", omittingEmptySubsequences: false)
+        guard parts.count == 3,
+              let year = Int(parts[0]),
+              let month = Int(parts[1]),
+              let day = Int(parts[2]),
+              year > 0,
+              (1...12).contains(month),
+              (1...31).contains(day)
+        else {
+            return nil
+        }
+        self.init(year: year, month: month, day: day)
+    }
+
     static var today: ApiPricingDate {
         ApiPricingDate(Date())
     }
@@ -78,6 +93,80 @@ nonisolated struct ApiTokenRates: Equatable, Sendable {
     let rawInput: Decimal
     let cacheRead: Decimal
     let output: Decimal
+    /// Official cache-write price when separately published. Current
+    /// transcripts do not expose a reliable billable cache-write Token Kind,
+    /// so the estimator records but does not apply this field.
+    let cacheWrite: Decimal?
+
+    init(
+        rawInput: Decimal,
+        cacheRead: Decimal,
+        output: Decimal,
+        cacheWrite: Decimal? = nil
+    ) {
+        self.rawInput = rawInput
+        self.cacheRead = cacheRead
+        self.output = output
+        self.cacheWrite = cacheWrite
+    }
+}
+
+nonisolated struct ApiLongContextPricing: Equatable, Sendable {
+    let inputTokensAbove: Int
+    let rates: ApiTokenRates
+}
+
+/// Why a price observation starts being used on a particular calendar day.
+/// Providers do not always publish an effective date; in that case TokenStats
+/// uses the day it verified the official price and records that weaker basis
+/// instead of inventing provider history.
+nonisolated enum ApiPriceBoundaryBasis: String, Equatable, Sendable {
+    case catalogBaseline
+    case providerEffectiveDate
+    case observedAt
+}
+
+/// One immutable official-price observation. A price change appends another
+/// observation and closes the previous interval; existing observations are
+/// never edited into the new price.
+nonisolated struct ApiPriceObservation: Equatable, Sendable {
+    let id: String
+    let agent: ApiPricingAgent
+    let modelPrefix: String
+    let rates: ApiTokenRates
+    let observedAt: ApiPricingDate
+    let fromInclusive: ApiPricingDate?
+    let untilExclusive: ApiPricingDate?
+    let boundaryBasis: ApiPriceBoundaryBasis
+    let sourceURL: String
+    let longContext: ApiLongContextPricing?
+    let promotionGuaranteedThrough: ApiPricingDate?
+
+    init(
+        id: String,
+        agent: ApiPricingAgent,
+        modelPrefix: String,
+        rates: ApiTokenRates,
+        observedAt: ApiPricingDate,
+        fromInclusive: ApiPricingDate?,
+        untilExclusive: ApiPricingDate?,
+        boundaryBasis: ApiPriceBoundaryBasis,
+        sourceURL: String,
+        longContext: ApiLongContextPricing? = nil,
+        promotionGuaranteedThrough: ApiPricingDate? = nil
+    ) {
+        self.id = id
+        self.agent = agent
+        self.modelPrefix = modelPrefix
+        self.rates = rates
+        self.observedAt = observedAt
+        self.fromInclusive = fromInclusive
+        self.untilExclusive = untilExclusive
+        self.boundaryBasis = boundaryBasis
+        self.sourceURL = sourceURL
+        self.longContext = longContext
+        self.promotionGuaranteedThrough = promotionGuaranteedThrough
+    }
 }
 
 /// One Model-attributed slice in the current macOS Token Odometer shape.
@@ -85,17 +174,36 @@ nonisolated struct ApiModelUsage: Equatable, Sendable {
     let agent: ApiPricingAgent
     let model: ModelName
     let usage: TokenUsage
+    /// The local calendar day on which this usage occurred. Nil is retained
+    /// for aggregate callers and falls back to the estimate's pricing date.
+    let pricingDate: ApiPricingDate?
 
-    init(agent: ApiPricingAgent, model: ModelName, usage: TokenUsage) {
+    init(
+        agent: ApiPricingAgent,
+        model: ModelName,
+        usage: TokenUsage,
+        pricingDate: ApiPricingDate? = nil
+    ) {
         self.agent = agent
         self.model = model
         self.usage = usage
+        self.pricingDate = pricingDate
     }
 
     @MainActor
-    init?(agentID: CodingAgentID, model: ModelName, usage: TokenUsage) {
+    init?(
+        agentID: CodingAgentID,
+        model: ModelName,
+        usage: TokenUsage,
+        pricingDate: ApiPricingDate? = nil
+    ) {
         guard let agent = ApiPricingAgent(agentID) else { return nil }
-        self.init(agent: agent, model: model, usage: usage)
+        self.init(
+            agent: agent,
+            model: model,
+            usage: usage,
+            pricingDate: pricingDate
+        )
     }
 }
 
@@ -183,7 +291,8 @@ nonisolated struct ApiCostEstimate: Equatable, Sendable {
 /// Standard list-price catalog kept in lockstep with Windows
 /// `TokenStats.Core.ApiPricingCatalog`.
 nonisolated enum ApiPricingCatalog {
-    static let lastReviewed = ApiPricingDate(year: 2026, month: 8, day: 4)
+    static let lastReviewed = ApiPricingDate(year: 2026, month: 8, day: 24)
+    static let revision = "2026-08-24"
 
     static let openAIPricingSource =
         "https://developers.openai.com/api/docs/pricing"
@@ -191,11 +300,67 @@ nonisolated enum ApiPricingCatalog {
     static let anthropicPricingSource =
         "https://platform.claude.com/docs/en/about-claude/pricing"
 
-    private static let rules: [PricingRule] = [
-        openAI("gpt-5.6-sol", "5", "0.50", "30"),
+    static let priceObservations: [ApiPriceObservation] = [
+        // OpenAI's prior public rate remains immutable for usage before the
+        // next verified observation. The current official page does not state
+        // when the reduction became effective, so 2026-08-24 is deliberately
+        // an observation boundary rather than a claimed provider effective date.
+        openAI(
+            "gpt-5.6-sol",
+            "5",
+            "0.50",
+            "30",
+            id: "openai.gpt-5.6-sol.observed-2026-08-04",
+            observedAt: ApiPricingDate(year: 2026, month: 8, day: 4),
+            untilExclusive: ApiPricingDate(year: 2026, month: 8, day: 24)
+        ),
+        openAI(
+            "gpt-5.6-sol",
+            "4",
+            "0.40",
+            "20",
+            id: "openai.gpt-5.6-sol.observed-2026-08-24",
+            observedAt: ApiPricingDate(year: 2026, month: 8, day: 24),
+            fromInclusive: ApiPricingDate(year: 2026, month: 8, day: 24),
+            boundaryBasis: .observedAt,
+            sourceURL: "https://developers.openai.com/api/docs/models/gpt-5.6-sol",
+            cacheWrite: "5",
+            longContext: ("8", "0.80", "10", "30"),
+            promotionGuaranteedThrough: ApiPricingDate(
+                year: 2026,
+                month: 11,
+                day: 21
+            )
+        ),
         openAI("gpt-5.6-terra", "2", "0.20", "12"),
         openAI("gpt-5.6-luna", "0.20", "0.02", "1.20"),
-        openAI("gpt-5.6", "5", "0.50", "30"),
+        openAI(
+            "gpt-5.6",
+            "5",
+            "0.50",
+            "30",
+            id: "openai.gpt-5.6-alias.observed-2026-08-04",
+            observedAt: ApiPricingDate(year: 2026, month: 8, day: 4),
+            untilExclusive: ApiPricingDate(year: 2026, month: 8, day: 24)
+        ),
+        openAI(
+            "gpt-5.6",
+            "4",
+            "0.40",
+            "20",
+            id: "openai.gpt-5.6-alias.observed-2026-08-24",
+            observedAt: ApiPricingDate(year: 2026, month: 8, day: 24),
+            fromInclusive: ApiPricingDate(year: 2026, month: 8, day: 24),
+            boundaryBasis: .observedAt,
+            sourceURL: "https://developers.openai.com/api/docs/models/gpt-5.6-sol",
+            cacheWrite: "5",
+            longContext: ("8", "0.80", "10", "30"),
+            promotionGuaranteedThrough: ApiPricingDate(
+                year: 2026,
+                month: 11,
+                day: 21
+            )
+        ),
         openAI("gpt-5.5", "5", "0.50", "30"),
         openAI("gpt-5.4", "2.50", "0.25", "15"),
         openAI("gpt-5.3-codex", "1.75", "0.175", "14"),
@@ -324,7 +489,7 @@ nonisolated enum ApiPricingCatalog {
                let rates = rates(
                    for: item.agent,
                    model: model,
-                   pricingDate: pricingDate
+                   pricingDate: item.pricingDate ?? pricingDate
                ) {
                 aggregateCost += cost(
                     of: item.usage,
@@ -368,23 +533,37 @@ nonisolated enum ApiPricingCatalog {
         model: String,
         pricingDate: ApiPricingDate
     ) -> ApiTokenRates? {
+        observation(
+            for: agent,
+            model: model,
+            pricingDate: pricingDate
+        )?.rates
+    }
+
+    static func observation(
+        for agent: ApiPricingAgent,
+        model: String,
+        pricingDate: ApiPricingDate
+    ) -> ApiPriceObservation? {
         guard !model.trimmingCharacters(
             in: .whitespacesAndNewlines
         ).isEmpty else {
             return nil
         }
 
-        return rules
-            .filter { rule in
-                rule.agent == agent &&
-                    matches(modelPrefix: rule.modelPrefix, model: model) &&
-                    (rule.fromInclusive == nil ||
-                     pricingDate >= rule.fromInclusive!) &&
-                    (rule.untilExclusive == nil ||
-                     pricingDate < rule.untilExclusive!)
+        return priceObservations
+            .filter { observation in
+                observation.agent == agent &&
+                    matches(
+                        modelPrefix: observation.modelPrefix,
+                        model: model
+                    ) &&
+                    (observation.fromInclusive == nil ||
+                     pricingDate >= observation.fromInclusive!) &&
+                    (observation.untilExclusive == nil ||
+                     pricingDate < observation.untilExclusive!)
             }
-            .max { $0.modelPrefix.count < $1.modelPrefix.count }?
-            .rates
+            .max { $0.modelPrefix.count < $1.modelPrefix.count }
     }
 
     private static func matches(modelPrefix: String, model: String) -> Bool {
@@ -459,16 +638,53 @@ nonisolated enum ApiPricingCatalog {
         _ modelPrefix: String,
         _ rawInput: String,
         _ cacheRead: String,
-        _ output: String
-    ) -> PricingRule {
-        return PricingRule(
+        _ output: String,
+        id: String? = nil,
+        observedAt: ApiPricingDate = ApiPricingDate(
+            year: 2026,
+            month: 8,
+            day: 4
+        ),
+        fromInclusive: ApiPricingDate? = nil,
+        untilExclusive: ApiPricingDate? = nil,
+        boundaryBasis: ApiPriceBoundaryBasis = .catalogBaseline,
+        sourceURL: String = openAIPricingSource,
+        cacheWrite: String? = nil,
+        longContext: (
+            rawInput: String,
+            cacheRead: String,
+            cacheWrite: String,
+            output: String
+        )? = nil,
+        promotionGuaranteedThrough: ApiPricingDate? = nil
+    ) -> ApiPriceObservation {
+        return ApiPriceObservation(
+            id: id ?? "openai.\(modelPrefix).baseline-2026-08-04",
             agent: .codex,
             modelPrefix: modelPrefix,
             rates: ApiTokenRates(
                 rawInput: decimal(rawInput),
                 cacheRead: decimal(cacheRead),
-                output: decimal(output)
-            )
+                output: decimal(output),
+                cacheWrite: cacheWrite.map(decimal)
+            ),
+            observedAt: observedAt,
+            fromInclusive: fromInclusive,
+            untilExclusive: untilExclusive,
+            boundaryBasis: boundaryBasis,
+            sourceURL: sourceURL,
+            longContext: longContext.map {
+                ApiLongContextPricing(
+                    inputTokensAbove: 272_000,
+                    rates: ApiTokenRates(
+                        rawInput: decimal($0.rawInput),
+                        cacheRead: decimal($0.cacheRead),
+                        output: decimal($0.output),
+                        cacheWrite: decimal($0.cacheWrite)
+                    )
+                )
+            },
+            promotionGuaranteedThrough: promotionGuaranteedThrough
         )
     }
 
@@ -479,8 +695,9 @@ nonisolated enum ApiPricingCatalog {
         _ output: String,
         fromInclusive: ApiPricingDate? = nil,
         untilExclusive: ApiPricingDate? = nil
-    ) -> PricingRule {
-        PricingRule(
+    ) -> ApiPriceObservation {
+        ApiPriceObservation(
+            id: "anthropic.\(modelPrefix).\(fromInclusive.map(dateKey) ?? "baseline-2026-08-04")",
             agent: .claudeCode,
             modelPrefix: modelPrefix,
             rates: ApiTokenRates(
@@ -488,9 +705,18 @@ nonisolated enum ApiPricingCatalog {
                 cacheRead: decimal(cacheRead),
                 output: decimal(output)
             ),
+            observedAt: ApiPricingDate(year: 2026, month: 8, day: 4),
             fromInclusive: fromInclusive,
-            untilExclusive: untilExclusive
+            untilExclusive: untilExclusive,
+            boundaryBasis: fromInclusive == nil
+                ? .catalogBaseline
+                : .providerEffectiveDate,
+            sourceURL: anthropicPricingSource
         )
+    }
+
+    private static func dateKey(_ date: ApiPricingDate) -> String {
+        String(format: "%04d-%02d-%02d", date.year, date.month, date.day)
     }
 
     private static func decimal(_ value: String) -> Decimal {
@@ -501,13 +727,5 @@ nonisolated enum ApiPricingCatalog {
             preconditionFailure("Invalid API price: \(value)")
         }
         return result
-    }
-
-    private struct PricingRule: Sendable {
-        let agent: ApiPricingAgent
-        let modelPrefix: String
-        let rates: ApiTokenRates
-        var fromInclusive: ApiPricingDate?
-        var untilExclusive: ApiPricingDate?
     }
 }

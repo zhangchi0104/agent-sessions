@@ -106,7 +106,8 @@ struct TokensTabView: View {
                 perAgent: visibleAgents,
                 range: odometer.displayedRange,
                 hasLoaded: odometer.hasLoaded,
-                currencyContext: currencyContext
+                currencyContext: currencyContext,
+                valuationHistoryStore: odometer.valuationHistoryStore
             )
             .opacity(isScanning ? 0.6 : 1)
             headingRow

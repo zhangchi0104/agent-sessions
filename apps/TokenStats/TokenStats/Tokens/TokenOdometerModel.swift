@@ -25,10 +25,33 @@ final class TokenOdometerModel {
         let label: String
         let usage: TokenUsage
         let byModel: [ModelTokens]
+        let dailyByModel: [DailyModelTokens]
+
+        init(
+            id: CodingAgentID,
+            label: String,
+            usage: TokenUsage,
+            byModel: [ModelTokens],
+            dailyByModel: [DailyModelTokens] = []
+        ) {
+            self.id = id
+            self.label = label
+            self.usage = usage
+            self.byModel = byModel
+            self.dailyByModel = dailyByModel
+        }
     }
 
     /// One Model's row within a Coding Agent.
     struct ModelTokens: Equatable {
+        let model: ModelName
+        let usage: TokenUsage
+    }
+
+    /// A Model row with its local occurrence day retained for price-version
+    /// selection. The table still renders the aggregated `byModel` rows.
+    struct DailyModelTokens: Equatable {
+        let day: ApiPricingDate
         let model: ModelName
         let usage: TokenUsage
     }
@@ -68,6 +91,8 @@ final class TokenOdometerModel {
     private let roots: [TranscriptRoot]
     /// Ticks when a watched transcript changes, driving a re-read (ADR-0003).
     private let changeSource: TranscriptChangeSource
+    /// Durable audit output, injected so tests and fixtures remain isolated.
+    let valuationHistoryStore: ApiValuationHistoryStore
 
     /// Re-orders the published slices into the user's Appearance order. Set by
     /// the view that knows it; registry order until then.
@@ -86,12 +111,15 @@ final class TokenOdometerModel {
     init(reader: TranscriptTokenReader,
          roots: [TranscriptRoot],
          initialRange: TokenRange = .today,
-         changeSource: any TranscriptChangeSource) {
+         changeSource: any TranscriptChangeSource,
+         valuationHistoryStore: ApiValuationHistoryStore =
+             ApiValuationHistoryStore()) {
         self.reader = reader
         self.roots = roots
         self.selectedRange = initialRange
         self.displayedRange = initialRange
         self.changeSource = changeSource
+        self.valuationHistoryStore = valuationHistoryStore
     }
 
     /// Ask for a different range. The rows on screen stay — dimmed by the
@@ -118,7 +146,25 @@ final class TokenOdometerModel {
             // between roots — close enough that a closed popover stops paying
             // for the roots it has not reached.
             if Task.isCancelled { return }
-            let byModel = await reader.breakdown(underTranscriptRoot: root.path, range: range, now: now)
+            let daily = await reader.dailyBreakdown(
+                underTranscriptRoot: root.path,
+                range: range,
+                now: now
+            )
+            var byModel: [ModelName: TokenUsage] = [:]
+            var dailyRows: [DailyModelTokens] = []
+            for item in daily {
+                byModel[item.model, default: TokenUsage()].add(item.usage)
+                if let day = ApiPricingDate(dayKey: item.day) {
+                    dailyRows.append(
+                        DailyModelTokens(
+                            day: day,
+                            model: item.model,
+                            usage: item.usage
+                        )
+                    )
+                }
+            }
             var total = TokenUsage()
             for usage in byModel.values { total.add(usage) }
             let rows = byModel
@@ -131,7 +177,15 @@ final class TokenOdometerModel {
                     }
                     return left.model < right.model
                 }
-            slices.append(AgentTokens(id: root.id, label: root.label, usage: total, byModel: rows))
+            slices.append(
+                AgentTokens(
+                    id: root.id,
+                    label: root.label,
+                    usage: total,
+                    byModel: rows,
+                    dailyByModel: dailyRows
+                )
+            )
         }
         // A slower scan for a range the user has since moved off must not
         // land: it would overwrite fresher rows and, worse, park displayedRange

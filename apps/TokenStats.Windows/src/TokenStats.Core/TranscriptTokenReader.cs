@@ -375,7 +375,7 @@ public sealed class TranscriptTokenReader
             {
                 if (state.PerDay.TryGetValue(day, out var usage))
                 {
-                    combined.Add(usage);
+                    combined.AddDated(day, usage);
                 }
             }
 
@@ -384,6 +384,11 @@ public sealed class TranscriptTokenReader
                 if (days.Contains(pending.Key.Day))
                 {
                     combined.AddAttribution(
+                        pending.Key.AgentId,
+                        ModelName.Unattributed,
+                        pending.Value);
+                    combined.AddDatedAttribution(
+                        pending.Key.Day,
                         pending.Key.AgentId,
                         ModelName.Unattributed,
                         pending.Value);

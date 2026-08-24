@@ -43,6 +43,25 @@ long-context surcharges, Priority/Flex/Batch processing, data residency or
 partner routing, private discounts, and separate tool charges. The estimate
 therefore applies standard API list prices only.
 
+Price changes are append-only observations. Each observation carries the date
+TokenStats verified the official source and, when the provider publishes one,
+the separate effective date. Transcript usage is valued by its local occurrence
+day, so a later catalog update does not reprice earlier days. The clients also
+retain one valuation audit snapshot per range/agent scope and catalog revision;
+these snapshots preserve the previous revision's last calculated USD result but
+never restore or replace transcript token data.
+
+For GPT-5.6 Sol, TokenStats verified the current OpenAI page on 2026-08-24:
+standard short-context rates are $4 input, $0.40 cached input, $5 cache write,
+and $20 output per million tokens. Requests above 272K input tokens use $8,
+$0.80, $10, and $30 respectively. OpenAI states that the promotion lasts at
+least through 2026-11-21, but the page does not state when the reduction became
+effective. TokenStats therefore records 2026-08-24 as an `observedAt` boundary,
+not as a claimed provider effective date. Cache-write and long-context terms are
+kept in the observation metadata, while the displayed estimate cannot apply
+them reliably because local transcripts do not preserve those billable request
+conditions.
+
 The Odometer table itself uses the supported raw definition:
 `direct input + output + cache read`. The three visible columns are
 `IN`, `OUT`, and `C·R`; no category is counted twice.
@@ -60,9 +79,10 @@ has no percentage, and is excluded from the percentage denominator. These
 percentages describe token composition only. They are not quota consumption, a
 Limit, or a Usage Window percentage.
 
-Pricing sources, last checked **2026-07-27**:
+Pricing sources, last checked **2026-08-24**:
 
-- [OpenAI API model catalog and pricing](https://developers.openai.com/api/docs/models)
+- [OpenAI GPT-5.6 Sol model pricing](https://developers.openai.com/api/docs/models/gpt-5.6-sol)
+- [OpenAI API pricing](https://developers.openai.com/api/docs/pricing)
 - [Anthropic Claude API pricing](https://platform.claude.com/docs/en/about-claude/pricing)
 
 ## Requirements

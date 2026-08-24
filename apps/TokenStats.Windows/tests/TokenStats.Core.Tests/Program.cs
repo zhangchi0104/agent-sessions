@@ -42,6 +42,7 @@ internal static class Program
             new(nameof(TokenSelectionsDriveTotalsAndFormatting), Sync(TokenSelectionsDriveTotalsAndFormatting)),
             new(nameof(ApiPricingCatalogPricesKnownModelsAndDisclosesUnknown), Sync(ApiPricingCatalogPricesKnownModelsAndDisclosesUnknown)),
             new(nameof(ApiPricingCatalogFiltersSelectedKinds), Sync(ApiPricingCatalogFiltersSelectedKinds)),
+            new(nameof(EffectiveDatedPricingAndValuationHistoryPreservePriorResults), EffectiveDatedPricingAndValuationHistoryPreservePriorResults),
             new(nameof(RefreshPolicyAppliesCadenceAndBackoff), Sync(RefreshPolicyAppliesCadenceAndBackoff)),
             new(nameof(StateReducerDisclosesStaleData), Sync(StateReducerDisclosesStaleData)),
             new(nameof(TokenCacheSignOutWinsInFlightRefresh), TokenCacheSignOutWinsInFlightRefresh),
@@ -598,7 +599,7 @@ internal static class Program
         var estimate = ApiPricingCatalog.Estimate(
             usage,
             new DateOnly(2026, 8, 31));
-        Check.Equal(47.70m, estimate.CostUsd);
+        Check.Equal(36.60m, estimate.CostUsd);
         Check.Equal(6_000_000L, estimate.PricedTokens);
         Check.Equal(17L, estimate.UnpricedTokens);
         Check.True(estimate.IsAvailable);
@@ -667,7 +668,7 @@ internal static class Program
             usage,
             pricingDate,
             TokenKindSelection.DirectInput);
-        Check.Equal(7m, directInput.CostUsd);
+        Check.Equal(6m, directInput.CostUsd);
         Check.Equal(2 * million, directInput.PricedTokens);
         Check.Equal(10L, directInput.UnpricedTokens);
         Check.True(directInput.IsPartial);
@@ -676,7 +677,7 @@ internal static class Program
             usage,
             pricingDate,
             TokenKindSelection.CacheRead);
-        Check.Equal(0.70m, cacheRead.CostUsd);
+        Check.Equal(0.60m, cacheRead.CostUsd);
         Check.Equal(2 * million, cacheRead.PricedTokens);
         Check.Equal(2L, cacheRead.UnpricedTokens);
 
@@ -684,7 +685,7 @@ internal static class Program
             usage,
             pricingDate,
             TokenKindSelection.DirectInput | TokenKindSelection.Output);
-        Check.Equal(47m, inputAndOutput.CostUsd);
+        Check.Equal(36m, inputAndOutput.CostUsd);
         Check.Equal(4 * million, inputAndOutput.PricedTokens);
         Check.Equal(15L, inputAndOutput.UnpricedTokens);
 
@@ -697,6 +698,116 @@ internal static class Program
         Check.Equal(0L, none.UnpricedTokens);
         Check.False(none.IsAvailable);
         Check.Equal(0, none.UnpricedModels.Count);
+    }
+
+    private static async Task EffectiveDatedPricingAndValuationHistoryPreservePriorResults()
+    {
+        Check.True(ApiPricingCatalog.TryResolveObservation(
+            AgentId.Codex,
+            "gpt-5.6-sol",
+            new DateOnly(2026, 8, 23),
+            out var priorObservation));
+        Check.Equal(5m, priorObservation.Rates.RawInput);
+        Check.True(ApiPricingCatalog.TryResolveObservation(
+            AgentId.Codex,
+            "gpt-5.6-sol",
+            new DateOnly(2026, 8, 24),
+            out var currentObservation));
+        Check.Equal(4m, currentObservation.Rates.RawInput);
+        Check.Equal(
+            ApiPriceBoundaryBasis.ObservedAt,
+            currentObservation.BoundaryBasis);
+        Check.Equal(
+            new DateOnly(2026, 8, 24),
+            currentObservation.ObservedAt);
+
+        using var temp = new TemporaryDirectory();
+        var now = DateTimeOffset.Parse("2026-08-24T12:00:00Z", Invariant);
+        foreach (var (name, timestamp) in new[]
+                 {
+                     ("older.jsonl", "2026-08-23T12:00:00Z"),
+                     ("current.jsonl", "2026-08-24T12:00:00Z"),
+                 })
+        {
+            var path = Path.Combine(temp.Path, name);
+            File.WriteAllText(
+                path,
+                CodexTurnContextLine("gpt-5.6-sol") + "\n" +
+                CodexLine(
+                    timestamp,
+                    input: 1_000_000,
+                    cachedInput: 0,
+                    output: 0) +
+                "\n");
+            File.SetLastWriteTimeUtc(path, now.UtcDateTime);
+        }
+
+        var reader = new TranscriptTokenReader(TimeZoneInfo.Utc);
+        var usage = Check.NotNull(
+            await reader.RangeUsageAsync(
+                temp.Path,
+                TokenRange.SevenDays,
+                now).ConfigureAwait(false));
+        Check.Equal(2, usage.DatedModelUsage.Count);
+        var estimate = ApiPricingCatalog.Estimate(
+            usage,
+            new DateOnly(2026, 8, 24));
+        Check.Equal(9m, estimate.CostUsd);
+
+        var store = new ApiValuationHistoryStore(
+            Path.Combine(temp.Path, "api-valuations-v1.json"));
+        var current = ApiValuationSnapshot.Create(
+            usage,
+            TokenRange.SevenDays,
+            estimate,
+            now,
+            TimeZoneInfo.Utc);
+        var prior = current with
+        {
+            CatalogRevision = "2026-08-04",
+            ExactCostUsd = "10",
+            CalculatedAt = now.AddDays(-1),
+        };
+        Check.True(store.TrySave(prior));
+        Check.True(store.TrySave(current));
+        var loaded = store.Load();
+        Check.Equal(2, loaded.Count);
+        Check.Equal("10", loaded[0].ExactCostUsd);
+        Check.Equal("9", loaded[1].ExactCostUsd);
+
+        Check.True(store.TrySave(current with
+        {
+            ExactCostUsd = "9.5",
+            CalculatedAt = now.AddMinutes(1),
+        }));
+        loaded = store.Load();
+        Check.Equal(2, loaded.Count);
+        Check.Equal("10", loaded[0].ExactCostUsd);
+        Check.Equal("9.5", loaded[1].ExactCostUsd);
+
+        var futurePath = Path.Combine(temp.Path, "future-valuations.json");
+        var futurePayload = JsonSerializer.SerializeToUtf8Bytes(
+            new[]
+            {
+                current with
+                {
+                    SchemaVersion = ApiValuationSnapshot.CurrentSchemaVersion + 1,
+                    CatalogRevision = "future-revision",
+                },
+            },
+            new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            });
+        File.WriteAllBytes(futurePath, futurePayload);
+        var futureStore = new ApiValuationHistoryStore(futurePath);
+        Check.False(futureStore.TrySave(current));
+        Check.True(File.ReadAllBytes(futurePath).SequenceEqual(futurePayload));
+
+        var directoryAsFile = Path.Combine(temp.Path, "unwritable-history-target");
+        Directory.CreateDirectory(directoryAsFile);
+        var unavailableStore = new ApiValuationHistoryStore(directoryAsFile);
+        Check.False(unavailableStore.TrySave(current));
     }
 
     private static void RefreshPolicyAppliesCadenceAndBackoff()

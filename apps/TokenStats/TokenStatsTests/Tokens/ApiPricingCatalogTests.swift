@@ -9,7 +9,7 @@ import Foundation
 import Testing
 
 struct ApiPricingCatalogTests {
-    private let reviewed = ApiPricingDate(year: 2026, month: 8, day: 4)
+    private let reviewed = ApiPricingDate(year: 2026, month: 8, day: 24)
 
     @Test func metadataMatchesTheWindowsCatalog() {
         #expect(ApiPricingCatalog.lastReviewed == reviewed)
@@ -25,10 +25,10 @@ struct ApiPricingCatalogTests {
 
     @Test func everyWindowsPriceRuleResolvesToTheSameRates() throws {
         let cases: [(ApiPricingAgent, String, ApiTokenRates)] = [
-            (.codex, "gpt-5.6-sol", openAI("5", "0.50", "30")),
+            (.codex, "gpt-5.6-sol", openAI("4", "0.40", "20", "5")),
             (.codex, "gpt-5.6-terra", openAI("2", "0.20", "12")),
             (.codex, "gpt-5.6-luna", openAI("0.20", "0.02", "1.20")),
-            (.codex, "gpt-5.6", openAI("5", "0.50", "30")),
+            (.codex, "gpt-5.6", openAI("4", "0.40", "20", "5")),
             (.codex, "gpt-5.5", openAI("5", "0.50", "30")),
             (.codex, "gpt-5.4", openAI("2.50", "0.25", "15")),
             (.codex, "gpt-5.3-codex", openAI("1.75", "0.175", "14")),
@@ -94,13 +94,48 @@ struct ApiPricingCatalogTests {
         #expect(standard == anthropic("3", "0.30", "15"))
     }
 
+    @Test func solKeepsThePriorRateBeforeTheVerifiedObservationBoundary() throws {
+        let before = try #require(
+            ApiPricingCatalog.observation(
+                for: .codex,
+                model: "gpt-5.6-sol",
+                pricingDate: ApiPricingDate(year: 2026, month: 8, day: 23)
+            )
+        )
+        let observed = try #require(
+            ApiPricingCatalog.observation(
+                for: .codex,
+                model: "gpt-5.6-sol",
+                pricingDate: reviewed
+            )
+        )
+
+        #expect(before.rates == openAI("5", "0.50", "30"))
+        #expect(observed.rates == openAI("4", "0.40", "20", "5"))
+        #expect(observed.observedAt == reviewed)
+        #expect(observed.boundaryBasis == .observedAt)
+        #expect(observed.longContext?.inputTokensAbove == 272_000)
+        #expect(
+            observed.longContext?.rates ==
+                openAI("8", "0.80", "30", "10")
+        )
+        #expect(
+            observed.promotionGuaranteedThrough ==
+                ApiPricingDate(year: 2026, month: 11, day: 21)
+        )
+        #expect(
+            observed.sourceURL ==
+                "https://developers.openai.com/api/docs/models/gpt-5.6-sol"
+        )
+    }
+
     @Test func onlyDatedSnapshotsExtendAKnownModelPrefix() {
         #expect(
             ApiPricingCatalog.rates(
                 for: .codex,
                 model: "GPT-5.6-SOL-2026-07-27",
                 pricingDate: reviewed
-            ) == openAI("5", "0.50", "30")
+            ) == openAI("4", "0.40", "20", "5")
         )
         #expect(
             ApiPricingCatalog.rates(
@@ -146,14 +181,14 @@ struct ApiPricingCatalogTests {
             pricingDate: reviewed
         )
 
-        // Codex: 5 + 30 + 0.50 = 35.50.
+        // Codex: 4 + 20 + 0.40 = 24.40.
         // Claude: 5 + 25 + 0.50 = 30.50.
-        #expect(estimate.costUSD == decimal("66.00"))
+        #expect(estimate.costUSD == decimal("54.90"))
         #expect(estimate.pricedTokens == 6_000_000)
         #expect(estimate.unpricedTokens == 0)
         #expect(estimate.isAvailable)
         #expect(!estimate.isPartial)
-        #expect(estimate.formattedCostUSD == "$66.00")
+        #expect(estimate.formattedCostUSD == "$54.90")
     }
 
     @MainActor
@@ -215,7 +250,7 @@ struct ApiPricingCatalogTests {
             pricingDate: reviewed
         )
 
-        #expect(estimate.costUSD == decimal("5"))
+        #expect(estimate.costUSD == decimal("4"))
         #expect(estimate.pricedTokens == 1_000_000)
         #expect(estimate.unpricedTokens == 1_000)
         #expect(estimate.isAvailable)
@@ -270,7 +305,7 @@ struct ApiPricingCatalogTests {
             includedKinds: [.directInput, .output]
         )
 
-        #expect(estimate.costUSD == decimal("35"))
+        #expect(estimate.costUSD == decimal("24"))
         #expect(estimate.pricedTokens == 2_000_000)
         #expect(estimate.unpricedTokens == 5)
 
@@ -337,12 +372,14 @@ struct ApiPricingCatalogTests {
     private func openAI(
         _ rawInput: String,
         _ cacheRead: String,
-        _ output: String
+        _ output: String,
+        _ cacheWrite: String? = nil
     ) -> ApiTokenRates {
         return ApiTokenRates(
             rawInput: decimal(rawInput),
             cacheRead: decimal(cacheRead),
-            output: decimal(output)
+            output: decimal(output),
+            cacheWrite: cacheWrite.map(decimal)
         )
     }
 

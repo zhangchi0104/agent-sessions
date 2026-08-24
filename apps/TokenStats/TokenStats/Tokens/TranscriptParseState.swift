@@ -98,6 +98,15 @@ nonisolated struct TranscriptUsageKey: Hashable, Sendable {
     let model: String
 }
 
+/// One local-calendar Model bucket exposed by the reader. Keeping the day
+/// beside the usage lets effective-dated pricing work without promoting the
+/// disposable transcript checkpoint into a billing ledger.
+nonisolated struct TranscriptDailyModelUsage: Equatable, Sendable {
+    let day: String
+    let model: ModelName
+    let usage: TokenUsage
+}
+
 /// A Codex session's cumulative usage at one point in its rollout, split the
 /// way TokenUsage counts: direct input separate from the cache read.
 nonisolated struct CodexRunningTotal: Equatable, Sendable {
@@ -510,5 +519,43 @@ nonisolated struct TranscriptParserState: Equatable, Sendable {
             result[.unattributed, default: TokenUsage()].add(usage)
         }
         return result.filter { $0.value.responseCount > 0 }
+    }
+
+    func dailyBreakdown(
+        forDayKeys dayKeys: Set<String>
+    ) -> [TranscriptDailyModelUsage] {
+        var result: [DailyUsageKey: TokenUsage] = [:]
+        for (key, usage) in perDay where dayKeys.contains(key.day) {
+            let outputKey = DailyUsageKey(
+                day: key.day,
+                model: .named(key.model)
+            )
+            result[outputKey, default: TokenUsage()].add(usage)
+        }
+        for (day, usage) in attribution.pendingByDay
+            where dayKeys.contains(day)
+        {
+            let outputKey = DailyUsageKey(day: day, model: .unattributed)
+            result[outputKey, default: TokenUsage()].add(usage)
+        }
+        return result
+            .filter { $0.value.responseCount > 0 }
+            .map {
+                TranscriptDailyModelUsage(
+                    day: $0.key.day,
+                    model: $0.key.model,
+                    usage: $0.value
+                )
+            }
+            .sorted {
+                $0.day == $1.day
+                    ? $0.model.fallbackName < $1.model.fallbackName
+                    : $0.day < $1.day
+            }
+    }
+
+    private struct DailyUsageKey: Hashable {
+        let day: String
+        let model: ModelName
     }
 }

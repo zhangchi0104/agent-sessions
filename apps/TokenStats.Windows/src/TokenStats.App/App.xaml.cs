@@ -61,7 +61,13 @@ public partial class App : System.Windows.Application
             _settings,
             _tokenOdometer,
             ShowSettings,
-            Quit);
+            Quit,
+            new ApiValuationHistoryStore(
+                Path.Combine(
+                    Environment.GetFolderPath(
+                        Environment.SpecialFolder.LocalApplicationData),
+                    "TokenStats",
+                    "api-valuations-v1.json")));
         _tray = new TrayIconService(
             ToggleFlyout,
             RefreshAllAsync,

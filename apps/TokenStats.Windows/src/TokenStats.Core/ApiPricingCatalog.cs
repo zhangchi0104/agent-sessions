@@ -8,7 +8,40 @@ namespace TokenStats.Core;
 public sealed record ApiTokenRates(
     decimal RawInput,
     decimal CacheRead,
-    decimal Output);
+    decimal Output)
+{
+    public decimal? CacheWrite { get; init; }
+}
+
+public sealed record ApiLongContextPricing(
+    long InputTokensAbove,
+    ApiTokenRates Rates);
+
+public enum ApiPriceBoundaryBasis
+{
+    CatalogBaseline,
+    ProviderEffectiveDate,
+    ObservedAt,
+}
+
+/// <summary>
+/// One immutable official-price observation. Price changes append observations
+/// and close older intervals instead of overwriting historical rates.
+/// </summary>
+public sealed record ApiPriceObservation(
+    string Id,
+    AgentId AgentId,
+    string ModelPrefix,
+    ApiTokenRates Rates,
+    DateOnly ObservedAt,
+    DateOnly? FromInclusive,
+    DateOnly? UntilExclusive,
+    ApiPriceBoundaryBasis BoundaryBasis,
+    string SourceUrl)
+{
+    public ApiLongContextPricing? LongContext { get; init; }
+    public DateOnly? PromotionGuaranteedThrough { get; init; }
+}
 
 public sealed record ApiCostEstimate(
     decimal CostUsd,
@@ -22,7 +55,9 @@ public sealed record ApiCostEstimate(
 
 public static class ApiPricingCatalog
 {
-    public static DateOnly LastReviewed { get; } = new(2026, 8, 4);
+    public static DateOnly LastReviewed { get; } = new(2026, 8, 24);
+
+    public const string Revision = "2026-08-24";
 
     public const string OpenAiPricingSource =
         "https://developers.openai.com/api/docs/pricing";
@@ -30,12 +65,63 @@ public static class ApiPricingCatalog
     public const string AnthropicPricingSource =
         "https://platform.claude.com/docs/en/about-claude/pricing";
 
-    private static readonly PricingRule[] Rules =
+    private static readonly ApiPriceObservation[] Observations =
     [
-        OpenAi("gpt-5.6-sol", 5m, 0.50m, 30m),
+        // OpenAI's current page does not publish the reduction's effective
+        // date. TokenStats therefore uses the verified 2026-08-24 observation
+        // date as the boundary and records that weaker provenance explicitly.
+        OpenAi(
+            "gpt-5.6-sol",
+            5m,
+            0.50m,
+            30m,
+            id: "openai.gpt-5.6-sol.observed-2026-08-04",
+            observedAt: new DateOnly(2026, 8, 4),
+            untilExclusive: new DateOnly(2026, 8, 24)),
+        OpenAi(
+            "gpt-5.6-sol",
+            4m,
+            0.40m,
+            20m,
+            id: "openai.gpt-5.6-sol.observed-2026-08-24",
+            observedAt: new DateOnly(2026, 8, 24),
+            fromInclusive: new DateOnly(2026, 8, 24),
+            boundaryBasis: ApiPriceBoundaryBasis.ObservedAt,
+            sourceUrl:
+                "https://developers.openai.com/api/docs/models/gpt-5.6-sol",
+            cacheWrite: 5m,
+            longContext: new ApiTokenRates(8m, 0.80m, 30m)
+            {
+                CacheWrite = 10m,
+            },
+            promotionGuaranteedThrough: new DateOnly(2026, 11, 21)),
         OpenAi("gpt-5.6-terra", 2m, 0.20m, 12m),
         OpenAi("gpt-5.6-luna", 0.20m, 0.02m, 1.20m),
-        OpenAi("gpt-5.6", 5m, 0.50m, 30m),
+        OpenAi(
+            "gpt-5.6",
+            5m,
+            0.50m,
+            30m,
+            id: "openai.gpt-5.6-alias.observed-2026-08-04",
+            observedAt: new DateOnly(2026, 8, 4),
+            untilExclusive: new DateOnly(2026, 8, 24)),
+        OpenAi(
+            "gpt-5.6",
+            4m,
+            0.40m,
+            20m,
+            id: "openai.gpt-5.6-alias.observed-2026-08-24",
+            observedAt: new DateOnly(2026, 8, 24),
+            fromInclusive: new DateOnly(2026, 8, 24),
+            boundaryBasis: ApiPriceBoundaryBasis.ObservedAt,
+            sourceUrl:
+                "https://developers.openai.com/api/docs/models/gpt-5.6-sol",
+            cacheWrite: 5m,
+            longContext: new ApiTokenRates(8m, 0.80m, 30m)
+            {
+                CacheWrite = 10m,
+            },
+            promotionGuaranteedThrough: new DateOnly(2026, 11, 21)),
         OpenAi("gpt-5.5", 5m, 0.50m, 30m),
         OpenAi("gpt-5.4", 2.50m, 0.25m, 15m),
         OpenAi("gpt-5.3-codex", 1.75m, 0.175m, 14m),
@@ -83,6 +169,9 @@ public static class ApiPricingCatalog
         Anthropic("claude-3-opus", 15m, 1.50m, 75m),
     ];
 
+    public static IReadOnlyList<ApiPriceObservation> PriceObservations =>
+        Observations;
+
     public static ApiCostEstimate Estimate(
         TokenUsage usage,
         DateOnly? pricingDate = null,
@@ -104,7 +193,22 @@ public static class ApiPricingCatalog
         var unpricedModels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var attributed = new TokenBreakdown();
 
-        foreach (var item in usage.ModelUsage)
+        var datedUsage = usage.DatedModelUsage;
+        var modelUsage = datedUsage.Count > 0
+            ? datedUsage.Select(item => (
+                item.AgentId,
+                item.Name,
+                item.Model,
+                item.Breakdown,
+                PricingDate: item.Day))
+            : usage.ModelUsage.Select(item => (
+                item.AgentId,
+                item.Name,
+                item.Model,
+                item.Breakdown,
+                PricingDate: date));
+
+        foreach (var item in modelUsage)
         {
             attributed = attributed.Add(item.Breakdown);
             var selectedTokens = item.Breakdown.SelectedTotal(selection);
@@ -114,7 +218,11 @@ public static class ApiPricingCatalog
             }
 
             if (item.Model is not null &&
-                TryResolve(item.AgentId, item.Model, date, out var rates))
+                TryResolve(
+                    item.AgentId,
+                    item.Model,
+                    item.PricingDate,
+                    out var rates))
             {
                 cost += Cost(item.Breakdown, rates, selection);
                 pricedTokens += selectedTokens;
@@ -148,13 +256,33 @@ public static class ApiPricingCatalog
         DateOnly pricingDate,
         out ApiTokenRates rates)
     {
+        if (TryResolveObservation(
+                agentId,
+                model,
+                pricingDate,
+                out var observation))
+        {
+            rates = observation.Rates;
+            return true;
+        }
+
         rates = null!;
+        return false;
+    }
+
+    public static bool TryResolveObservation(
+        AgentId agentId,
+        string model,
+        DateOnly pricingDate,
+        out ApiPriceObservation observation)
+    {
+        observation = null!;
         if (string.IsNullOrWhiteSpace(model))
         {
             return false;
         }
 
-        var rule = Rules
+        var resolved = Observations
             .Where(item =>
                 item.AgentId == agentId &&
                 MatchesModel(item.ModelPrefix, model) &&
@@ -164,12 +292,12 @@ public static class ApiPricingCatalog
                  pricingDate < item.UntilExclusive.Value))
             .OrderByDescending(item => item.ModelPrefix.Length)
             .FirstOrDefault();
-        if (rule is null)
+        if (resolved is null)
         {
             return false;
         }
 
-        rates = rule.Rates;
+        observation = resolved;
         return true;
     }
 
@@ -230,22 +358,45 @@ public static class ApiPricingCatalog
             total.OutputTokens - attributed.OutputTokens,
             total.CacheReadTokens - attributed.CacheReadTokens);
 
-    private static PricingRule OpenAi(
+    private static ApiPriceObservation OpenAi(
         string modelPrefix,
         decimal rawInput,
         decimal cacheRead,
-        decimal output) =>
-        new(
+        decimal output,
+        string? id = null,
+        DateOnly? observedAt = null,
+        DateOnly? fromInclusive = null,
+        DateOnly? untilExclusive = null,
+        ApiPriceBoundaryBasis boundaryBasis =
+            ApiPriceBoundaryBasis.CatalogBaseline,
+        string? sourceUrl = null,
+        decimal? cacheWrite = null,
+        ApiTokenRates? longContext = null,
+        DateOnly? promotionGuaranteedThrough = null) =>
+        new ApiPriceObservation(
+            id ?? $"openai.{modelPrefix}.baseline-2026-08-04",
             AgentId.Codex,
             modelPrefix,
             new ApiTokenRates(
                 rawInput,
                 cacheRead,
-                output),
-            null,
-            null);
+                output)
+            {
+                CacheWrite = cacheWrite,
+            },
+            observedAt ?? new DateOnly(2026, 8, 4),
+            fromInclusive,
+            untilExclusive,
+            boundaryBasis,
+            sourceUrl ?? OpenAiPricingSource)
+        {
+            LongContext = longContext is null
+                ? null
+                : new ApiLongContextPricing(272_000, longContext),
+            PromotionGuaranteedThrough = promotionGuaranteedThrough,
+        };
 
-    private static PricingRule Anthropic(
+    private static ApiPriceObservation Anthropic(
         string modelPrefix,
         decimal rawInput,
         decimal cacheRead,
@@ -253,19 +404,19 @@ public static class ApiPricingCatalog
         DateOnly? fromInclusive = null,
         DateOnly? untilExclusive = null) =>
         new(
+            $"anthropic.{modelPrefix}." +
+            (fromInclusive?.ToString("yyyy-MM-dd") ?? "baseline-2026-08-04"),
             AgentId.ClaudeCode,
             modelPrefix,
             new ApiTokenRates(
                 rawInput,
                 cacheRead,
                 output),
+            new DateOnly(2026, 8, 4),
             fromInclusive,
-            untilExclusive);
-
-    private sealed record PricingRule(
-        AgentId AgentId,
-        string ModelPrefix,
-        ApiTokenRates Rates,
-        DateOnly? FromInclusive,
-        DateOnly? UntilExclusive);
+            untilExclusive,
+            fromInclusive.HasValue
+                ? ApiPriceBoundaryBasis.ProviderEffectiveDate
+                : ApiPriceBoundaryBasis.CatalogBaseline,
+            AnthropicPricingSource);
 }

@@ -23,6 +23,11 @@ reconciles its persisted range at app startup and keeps an event-driven
 Token summary remains current (see the 2026-07-29 amendment). Neither platform
 polls transcript contents on a timer.
 
+[ADR-0011](0011-effective-dated-price-observations-and-valuation-audits.md)
+later permits a narrow app-local audit snapshot of the API-equivalent
+derivation. It does not persist Token Odometer parse state, restore token
+history, enter the shared database, or become a live-display source.
+
 This sits under ADR-0001: the Token Odometer is the *estimate-grade* local-file
 figure that ADR-0001 rejected as the source of truth for the authoritative
 **Usage Window**. It survives only as a separate informational reading (see

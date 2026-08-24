@@ -14,6 +14,7 @@ import SwiftUI
 struct TokenSummaryReadings: Equatable {
     let billing: TokenSummaryPresentation
     let apiEquivalent: TokenApiEquivalentPresentation
+    let valuationSnapshot: ApiValuationSnapshot?
 
     static func make(
         perAgent: [TokenOdometerModel.AgentTokens],
@@ -31,23 +32,33 @@ struct TokenSummaryReadings: Equatable {
                     range: range,
                     currencyContext: currencyContext,
                     localizer: localizer
-                )
+                ),
+                valuationSnapshot: nil
             )
         }
 
         var total = TokenUsage()
         for agent in perAgent { total.add(agent.usage) }
         let usage = total.responseCount > 0 ? total : nil
+        let calculation = usage.map {
+            ApiValuationCalculation.make(
+                perAgent: perAgent,
+                totalUsage: $0,
+                range: range,
+                fallbackPricingDate: ApiPricingDate(pricingDate),
+                calculatedAt: pricingDate
+            )
+        }
         return TokenSummaryReadings(
             billing: .billing(usage: usage, range: range, localizer: localizer),
             apiEquivalent: .make(
-                perAgent: perAgent,
                 usage: usage,
+                estimate: calculation?.estimate,
                 range: range,
-                pricingDate: pricingDate,
                 currencyContext: currencyContext,
                 localizer: localizer
-            )
+            ),
+            valuationSnapshot: calculation?.snapshot
         )
     }
 }
@@ -190,16 +201,15 @@ struct TokenApiEquivalentPresentation: Equatable {
     }
 
     fileprivate static func make(
-        perAgent: [TokenOdometerModel.AgentTokens],
         usage: TokenUsage?,
+        estimate: ApiCostEstimate?,
         range: TokenRange,
-        pricingDate: Date,
         currencyContext: CurrencyDisplayContext,
         localizer: AppLocalizer
     ) -> TokenApiEquivalentPresentation {
         let identity = transitionIdentity(currencyContext)
         let rangeSentenceForm = range.localizedSentenceForm(using: localizer)
-        guard usage != nil else {
+        guard usage != nil, let estimate else {
             return TokenApiEquivalentPresentation(
                 value: "—",
                 help: localizer.localized(
@@ -213,16 +223,6 @@ struct TokenApiEquivalentPresentation: Equatable {
             )
         }
 
-        let rows = perAgent.flatMap { agent in
-            agent.byModel.map { row in
-                (agent: agent.id, model: row.model, usage: row.usage)
-            }
-        }
-        let estimate = ApiPricingCatalog.estimate(
-            rows,
-            totalUsage: usage,
-            on: pricingDate
-        )
         let reviewed = reviewedDate(locale: localizer.locale)
         let unpricedModels = localizedUnpricedModels(estimate, localizer: localizer)
         let methodology: String
@@ -526,19 +526,23 @@ struct TokenSummaryHero: View {
     let hasLoaded: Bool
     let currencyContext: CurrencyDisplayContext
     let accessibilityIdentifier: String
+    let valuationHistoryStore: ApiValuationHistoryStore
 
     init(
         perAgent: [TokenOdometerModel.AgentTokens],
         range: TokenRange,
         hasLoaded: Bool,
         currencyContext: CurrencyDisplayContext = .usd,
-        accessibilityIdentifier: String = "tokens.summary.hero"
+        accessibilityIdentifier: String = "tokens.summary.hero",
+        valuationHistoryStore: ApiValuationHistoryStore =
+            ApiValuationHistoryStore()
     ) {
         self.perAgent = perAgent
         self.range = range
         self.hasLoaded = hasLoaded
         self.currencyContext = currencyContext
         self.accessibilityIdentifier = accessibilityIdentifier
+        self.valuationHistoryStore = valuationHistoryStore
     }
 
     @Environment(\.locale) private var locale
@@ -585,6 +589,11 @@ struct TokenSummaryHero: View {
         }
         .onChange(of: readings.billing.numericValue) { _, newValue in
             if newValue != nil { hasPresentedNumber = true }
+        }
+        .task(id: readings.valuationSnapshot?.contentID) {
+            if let snapshot = readings.valuationSnapshot {
+                valuationHistoryStore.save(snapshot)
+            }
         }
     }
 

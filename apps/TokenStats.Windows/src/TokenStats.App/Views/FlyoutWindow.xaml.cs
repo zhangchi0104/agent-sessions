@@ -20,6 +20,7 @@ public partial class FlyoutWindow : Window
     private readonly UsageCoordinator _coordinator;
     private readonly AppSettingsStore _settings;
     private readonly TokenOdometerWatcher _tokenOdometer;
+    private readonly ApiValuationHistoryStore? _valuationHistory;
     private readonly Action _showSettings;
     private readonly Action _quit;
     private readonly HashSet<AgentId> _expandedDiagnostics = [];
@@ -39,11 +40,13 @@ public partial class FlyoutWindow : Window
         AppSettingsStore settings,
         TokenOdometerWatcher tokenOdometer,
         Action showSettings,
-        Action quit)
+        Action quit,
+        ApiValuationHistoryStore? valuationHistory = null)
     {
         _coordinator = coordinator;
         _settings = settings;
         _tokenOdometer = tokenOdometer;
+        _valuationHistory = valuationHistory;
         _showSettings = showSettings;
         _quit = quit;
         InitializeComponent();
@@ -470,6 +473,12 @@ public partial class FlyoutWindow : Window
         var estimate = ApiPricingCatalog.Estimate(
             usage,
             pricingDate);
+        _ = _valuationHistory?.TrySave(
+            ApiValuationSnapshot.Create(
+                usage,
+                displayedRange,
+                estimate,
+                DateTimeOffset.Now));
         ApiEstimateValue.Text = UsageFormatting.ApiEquivalentCost(estimate);
         var unpriced = estimate.IsPartial
             ? $" Unpriced: {string.Join(", ", estimate.UnpricedModels)} " +

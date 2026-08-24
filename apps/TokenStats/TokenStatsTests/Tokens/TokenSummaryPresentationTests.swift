@@ -444,7 +444,7 @@ struct TokenSummaryPresentationTests {
             timeZone: east
         )
 
-        #expect(westText == "Aug 4, 2026")
+        #expect(westText == "Aug 24, 2026")
         #expect(eastText == westText)
     }
 

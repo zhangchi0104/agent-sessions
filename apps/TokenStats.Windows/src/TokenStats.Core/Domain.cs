@@ -405,9 +405,21 @@ public sealed record ModelTokenUsage(
     public string? Model => Name.Value;
 }
 
+public sealed record DatedModelTokenUsage(
+    DateOnly Day,
+    AgentId AgentId,
+    ModelName Name,
+    TokenBreakdown Breakdown,
+    int ResponseCount)
+{
+    public string? Model => Name.Value;
+}
+
 public sealed class TokenUsage
 {
     private readonly Dictionary<ModelUsageKey, ModelUsageAccumulator> modelUsage = [];
+    private readonly Dictionary<DatedModelUsageKey, ModelUsageAccumulator>
+        datedModelUsage = [];
 
     /// <summary>Non-cached input tokens.</summary>
     public long InputTokens { get; set; }
@@ -456,6 +468,24 @@ public sealed class TokenUsage
                 item.Value.ResponseCount))
             .ToArray();
 
+    /// <summary>
+    /// The same model attribution with the local occurrence day retained for
+    /// effective-dated price selection. Parser cache state remains disposable;
+    /// this is an in-process projection of the current transcript truth.
+    /// </summary>
+    public IReadOnlyList<DatedModelTokenUsage> DatedModelUsage =>
+        datedModelUsage
+            .OrderBy(item => item.Key.Day)
+            .ThenBy(item => item.Key.AgentId)
+            .ThenBy(item => item.Key.Name)
+            .Select(item => new DatedModelTokenUsage(
+                item.Key.Day,
+                item.Key.AgentId,
+                item.Key.Name,
+                item.Value.Breakdown,
+                item.Value.ResponseCount))
+            .ToArray();
+
     public void AddAttributed(
         AgentId agentId,
         string? model,
@@ -497,6 +527,32 @@ public sealed class TokenUsage
         accumulator.ResponseCount += response.ResponseCount;
     }
 
+    internal void AddDated(DateOnly day, TokenUsage other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        Add(other);
+        foreach (var item in other.modelUsage)
+        {
+            AddDatedAccumulator(
+                new DatedModelUsageKey(day, item.Key.AgentId, item.Key.Name),
+                item.Value.Breakdown,
+                item.Value.ResponseCount);
+        }
+    }
+
+    internal void AddDatedAttribution(
+        DateOnly day,
+        AgentId agentId,
+        ModelName model,
+        TokenUsage response)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        AddDatedAccumulator(
+            new DatedModelUsageKey(day, agentId, model),
+            response.Breakdown,
+            response.ResponseCount);
+    }
+
     public void Add(TokenUsage other)
     {
         ArgumentNullException.ThrowIfNull(other);
@@ -512,6 +568,13 @@ public sealed class TokenUsage
             accumulator.Breakdown =
                 accumulator.Breakdown.Add(item.Value.Breakdown);
             accumulator.ResponseCount += item.Value.ResponseCount;
+        }
+        foreach (var item in other.datedModelUsage)
+        {
+            AddDatedAccumulator(
+                item.Key,
+                item.Value.Breakdown,
+                item.Value.ResponseCount);
         }
     }
 
@@ -534,8 +597,33 @@ public sealed class TokenUsage
                     ResponseCount = item.Value.ResponseCount,
                 });
         }
+        foreach (var item in datedModelUsage)
+        {
+            clone.datedModelUsage.Add(
+                item.Key,
+                new ModelUsageAccumulator
+                {
+                    Breakdown = item.Value.Breakdown,
+                    ResponseCount = item.Value.ResponseCount,
+                });
+        }
 
         return clone;
+    }
+
+    private void AddDatedAccumulator(
+        DatedModelUsageKey key,
+        TokenBreakdown breakdown,
+        int responseCount)
+    {
+        if (!datedModelUsage.TryGetValue(key, out var accumulator))
+        {
+            accumulator = new ModelUsageAccumulator();
+            datedModelUsage.Add(key, accumulator);
+        }
+
+        accumulator.Breakdown = accumulator.Breakdown.Add(breakdown);
+        accumulator.ResponseCount += responseCount;
     }
 
     private void AddTotals(TokenUsage other)
@@ -547,6 +635,11 @@ public sealed class TokenUsage
     }
 
     private readonly record struct ModelUsageKey(AgentId AgentId, ModelName Name);
+
+    private readonly record struct DatedModelUsageKey(
+        DateOnly Day,
+        AgentId AgentId,
+        ModelName Name);
 
     private sealed class ModelUsageAccumulator
     {
