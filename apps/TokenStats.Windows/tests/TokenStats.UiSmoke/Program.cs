@@ -2357,8 +2357,10 @@ internal static class Program
                     AuthSessionStateKind.TemporarilyUnverifiable ||
                 retained.IsRefreshing ||
                 retained.State.Kind != AgentStateKind.StaleDisclosed ||
-                retained.State.Snapshot != cached ||
-                settings.LoadLastSnapshot(AgentId.ClaudeCode) != cached ||
+                !SnapshotsEqual(retained.State.Snapshot, cached) ||
+                !SnapshotsEqual(
+                    settings.LoadLastSnapshot(AgentId.ClaudeCode),
+                    cached) ||
                 retained.Diagnostics?.Contains(rawMarker, StringComparison.Ordinal) == true ||
                 retained.LoginError?.Contains(rawMarker, StringComparison.Ordinal) == true ||
                 retained.LoginError?.Contains(
@@ -2379,6 +2381,15 @@ internal static class Program
             coordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
     }
+
+    private static bool SnapshotsEqual(
+        UsageSnapshot? left,
+        UsageSnapshot? right) =>
+        ReferenceEquals(left, right) ||
+        left is not null &&
+        right is not null &&
+        left.FetchedAt == right.FetchedAt &&
+        left.Windows.SequenceEqual(right.Windows);
 
     private static void VerifyCredentialLoadRecovery(string temporary)
     {
@@ -2444,8 +2455,10 @@ internal static class Program
             if (retained.SessionState.Kind !=
                     AuthSessionStateKind.TemporarilyUnverifiable ||
                 retained.State.Kind != AgentStateKind.StaleDisclosed ||
-                retained.State.Snapshot != cached ||
-                settings.LoadLastSnapshot(AgentId.Codex) != cached ||
+                !SnapshotsEqual(retained.State.Snapshot, cached) ||
+                !SnapshotsEqual(
+                    settings.LoadLastSnapshot(AgentId.Codex),
+                    cached) ||
                 codexProvider.FetchCalls != 0 ||
                 coordinator.ConnectedCount != AgentRegistry.All.Count - 1)
             {
@@ -2965,7 +2978,7 @@ internal static class Program
                 if (!codexSession.IsSignedIn ||
                     retained.SessionState.Kind != AuthSessionStateKind.Valid ||
                     retained.State.Kind != AgentStateKind.StaleDisclosed ||
-                    retained.State.Snapshot != cached ||
+                    !SnapshotsEqual(retained.State.Snapshot, cached) ||
                     codexProvider.FetchCalls != 0 ||
                     handler.RequestCount != 1 ||
                     store.Value?.RefreshToken !=
