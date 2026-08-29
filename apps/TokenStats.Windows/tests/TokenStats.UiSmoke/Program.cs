@@ -2474,6 +2474,9 @@ internal static class Program
 
     private static void VerifyCodexSessionValidityFlow(string temporary)
     {
+        VerifyNonCodexUnauthorizedRecovery(temporary);
+        VerifySessionPersistenceWarningLifecycle();
+        VerifyConcurrentPersistenceWarningCommit();
         VerifyCodexTerminalRefreshQuarantine();
         VerifyCodexNaturalRefreshFailureBecomesTemporary();
         VerifyCodexRefreshOnlyStalesUsageButValidatesSession(temporary);
@@ -2655,6 +2658,389 @@ internal static class Program
         finally
         {
             transientCoordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    private static void VerifyNonCodexUnauthorizedRecovery(string temporary)
+    {
+        foreach (var id in new[] { AgentId.ClaudeCode, AgentId.Cursor })
+        {
+            var now = DateTimeOffset.Now;
+            var store = new MemoryAuthTokenStore
+            {
+                Value = new OAuthTokens(
+                    $"{id}-access",
+                    $"{id}-refresh",
+                    now.AddHours(1)),
+            };
+            using var handler = new QueuedOAuthHandler();
+            handler.Enqueue(
+                200,
+                """{"access_token":"rotated-access","refresh_token":"rotated-refresh","expires_in":3600}""");
+            using var httpClient = new HttpClient(handler);
+            var session = CreateNonCodexAuthSession(
+                id,
+                store,
+                new OAuthHttpClient(httpClient),
+                () => now);
+            var provider = new SequencedProvider(id);
+            provider.EnqueueFailure(401);
+            provider.EnqueueSuccess();
+            var auth = AgentRegistry.All.ToDictionary(
+                definition => definition.Id,
+                definition => definition.Id == id
+                    ? session
+                    : new ConnectedAuth());
+            var providers = AgentRegistry.All.ToDictionary(
+                definition => definition.Id,
+                definition => definition.Id == id
+                    ? (IUsageProvider)provider
+                    : new StaticProvider(definition.Id));
+            var settings = new AppSettingsStore(Path.Combine(
+                temporary,
+                $"{id}-unauthorized-recovery-settings.json"));
+            var coordinator = new UsageCoordinator(settings, auth, providers);
+            try
+            {
+                coordinator.StartAsync().GetAwaiter().GetResult();
+                var recovered = coordinator.GetAgent(id);
+                if (handler.RequestCount != 1 ||
+                    provider.FetchCalls != 2 ||
+                    recovered.SessionState.Kind != AuthSessionStateKind.Valid ||
+                    recovered.State.Kind != AgentStateKind.Fresh ||
+                    store.Value?.RefreshToken != "rotated-refresh")
+                {
+                    throw new InvalidOperationException(
+                        $"{id} did not force-refresh once and retry Usage after HTTP 401.");
+                }
+
+                handler.Enqueue(
+                    200,
+                    """{"access_token":"second-access","refresh_token":"second-refresh","expires_in":3600}""");
+                provider.EnqueueFailure(401);
+                provider.EnqueueFailure(401);
+                coordinator.RefreshAsync(id, RefreshTrigger.Manual)
+                    .GetAwaiter()
+                    .GetResult();
+                var rejected = coordinator.GetAgent(id);
+                if (handler.RequestCount != 2 ||
+                    provider.FetchCalls != 4 ||
+                    rejected.SessionState.Kind !=
+                        AuthSessionStateKind.ReauthenticationRequired ||
+                    rejected.SessionState.ReauthenticationReason !=
+                        OAuthRefreshFailureReason.Unauthorized ||
+                    rejected.State.Kind != AgentStateKind.StaleDisclosed ||
+                    rejected.State.Snapshot is null ||
+                    settings.LoadLastSnapshot(id) is null ||
+                    coordinator.ConnectedCount != AgentRegistry.All.Count - 1)
+                {
+                    throw new InvalidOperationException(
+                        $"{id} did not quarantine a refreshed session after a second Usage HTTP 401.");
+                }
+
+                coordinator.RefreshAsync(id, RefreshTrigger.Timer)
+                    .GetAwaiter()
+                    .GetResult();
+                if (handler.RequestCount != 2 || provider.FetchCalls != 4)
+                {
+                    throw new InvalidOperationException(
+                        $"{id} retried a quarantined session automatically.");
+                }
+            }
+            finally
+            {
+                coordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            }
+
+            var expiredStore = new MemoryAuthTokenStore
+            {
+                Value = new OAuthTokens(
+                    $"{id}-expired-access",
+                    $"{id}-revoked-refresh",
+                    now.AddMinutes(-5)),
+            };
+            using var rejectedHandler = new QueuedOAuthHandler();
+            rejectedHandler.Enqueue(
+                401,
+                """{"error":{"code":"invalid_token"}}""");
+            using var rejectedHttpClient = new HttpClient(rejectedHandler);
+            var rejectedSession = CreateNonCodexAuthSession(
+                id,
+                expiredStore,
+                new OAuthHttpClient(rejectedHttpClient),
+                () => now);
+            rejectedSession.MarkUsageSucceeded(now.AddHours(-1));
+            var rejectedAuth = AgentRegistry.All.ToDictionary(
+                definition => definition.Id,
+                definition => definition.Id == id
+                    ? rejectedSession
+                    : new ConnectedAuth());
+            var accessBacked = new AccessTokenBackedProvider(
+                rejectedSession.ValidAccessTokenAsync,
+                id);
+            var rejectedProviders = AgentRegistry.All.ToDictionary(
+                definition => definition.Id,
+                definition => definition.Id == id
+                    ? (IUsageProvider)accessBacked
+                    : new StaticProvider(definition.Id));
+            var rejectedSettings = new AppSettingsStore(Path.Combine(
+                temporary,
+                $"{id}-refresh-rejection-settings.json"));
+            var rejectedCoordinator = new UsageCoordinator(
+                rejectedSettings,
+                rejectedAuth,
+                rejectedProviders);
+            try
+            {
+                rejectedCoordinator.StartAsync().GetAwaiter().GetResult();
+                var rejectedRefresh = rejectedCoordinator.GetAgent(id);
+                if (rejectedHandler.RequestCount != 1 ||
+                    accessBacked.FetchCalls != 1 ||
+                    rejectedRefresh.SessionState.Kind !=
+                        AuthSessionStateKind.ReauthenticationRequired ||
+                    rejectedRefresh.SessionState.ReauthenticationReason !=
+                        OAuthRefreshFailureReason.Unauthorized)
+                {
+                    throw new InvalidOperationException(
+                        $"{id} refresh HTTP 401 was not quarantined without a duplicate grant request.");
+                }
+            }
+            finally
+            {
+                rejectedCoordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            }
+
+            var passiveStore = new MemoryAuthTokenStore
+            {
+                Value = new OAuthTokens(
+                    $"{id}-passive-access",
+                    $"{id}-passive-refresh",
+                    now.AddHours(1)),
+            };
+            using var passiveHandler = new QueuedOAuthHandler();
+            using var passiveHttpClient = new HttpClient(passiveHandler);
+            var passiveSession = CreateNonCodexAuthSession(
+                id,
+                passiveStore,
+                new OAuthHttpClient(passiveHttpClient),
+                () => now);
+            var passiveAuth = AgentRegistry.All.ToDictionary(
+                definition => definition.Id,
+                definition => definition.Id == id
+                    ? passiveSession
+                    : new ConnectedAuth());
+            var passiveProvider = new AccessTokenBackedProvider(
+                passiveSession.ValidAccessTokenAsync,
+                id);
+            var passiveProviders = AgentRegistry.All.ToDictionary(
+                definition => definition.Id,
+                definition => definition.Id == id
+                    ? (IUsageProvider)passiveProvider
+                    : new StaticProvider(definition.Id));
+            var passiveSettings = new AppSettingsStore(Path.Combine(
+                temporary,
+                $"{id}-passive-validation-settings.json"));
+            var passiveCoordinator = new UsageCoordinator(
+                passiveSettings,
+                passiveAuth,
+                passiveProviders);
+            try
+            {
+                passiveCoordinator.StartAsync().GetAwaiter().GetResult();
+                passiveCoordinator.RefreshAsync(id, RefreshTrigger.Manual)
+                    .GetAwaiter()
+                    .GetResult();
+                if (passiveHandler.RequestCount != 0 ||
+                    passiveProvider.FetchCalls != 2 ||
+                    passiveCoordinator.GetAgent(id).SessionState.Kind !=
+                        AuthSessionStateKind.Valid)
+                {
+                    throw new InvalidOperationException(
+                        $"{id} rotated credentials proactively without a Usage HTTP 401.");
+                }
+            }
+            finally
+            {
+                passiveCoordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            }
+        }
+    }
+
+    private static IAgentAuthSession CreateNonCodexAuthSession(
+        AgentId id,
+        ITokenStore store,
+        OAuthHttpClient client,
+        Func<DateTimeOffset> now) => id switch
+        {
+            AgentId.ClaudeCode => new ClaudeAuthSession(store, client, now),
+            AgentId.Cursor => new CursorAuthSession(store, client, now),
+            _ => throw new ArgumentOutOfRangeException(nameof(id)),
+        };
+
+    private static void VerifySessionPersistenceWarningLifecycle()
+    {
+        foreach (var id in new[]
+                 {
+                     AgentId.ClaudeCode,
+                     AgentId.Codex,
+                     AgentId.Cursor,
+                 })
+        {
+            var now = DateTimeOffset.Now;
+            var original = new OAuthTokens(
+                $"{id}-access",
+                $"{id}-refresh",
+                now.AddHours(1),
+                id == AgentId.Codex ? "codex-account" : null);
+            var store = new MemoryAuthTokenStore
+            {
+                Value = original,
+                FailSaves = true,
+            };
+            using var handler = new QueuedOAuthHandler();
+            handler.Enqueue(
+                200,
+                """{"access_token":"rotated-access","refresh_token":"rotated-refresh","expires_in":3600}""");
+            using var httpClient = new HttpClient(handler);
+            var client = new OAuthHttpClient(httpClient);
+            IAgentAuthSession session = id switch
+            {
+                AgentId.ClaudeCode =>
+                    new ClaudeAuthSession(store, client, () => now),
+                AgentId.Codex => new CodexAuthSession(store, client, () => now),
+                AgentId.Cursor => new CursorAuthSession(store, client, () => now),
+                _ => throw new ArgumentOutOfRangeException(nameof(id)),
+            };
+            var recoverable = (IUnauthorizedRecoveryAuthSession)session;
+
+            var accepted = recoverable.ForceValidateSessionAsync()
+                .GetAwaiter()
+                .GetResult();
+            if (accepted.Kind != AuthSessionStateKind.Valid ||
+                accepted.Diagnostic?.Contains(
+                    "could not be saved",
+                    StringComparison.OrdinalIgnoreCase) != true ||
+                store.Value != original ||
+                handler.RequestCount != 1)
+            {
+                throw new InvalidOperationException(
+                    $"{id} did not retain a safe warning for an in-memory-only rotation.");
+            }
+
+            _ = session.ValidAccessTokenAsync().GetAwaiter().GetResult();
+            session.MarkUsageSucceeded(now.AddMinutes(1));
+            if (session.SessionState.Kind != AuthSessionStateKind.Valid ||
+                session.SessionState.Diagnostic?.Contains(
+                    "could not be saved",
+                    StringComparison.OrdinalIgnoreCase) != true ||
+                store.Value != original ||
+                handler.RequestCount != 1)
+            {
+                throw new InvalidOperationException(
+                    $"{id} cleared the persistence warning after another failed save and successful Usage.");
+            }
+
+            store.FailSaves = false;
+            _ = session.ValidAccessTokenAsync().GetAwaiter().GetResult();
+            session.MarkUsageSucceeded(now.AddMinutes(2));
+            if (session.SessionState.Kind != AuthSessionStateKind.Valid ||
+                session.SessionState.Diagnostic is not null ||
+                store.Value?.RefreshToken != "rotated-refresh" ||
+                handler.RequestCount != 1)
+            {
+                throw new InvalidOperationException(
+                    $"{id} did not clear the persistence warning after compare-and-replace succeeded.");
+            }
+        }
+    }
+
+    private static void VerifyConcurrentPersistenceWarningCommit()
+    {
+        foreach (var id in new[]
+                 {
+                     AgentId.ClaudeCode,
+                     AgentId.Codex,
+                     AgentId.Cursor,
+                 })
+        {
+            var now = DateTimeOffset.Now;
+            var store = new MemoryAuthTokenStore
+            {
+                Value = new OAuthTokens(
+                    $"{id}-concurrent-access",
+                    $"{id}-concurrent-refresh",
+                    now.AddHours(1),
+                    id == AgentId.Codex ? "codex-account" : null),
+                FailSaves = true,
+            };
+            using var handler = new BlockingOAuthRefreshHandler(
+                """{"access_token":"rotated-access","refresh_token":"rotated-refresh","expires_in":3600}""");
+            using var httpClient = new HttpClient(handler);
+            var client = new OAuthHttpClient(httpClient);
+            IAgentAuthSession session = id switch
+            {
+                AgentId.ClaudeCode =>
+                    new ClaudeAuthSession(store, client, () => now),
+                AgentId.Codex => new CodexAuthSession(store, client, () => now),
+                AgentId.Cursor => new CursorAuthSession(store, client, () => now),
+                _ => throw new ArgumentOutOfRangeException(nameof(id)),
+            };
+            var recoverable = (IUnauthorizedRecoveryAuthSession)session;
+            var validation = recoverable.ForceValidateSessionAsync();
+            if (!handler.Started.Task.Wait(TimeSpan.FromSeconds(5)))
+            {
+                throw new TimeoutException(
+                    $"{id} controlled persistence refresh did not start.");
+            }
+
+            var stop = 0;
+            var warningObserved = 0;
+            var warningLost = 0;
+            var workers = Enumerable.Range(0, 6)
+                .Select(_ => Task.Run(() =>
+                {
+                    while (Volatile.Read(ref stop) == 0)
+                    {
+                        session.MarkUsageSucceeded(now.AddMinutes(1));
+                        var diagnostic = session.SessionState.Diagnostic;
+                        if (diagnostic?.Contains(
+                                "could not be saved",
+                                StringComparison.OrdinalIgnoreCase) == true)
+                        {
+                            Volatile.Write(ref warningObserved, 1);
+                        }
+                        else if (Volatile.Read(ref warningObserved) == 1)
+                        {
+                            Volatile.Write(ref warningLost, 1);
+                        }
+                    }
+                }))
+                .ToArray();
+
+            handler.Release.TrySetResult();
+            var validated = validation.GetAwaiter().GetResult();
+            if (!SpinWait.SpinUntil(
+                    () => Volatile.Read(ref warningObserved) == 1,
+                    TimeSpan.FromSeconds(5)))
+            {
+                Volatile.Write(ref stop, 1);
+                Task.WaitAll(workers);
+                throw new InvalidOperationException(
+                    $"{id} never published the controlled persistence warning.");
+            }
+
+            Thread.Sleep(25);
+            Volatile.Write(ref stop, 1);
+            Task.WaitAll(workers);
+            if (validated.Kind != AuthSessionStateKind.Valid ||
+                Volatile.Read(ref warningLost) != 0 ||
+                session.SessionState.Diagnostic?.Contains(
+                    "could not be saved",
+                    StringComparison.OrdinalIgnoreCase) != true)
+            {
+                throw new InvalidOperationException(
+                    $"{id} lost a refresh persistence warning during a concurrent Usage commit.");
+            }
         }
     }
 
@@ -3958,6 +4344,38 @@ internal static class Program
                     System.Text.Encoding.UTF8,
                     "application/json"),
             });
+        }
+    }
+
+    private sealed class BlockingOAuthRefreshHandler : HttpMessageHandler
+    {
+        private readonly string responseBody;
+
+        public BlockingOAuthRefreshHandler(string responseBody)
+        {
+            this.responseBody = responseBody;
+        }
+
+        public TaskCompletionSource Started { get; } = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource Release { get; } = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            await Release.Task.WaitAsync(cancellationToken)
+                .ConfigureAwait(false);
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    responseBody,
+                    System.Text.Encoding.UTF8,
+                    "application/json"),
+            };
         }
     }
 

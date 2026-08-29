@@ -30,6 +30,10 @@ final class CursorAuthSession: AgentAuthSession {
 
     func validAccessToken() async throws -> String { try await cache.validAccessToken() }
 
+    func forceRefreshAccessToken() async throws -> String {
+        try await cache.forceRefreshAccessToken()
+    }
+
     func acquireRelaunchCoordination() async throws -> any RefreshCoordinationLease {
         try await cache.acquireRelaunchCoordination()
     }

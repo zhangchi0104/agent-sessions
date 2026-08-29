@@ -25,6 +25,36 @@ nonisolated enum OAuthErrorDiagnostics {
         return "\(operation) (\(code))"
     }
 
+    /// Classifies only exact, structured OAuth refresh failures. Arbitrary
+    /// descriptive text is never searched, retained, or surfaced because auth
+    /// responses may contain account and credential detail.
+    static func refreshError(_ data: Data, status: Int) -> OAuthRefreshError {
+        guard let root = try? JSONSerialization.jsonObject(with: data) else {
+            return OAuthRefreshError(
+                status: status,
+                code: nil,
+                reauthenticationReason: status == 401 ? .unauthorized : nil
+            )
+        }
+
+        var codes: [String] = []
+        collectRefreshCodes(from: root, depth: 0, into: &codes)
+        for code in codes {
+            if let reason = terminalRefreshReason(for: code) {
+                return OAuthRefreshError(
+                    status: status,
+                    code: code,
+                    reauthenticationReason: reason
+                )
+            }
+        }
+        return OAuthRefreshError(
+            status: status,
+            code: codes.first,
+            reauthenticationReason: status == 401 ? .unauthorized : nil
+        )
+    }
+
     private static func collectCodes(
         from value: Any,
         depth: Int,
@@ -47,6 +77,44 @@ nonisolated enum OAuthErrorDiagnostics {
             for child in array {
                 collectCodes(from: child, depth: depth + 1, into: &codes)
             }
+        }
+    }
+
+    private static func collectRefreshCodes(
+        from value: Any,
+        depth: Int,
+        into codes: inout [String]
+    ) {
+        guard depth <= 6 else { return }
+        if let object = value as? [String: Any] {
+            for (key, child) in object {
+                if let raw = child as? String,
+                   let code = normalizedCode(raw),
+                   ["error", "code", "error_code", "type"].contains(key)
+                    || (key == "message" && terminalRefreshReason(for: code) != nil),
+                   !codes.contains(code) {
+                    codes.append(code)
+                }
+                if child is [String: Any] || child is [Any] {
+                    collectRefreshCodes(from: child, depth: depth + 1, into: &codes)
+                }
+            }
+        } else if let array = value as? [Any] {
+            for child in array {
+                collectRefreshCodes(from: child, depth: depth + 1, into: &codes)
+            }
+        }
+    }
+
+    private static func terminalRefreshReason(
+        for code: String
+    ) -> SessionReauthenticationReason? {
+        switch code {
+        case "invalid_grant": return .invalidGrant
+        case "refresh_token_expired": return .expired
+        case "refresh_token_reused": return .reused
+        case "refresh_token_invalidated": return .invalidated
+        default: return nil
         }
     }
 
@@ -145,8 +213,9 @@ protocol AgentAuthSession: AnyObject {
     /// A valid bearer token, refreshing first if the stored one has expired.
     func validAccessToken() async throws -> String
     /// Rotate the stored token pair even when the access token has not expired.
-    /// Only sessions advertising `supportsProactiveSessionValidation` are asked
-    /// to do this by the coordinator.
+    /// Sessions advertising `supportsProactiveSessionValidation` are also asked
+    /// to do this at startup/manual refresh; every OAuth session may be asked
+    /// after its Usage endpoint rejects the current bearer with 401.
     func forceRefreshAccessToken() async throws -> String
     /// The account id some usage endpoints want as a header; nil when the
     /// agent's endpoint doesn't take one.

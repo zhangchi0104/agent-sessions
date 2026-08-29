@@ -68,11 +68,14 @@ internal static class Program
                 TokenCacheQuarantinesConcurrentNormalReadAfterTerminalFailure),
             new(nameof(TokenCacheKeepsRotatedTokenAfterPersistenceFailure), TokenCacheKeepsRotatedTokenAfterPersistenceFailure),
             new(
+                nameof(TokenCachePersistenceRetryDoesNotOverwriteChangedCredential),
+                TokenCachePersistenceRetryDoesNotOverwriteChangedCredential),
+            new(
                 nameof(TokenCacheAdoptsRotatedRefreshButRejectsExpiredAccess),
                 TokenCacheAdoptsRotatedRefreshButRejectsExpiredAccess),
             new(
-                nameof(TokenCachePreservesCredentialsWhenSignOutClearFails),
-                TokenCachePreservesCredentialsWhenSignOutClearFails),
+                nameof(TokenCacheReconcilesInFlightRefreshWhenSignOutClearFails),
+                TokenCacheReconcilesInFlightRefreshWhenSignOutClearFails),
             new(nameof(TokenCacheDoesNotPublishFailedAdoption), TokenCacheDoesNotPublishFailedAdoption),
             new(nameof(OAuthHttpClientBuildsExpectedRequestsAndSurfacesErrors), OAuthHttpClientBuildsExpectedRequestsAndSurfacesErrors),
             new(nameof(CodexRefreshUsesJsonAndClassifiesSanitizedErrors), CodexRefreshUsesJsonAndClassifiesSanitizedErrors),
@@ -1559,10 +1562,98 @@ internal static class Program
 
         Check.True(failed);
         Check.Equal("rotated-refresh", cache.Tokens?.RefreshToken ?? "<missing>");
+        Check.Equal("old-refresh", store.Value?.RefreshToken ?? "<missing>");
+        Check.True(cache.PendingPersistenceDiagnostic is not null);
+
+        var blockedSecondRotation = false;
+        try
+        {
+            _ = await cache.ForceRefreshAccessTokenAsync().ConfigureAwait(false);
+        }
+        catch (TokenPersistenceException)
+        {
+            blockedSecondRotation = true;
+        }
+
+        Check.True(blockedSecondRotation);
+        Check.Equal(1, refreshCalls);
         Check.Equal(
             "rotated-access",
             await cache.ValidAccessTokenAsync().ConfigureAwait(false));
+        Check.True(cache.PendingPersistenceDiagnostic is not null);
         Check.Equal(1, refreshCalls);
+
+        store.FailSaves = false;
+        Check.Equal(
+            "rotated-access",
+            await cache.ValidAccessTokenAsync().ConfigureAwait(false));
+        Check.Equal("rotated-refresh", store.Value?.RefreshToken ?? "<missing>");
+        Check.Equal(1, store.SaveCount);
+        Check.Equal(1, refreshCalls);
+        Check.True(cache.PendingPersistenceDiagnostic is null);
+
+        var restartedRefreshCalls = 0;
+        var restarted = new AgentTokenCache(
+            store,
+            (_, _) =>
+            {
+                restartedRefreshCalls++;
+                throw new InvalidOperationException("A durable token unexpectedly refreshed.");
+            },
+            () => now);
+        Check.Equal(
+            "rotated-access",
+            await restarted.ValidAccessTokenAsync().ConfigureAwait(false));
+        Check.Equal(0, restartedRefreshCalls);
+    }
+
+    private static async Task TokenCachePersistenceRetryDoesNotOverwriteChangedCredential()
+    {
+        var now = DateTimeOffset.Parse("2026-08-29T00:00:00Z", Invariant);
+        var store = new MemoryTokenStore
+        {
+            Value = new OAuthTokens(
+                "old-access",
+                "old-refresh",
+                now.AddHours(1)),
+        };
+        var cache = new AgentTokenCache(
+            store,
+            (_, _) => Task.FromResult(new OAuthTokens(
+                "rotated-access",
+                "rotated-refresh",
+                now.AddHours(2))),
+            () => now);
+        _ = cache.Tokens;
+        store.FailSaves = true;
+
+        var persistenceFailed = false;
+        try
+        {
+            _ = await cache.ForceRefreshAccessTokenAsync().ConfigureAwait(false);
+        }
+        catch (TokenPersistenceException)
+        {
+            persistenceFailed = true;
+        }
+
+        Check.True(persistenceFailed);
+
+        var replacement = new OAuthTokens(
+            "replacement-access",
+            "replacement-refresh",
+            now.AddHours(3),
+            "replacement-account");
+        store.FailSaves = false;
+        store.Value = replacement;
+
+        Check.Equal(
+            "replacement-access",
+            await cache.ValidAccessTokenAsync().ConfigureAwait(false));
+        Check.Equal(replacement, store.Value);
+        Check.Equal(replacement, cache.Tokens);
+        Check.Equal(0, store.SaveCount);
+        Check.True(cache.PendingPersistenceDiagnostic is null);
     }
 
     private static async Task TokenCacheAdoptsRotatedRefreshButRejectsExpiredAccess()
@@ -1613,7 +1704,7 @@ internal static class Program
         }
     }
 
-    private static async Task TokenCachePreservesCredentialsWhenSignOutClearFails()
+    private static async Task TokenCacheReconcilesInFlightRefreshWhenSignOutClearFails()
     {
         var now = DateTimeOffset.Parse("2026-08-29T00:00:00Z", Invariant);
         var oldTokens = new OAuthTokens(
@@ -1699,20 +1790,12 @@ internal static class Program
             "A failed clear left the old credential generation able to adopt a late login.");
 
         releaseRefresh.Set();
-        var oldFlightRejected = false;
-        try
-        {
-            _ = await oldFlight.ConfigureAwait(false);
-        }
-        catch (UsageException)
-        {
-            oldFlightRejected = true;
-        }
-
-        Check.True(oldFlightRejected, "A failed clear left the old refresh flight usable.");
-        Check.Equal(0, store.SaveCount);
-        Check.Equal(oldTokens, store.Value);
-        Check.Equal(oldTokens, cache.Tokens);
+        Check.Equal(
+            "late-refresh-access",
+            await oldFlight.ConfigureAwait(false));
+        Check.Equal(1, store.SaveCount);
+        Check.Equal(lateRefresh, store.Value);
+        Check.Equal(lateRefresh, cache.Tokens);
 
         await cache.AdoptAsync(
                 new OAuthTokens(
@@ -1722,7 +1805,7 @@ internal static class Program
                     "replacement-account"),
                 cache.CaptureCredentialGeneration())
             .ConfigureAwait(false);
-        Check.Equal(1, store.SaveCount);
+        Check.Equal(2, store.SaveCount);
         Check.Equal("replacement-account", cache.AccountId ?? "<missing>");
     }
 
@@ -1784,6 +1867,17 @@ internal static class Program
                     message = rawCodexMarker,
                 },
             }));
+        const string rawCursorMarker = "cursor-auth-response-must-not-escape";
+        handler.Enqueue(
+            HttpStatusCode.BadRequest,
+            JsonSerializer.Serialize(new
+            {
+                error = new
+                {
+                    code = "invalid_grant",
+                    message = rawCursorMarker,
+                },
+            }));
         using var httpClient = new HttpClient(handler);
         var oauth = new OAuthHttpClient(httpClient);
 
@@ -1832,11 +1926,11 @@ internal static class Program
             _ = await oauth.RefreshClaudeCodeAsync("refresh")
                 .ConfigureAwait(false);
         }
-        catch (UsageException exception)
+        catch (OAuthRefreshException exception)
         {
-            surfaced = exception.Message.Contains(
-                    "HTTP 401",
-                    StringComparison.Ordinal) &&
+            surfaced = exception.StatusCode == 401 &&
+                exception.IsTerminal &&
+                exception.Reason == OAuthRefreshFailureReason.Unauthorized &&
                 !exception.Message.Contains(
                     rawOAuthMarker,
                     StringComparison.Ordinal);
@@ -1866,6 +1960,30 @@ internal static class Program
         Check.True(
             codexRejectedSafely,
             "Codex code exchange exposed the raw authentication response.");
+
+        var cursorRejectedSafely = false;
+        try
+        {
+            _ = await oauth.RefreshCursorAsync(
+                    new OAuthTokens(
+                        "cursor-access",
+                        "cursor-refresh",
+                        DateTimeOffset.Now.AddHours(1)))
+                .ConfigureAwait(false);
+        }
+        catch (OAuthRefreshException exception)
+        {
+            cursorRejectedSafely = exception.StatusCode == 400 &&
+                exception.IsTerminal &&
+                exception.Reason == OAuthRefreshFailureReason.InvalidGrant &&
+                !exception.Message.Contains(
+                    rawCursorMarker,
+                    StringComparison.Ordinal);
+        }
+
+        Check.True(
+            cursorRejectedSafely,
+            "Cursor refresh rejection was not classified or exposed raw authentication data.");
     }
 
     private static async Task CodexRefreshUsesJsonAndClassifiesSanitizedErrors()

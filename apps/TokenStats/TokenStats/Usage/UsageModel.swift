@@ -514,9 +514,7 @@ final class UsageModel {
                 revisionBeforeFetch: refreshRevisionBeforeFetch
             )
             if case .unauthorized = error {
-                if !integration(for: id).auth.supportsProactiveSessionValidation {
-                    markOrdinaryFailure(id, error: error)
-                } else if alreadyForceRefreshed {
+                if alreadyForceRefreshed {
                     requireReauthentication(id, reason: .unauthorized, error: error)
                 } else {
                     await recoverUnauthorized(id, provider: provider, generation: generation)
@@ -624,8 +622,7 @@ final class UsageModel {
             )
         } catch let retryError as UsageError {
             guard isCurrentSignedInSession(generation, for: id) else { return }
-            if case .unauthorized = retryError,
-               integration(for: id).auth.supportsProactiveSessionValidation {
+            if case .unauthorized = retryError {
                 requireReauthentication(id, reason: .unauthorized, error: retryError)
             } else {
                 // The successful refresh already proved the session. A 403,

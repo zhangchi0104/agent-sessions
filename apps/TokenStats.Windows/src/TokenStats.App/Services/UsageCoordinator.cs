@@ -345,6 +345,8 @@ public sealed class UsageCoordinator : IAsyncDisposable
                     cancellationToken,
                     _lifetime.Token);
                 var proactive = authSession as IProactiveAuthSession;
+                var unauthorizedRecovery =
+                    authSession as IUnauthorizedRecoveryAuthSession;
                 var forceAttempted = false;
                 if (proactive is not null &&
                     trigger is RefreshTrigger.Startup or RefreshTrigger.Manual)
@@ -406,11 +408,21 @@ public sealed class UsageCoordinator : IAsyncDisposable
                     }
                 }
                 catch (UsageException exception) when (
-                    exception.StatusCode == 401 && proactive is not null)
+                    exception.StatusCode == 401 &&
+                    unauthorizedRecovery is not null)
                 {
                     if (!IsCurrentSessionGeneration(id, sessionGeneration))
                     {
                         return;
+                    }
+
+                    if (authSession.SessionState.Kind ==
+                        AuthSessionStateKind.ReauthenticationRequired)
+                    {
+                        throw new InvalidOperationException(
+                            authSession.SessionState.Diagnostic ??
+                            UsageUnauthorizedDiagnostic(id),
+                            exception);
                     }
 
                     if (forceAttempted)
@@ -423,9 +435,9 @@ public sealed class UsageCoordinator : IAsyncDisposable
                                 if (authSession.SessionState.Kind ==
                                     AuthSessionStateKind.Valid)
                                 {
-                                    proactive.RequireReauthentication(
+                                    unauthorizedRecovery.RequireReauthentication(
                                         OAuthRefreshFailureReason.Unauthorized,
-                                        "The refreshed Codex session was rejected by the usage service. Sign in again.");
+                                        UsageUnauthorizedDiagnostic(id));
                                 }
                             });
                         if (!applied)
@@ -435,7 +447,7 @@ public sealed class UsageCoordinator : IAsyncDisposable
 
                         throw new InvalidOperationException(
                             authSession.SessionState.Diagnostic ??
-                            "The Codex session could not access usage.");
+                            UsageUnauthorizedDiagnostic(id));
                     }
 
                     Task<AuthSessionState>? validationTask = null;
@@ -443,8 +455,9 @@ public sealed class UsageCoordinator : IAsyncDisposable
                     {
                         if (_sessionGenerations[id] == sessionGeneration)
                         {
-                            validationTask = proactive.ForceValidateSessionAsync(
-                                linked.Token);
+                            validationTask =
+                                unauthorizedRecovery.ForceValidateSessionAsync(
+                                    linked.Token);
                         }
                     }
                     if (validationTask is null)
@@ -499,16 +512,16 @@ public sealed class UsageCoordinator : IAsyncDisposable
                         if (!ApplyAuthMutationIfCurrent(
                                 id,
                                 sessionGeneration,
-                                () => proactive.RequireReauthentication(
+                                () => unauthorizedRecovery.RequireReauthentication(
                                     OAuthRefreshFailureReason.Unauthorized,
-                                    "The refreshed Codex session was rejected by the usage service. Sign in again.")))
+                                    UsageUnauthorizedDiagnostic(id))))
                         {
                             return;
                         }
 
                         throw new InvalidOperationException(
                             authSession.SessionState.Diagnostic ??
-                            "The Codex session could not access usage.",
+                            UsageUnauthorizedDiagnostic(id),
                             retryException);
                     }
                 }
@@ -1158,6 +1171,10 @@ public sealed class UsageCoordinator : IAsyncDisposable
             ? exception.GetType().Name
             : exception.Message;
     }
+
+    private static string UsageUnauthorizedDiagnostic(AgentId id) =>
+        $"The refreshed {AgentRegistry.Get(id).DisplayName} session was rejected " +
+        "by the usage service. Sign in again.";
 
     private void Settings_OnChanged(object? sender, EventArgs eventArgs) =>
         RaiseChanged();

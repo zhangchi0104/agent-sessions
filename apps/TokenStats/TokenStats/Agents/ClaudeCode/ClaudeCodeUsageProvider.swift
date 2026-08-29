@@ -30,7 +30,12 @@ struct ClaudeCodeUsageProvider: UsageProvider {
         guard let http = response as? HTTPURLResponse else {
             throw UsageError.badResponse(status: -1, body: diagnostic)
         }
-        guard http.statusCode == 200 else {
+        switch http.statusCode {
+        case 200:
+            break
+        case 401:
+            throw UsageError.unauthorized(body: diagnostic)
+        default:
             throw UsageError.badResponse(status: http.statusCode, body: diagnostic)
         }
         let windows = try UsageSnapshotParser.parse(data)

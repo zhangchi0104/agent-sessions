@@ -32,31 +32,43 @@ struct SessionValidityTests {
         auth: SessionTestAuthSession,
         provider: SessionTestProvider,
         defaults: UserDefaults,
-        signInStyle: SignInStyle = .selfCompleting
+        signInStyle: SignInStyle = .selfCompleting,
+        targetID: CodingAgentID = .codex
+    ) -> UsageModel {
+        makeModelForTarget(
+            auth: auth,
+            provider: provider,
+            defaults: defaults,
+            signInStyle: signInStyle,
+            targetID: targetID
+        )
+    }
+
+    private func makeModelForTarget(
+        auth: any AgentAuthSession,
+        provider: UsageProvider,
+        defaults: UserDefaults,
+        signInStyle: SignInStyle = .selfCompleting,
+        targetID: CodingAgentID
     ) -> UsageModel {
         let signedOutAuth = SessionTestAuthSession(signedIn: false)
+        let integrations: [any CodingAgentIntegration] = [
+            CodingAgentID.claudeCode,
+            .codex,
+            .cursor,
+        ].map { id in
+            SessionTestIntegration(
+                id: id,
+                auth: id == targetID ? auth : signedOutAuth,
+                provider: id == targetID ? provider : SessionTestProvider([]),
+                signInStyle: id == targetID ? signInStyle : .selfCompleting
+            )
+        }
         return UsageModel(
             appearance: AppearanceSettings(defaults: defaults),
             localizer: AppLocalizer(locale: Locale(identifier: "en")),
             lastKnown: LastKnownUsageStore(defaults: defaults),
-            integrations: [
-                SessionTestIntegration(
-                    id: .claudeCode,
-                    auth: signedOutAuth,
-                    provider: SessionTestProvider([])
-                ),
-                SessionTestIntegration(
-                    id: .codex,
-                    auth: auth,
-                    provider: provider,
-                    signInStyle: signInStyle
-                ),
-                SessionTestIntegration(
-                    id: .cursor,
-                    auth: signedOutAuth,
-                    provider: SessionTestProvider([])
-                ),
-            ]
+            integrations: integrations
         )
     }
 
@@ -396,28 +408,127 @@ struct SessionValidityTests {
         }
     }
 
-    @Test func nonProactiveUsage401DoesNotQuarantineOrAttemptAForcedRefresh() async {
+    @Test func nonProactiveUsage401ForcesOneRefreshAndRetriesOnce() async {
         let defaults = InMemoryUserDefaults()
         let auth = SessionTestAuthSession(
             supportsProactiveSessionValidation: false,
-            forceResults: []
+            forceResults: [.success("rotated-access")]
         )
         let provider = SessionTestProvider([
             .failure(UsageError.unauthorized(body: #"{"detail":"unauthorized"}"#)),
+            .success(reading(percent: 20)),
         ])
         let model = makeModel(auth: auth, provider: provider, defaults: defaults)
 
         model.start()
 
         #expect(await waitUntil {
-            model.sessionStates[.codex] == .temporarilyUnverifiable(lastVerifiedAt: nil)
-                && !model.isRefreshing(.codex)
+            guard case .fresh(let snapshot) = model.agentStates[.codex] else { return false }
+            return provider.fetchCount == 2 && snapshot.windows.first?.percentConsumed == 20
         })
-        #expect(auth.forceRefreshCount == 0)
-        #expect(provider.fetchCount == 1)
-        if case .reauthenticationRequired = model.sessionStates[.codex] {
-            Issue.record("A non-proactive provider 401 must not quarantine credentials")
+        #expect(auth.forceRefreshCount == 1)
+        #expect(provider.fetchCount == 2)
+        if case .valid = model.sessionStates[.codex] {
+            // The forced refresh and successful retry recovered the session.
+        } else {
+            Issue.record("Expected the recovered session to remain valid")
         }
+    }
+
+    @Test func nonProactiveRepeated401AfterRecoveryRequiresReauthentication() async {
+        let defaults = InMemoryUserDefaults()
+        let auth = SessionTestAuthSession(
+            supportsProactiveSessionValidation: false,
+            forceResults: [.success("rotated-access")]
+        )
+        let unauthorized = UsageError.unauthorized(body: #"{"detail":"unauthorized"}"#)
+        let provider = SessionTestProvider([
+            .failure(unauthorized),
+            .failure(unauthorized),
+        ])
+        let model = makeModel(auth: auth, provider: provider, defaults: defaults)
+
+        model.start()
+
+        #expect(await waitUntil {
+            model.sessionStates[.codex]
+                == .reauthenticationRequired(reason: .unauthorized)
+        })
+        #expect(auth.isSignedIn)
+        #expect(auth.forceRefreshCount == 1)
+        #expect(provider.fetchCount == 2)
+    }
+
+    @Test func claudeUsage401ThenRealRefresh401RequiresReauthentication() async {
+        let defaults = InMemoryUserDefaults()
+        let store = SessionTokenStore(OAuthTokens(
+            accessToken: "claude-access",
+            refreshToken: "claude-refresh",
+            expiresAt: .distantFuture
+        ))
+        ClaudeSessionRefreshStubURLProtocol.requestCount = 0
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ClaudeSessionRefreshStubURLProtocol.self]
+        let auth = ClaudeCodeAuthSession(
+            store: store,
+            client: OAuthClient(session: URLSession(configuration: configuration))
+        )
+        let provider = SessionTestProvider([
+            .failure(UsageError.unauthorized(body: "Claude Code usage response")),
+        ])
+        let model = makeModelForTarget(
+            auth: auth,
+            provider: provider,
+            defaults: defaults,
+            targetID: .claudeCode
+        )
+
+        model.start()
+
+        #expect(await waitUntil {
+            model.sessionStates[.claudeCode]
+                == .reauthenticationRequired(reason: .unauthorized)
+        })
+        #expect(provider.fetchCount == 1)
+        #expect(ClaudeSessionRefreshStubURLProtocol.requestCount == 1)
+        #expect(auth.isSignedIn)
+        #expect(!store.cleared)
+    }
+
+    @Test func cursorUsage401ThenRealRefresh401RequiresReauthentication() async {
+        let defaults = InMemoryUserDefaults()
+        let store = SessionTokenStore(OAuthTokens(
+            accessToken: "cursor-access",
+            refreshToken: "cursor-refresh",
+            expiresAt: .distantFuture
+        ))
+        CursorSessionRefreshStubURLProtocol.requestCount = 0
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [CursorSessionRefreshStubURLProtocol.self]
+        let auth = CursorAuthSession(
+            store: store,
+            client: CursorOAuthClient(session: URLSession(configuration: configuration))
+        )
+        let provider = SessionTestProvider([
+            .failure(UsageError.unauthorized(body: "Cursor usage response")),
+        ])
+        let model = makeModelForTarget(
+            auth: auth,
+            provider: provider,
+            defaults: defaults,
+            targetID: .cursor
+        )
+
+        model.start()
+
+        #expect(await waitUntil {
+            model.sessionStates[.cursor]
+                == .reauthenticationRequired(reason: .unauthorized)
+        })
+        #expect(provider.fetchCount == 1)
+        #expect(CursorSessionRefreshStubURLProtocol.requestCount == 1)
+        #expect(auth.isSignedIn)
+        #expect(!store.cleared)
     }
 
     @Test func repeated401AfterRecoveryQuarantinesWithoutClearingCredentials() async {
@@ -945,4 +1056,64 @@ private struct SessionTestIntegration: CodingAgentIntegration {
     }
 
     func makeProvider() -> UsageProvider { provider }
+}
+
+private final class SessionTokenStore: TokenStore {
+    private(set) var saved: OAuthTokens?
+    private(set) var cleared = false
+
+    init(_ tokens: OAuthTokens?) {
+        saved = tokens
+    }
+
+    func save(_ tokens: OAuthTokens) throws {
+        saved = tokens
+    }
+
+    func load() -> Result<OAuthTokens?, Error> {
+        .success(saved)
+    }
+
+    func clear() throws {
+        saved = nil
+        cleared = true
+    }
+}
+
+private final class ClaudeSessionRefreshStubURLProtocol: URLProtocol {
+    nonisolated(unsafe) static var requestCount = 0
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        Self.requestCount += 1
+        let response = HTTPURLResponse(
+            url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil
+        )!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data("SENSITIVE".utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
+private final class CursorSessionRefreshStubURLProtocol: URLProtocol {
+    nonisolated(unsafe) static var requestCount = 0
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        Self.requestCount += 1
+        let response = HTTPURLResponse(
+            url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil
+        )!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data("SENSITIVE".utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }

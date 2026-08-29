@@ -44,12 +44,46 @@ internal static class CredentialSessionPresentation
                     UnavailableDiagnostic),
             _ => current,
         };
+
+    public static string ReauthenticationDiagnostic(
+        string displayName,
+        OAuthRefreshFailureReason reason) => reason switch
+        {
+            OAuthRefreshFailureReason.Expired =>
+                $"The {displayName} session expired. Sign in again.",
+            OAuthRefreshFailureReason.Reused =>
+                $"The {displayName} refresh token was already used. Sign in again.",
+            OAuthRefreshFailureReason.Revoked =>
+                $"The {displayName} session was revoked. Sign in again.",
+            OAuthRefreshFailureReason.InvalidGrant =>
+                $"The {displayName} session is no longer refreshable. Sign in again.",
+            _ => $"The {displayName} session was rejected. Sign in again.",
+        };
+
+    public static string TransientValidationDiagnostic(
+        string displayName,
+        Exception exception) => exception switch
+        {
+            UsageException { StatusCode: { } statusCode } =>
+                $"{displayName} could not verify the session (HTTP {statusCode}).",
+            OAuthRefreshException refresh =>
+                $"{displayName} could not verify the session (HTTP {refresh.StatusCode}).",
+            TimeoutException => $"{displayName} session verification timed out.",
+            OperationCanceledException =>
+                $"{displayName} session verification timed out.",
+            HttpRequestException =>
+                $"{displayName} could not reach the authentication service.",
+            _ => $"{displayName} could not verify the session right now.",
+        };
 }
 
-public sealed class ClaudeAuthSession : IAgentAuthSession
+public sealed class ClaudeAuthSession :
+    IAgentAuthSession,
+    IUnauthorizedRecoveryAuthSession
 {
     private readonly AgentTokenCache _cache;
     private readonly OAuthHttpClient _client;
+    private readonly Func<DateTimeOffset> _now;
     private readonly object _pendingGate = new();
     private readonly object _sessionStateGate = new();
     private (
@@ -66,11 +100,12 @@ public sealed class ClaudeAuthSession : IAgentAuthSession
         Func<DateTimeOffset>? now = null)
     {
         _client = client;
+        _now = now ?? (() => DateTimeOffset.Now);
         _cache = new AgentTokenCache(
             store,
             (expired, cancellationToken) =>
                 client.RefreshClaudeCodeAsync(expired.RefreshToken, cancellationToken),
-            now);
+            _now);
         _sessionState = CredentialSessionPresentation.Initial(
             _cache.CredentialStatus);
     }
@@ -88,9 +123,123 @@ public sealed class ClaudeAuthSession : IAgentAuthSession
         }
     }
 
-    public Task<string> ValidAccessTokenAsync(
-        CancellationToken cancellationToken = default) =>
-        _cache.ValidAccessTokenAsync(cancellationToken);
+    public async Task<string> ValidAccessTokenAsync(
+        CancellationToken cancellationToken = default)
+    {
+        int generation;
+        lock (_sessionStateGate)
+        {
+            if (_sessionState.Kind ==
+                AuthSessionStateKind.ReauthenticationRequired)
+            {
+                throw UsageException.NotSignedIn();
+            }
+
+            generation = _sessionGeneration;
+        }
+
+        try
+        {
+            return await _cache.ValidAccessTokenAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (UsageException exception) when (exception.StatusCode == 401)
+        {
+            RequireReauthenticationIfCurrent(
+                generation,
+                OAuthRefreshFailureReason.Unauthorized);
+            throw;
+        }
+        catch (OAuthRefreshException exception) when (exception.IsTerminal)
+        {
+            RequireReauthenticationIfCurrent(generation, exception.Reason);
+            throw;
+        }
+    }
+
+    public async Task<AuthSessionState> ForceValidateSessionAsync(
+        CancellationToken cancellationToken = default)
+    {
+        AuthSessionState previous;
+        int generation;
+        lock (_sessionStateGate)
+        {
+            if (!IsSignedIn ||
+                _sessionState.Kind is AuthSessionStateKind.SignedOut or
+                    AuthSessionStateKind.ReauthenticationRequired)
+            {
+                return _sessionState;
+            }
+
+            previous = _sessionState;
+            generation = _sessionGeneration;
+            _sessionState = AuthSessionState.Checking(previous.LastValidatedAt);
+        }
+
+        try
+        {
+            _ = await _cache.ForceRefreshAccessTokenAsync(cancellationToken)
+                .ConfigureAwait(false);
+            SetValidSessionStateIfCurrent(generation, _now());
+            return SessionState;
+        }
+        catch (OperationCanceledException) when (
+            cancellationToken.IsCancellationRequested)
+        {
+            SetSessionStateIfCurrent(generation, previous);
+            throw;
+        }
+        catch (TokenPersistenceException)
+        {
+            SetValidSessionStateIfCurrent(generation, _now());
+            return SessionState;
+        }
+        catch (RefreshedAccessTokenUnavailableException exception)
+        {
+            SetSessionStateIfCurrent(
+                generation,
+                AuthSessionState.Valid(_now(), exception.Message));
+            throw;
+        }
+        catch (UsageException exception) when (exception.StatusCode == 401)
+        {
+            RequireReauthenticationIfCurrent(
+                generation,
+                OAuthRefreshFailureReason.Unauthorized);
+            return SessionState;
+        }
+        catch (OAuthRefreshException exception) when (exception.IsTerminal)
+        {
+            RequireReauthenticationIfCurrent(generation, exception.Reason);
+            return SessionState;
+        }
+        catch (Exception exception)
+        {
+            SetSessionStateIfCurrent(
+                generation,
+                AuthSessionState.TemporarilyUnverifiable(
+                    previous.LastValidatedAt,
+                    CredentialSessionPresentation.TransientValidationDiagnostic(
+                        "Claude Code",
+                        exception)));
+            return SessionState;
+        }
+    }
+
+    public void RequireReauthentication(
+        OAuthRefreshFailureReason reason,
+        string diagnostic)
+    {
+        lock (_sessionStateGate)
+        {
+            if (_sessionState.Kind != AuthSessionStateKind.SignedOut)
+            {
+                _sessionState = AuthSessionState.ReauthenticationRequired(
+                    reason,
+                    diagnostic);
+            }
+        }
+    }
 
     public Task BeginSignInAsync(CancellationToken cancellationToken = default)
     {
@@ -192,7 +341,9 @@ public sealed class ClaudeAuthSession : IAgentAuthSession
             if (_sessionState.Kind != AuthSessionStateKind.SignedOut &&
                 IsSignedIn)
             {
-                _sessionState = AuthSessionState.Valid(validatedAt);
+                _sessionState = AuthSessionState.Valid(
+                    validatedAt,
+                    _cache.PendingPersistenceDiagnostic);
             }
         }
     }
@@ -225,11 +376,55 @@ public sealed class ClaudeAuthSession : IAgentAuthSession
         }
     }
 
-    private void SetSessionState(AuthSessionState state)
+    private void SetSessionStateIfCurrent(
+        int generation,
+        AuthSessionState state)
     {
         lock (_sessionStateGate)
         {
-            _sessionState = state;
+            if (_sessionGeneration == generation &&
+                _sessionState.Kind is not (
+                    AuthSessionStateKind.SignedOut or
+                    AuthSessionStateKind.ReauthenticationRequired))
+            {
+                _sessionState = state;
+            }
+        }
+    }
+
+    private void SetValidSessionStateIfCurrent(
+        int generation,
+        DateTimeOffset validatedAt)
+    {
+        lock (_sessionStateGate)
+        {
+            if (_sessionGeneration == generation &&
+                _sessionState.Kind is not (
+                    AuthSessionStateKind.SignedOut or
+                    AuthSessionStateKind.ReauthenticationRequired))
+            {
+                _sessionState = AuthSessionState.Valid(
+                    validatedAt,
+                    _cache.PendingPersistenceDiagnostic);
+            }
+        }
+    }
+
+    private void RequireReauthenticationIfCurrent(
+        int generation,
+        OAuthRefreshFailureReason reason)
+    {
+        lock (_sessionStateGate)
+        {
+            if (_sessionGeneration == generation &&
+                _sessionState.Kind != AuthSessionStateKind.SignedOut)
+            {
+                _sessionState = AuthSessionState.ReauthenticationRequired(
+                    reason,
+                    CredentialSessionPresentation.ReauthenticationDiagnostic(
+                        "Claude Code",
+                        reason));
+            }
         }
     }
 
@@ -307,18 +502,18 @@ public sealed class CodexAuthSession : IAgentAuthSession, IProactiveAuthSession
                 .ConfigureAwait(false);
             if (refreshRequired)
             {
-                SetSessionStateIfCurrent(
-                    generation,
-                    AuthSessionState.Valid(_now()));
+                SetValidSessionStateIfCurrent(generation, _now());
+            }
+            else
+            {
+                ReconcilePersistenceDiagnosticIfValid(generation);
             }
 
             return token;
         }
-        catch (TokenPersistenceException exception)
+        catch (TokenPersistenceException)
         {
-            SetSessionStateIfCurrent(
-                generation,
-                AuthSessionState.Valid(_now(), exception.Message));
+            SetValidSessionStateIfCurrent(generation, _now());
             if (_cache.Tokens is { } refreshed)
             {
                 return refreshed.AccessToken;
@@ -381,9 +576,7 @@ public sealed class CodexAuthSession : IAgentAuthSession, IProactiveAuthSession
         {
             _ = await _cache.ForceRefreshAccessTokenAsync(cancellationToken)
                 .ConfigureAwait(false);
-            SetSessionStateIfCurrent(
-                generation,
-                AuthSessionState.Valid(_now()));
+            SetValidSessionStateIfCurrent(generation, _now());
             return SessionState;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -392,13 +585,11 @@ public sealed class CodexAuthSession : IAgentAuthSession, IProactiveAuthSession
 
             throw;
         }
-        catch (TokenPersistenceException exception)
+        catch (TokenPersistenceException)
         {
             // The server accepted and rotated the token, so the online session
             // is valid even though it may not survive process restart.
-            SetSessionStateIfCurrent(
-                generation,
-                AuthSessionState.Valid(_now(), exception.Message));
+            SetValidSessionStateIfCurrent(generation, _now());
             return SessionState;
         }
         catch (RefreshedAccessTokenUnavailableException exception)
@@ -546,6 +737,38 @@ public sealed class CodexAuthSession : IAgentAuthSession, IProactiveAuthSession
         }
     }
 
+    private void SetValidSessionStateIfCurrent(
+        int generation,
+        DateTimeOffset validatedAt)
+    {
+        lock (_sessionStateGate)
+        {
+            if (_sessionGeneration == generation &&
+                _sessionState.Kind is not (
+                    AuthSessionStateKind.SignedOut or
+                    AuthSessionStateKind.ReauthenticationRequired))
+            {
+                _sessionState = AuthSessionState.Valid(
+                    validatedAt,
+                    _cache.PendingPersistenceDiagnostic);
+            }
+        }
+    }
+
+    private void ReconcilePersistenceDiagnosticIfValid(int generation)
+    {
+        lock (_sessionStateGate)
+        {
+            if (_sessionGeneration == generation &&
+                _sessionState.Kind == AuthSessionStateKind.Valid)
+            {
+                _sessionState = AuthSessionState.Valid(
+                    _sessionState.LastValidatedAt ?? _now(),
+                    _cache.PendingPersistenceDiagnostic);
+            }
+        }
+    }
+
     private void RequireReauthenticationIfCurrent(
         int generation,
         OAuthRefreshException exception)
@@ -602,10 +825,13 @@ public sealed class CodexAuthSession : IAgentAuthSession, IProactiveAuthSession
     }
 }
 
-public sealed class CursorAuthSession : IAgentAuthSession
+public sealed class CursorAuthSession :
+    IAgentAuthSession,
+    IUnauthorizedRecoveryAuthSession
 {
     private readonly AgentTokenCache _cache;
     private readonly OAuthHttpClient _client;
+    private readonly Func<DateTimeOffset> _now;
     private readonly object _sessionStateGate = new();
     private AuthSessionState _sessionState;
     private int _sessionGeneration;
@@ -616,11 +842,12 @@ public sealed class CursorAuthSession : IAgentAuthSession
         Func<DateTimeOffset>? now = null)
     {
         _client = client;
+        _now = now ?? (() => DateTimeOffset.Now);
         _cache = new AgentTokenCache(
             store,
             (expired, cancellationToken) =>
                 client.RefreshCursorAsync(expired, cancellationToken),
-            now);
+            _now);
         _sessionState = CredentialSessionPresentation.Initial(
             _cache.CredentialStatus);
     }
@@ -638,9 +865,123 @@ public sealed class CursorAuthSession : IAgentAuthSession
         }
     }
 
-    public Task<string> ValidAccessTokenAsync(
-        CancellationToken cancellationToken = default) =>
-        _cache.ValidAccessTokenAsync(cancellationToken);
+    public async Task<string> ValidAccessTokenAsync(
+        CancellationToken cancellationToken = default)
+    {
+        int generation;
+        lock (_sessionStateGate)
+        {
+            if (_sessionState.Kind ==
+                AuthSessionStateKind.ReauthenticationRequired)
+            {
+                throw UsageException.NotSignedIn();
+            }
+
+            generation = _sessionGeneration;
+        }
+
+        try
+        {
+            return await _cache.ValidAccessTokenAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (UsageException exception) when (exception.StatusCode == 401)
+        {
+            RequireReauthenticationIfCurrent(
+                generation,
+                OAuthRefreshFailureReason.Unauthorized);
+            throw;
+        }
+        catch (OAuthRefreshException exception) when (exception.IsTerminal)
+        {
+            RequireReauthenticationIfCurrent(generation, exception.Reason);
+            throw;
+        }
+    }
+
+    public async Task<AuthSessionState> ForceValidateSessionAsync(
+        CancellationToken cancellationToken = default)
+    {
+        AuthSessionState previous;
+        int generation;
+        lock (_sessionStateGate)
+        {
+            if (!IsSignedIn ||
+                _sessionState.Kind is AuthSessionStateKind.SignedOut or
+                    AuthSessionStateKind.ReauthenticationRequired)
+            {
+                return _sessionState;
+            }
+
+            previous = _sessionState;
+            generation = _sessionGeneration;
+            _sessionState = AuthSessionState.Checking(previous.LastValidatedAt);
+        }
+
+        try
+        {
+            _ = await _cache.ForceRefreshAccessTokenAsync(cancellationToken)
+                .ConfigureAwait(false);
+            SetValidSessionStateIfCurrent(generation, _now());
+            return SessionState;
+        }
+        catch (OperationCanceledException) when (
+            cancellationToken.IsCancellationRequested)
+        {
+            SetSessionStateIfCurrent(generation, previous);
+            throw;
+        }
+        catch (TokenPersistenceException)
+        {
+            SetValidSessionStateIfCurrent(generation, _now());
+            return SessionState;
+        }
+        catch (RefreshedAccessTokenUnavailableException exception)
+        {
+            SetSessionStateIfCurrent(
+                generation,
+                AuthSessionState.Valid(_now(), exception.Message));
+            throw;
+        }
+        catch (UsageException exception) when (exception.StatusCode == 401)
+        {
+            RequireReauthenticationIfCurrent(
+                generation,
+                OAuthRefreshFailureReason.Unauthorized);
+            return SessionState;
+        }
+        catch (OAuthRefreshException exception) when (exception.IsTerminal)
+        {
+            RequireReauthenticationIfCurrent(generation, exception.Reason);
+            return SessionState;
+        }
+        catch (Exception exception)
+        {
+            SetSessionStateIfCurrent(
+                generation,
+                AuthSessionState.TemporarilyUnverifiable(
+                    previous.LastValidatedAt,
+                    CredentialSessionPresentation.TransientValidationDiagnostic(
+                        "Cursor",
+                        exception)));
+            return SessionState;
+        }
+    }
+
+    public void RequireReauthentication(
+        OAuthRefreshFailureReason reason,
+        string diagnostic)
+    {
+        lock (_sessionStateGate)
+        {
+            if (_sessionState.Kind != AuthSessionStateKind.SignedOut)
+            {
+                _sessionState = AuthSessionState.ReauthenticationRequired(
+                    reason,
+                    diagnostic);
+            }
+        }
+    }
 
     public async Task BeginSignInAsync(
         CancellationToken cancellationToken = default)
@@ -695,7 +1036,9 @@ public sealed class CursorAuthSession : IAgentAuthSession
             if (_sessionState.Kind != AuthSessionStateKind.SignedOut &&
                 IsSignedIn)
             {
-                _sessionState = AuthSessionState.Valid(validatedAt);
+                _sessionState = AuthSessionState.Valid(
+                    validatedAt,
+                    _cache.PendingPersistenceDiagnostic);
             }
         }
     }
@@ -724,11 +1067,55 @@ public sealed class CursorAuthSession : IAgentAuthSession
         }
     }
 
-    private void SetSessionState(AuthSessionState state)
+    private void SetSessionStateIfCurrent(
+        int generation,
+        AuthSessionState state)
     {
         lock (_sessionStateGate)
         {
-            _sessionState = state;
+            if (_sessionGeneration == generation &&
+                _sessionState.Kind is not (
+                    AuthSessionStateKind.SignedOut or
+                    AuthSessionStateKind.ReauthenticationRequired))
+            {
+                _sessionState = state;
+            }
+        }
+    }
+
+    private void SetValidSessionStateIfCurrent(
+        int generation,
+        DateTimeOffset validatedAt)
+    {
+        lock (_sessionStateGate)
+        {
+            if (_sessionGeneration == generation &&
+                _sessionState.Kind is not (
+                    AuthSessionStateKind.SignedOut or
+                    AuthSessionStateKind.ReauthenticationRequired))
+            {
+                _sessionState = AuthSessionState.Valid(
+                    validatedAt,
+                    _cache.PendingPersistenceDiagnostic);
+            }
+        }
+    }
+
+    private void RequireReauthenticationIfCurrent(
+        int generation,
+        OAuthRefreshFailureReason reason)
+    {
+        lock (_sessionStateGate)
+        {
+            if (_sessionGeneration == generation &&
+                _sessionState.Kind != AuthSessionStateKind.SignedOut)
+            {
+                _sessionState = AuthSessionState.ReauthenticationRequired(
+                    reason,
+                    CredentialSessionPresentation.ReauthenticationDiagnostic(
+                        "Cursor",
+                        reason));
+            }
         }
     }
 

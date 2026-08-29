@@ -14,6 +14,8 @@ public interface ITokenStore
 
 public sealed class AgentTokenCache
 {
+    private const string PersistenceDiagnostic =
+        "The refreshed session could not be saved to Windows Credential Manager.";
     private readonly ITokenStore _store;
     private readonly Func<OAuthTokens, CancellationToken, Task<OAuthTokens>> _refreshTokens;
     private readonly Func<DateTimeOffset> _now;
@@ -25,6 +27,7 @@ public sealed class AgentTokenCache
     private int _tokenRevision;
     private RefreshFlight? _refreshFlight;
     private OAuthRefreshException? _terminalRefreshFailure;
+    private PendingTokenPersistence? _pendingTokenPersistence;
 
     private sealed class RefreshFlight
     {
@@ -38,13 +41,20 @@ public sealed class AgentTokenCache
             Source = source;
         }
 
-        public int CredentialGeneration { get; }
+        public int CredentialGeneration { get; private set; }
         public int TokenRevision { get; }
         public OAuthTokens Source { get; }
         public CancellationTokenSource Lifetime { get; } = new();
         public TaskCompletionSource<string> Completion { get; } = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public void RebaseCredentialGeneration(int credentialGeneration) =>
+            CredentialGeneration = credentialGeneration;
     }
+
+    private sealed record PendingTokenPersistence(
+        OAuthTokens Tokens,
+        OAuthTokens Replacing);
 
     public AgentTokenCache(
         ITokenStore store,
@@ -91,6 +101,24 @@ public sealed class AgentTokenCache
     public string? AccountId => Tokens?.AccountId;
 
     /// <summary>
+    /// A safe, token-free diagnostic while an accepted rotation exists only in
+    /// memory. Session presentation retains this warning across successful Usage
+    /// calls until compare-and-replace persistence succeeds or durable state wins.
+    /// </summary>
+    public string? PendingPersistenceDiagnostic
+    {
+        get
+        {
+            lock (_commitGate)
+            {
+                return _pendingTokenPersistence is null
+                    ? null
+                    : PersistenceDiagnostic;
+            }
+        }
+    }
+
+    /// <summary>
     /// Captures the current credential ownership generation before an OAuth
     /// round trip. Passing it back to AdoptAsync prevents a sign-out that
     /// happened while the browser was open from being overwritten by a late
@@ -134,6 +162,7 @@ public sealed class AgentTokenCache
             _tokenRevision++;
             _signOutGeneration++;
             _terminalRefreshFailure = null;
+            _pendingTokenPersistence = null;
         }
 
         InvalidateFlight(abandonedFlight);
@@ -142,16 +171,10 @@ public sealed class AgentTokenCache
 
     public void SignOut()
     {
-        RefreshFlight? abandonedFlight;
+        RefreshFlight? abandonedFlight = null;
         ExceptionDispatchInfo? clearFailure = null;
         lock (_commitGate)
         {
-            // Invalidate ownership before durable deletion. Even if Credential
-            // Manager rejects the clear, an OAuth response or refresh that
-            // captured the previous generation must not replace this account.
-            abandonedFlight = _refreshFlight;
-            _refreshFlight = null;
-            _signOutGeneration++;
             try
             {
                 _store.Clear();
@@ -163,11 +186,26 @@ public sealed class AgentTokenCache
 
             if (clearFailure is null)
             {
+                // Durable deletion committed, so no late OAuth response may
+                // restore the account that the user explicitly removed.
+                abandonedFlight = _refreshFlight;
+                _refreshFlight = null;
+                _signOutGeneration++;
                 _cached = null;
                 _loaded = true;
                 _credentialLoadUnavailable = false;
                 _tokenRevision++;
                 _terminalRefreshFailure = null;
+                _pendingTokenPersistence = null;
+            }
+            else
+            {
+                // The account remains connected when Credential Manager rejects
+                // deletion. Invalidate browser login responses captured before
+                // the attempt, but preserve an accepted in-flight refresh and
+                // let it publish the only usable rotated credential.
+                _signOutGeneration++;
+                _refreshFlight?.RebaseCredentialGeneration(_signOutGeneration);
             }
         }
 
@@ -211,6 +249,21 @@ public sealed class AgentTokenCache
         {
             var current = LoadTokensLocked() ?? throw UsageException.NotSignedIn();
             requestedGeneration = _signOutGeneration;
+            var persistenceFailure = ResolvePendingTokenPersistenceLocked();
+            current = LoadTokensLocked() ?? throw UsageException.NotSignedIn();
+            if (persistenceFailure is not null)
+            {
+                // A still-fresh bearer remains usable in this process while the
+                // durable compare-and-replace is retried later. Never consume a
+                // second refresh grant until the accepted rotation is durable.
+                if (!forceRefresh && !current.IsExpired(_now()))
+                {
+                    return current.AccessToken;
+                }
+
+                throw persistenceFailure;
+            }
+
             if (_terminalRefreshFailure is { } terminalFailure)
             {
                 throw terminalFailure;
@@ -350,15 +403,26 @@ public sealed class AgentTokenCache
                 _refreshFlight = null;
                 _terminalRefreshFailure = null;
                 TokenPersistenceException? persistenceFailure = null;
-                try
+                if (refreshed != flight.Source)
                 {
-                    _store.Save(refreshed);
+                    try
+                    {
+                        _store.Save(refreshed);
+                        _pendingTokenPersistence = null;
+                    }
+                    catch (Exception exception)
+                    {
+                        // Keep the exact predecessor so a later retry cannot
+                        // overwrite a newer login, rotation, or sign-out.
+                        _pendingTokenPersistence = new PendingTokenPersistence(
+                            refreshed,
+                            flight.Source);
+                        persistenceFailure = CredentialPersistenceFailure(exception);
+                    }
                 }
-                catch (Exception exception)
+                else
                 {
-                    persistenceFailure = new TokenPersistenceException(
-                        "The refreshed session could not be saved to Windows Credential Manager.",
-                        exception);
+                    _pendingTokenPersistence = null;
                 }
 
                 if (refreshed.IsExpired(_now()))
@@ -412,6 +476,66 @@ public sealed class AgentTokenCache
         }
     }
 
+    /// <summary>
+    /// Retries a previously accepted token rotation without consuming another
+    /// refresh grant. The durable predecessor acts as the compare value: a
+    /// different value belongs to a newer credential operation and is adopted
+    /// instead of being overwritten.
+    /// </summary>
+    private TokenPersistenceException? ResolvePendingTokenPersistenceLocked()
+    {
+        if (_pendingTokenPersistence is not { } pending)
+        {
+            return null;
+        }
+
+        OAuthTokens? persisted;
+        try
+        {
+            persisted = _store.Load();
+        }
+        catch (Exception exception)
+        {
+            return CredentialPersistenceFailure(exception);
+        }
+
+        if (persisted == pending.Tokens)
+        {
+            _pendingTokenPersistence = null;
+            return null;
+        }
+
+        if (persisted == pending.Replacing)
+        {
+            try
+            {
+                _store.Save(pending.Tokens);
+                _pendingTokenPersistence = null;
+                return null;
+            }
+            catch (Exception exception)
+            {
+                return CredentialPersistenceFailure(exception);
+            }
+        }
+
+        // Another credential operation already changed or deleted durable
+        // state. Converge on that result and discard the stale persistence debt.
+        _pendingTokenPersistence = null;
+        _cached = persisted;
+        _loaded = true;
+        _credentialLoadUnavailable = false;
+        _tokenRevision++;
+        _terminalRefreshFailure = null;
+        return null;
+    }
+
+    private static TokenPersistenceException CredentialPersistenceFailure(
+        Exception exception) =>
+        new(
+            PersistenceDiagnostic,
+            exception);
+
     private OAuthTokens? LoadTokensLocked()
     {
         if (_loaded)
@@ -453,11 +577,12 @@ public interface IAgentAuthSession
 }
 
 /// <summary>
-/// Optional capability for sessions whose provider supports a meaningful,
-/// proactive refresh validation. Codex implements this; Claude and Cursor do
-/// not rotate credentials merely because TokenStats started or was refreshed.
+/// Optional capability for sessions that can rotate credentials after a usage
+/// request rejects the current access token. This is separate from proactive
+/// validation: Claude and Cursor use it only to recover from HTTP 401, while
+/// Codex also validates at startup and on manual refresh.
 /// </summary>
-public interface IProactiveAuthSession
+public interface IUnauthorizedRecoveryAuthSession
 {
     Task<AuthSessionState> ForceValidateSessionAsync(
         CancellationToken cancellationToken = default);
@@ -465,6 +590,15 @@ public interface IProactiveAuthSession
     void RequireReauthentication(
         OAuthRefreshFailureReason reason,
         string diagnostic);
+}
+
+/// <summary>
+/// Marker capability for sessions whose refresh grant is authoritative enough
+/// to validate proactively. Only Codex is rotated merely because TokenStats
+/// started or the user requested a manual refresh.
+/// </summary>
+public interface IProactiveAuthSession : IUnauthorizedRecoveryAuthSession
+{
 }
 
 public interface IUsageProvider
@@ -534,7 +668,7 @@ public sealed class OAuthHttpClient
             ["refresh_token"] = refreshToken,
             ["client_id"] = ClaudeOAuthFlow.ClientId,
         };
-        var json = await PostJsonAsync(
+        var json = await PostRefreshJsonAsync(
             ClaudeOAuthFlow.TokenEndpoint,
             body,
             cancellationToken).ConfigureAwait(false);
@@ -572,7 +706,7 @@ public sealed class OAuthHttpClient
             ["refresh_token"] = previous.RefreshToken,
             ["client_id"] = CodexOAuthFlow.ClientId,
         };
-        var json = await PostCodexRefreshJsonAsync(
+        var json = await PostRefreshJsonAsync(
             CodexOAuthFlow.TokenEndpoint,
             body,
             cancellationToken).ConfigureAwait(false);
@@ -658,7 +792,7 @@ public sealed class OAuthHttpClient
             ["client_id"] = CursorOAuthFlow.ClientId,
             ["refresh_token"] = previous.RefreshToken,
         };
-        var json = await PostJsonAsync(
+        var json = await PostRefreshJsonAsync(
             CursorOAuthFlow.TokenEndpoint,
             body,
             cancellationToken).ConfigureAwait(false);
@@ -708,7 +842,7 @@ public sealed class OAuthHttpClient
         return responseBody;
     }
 
-    private async Task<string> PostCodexRefreshJsonAsync(
+    private async Task<string> PostRefreshJsonAsync(
         string endpoint,
         IReadOnlyDictionary<string, string> body,
         CancellationToken cancellationToken)
@@ -729,7 +863,7 @@ public sealed class OAuthHttpClient
             .ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {
-            throw ClassifyCodexRefreshFailure(
+            throw ClassifyRefreshFailure(
                 (int)response.StatusCode,
                 responseBody);
         }
@@ -737,7 +871,7 @@ public sealed class OAuthHttpClient
         return responseBody;
     }
 
-    private static OAuthRefreshException ClassifyCodexRefreshFailure(
+    private static OAuthRefreshException ClassifyRefreshFailure(
         int statusCode,
         string responseBody)
     {

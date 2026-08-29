@@ -69,18 +69,38 @@ struct CursorOAuthClient {
             "refresh_token": previous.refreshToken,
         ])
 
-        let (data, response) = try await session.data(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-        guard (200..<300).contains(status) else {
-            throw UsageError.badResponse(
-                status: status,
-                body: OAuthErrorDiagnostics.summary(
-                    data,
-                    operation: "OAuth refresh rejected"
-                )
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch let error as URLError where error.code == .cancelled {
+            throw CancellationError()
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw OAuthRefreshError(
+                status: -1,
+                code: nil,
+                reauthenticationReason: nil,
+                kind: .transport
             )
         }
-        return try CursorOAuthFlow.parseRefreshTokens(data, previous: previous)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+        guard (200..<300).contains(status) else {
+            throw OAuthErrorDiagnostics.refreshError(data, status: status)
+        }
+        do {
+            return try CursorOAuthFlow.parseRefreshTokens(data, previous: previous)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw OAuthRefreshError(
+                status: status,
+                code: nil,
+                reauthenticationReason: nil,
+                kind: .malformedResponse
+            )
+        }
     }
 
     private static func timeInterval(_ duration: Duration) -> TimeInterval {

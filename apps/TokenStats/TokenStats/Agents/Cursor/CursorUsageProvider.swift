@@ -33,7 +33,12 @@ struct CursorUsageProvider: UsageProvider {
             operation: "Cursor usage response"
         )
         let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-        guard status == 200 else {
+        switch status {
+        case 200:
+            break
+        case 401:
+            throw UsageError.unauthorized(body: diagnostic)
+        default:
             throw UsageError.badResponse(status: status, body: diagnostic)
         }
         let windows = try CursorUsageSnapshotParser.parse(data)
