@@ -26,7 +26,64 @@ enum AppState: Equatable {
     /// Showing a last-known snapshot whose refresh failed; disclose its age.
     case staleDisclosed(UsageSnapshot)
 
-    var isConnected: Bool { self != .signedOut }
+}
+
+/// Why a stored OAuth session can no longer be used without signing in again.
+/// Keep this structured so UI copy never has to inspect provider response text.
+nonisolated enum SessionReauthenticationReason: Equatable, Sendable {
+    case unauthorized
+    case invalidGrant
+    case expired
+    case reused
+    case invalidated
+}
+
+/// Server-side session validity is deliberately separate from `AppState`.
+/// A revoked session can still have an honest last-known usage snapshot worth
+/// showing, while a network outage must not be mistaken for revocation.
+nonisolated enum SessionState: Equatable, Sendable {
+    case signedOut
+    case checking
+    case valid(verifiedAt: Date)
+    case reauthenticationRequired(reason: SessionReauthenticationReason)
+    case temporarilyUnverifiable(lastVerifiedAt: Date?)
+
+    var isSignedOut: Bool {
+        if case .signedOut = self { return true }
+        return false
+    }
+
+    /// Whether this account should retain a subscription row. A session that
+    /// needs reauthentication is still present so the UI can offer recovery.
+    var isPresent: Bool { !isSignedOut }
+
+    var lastVerifiedAt: Date? {
+        switch self {
+        case .valid(let verifiedAt):
+            return verifiedAt
+        case .temporarilyUnverifiable(let lastVerifiedAt):
+            return lastVerifiedAt
+        case .signedOut, .checking, .reauthenticationRequired:
+            return nil
+        }
+    }
+}
+
+struct CodingAgentSessionStates: Equatable {
+    private var states: [CodingAgentID: SessionState]
+
+    init(_ states: [CodingAgentID: SessionState] = [:]) {
+        self.states = states
+    }
+
+    subscript(_ id: CodingAgentID) -> SessionState {
+        get { states[id] ?? .signedOut }
+        set { states[id] = newValue }
+    }
+
+    func isSignedOut(_ id: CodingAgentID) -> Bool { self[id].isSignedOut }
+
+    func isPresent(_ id: CodingAgentID) -> Bool { self[id].isPresent }
 }
 
 enum AppEvent: Equatable {

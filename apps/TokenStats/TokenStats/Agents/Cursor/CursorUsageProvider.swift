@@ -28,14 +28,16 @@ struct CursorUsageProvider: UsageProvider {
         request.httpBody = Data("{}".utf8)
 
         let (data, response) = try await session.data(for: request)
-        let body = String(data: data.prefix(800), encoding: .utf8)
-            ?? "<non-utf8 \(data.count) bytes>"
+        let diagnostic = OAuthErrorDiagnostics.summary(
+            data,
+            operation: "Cursor usage response"
+        )
         let status = (response as? HTTPURLResponse)?.statusCode ?? -1
         guard status == 200 else {
-            throw UsageError.badResponse(status: status, body: body)
+            throw UsageError.badResponse(status: status, body: diagnostic)
         }
         let windows = try CursorUsageSnapshotParser.parse(data)
-        guard !windows.isEmpty else { throw UsageError.noWindows(body: body) }
+        guard !windows.isEmpty else { throw UsageError.noWindows(body: diagnostic) }
         return UsageReading(windows: windows)
     }
 }

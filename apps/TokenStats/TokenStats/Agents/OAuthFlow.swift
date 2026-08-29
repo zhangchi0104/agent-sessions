@@ -13,7 +13,7 @@
 import Foundation
 import CryptoKit
 
-struct OAuthTokens: Codable, Equatable {
+nonisolated struct OAuthTokens: Codable, Equatable {
     var accessToken: String
     var refreshToken: String
     var expiresAt: Date

@@ -46,7 +46,7 @@ struct RefreshPolicyTests {
         #expect(decision.shouldFetch)
     }
 
-    @Test(arguments: [RefreshTrigger.popoverOpen, .wake, .manual])
+    @Test(arguments: [RefreshTrigger.startup, .popoverOpen, .wake, .manual, .signIn])
     func nonTimerTriggersAlwaysFetchEvenWhenRecentlyFetched(trigger: RefreshTrigger) {
         let now = Date()
         let decision = RefreshPolicy.decide(
@@ -57,6 +57,15 @@ struct RefreshPolicyTests {
         )
 
         #expect(decision.shouldFetch)
+    }
+
+    @Test func onlyStartupAndManualRequestProactiveSessionValidation() {
+        #expect(RefreshTrigger.startup.requiresProactiveSessionValidation)
+        #expect(RefreshTrigger.manual.requiresProactiveSessionValidation)
+        #expect(!RefreshTrigger.timer.requiresProactiveSessionValidation)
+        #expect(!RefreshTrigger.wake.requiresProactiveSessionValidation)
+        #expect(!RefreshTrigger.popoverOpen.requiresProactiveSessionValidation)
+        #expect(!RefreshTrigger.signIn.requiresProactiveSessionValidation)
     }
 
     @Test func backoffDoublesIntervalPerConsecutiveFailure() {

@@ -15,8 +15,9 @@ final class ClaudeCodeAuthSession: AgentAuthSession {
     private let client: OAuthClient
 
     /// PKCE + state for an in-flight login; cleared once the code is exchanged.
-    private var pending: (pkce: PKCE, state: String)?
+    private var pending: (pkce: PKCE, state: String, generation: Int)?
     private var signInLocalizer = AppLocalizer(locale: .current)
+    private var loginGeneration = 0
 
     init(store: any TokenStore = KeychainTokenStore(),
          client: OAuthClient = OAuthClient(),
@@ -29,11 +30,20 @@ final class ClaudeCodeAuthSession: AgentAuthSession {
 
     var isSignedIn: Bool { cache.isSignedIn }
 
+    var credentialPresence: CredentialPresence { cache.credentialPresence }
+
+    var hasPendingTokenPersistence: Bool { cache.hasPendingTokenPersistence }
+
     func validAccessToken() async throws -> String { try await cache.validAccessToken() }
 
-    func signOut() {
-        cache.signOut()
+    func acquireRelaunchCoordination() async throws -> any RefreshCoordinationLease {
+        try await cache.acquireRelaunchCoordination()
+    }
+
+    func signOut() async throws {
+        loginGeneration += 1
         pending = nil
+        try await cache.signOut()
     }
 
     /// Open the browser for the user to approve; they'll paste back a code.
@@ -42,10 +52,12 @@ final class ClaudeCodeAuthSession: AgentAuthSession {
     }
 
     func beginSignIn(localizer: AppLocalizer) async throws {
+        loginGeneration += 1
+        let generation = loginGeneration
         signInLocalizer = localizer
         let pkce = OAuthFlow.makePKCE()
         let state = OAuthFlow.makeState()
-        pending = (pkce, state)
+        pending = (pkce, state, generation)
         client.openAuthorizePage(pkce: pkce, state: state)
     }
 
@@ -61,7 +73,10 @@ final class ClaudeCodeAuthSession: AgentAuthSession {
             ))
         }
         let tokens = try await client.exchangeCode(code, verifier: pending.pkce.verifier, state: pending.state)
-        try cache.adopt(tokens)
+        guard pending.generation == loginGeneration else { throw UsageError.notSignedIn }
+        try await cache.adopt(tokens, ifCurrent: {
+            pending.generation == self.loginGeneration
+        })
         self.pending = nil
     }
 

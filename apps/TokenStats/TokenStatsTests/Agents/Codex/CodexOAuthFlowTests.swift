@@ -89,6 +89,31 @@ struct CodexOAuthFlowTests {
         #expect(LoopbackAuthListener.parseCallback(httpRequest: "garbage") == nil)
     }
 
+    @Test func loopbackErrorKeepsOnlyKnownCodeAndDropsRawDescription() throws {
+        let request = """
+        GET /auth/callback?error=ACCESS_DENIED&error_description=SENSITIVE-ACCOUNT-MARKER HTTP/1.1\r
+        Host: localhost:1455\r
+        \r
+        """
+
+        let code = try #require(LoopbackAuthListener.parseError(httpRequest: request))
+        let detail = LoopbackAuthListener.ListenerError.authorization(code)
+            .localizedDescription(using: AppLocalizer(locale: Locale(identifier: "en")))
+
+        #expect(code == "access_denied")
+        #expect(!detail.contains("SENSITIVE-ACCOUNT-MARKER"))
+    }
+
+    @Test func loopbackErrorReplacesUnknownProviderValueWithGenericCode() {
+        let request = """
+        GET /auth/callback?error=SENSITIVE-ACCOUNT-MARKER&error_description=ALSO-SENSITIVE HTTP/1.1\r
+        Host: localhost:1455\r
+        \r
+        """
+
+        #expect(LoopbackAuthListener.parseError(httpRequest: request) == "unknown_error")
+    }
+
     @Test func loopbackCallbackHTMLDeclaresLanguageAndLocalizesCompleteCopy() {
         let fixtures: [(String, Bool, String, String, String)] = [
             (

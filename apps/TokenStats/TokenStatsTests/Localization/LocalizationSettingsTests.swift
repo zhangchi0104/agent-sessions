@@ -305,41 +305,97 @@ struct LocalizationSettingsTests {
 
 @MainActor
 struct AppRelauncherTests {
-    @Test func successfulReplacementLaunchTerminatesTheCurrentInstance() {
+    @Test func replacementLaunchWaitsForCredentialHandoffAndTerminatesWhileHoldingIt() async {
         let expectedURL = URL(fileURLWithPath: "/Applications/TokenStats.app")
+        let handoff = ControlledCredentialHandoff()
+        let launchObserved = MainActorTestSignal()
+        let lease = RelaunchLeaseProbe()
         var launchedURL: URL?
         var requestedNewInstance = false
+        var pendingLaunchCompletion: (@MainActor (Bool) -> Void)?
         var terminationCount = 0
+        var releasesObservedAtTermination: Int?
 
         let relauncher = AppRelauncher(
             applicationURL: { expectedURL },
+            prepareCredentialHandoff: { try await handoff.prepare() },
             launchNewInstance: { url, configuration, completion in
                 launchedURL = url
                 requestedNewInstance = configuration.createsNewApplicationInstance
-                completion(true)
+                pendingLaunchCompletion = completion
+                launchObserved.signal()
+            },
+            terminateCurrentInstance: {
+                releasesObservedAtTermination = lease.releaseCount
+                terminationCount += 1
+            }
+        )
+
+        relauncher.relaunch()
+        await handoff.waitUntilRequested()
+
+        #expect(launchedURL == nil)
+        #expect(terminationCount == 0)
+        #expect(relauncher.isRelaunching)
+
+        handoff.complete(with: .success([lease]))
+        await launchObserved.wait()
+        #expect(launchedURL == expectedURL)
+        #expect(requestedNewInstance)
+        #expect(lease.releaseCount == 0)
+
+        pendingLaunchCompletion?(true)
+
+        #expect(terminationCount == 1)
+        #expect(releasesObservedAtTermination == 0)
+        #expect(lease.releaseCount == 0)
+        #expect(!relauncher.isRelaunching)
+        #expect(relauncher.failure == nil)
+    }
+
+    @Test func failedCredentialHandoffDoesNotLaunchOrTerminate() async {
+        let handoff = ControlledCredentialHandoff()
+        var launchCount = 0
+        var terminationCount = 0
+        let relauncher = AppRelauncher(
+            applicationURL: { URL(fileURLWithPath: "/Applications/TokenStats.app") },
+            prepareCredentialHandoff: { try await handoff.prepare() },
+            launchNewInstance: { _, _, _ in launchCount += 1 },
+            terminateCurrentInstance: { terminationCount += 1 }
+        )
+
+        relauncher.relaunch()
+        await handoff.waitUntilRequested()
+        handoff.complete(with: .failure(RelaunchHandoffTestError()))
+
+        #expect(await waitUntil { relauncher.failure == .credentialHandoffFailed })
+        #expect(launchCount == 0)
+        #expect(terminationCount == 0)
+        #expect(!relauncher.isRelaunching)
+    }
+
+    @Test func failedReplacementLaunchReleasesCredentialHandoff() async {
+        let lease = RelaunchLeaseProbe()
+        let launchObserved = MainActorTestSignal()
+        var pendingLaunchCompletion: (@MainActor (Bool) -> Void)?
+        var terminationCount = 0
+        let relauncher = AppRelauncher(
+            applicationURL: { URL(fileURLWithPath: "/Applications/TokenStats.app") },
+            prepareCredentialHandoff: { [lease] },
+            launchNewInstance: { _, _, completion in
+                pendingLaunchCompletion = completion
+                launchObserved.signal()
             },
             terminateCurrentInstance: { terminationCount += 1 }
         )
 
         relauncher.relaunch()
+        await launchObserved.wait()
+        #expect(lease.releaseCount == 0)
 
-        #expect(launchedURL == expectedURL)
-        #expect(requestedNewInstance)
-        #expect(terminationCount == 1)
-        #expect(!relauncher.isRelaunching)
-        #expect(relauncher.failure == nil)
-    }
+        pendingLaunchCompletion?(false)
 
-    @Test func failedReplacementLaunchKeepsTheCurrentInstanceRunning() {
-        var terminationCount = 0
-        let relauncher = AppRelauncher(
-            applicationURL: { URL(fileURLWithPath: "/Applications/TokenStats.app") },
-            launchNewInstance: { _, _, completion in completion(false) },
-            terminateCurrentInstance: { terminationCount += 1 }
-        )
-
-        relauncher.relaunch()
-
+        #expect(lease.releaseCount == 1)
         #expect(terminationCount == 0)
         #expect(!relauncher.isRelaunching)
         #expect(relauncher.failure == .newInstanceLaunchFailed)
@@ -361,35 +417,120 @@ struct AppRelauncherTests {
         #expect(relauncher.failure == .applicationURLUnavailable)
     }
 
-    @Test func repeatedRequestsAreIgnoredWhileLaunchIsInProgress() {
+    @Test func repeatedRequestsAreIgnoredWhileHandoffIsInProgress() async {
+        let handoff = ControlledCredentialHandoff()
+        let launchObserved = MainActorTestSignal()
         var launchCount = 0
         var pendingCompletion: (@MainActor (Bool) -> Void)?
         let relauncher = AppRelauncher(
             applicationURL: { URL(fileURLWithPath: "/Applications/TokenStats.app") },
+            prepareCredentialHandoff: { try await handoff.prepare() },
             launchNewInstance: { _, _, completion in
                 launchCount += 1
                 pendingCompletion = completion
+                launchObserved.signal()
             },
             terminateCurrentInstance: {}
         )
 
         relauncher.relaunch()
+        await handoff.waitUntilRequested()
         relauncher.relaunch()
 
-        #expect(launchCount == 1)
+        #expect(handoff.requestCount == 1)
+        #expect(launchCount == 0)
         #expect(relauncher.isRelaunching)
 
+        handoff.complete(with: .success([]))
+        await launchObserved.wait()
+        #expect(launchCount == 1)
         pendingCompletion?(false)
         #expect(!relauncher.isRelaunching)
         #expect(relauncher.failure == .newInstanceLaunchFailed)
     }
 
-    @Test func testingRelauncherFailsClosedAndKeepsTheCurrentInstanceRunning() {
+    @Test func testingRelauncherFailsClosedAndKeepsTheCurrentInstanceRunning() async {
         let relauncher = AppRelauncher.disabledForTesting()
 
         relauncher.relaunch()
 
+        #expect(await waitUntil { relauncher.failure == .newInstanceLaunchFailed })
         #expect(!relauncher.isRelaunching)
-        #expect(relauncher.failure == .newInstanceLaunchFailed)
     }
 }
+
+@MainActor
+private final class ControlledCredentialHandoff {
+    private var requestContinuation: CheckedContinuation<Void, Never>?
+    private var completion: CheckedContinuation<
+        [any RefreshCoordinationLease],
+        any Error
+    >?
+    private(set) var requestCount = 0
+
+    func prepare() async throws -> [any RefreshCoordinationLease] {
+        requestCount += 1
+        requestContinuation?.resume()
+        requestContinuation = nil
+        return try await withCheckedThrowingContinuation { continuation in
+            completion = continuation
+        }
+    }
+
+    func waitUntilRequested() async {
+        if requestCount > 0 { return }
+        await withCheckedContinuation { continuation in
+            requestContinuation = continuation
+        }
+    }
+
+    func complete(
+        with result: Result<[any RefreshCoordinationLease], any Error>
+    ) {
+        switch result {
+        case .success(let leases): completion?.resume(returning: leases)
+        case .failure(let error): completion?.resume(throwing: error)
+        }
+        completion = nil
+    }
+}
+
+@MainActor
+private final class MainActorTestSignal {
+    private var signalled = false
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func signal() {
+        signalled = true
+        continuation?.resume()
+        continuation = nil
+    }
+
+    func wait() async {
+        if signalled { return }
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+}
+
+nonisolated private final class RelaunchLeaseProbe:
+    RefreshCoordinationLease,
+    @unchecked Sendable {
+    private let lock = NSLock()
+    private var releases = 0
+
+    var releaseCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return releases
+    }
+
+    func release() {
+        lock.lock()
+        releases += 1
+        lock.unlock()
+    }
+}
+
+private struct RelaunchHandoffTestError: Error {}

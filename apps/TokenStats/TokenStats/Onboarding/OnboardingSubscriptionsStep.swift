@@ -66,7 +66,7 @@ private struct OnboardingSubscriptionRow: View {
     let model: UsageModel
     let id: CodingAgentID
 
-    private var isConnected: Bool { model.agentStates[id] != .signedOut }
+    private var sessionState: SessionState { model.sessionStates[id] }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -74,7 +74,7 @@ private struct OnboardingSubscriptionRow: View {
                 AgentIconBadge(id: id)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(id.integration.displayName).font(.body.weight(.semibold))
-                    ConnectionStatusLabel(status: ConnectionStatus(state: model.agentStates[id],
+                    ConnectionStatusLabel(status: ConnectionStatus(sessionState: sessionState,
                                                                    awaitingCode: model.isAwaitingCode(id),
                                                                    signingIn: model.isSigningIn(id)),
                                           font: .caption, style: .tintedText)
@@ -83,7 +83,10 @@ private struct OnboardingSubscriptionRow: View {
                 trailing
             }
 
-            if !isConnected {
+            if SessionPresentation.showsSignInControls(
+                sessionState,
+                awaitingCode: model.isAwaitingCode(id)
+            ) {
                 AgentSignInControls(model: model, id: id, font: .caption)
             }
 
@@ -102,12 +105,18 @@ private struct OnboardingSubscriptionRow: View {
     }
 
     @ViewBuilder private var trailing: some View {
-        if model.isRefreshing(id) || model.isSigningIn(id) {
+        if model.isRefreshing(id) || model.isSigningIn(id)
+            || SessionPresentation.isChecking(sessionState) {
             ProgressView().controlSize(.small)
-        } else if isConnected {
+        } else if SessionPresentation.isVerified(sessionState) {
             Image(systemName: "checkmark.circle.fill")
                 .imageScale(.large)
                 .foregroundStyle(.green)
+        } else if SessionPresentation.isTemporarilyUnverifiable(sessionState) {
+            Button(LocalizedStringResource.settingsSubscriptionsRetryVerificationButton) {
+                model.refreshManually(id)
+            }
+            .disabled(model.isRefreshing(id))
         }
     }
 }

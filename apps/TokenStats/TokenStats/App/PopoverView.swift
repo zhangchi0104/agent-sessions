@@ -3,7 +3,7 @@
 //  TokenStats
 //
 //  The popover anchored to the menu-bar item: a glass tab bar switching
-//  between the Usage tab (one AgentSection per connected Coding Agent in the
+//  between the Usage tab (one AgentSection per present Coding Agent subscription in the
 //  user's Appearance order, primary first) and the Tokens tab (the Token Odometer
 //  broken down by Coding Agent, Model and Token Kind). The Tokens tab keeps
 //  itself current from a file watch, so the header's refresh control reaches
@@ -53,12 +53,13 @@ struct PopoverView: View {
         .frame(width: 332)
     }
 
-    /// The Usage tab: one section per connected Coding Agent in the user's
-    /// display order. Usage Window gauges and nothing else.
+    /// The Usage tab: one section per present Coding Agent subscription in the
+    /// user's display order. A rejected or temporarily unverifiable session
+    /// stays visible so its disclosed-stale Usage Windows still have context.
     @ViewBuilder private var usage: some View {
-        let displayedAgents = model.agentStates.connected(
-            in: model.appearance.usageDisplayOrder
-        )
+        let displayedAgents = model.appearance.usageDisplayOrder.filter {
+            SessionPresentation.keepsSubscriptionVisible(model.sessionStates[$0])
+        }
 
         if displayedAgents.isEmpty {
             usageEmptyState

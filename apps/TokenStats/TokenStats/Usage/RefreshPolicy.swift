@@ -11,10 +11,19 @@
 import Foundation
 
 enum RefreshTrigger {
+    case startup
     case timer
     case wake
     case popoverOpen
     case manual
+    case signIn
+
+    var requiresProactiveSessionValidation: Bool {
+        switch self {
+        case .startup, .manual: return true
+        case .timer, .wake, .popoverOpen, .signIn: return false
+        }
+    }
 }
 
 struct RefreshDecision: Equatable {
@@ -48,7 +57,7 @@ enum RefreshPolicy {
             } else {
                 shouldFetch = true
             }
-        case .wake, .popoverOpen, .manual:
+        case .startup, .wake, .popoverOpen, .manual, .signIn:
             shouldFetch = true
         }
         return RefreshDecision(shouldFetch: shouldFetch, nextInterval: interval)

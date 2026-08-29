@@ -264,6 +264,64 @@ public sealed record UsageWindow(
 
 public sealed record UsageSnapshot(IReadOnlyList<UsageWindow> Windows, DateTimeOffset FetchedAt);
 
+/// <summary>
+/// Online authentication health is deliberately separate from credential
+/// presence and cached usage. A stored token starts in Checking; only an
+/// accepted refresh or provider request can make the session Valid.
+/// </summary>
+public enum AuthSessionStateKind
+{
+    SignedOut,
+    Checking,
+    Valid,
+    TemporarilyUnverifiable,
+    ReauthenticationRequired,
+}
+
+public enum OAuthRefreshFailureReason
+{
+    Expired,
+    Reused,
+    Revoked,
+    InvalidGrant,
+    Unauthorized,
+    Other,
+}
+
+public sealed record AuthSessionState(
+    AuthSessionStateKind Kind,
+    DateTimeOffset? LastValidatedAt = null,
+    OAuthRefreshFailureReason? ReauthenticationReason = null,
+    string? Diagnostic = null)
+{
+    public static AuthSessionState SignedOut { get; } =
+        new(AuthSessionStateKind.SignedOut);
+
+    public static AuthSessionState Checking(DateTimeOffset? lastValidatedAt = null) =>
+        new(AuthSessionStateKind.Checking, lastValidatedAt);
+
+    public static AuthSessionState Valid(
+        DateTimeOffset validatedAt,
+        string? diagnostic = null) =>
+        new(AuthSessionStateKind.Valid, validatedAt, Diagnostic: diagnostic);
+
+    public static AuthSessionState TemporarilyUnverifiable(
+        DateTimeOffset? lastValidatedAt,
+        string diagnostic) =>
+        new(
+            AuthSessionStateKind.TemporarilyUnverifiable,
+            lastValidatedAt,
+            Diagnostic: diagnostic);
+
+    public static AuthSessionState ReauthenticationRequired(
+        OAuthRefreshFailureReason reason,
+        string diagnostic) =>
+        new(
+            AuthSessionStateKind.ReauthenticationRequired,
+            ReauthenticationReason: reason,
+            Diagnostic: diagnostic);
+}
+
 public enum AgentStateKind
 {
     SignedOut,
@@ -317,21 +375,97 @@ public sealed record OAuthTokens(
     public bool IsExpired(DateTimeOffset now) => now >= ExpiresAt.AddMinutes(-1);
 }
 
+public enum CredentialPresence
+{
+    Present,
+    Absent,
+    TemporarilyUnavailable,
+}
+
 public sealed record Pkce(string Verifier, string Challenge);
 
 public sealed class UsageException : Exception
 {
-    public UsageException(string message) : base(message)
+    public UsageException(string message, int? statusCode = null) : base(message)
     {
+        StatusCode = statusCode;
     }
+
+    public int? StatusCode { get; }
 
     public static UsageException NotSignedIn() => new("Not signed in.");
 
     public static UsageException BadResponse(int status, string body) =>
-        new($"HTTP {status}. {body[..Math.Min(body.Length, 200)]}");
+        new(
+            $"HTTP {status}. {body[..Math.Min(body.Length, 200)]}",
+            status);
 
     public static UsageException NoWindows(string body) =>
         new($"Got data but no Usage Windows recognized. {body[..Math.Min(body.Length, 200)]}");
+}
+
+/// <summary>
+/// A sanitized OAuth refresh failure. The response body is intentionally not
+/// retained: token-endpoint payloads must never flow into diagnostics or UI.
+/// </summary>
+public sealed class OAuthRefreshException : Exception
+{
+    public OAuthRefreshException(
+        int statusCode,
+        string? errorCode,
+        OAuthRefreshFailureReason reason,
+        bool isTerminal)
+        : base(BuildMessage(statusCode, errorCode, reason, isTerminal))
+    {
+        StatusCode = statusCode;
+        ErrorCode = errorCode;
+        Reason = reason;
+        IsTerminal = isTerminal;
+    }
+
+    public int StatusCode { get; }
+    public string? ErrorCode { get; }
+    public OAuthRefreshFailureReason Reason { get; }
+    public bool IsTerminal { get; }
+
+    private static string BuildMessage(
+        int statusCode,
+        string? errorCode,
+        OAuthRefreshFailureReason reason,
+        bool isTerminal)
+    {
+        var classification = isTerminal ? "terminal" : "transient";
+        var code = string.IsNullOrWhiteSpace(errorCode)
+            ? string.Empty
+            : $", code {errorCode}";
+        return $"OAuth refresh failed ({classification}, HTTP {statusCode}{code}, {reason}).";
+    }
+}
+
+public sealed class TokenPersistenceException : Exception
+{
+    public TokenPersistenceException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+}
+
+/// <summary>
+/// The refresh grant was accepted and any returned rotation was adopted, but
+/// the resulting credential set still has no usable access bearer. This is
+/// session-validity proof, not a terminal authentication rejection.
+/// </summary>
+public sealed class RefreshedAccessTokenUnavailableException : Exception
+{
+    public RefreshedAccessTokenUnavailableException(bool persistenceFailed)
+        : base(persistenceFailed
+            ? "The session refresh was accepted, but it returned no usable access token and the rotated credentials could not be saved."
+            : "The session refresh was accepted, but it returned no usable access token.")
+    {
+        PersistenceFailed = persistenceFailed;
+    }
+
+    public bool PersistenceFailed { get; }
 }
 
 public readonly record struct TokenBreakdown(

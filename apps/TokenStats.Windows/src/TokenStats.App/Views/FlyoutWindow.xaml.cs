@@ -799,6 +799,73 @@ public partial class FlyoutWindow : Window
         var content = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
         section.Children.Add(content);
 
+        if (agent.SessionState.Kind ==
+            AuthSessionStateKind.ReauthenticationRequired)
+        {
+            if (agent.State.Snapshot is { } retained)
+            {
+                content.Children.Add(BuildGauges(agent.Definition, retained));
+                content.Children.Add(
+                    BuildStatus(
+                        agent,
+                        $"Session expired · last updated {UsageFormatting.RelativeAge(retained.FetchedAt)}",
+                        isStale: true));
+            }
+            else
+            {
+                content.Children.Add(SecondaryText(
+                    "This session is no longer refreshable."));
+            }
+
+            content.Children.Add(SessionActionButton(
+                "Reconnect…",
+                () =>
+                {
+                    HideFlyout();
+                    _showSettings();
+                }));
+            return section;
+        }
+
+        if (agent.SessionState.Kind is
+            AuthSessionStateKind.Checking or
+            AuthSessionStateKind.TemporarilyUnverifiable)
+        {
+            var checking = agent.SessionState.Kind ==
+                AuthSessionStateKind.Checking;
+            var statusLabel = checking
+                ? "Checking account session"
+                : "Couldn’t verify account session";
+            if (agent.State.Snapshot is { } retained)
+            {
+                content.Children.Add(BuildGauges(agent.Definition, retained));
+                content.Children.Add(
+                    BuildStatus(
+                        agent,
+                        $"{statusLabel} · last updated " +
+                        UsageFormatting.RelativeAge(retained.FetchedAt),
+                        isStale: true));
+            }
+            else
+            {
+                content.Children.Add(SecondaryText(
+                    checking
+                        ? "Checking account session…"
+                        : "Couldn’t verify the account session right now."));
+            }
+
+            if (!checking)
+            {
+                content.Children.Add(SessionActionButton(
+                    "Try again",
+                    () => _ = _coordinator.RefreshAsync(
+                        agent.Definition.Id,
+                        RefreshTrigger.Manual)));
+            }
+
+            return section;
+        }
+
         switch (agent.State.Kind)
         {
             case AgentStateKind.SignedOut:
@@ -862,6 +929,18 @@ public partial class FlyoutWindow : Window
         }
 
         return section;
+    }
+
+    private static Button SessionActionButton(string text, Action action)
+    {
+        var button = new Button
+        {
+            Content = text,
+            Margin = new Thickness(0, 9, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        button.Click += (_, _) => action();
+        return button;
     }
 
     private FrameworkElement BuildGauges(

@@ -238,7 +238,7 @@ private final class TestingAuthSession: AgentAuthSession {
     let isSignedIn = false
 
     func validAccessToken() async throws -> String { "ui-testing" }
-    func signOut() {}
+    func signOut() async throws {}
     func beginSignIn() async throws {}
 }
 

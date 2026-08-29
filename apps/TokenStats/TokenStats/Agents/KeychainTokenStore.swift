@@ -26,6 +26,8 @@
 //  the token in memory, so we touch the keychain at most once per launch.
 //
 
+import CryptoKit
+import Darwin
 import Foundation
 
 struct KeychainTokenStore {
@@ -39,16 +41,40 @@ struct KeychainTokenStore {
         self.account = account
     }
 
+    /// Stable, non-secret identity used only to select the account's lock file.
+    /// It reveals neither access nor refresh token material.
+    var refreshCoordinationID: String {
+        Self.refreshCoordinationID(service: service, account: account)
+    }
+
     func save(_ tokens: OAuthTokens) throws {
         let data = try JSONEncoder().encode(tokens)
-        var query = baseQuery
-        SecItemDelete(query as CFDictionary)
-        query[kSecValueData as String] = data
+        let attributes: [String: Any] = [
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+        ]
         // Available after first unlock so a background menu-bar refresh can read
         // the token without the Mac being actively unlocked.
-        query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        let status = SecItemAdd(query as CFDictionary, nil)
-        guard status == errSecSuccess else { throw KeychainError.status(status) }
+        let updateStatus = SecItemUpdate(
+            baseQuery as CFDictionary,
+            attributes as CFDictionary
+        )
+        switch updateStatus {
+        case errSecSuccess:
+            return
+        case errSecItemNotFound:
+            var item = baseQuery
+            attributes.forEach { item[$0.key] = $0.value }
+            let addStatus = SecItemAdd(item as CFDictionary, nil)
+            guard addStatus == errSecSuccess else {
+                throw KeychainError.status(addStatus)
+            }
+        default:
+            // Never delete the previous item before a replacement is durable.
+            // A failed update therefore leaves the last usable credential in
+            // place instead of turning a transient Keychain error into logout.
+            throw KeychainError.status(updateStatus)
+        }
     }
 
     /// Distinguishes "no account stored" from "the keychain would not answer".
@@ -73,8 +99,29 @@ struct KeychainTokenStore {
         }
     }
 
-    func clear() {
-        SecItemDelete(baseQuery as CFDictionary)
+    func clear() throws {
+        let status = SecItemDelete(baseQuery as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw KeychainError.status(status)
+        }
+    }
+
+    /// Acquire the account-scoped lock away from MainActor. The lease spans the
+    /// refresh request and the following Keychain write, so a replacement app
+    /// instance can wait without freezing either process's UI thread.
+    func acquireRefreshCoordination() async throws -> any RefreshCoordinationLease {
+        let url = Self.refreshCoordinationURL(id: refreshCoordinationID)
+        do {
+            return try await Task.detached(priority: .userInitiated) {
+                try KeychainRefreshCoordinationLease.acquire(at: url)
+            }.value
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            // Paths and POSIX details are deliberately not carried across the
+            // auth/UI boundary.
+            throw CredentialStoreUnavailableError()
+        }
     }
 
     private var baseQuery: [String: Any] {
@@ -89,5 +136,110 @@ struct KeychainTokenStore {
         ]
     }
 
+    private static func refreshCoordinationID(service: String, account: String) -> String {
+        SHA256.hash(data: Data("\(service)\u{0}\(account)".utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+    }
+
+    private static func refreshCoordinationURL(id: String) -> URL {
+        let applicationSupport = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first ?? FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support", isDirectory: true)
+        return applicationSupport
+            .appendingPathComponent("dev.otakuma.TokenStats", isDirectory: true)
+            .appendingPathComponent("oauth-refresh-locks", isDirectory: true)
+            .appendingPathComponent("\(id).lock", isDirectory: false)
+    }
+
     enum KeychainError: Error { case status(OSStatus) }
+}
+
+/// A stable, owner-only file lock used solely for coordination. The filename is
+/// a hash of the public Keychain service/account identity; no credential bytes
+/// are written to disk or included in errors.
+nonisolated private final class KeychainRefreshCoordinationLease:
+    RefreshCoordinationLease,
+    @unchecked Sendable {
+    private let descriptor: Int32
+    private let stateLock = NSLock()
+    private var released = false
+
+    private init(descriptor: Int32) {
+        self.descriptor = descriptor
+    }
+
+    static func acquire(at url: URL) throws -> KeychainRefreshCoordinationLease {
+        let directory = url.deletingLastPathComponent()
+        do {
+            try FileManager.default.createDirectory(
+                at: directory,
+                withIntermediateDirectories: true,
+                attributes: [.posixPermissions: 0o700]
+            )
+        } catch {
+            throw CredentialStoreUnavailableError()
+        }
+
+        var directoryStatus = stat()
+        guard lstat(directory.path, &directoryStatus) == 0,
+              (directoryStatus.st_mode & S_IFMT) == S_IFDIR,
+              directoryStatus.st_uid == geteuid(),
+              chmod(directory.path, S_IRWXU) == 0 else {
+            throw CredentialStoreUnavailableError()
+        }
+
+        let descriptor = Darwin.open(
+            url.path,
+            O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW,
+            mode_t(S_IRUSR | S_IWUSR)
+        )
+        guard descriptor >= 0 else { throw CredentialStoreUnavailableError() }
+
+        var descriptorStatus = stat()
+        guard fstat(descriptor, &descriptorStatus) == 0,
+              (descriptorStatus.st_mode & S_IFMT) == S_IFREG,
+              descriptorStatus.st_uid == geteuid(),
+              fchmod(descriptor, S_IRUSR | S_IWUSR) == 0 else {
+            Darwin.close(descriptor)
+            throw CredentialStoreUnavailableError()
+        }
+
+        while flock(descriptor, LOCK_EX) != 0 {
+            guard errno == EINTR else {
+                Darwin.close(descriptor)
+                throw CredentialStoreUnavailableError()
+            }
+        }
+
+        // Lock files are never removed. Verify the path still names the inode we
+        // locked so a replaced entry cannot split coordination across two files.
+        var pathStatus = stat()
+        guard lstat(url.path, &pathStatus) == 0,
+              pathStatus.st_dev == descriptorStatus.st_dev,
+              pathStatus.st_ino == descriptorStatus.st_ino else {
+            flock(descriptor, LOCK_UN)
+            Darwin.close(descriptor)
+            throw CredentialStoreUnavailableError()
+        }
+        return KeychainRefreshCoordinationLease(descriptor: descriptor)
+    }
+
+    func release() {
+        stateLock.lock()
+        guard !released else {
+            stateLock.unlock()
+            return
+        }
+        released = true
+        stateLock.unlock()
+        flock(descriptor, LOCK_UN)
+        Darwin.close(descriptor)
+    }
+
+    deinit {
+        release()
+    }
 }

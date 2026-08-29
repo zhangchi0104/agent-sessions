@@ -34,7 +34,7 @@ struct AgentSignInControls: View {
             Button(signInButtonTitle) {
                 model.signIn(id)
             }
-            .disabled(model.isSigningIn(id))
+            .disabled(model.isSigningIn(id) || model.isCompletingSignIn(id))
             if model.isAwaitingCode(id) {
                 Text(
                     LocalizedStringResource.accountSignInPasteCodeInstruction
@@ -47,12 +47,16 @@ struct AgentSignInControls: View {
                         text: $pastedCode
                     )
                         .textFieldStyle(.roundedBorder)
+                        .disabled(model.isCompletingSignIn(id))
                         .onSubmit(submit)
                     Button(
                         LocalizedStringResource.accountSignInSubmitButton,
                         action: submit
                     )
-                        .disabled(pastedCode.isEmpty)
+                        .disabled(pastedCode.isEmpty || model.isCompletingSignIn(id))
+                    if model.isCompletingSignIn(id) {
+                        ProgressView().controlSize(.small)
+                    }
                 }
             }
         case .selfCompleting:
@@ -78,7 +82,7 @@ struct AgentSignInControls: View {
     }
 
     private func submit() {
-        guard !pastedCode.isEmpty else { return }
+        guard !pastedCode.isEmpty, !model.isCompletingSignIn(id) else { return }
         model.submitPastedCode(pastedCode, for: id)
         pastedCode = ""
     }

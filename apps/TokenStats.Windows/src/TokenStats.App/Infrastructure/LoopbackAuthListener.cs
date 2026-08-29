@@ -174,12 +174,9 @@ public sealed class LoopbackAuthListener : IAsyncDisposable
         var query = ParseQuery(uri.Query);
         if (query.TryGetValue("error", out var error))
         {
-            var description = query.GetValueOrDefault("error_description");
             return (
                 null,
-                string.IsNullOrWhiteSpace(description)
-                    ? error
-                    : $"{error}: {description}",
+                SafeOAuthErrorCode(error),
                 query.GetValueOrDefault("state"));
         }
 
@@ -195,6 +192,30 @@ public sealed class LoopbackAuthListener : IAsyncDisposable
         }
 
         return (new OAuthCallback(code, state), null, state);
+    }
+
+    private static string SafeOAuthErrorCode(string error)
+    {
+        var normalized = error.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "access_denied" or
+            "account_selection_required" or
+            "consent_required" or
+            "interaction_required" or
+            "invalid_request" or
+            "invalid_request_object" or
+            "invalid_request_uri" or
+            "invalid_scope" or
+            "login_required" or
+            "request_not_supported" or
+            "request_uri_not_supported" or
+            "server_error" or
+            "temporarily_unavailable" or
+            "unauthorized_client" or
+            "unsupported_response_type" => normalized,
+            _ => "unknown_error",
+        };
     }
 
     private static TcpListener? TryStart(int port)

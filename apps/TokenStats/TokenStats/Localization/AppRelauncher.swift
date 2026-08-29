@@ -3,7 +3,8 @@
 //  TokenStats
 //
 //  Relaunches with NSWorkspace's public new-instance API. The old instance is
-//  terminated only after Launch Services reports the replacement as running.
+//  terminated only after its credential refreshes are durably quiesced and
+//  Launch Services reports the replacement as running.
 //
 
 import AppKit
@@ -11,13 +12,14 @@ import Observation
 
 nonisolated enum AppRelaunchFailure: Error, Equatable, Sendable {
     case applicationURLUnavailable
+    case credentialHandoffFailed
     case newInstanceLaunchFailed
 
     var message: LocalizedStringResource {
         switch self {
         case .applicationURLUnavailable:
             LocalizedStringResource.settingsGeneralLanguageRestartErrorApplicationUnavailable
-        case .newInstanceLaunchFailed:
+        case .credentialHandoffFailed, .newInstanceLaunchFailed:
             LocalizedStringResource.settingsGeneralLanguageRestartErrorLaunchFailed
         }
     }
@@ -33,17 +35,39 @@ final class AppRelauncher {
         NSWorkspace.OpenConfiguration,
         @escaping @MainActor (Bool) -> Void
     ) -> Void
+    typealias PrepareCredentialHandoff = @MainActor () async throws
+        -> [any RefreshCoordinationLease]
 
     private(set) var isRelaunching = false
     private(set) var failure: AppRelaunchFailure?
 
     @ObservationIgnored private let applicationURL: () -> URL?
+    @ObservationIgnored private let prepareCredentialHandoff: PrepareCredentialHandoff
     @ObservationIgnored private let launchNewInstance: LaunchNewInstance
     @ObservationIgnored private let terminateCurrentInstance: () -> Void
+    /// Successful relaunch keeps these descriptors open until process exit.
+    /// The replacement may already be running, but cannot refresh any account
+    /// until the predecessor has actually terminated rather than merely called
+    /// `NSApplication.terminate`.
+    @ObservationIgnored private var retainedCredentialLeases: [any RefreshCoordinationLease] = []
 
     convenience init() {
         self.init(
             applicationURL: { Bundle.main.bundleURL },
+            prepareCredentialHandoff: {
+                var leases: [any RefreshCoordinationLease] = []
+                do {
+                    for integration in CodingAgentRegistry.all {
+                        leases.append(
+                            try await integration.auth.acquireRelaunchCoordination()
+                        )
+                    }
+                    return leases
+                } catch {
+                    leases.forEach { $0.release() }
+                    throw error
+                }
+            },
             launchNewInstance: { url, configuration, completion in
                 NSWorkspace.shared.openApplication(at: url, configuration: configuration) {
                     runningApplication, error in
@@ -62,15 +86,18 @@ final class AppRelauncher {
     static func disabledForTesting() -> AppRelauncher {
         AppRelauncher(
             applicationURL: { Bundle.main.bundleURL },
+            prepareCredentialHandoff: { [] },
             launchNewInstance: { _, _, completion in completion(false) },
             terminateCurrentInstance: {}
         )
     }
 
     init(applicationURL: @escaping () -> URL?,
+         prepareCredentialHandoff: @escaping PrepareCredentialHandoff = { [] },
          launchNewInstance: @escaping LaunchNewInstance,
          terminateCurrentInstance: @escaping () -> Void) {
         self.applicationURL = applicationURL
+        self.prepareCredentialHandoff = prepareCredentialHandoff
         self.launchNewInstance = launchNewInstance
         self.terminateCurrentInstance = terminateCurrentInstance
     }
@@ -84,23 +111,54 @@ final class AppRelauncher {
             return
         }
 
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = true
         isRelaunching = true
 
-        launchNewInstance(applicationURL, configuration) { [weak self] didLaunch in
+        Task { [weak self] in
             guard let self else { return }
-            guard isRelaunching else { return }
-            isRelaunching = false
-            guard didLaunch else {
-                failure = .newInstanceLaunchFailed
+            let leases: [any RefreshCoordinationLease]
+            do {
+                leases = try await prepareCredentialHandoff()
+            } catch {
+                guard isRelaunching else { return }
+                isRelaunching = false
+                failure = .credentialHandoffFailed
+                return
+            }
+            guard isRelaunching else {
+                leases.forEach { $0.release() }
                 return
             }
 
-            // The replacement is confirmed alive. Only now is it safe to end
-            // the instance the user is currently interacting with.
-            terminateCurrentInstance()
+            retainedCredentialLeases = leases
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.createsNewApplicationInstance = true
+            launchNewInstance(applicationURL, configuration) { [weak self] didLaunch in
+                guard let self else {
+                    leases.forEach { $0.release() }
+                    return
+                }
+                guard isRelaunching else {
+                    releaseCredentialHandoff()
+                    return
+                }
+                isRelaunching = false
+                guard didLaunch else {
+                    failure = .newInstanceLaunchFailed
+                    releaseCredentialHandoff()
+                    return
+                }
+
+                // The replacement is confirmed alive and will wait on these
+                // leases. Keep them retained through actual process exit so no
+                // old-instance timer can start a final uncertain refresh.
+                terminateCurrentInstance()
+            }
         }
+    }
+
+    private func releaseCredentialHandoff() {
+        retainedCredentialLeases.forEach { $0.release() }
+        retainedCredentialLeases.removeAll()
     }
 
     func clearFailure() {

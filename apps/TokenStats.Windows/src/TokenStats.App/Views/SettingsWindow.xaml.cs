@@ -35,6 +35,7 @@ public partial class SettingsWindow : Window
     private readonly AppSettingsStore _settings;
     private readonly Action _runSetupAgain;
     private readonly HashSet<AgentId> _loginBusy = [];
+    private readonly HashSet<AgentId> _validationBusy = [];
     private readonly Dictionary<AgentId, string> _pastedCodes = [];
     private readonly DispatcherTimer _appearanceSaveTimer = new()
     {
@@ -179,7 +180,11 @@ public partial class SettingsWindow : Window
             Grid.SetColumn(identity, 1);
             header.Children.Add(identity);
 
-            if (agent.State.Kind != AgentStateKind.SignedOut)
+            var signInBusy =
+                _loginBusy.Contains(agent.Definition.Id) ||
+                (agent.IsSigningIn &&
+                 agent.Definition.SignInStyle == SignInStyle.SelfCompleting);
+            if (agent.SessionState.Kind == AuthSessionStateKind.Valid)
             {
                 var signOut = new Button
                 {
@@ -191,12 +196,79 @@ public partial class SettingsWindow : Window
                 Grid.SetColumn(signOut, 2);
                 header.Children.Add(signOut);
             }
+            else if (agent.SessionState.Kind ==
+                     AuthSessionStateKind.ReauthenticationRequired)
+            {
+                var actions = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                var reconnect = new Button
+                {
+                    Content = signInBusy ? "Waiting for browser…" : "Reconnect",
+                    IsEnabled = !signInBusy,
+                };
+                reconnect.Click += async (_, _) =>
+                    await BeginLoginAsync(agent.Definition.Id)
+                        .ConfigureAwait(true);
+                actions.Children.Add(reconnect);
+                var signOut = new Button
+                {
+                    Content = "Sign out",
+                    Margin = new Thickness(8, 0, 0, 0),
+                    Foreground = FindBrush("DangerBrush"),
+                    IsEnabled = !signInBusy,
+                };
+                signOut.Click += (_, _) =>
+                    _coordinator.SignOut(agent.Definition.Id);
+                actions.Children.Add(signOut);
+                Grid.SetColumn(actions, 2);
+                header.Children.Add(actions);
+            }
+            else if ((agent.SessionState.Kind is
+                      AuthSessionStateKind.Checking or
+                      AuthSessionStateKind.TemporarilyUnverifiable) &&
+                     !agent.IsSigningIn)
+            {
+                var actions = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                var checking = _validationBusy.Contains(agent.Definition.Id) ||
+                    (agent.SessionState.Kind ==
+                     AuthSessionStateKind.Checking && agent.IsRefreshing);
+                var check = new Button
+                {
+                    Content = checking
+                        ? "Checking…"
+                        : agent.SessionState.Kind ==
+                          AuthSessionStateKind.TemporarilyUnverifiable
+                            ? "Try again"
+                            : "Check now",
+                    IsEnabled = !checking && !signInBusy,
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                check.Click += async (_, _) =>
+                    await CheckSessionAsync(agent.Definition.Id)
+                        .ConfigureAwait(true);
+                actions.Children.Add(check);
+                var signOut = new Button
+                {
+                    Content = "Sign out",
+                    Margin = new Thickness(8, 0, 0, 0),
+                    Foreground = FindBrush("DangerBrush"),
+                    IsEnabled = !signInBusy,
+                };
+                signOut.Click += (_, _) =>
+                    _coordinator.SignOut(agent.Definition.Id);
+                actions.Children.Add(signOut);
+                Grid.SetColumn(actions, 2);
+                header.Children.Add(actions);
+            }
             else
             {
-                var signInBusy =
-                    _loginBusy.Contains(agent.Definition.Id) ||
-                    (agent.IsSigningIn &&
-                     agent.Definition.SignInStyle == SignInStyle.SelfCompleting);
                 string signInText;
                 if (signInBusy)
                 {
@@ -282,7 +354,7 @@ public partial class SettingsWindow : Window
 
     private async Task BeginLoginAsync(AgentId id)
     {
-        if (!_loginBusy.Add(id))
+        if (_validationBusy.Contains(id) || !_loginBusy.Add(id))
         {
             return;
         }
@@ -310,7 +382,8 @@ public partial class SettingsWindow : Window
         try
         {
             await _coordinator.CompleteSignInAsync(id, code).ConfigureAwait(true);
-            if (_coordinator.GetAgent(id).State.Kind != AgentStateKind.SignedOut)
+            if (_coordinator.GetAgent(id).SessionState.Kind ==
+                AuthSessionStateKind.Valid)
             {
                 _pastedCodes.Remove(id);
             }
@@ -318,6 +391,26 @@ public partial class SettingsWindow : Window
         finally
         {
             _loginBusy.Remove(id);
+            RenderSubscriptions();
+        }
+    }
+
+    private async Task CheckSessionAsync(AgentId id)
+    {
+        if (_loginBusy.Contains(id) || !_validationBusy.Add(id))
+        {
+            return;
+        }
+
+        RenderSubscriptions();
+        try
+        {
+            await _coordinator.RefreshAsync(id, RefreshTrigger.Manual)
+                .ConfigureAwait(true);
+        }
+        finally
+        {
+            _validationBusy.Remove(id);
             RenderSubscriptions();
         }
     }
@@ -1156,6 +1249,11 @@ public partial class SettingsWindow : Window
 
     private string ConnectionText(AgentPresentation agent)
     {
+        if (_validationBusy.Contains(agent.Definition.Id))
+        {
+            return "Checking connection…";
+        }
+
         if (_loginBusy.Contains(agent.Definition.Id) ||
             (agent.IsSigningIn && !agent.AwaitingCode))
         {
@@ -1169,23 +1267,39 @@ public partial class SettingsWindow : Window
             return "Awaiting code";
         }
 
-        return agent.State.Kind == AgentStateKind.SignedOut
-            ? "Not signed in"
-            : "Connected";
+        return agent.SessionState.Kind switch
+        {
+            AuthSessionStateKind.SignedOut => "Not signed in",
+            AuthSessionStateKind.Checking => "Checking connection…",
+            AuthSessionStateKind.Valid => "Connected",
+            AuthSessionStateKind.TemporarilyUnverifiable =>
+                "Couldn’t verify connection",
+            AuthSessionStateKind.ReauthenticationRequired =>
+                "Session expired — sign in again",
+            _ => "Not signed in",
+        };
     }
 
     private Brush ConnectionBrush(AgentPresentation agent)
     {
-        if (_loginBusy.Contains(agent.Definition.Id) ||
+        if (_validationBusy.Contains(agent.Definition.Id) ||
+            _loginBusy.Contains(agent.Definition.Id) ||
             agent.IsSigningIn ||
             agent.AwaitingCode)
         {
             return FindBrush("WarningBrush");
         }
 
-        return agent.State.Kind == AgentStateKind.SignedOut
-            ? FindBrush("SecondaryTextBrush")
-            : FindBrush("AccentBrush");
+        return agent.SessionState.Kind switch
+        {
+            AuthSessionStateKind.Valid => FindBrush("AccentBrush"),
+            AuthSessionStateKind.Checking or
+            AuthSessionStateKind.TemporarilyUnverifiable =>
+                FindBrush("WarningBrush"),
+            AuthSessionStateKind.ReauthenticationRequired =>
+                FindBrush("DangerBrush"),
+            _ => FindBrush("SecondaryTextBrush"),
+        };
     }
 
     private static Brush FindBrush(string key) =>

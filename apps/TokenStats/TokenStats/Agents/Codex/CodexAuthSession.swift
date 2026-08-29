@@ -14,6 +14,9 @@ import Foundation
 final class CodexAuthSession: AgentAuthSession {
     private let cache: AgentTokenCache
     private let client: CodexOAuthClient
+    /// Prevents a loopback flow that finishes after Sign out from adopting its
+    /// old result back into the cache. A later login captures the newer value.
+    private var loginGeneration = 0
 
     init(store: any TokenStore = KeychainTokenStore(account: "codex"),
          client: CodexOAuthClient = CodexOAuthClient(),
@@ -26,12 +29,31 @@ final class CodexAuthSession: AgentAuthSession {
 
     var isSignedIn: Bool { cache.isSignedIn }
 
+    var credentialPresence: CredentialPresence { cache.credentialPresence }
+
+    var supportsProactiveSessionValidation: Bool { true }
+
+    var refreshValidationRevision: Int { cache.refreshValidationRevision }
+
+    var hasPendingTokenPersistence: Bool { cache.hasPendingTokenPersistence }
+
     func validAccessToken() async throws -> String { try await cache.validAccessToken() }
+
+    func forceRefreshAccessToken() async throws -> String {
+        try await cache.forceRefreshAccessToken()
+    }
 
     /// The ChatGPT account id for the usage header, from the most recent tokens.
     func accountID() -> String? { cache.accountID() }
 
-    func signOut() { cache.signOut() }
+    func acquireRelaunchCoordination() async throws -> any RefreshCoordinationLease {
+        try await cache.acquireRelaunchCoordination()
+    }
+
+    func signOut() async throws {
+        loginGeneration += 1
+        try await cache.signOut()
+    }
 
     /// One-shot loopback login: bind a port, open the browser, await the
     /// redirect, exchange the code, and store the tokens. Unlike the
@@ -41,6 +63,8 @@ final class CodexAuthSession: AgentAuthSession {
     }
 
     func beginSignIn(localizer: AppLocalizer) async throws {
+        loginGeneration += 1
+        let generation = loginGeneration
         let listener = try LoopbackAuthListener(localizer: localizer)
         defer { listener.cancel() }
         let port = try await listener.start()
@@ -66,6 +90,9 @@ final class CodexAuthSession: AgentAuthSession {
                 LocalizedStringResource.accountSignInErrorMissingRefreshToken
             ))
         }
-        try cache.adopt(tokens)
+        guard generation == loginGeneration else { throw UsageError.notSignedIn }
+        try await cache.adopt(tokens, ifCurrent: {
+            generation == self.loginGeneration
+        })
     }
 }

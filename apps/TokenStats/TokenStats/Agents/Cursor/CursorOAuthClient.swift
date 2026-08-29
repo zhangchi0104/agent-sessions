@@ -46,7 +46,13 @@ struct CursorOAuthClient {
                 guard remaining > .zero else { break }
                 try await clock.sleep(for: min(retryDelay, remaining))
             default:
-                throw UsageError.badResponse(status: status, body: bodyPreview(data))
+                throw UsageError.badResponse(
+                    status: status,
+                    body: OAuthErrorDiagnostics.summary(
+                        data,
+                        operation: "OAuth login rejected"
+                    )
+                )
             }
         }
         throw URLError(.timedOut)
@@ -66,13 +72,15 @@ struct CursorOAuthClient {
         let (data, response) = try await session.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? -1
         guard (200..<300).contains(status) else {
-            throw UsageError.badResponse(status: status, body: bodyPreview(data))
+            throw UsageError.badResponse(
+                status: status,
+                body: OAuthErrorDiagnostics.summary(
+                    data,
+                    operation: "OAuth refresh rejected"
+                )
+            )
         }
         return try CursorOAuthFlow.parseRefreshTokens(data, previous: previous)
-    }
-
-    private func bodyPreview(_ data: Data) -> String {
-        String(data: data.prefix(800), encoding: .utf8) ?? "<non-utf8 \(data.count) bytes>"
     }
 
     private static func timeInterval(_ duration: Duration) -> TimeInterval {

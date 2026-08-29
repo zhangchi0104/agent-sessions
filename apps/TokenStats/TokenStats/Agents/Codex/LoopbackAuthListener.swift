@@ -229,19 +229,39 @@ final class LoopbackAuthListener {
         return Callback(code: code, state: state)
     }
 
-    /// Pure: pull an OAuth `error` (and optional `error_description`) out of an
-    /// error redirect so a denied/failed approval reports the real reason
-    /// rather than a generic "no authorization code" message.
+    /// Pure: reduce an OAuth error redirect to a known protocol code. The
+    /// provider-controlled `error_description` is deliberately ignored: it is
+    /// an untrusted raw authentication response and may contain account detail
+    /// or other sensitive text that must not reach diagnostics.
     static func parseError(httpRequest: String) -> String? {
         guard let firstLine = httpRequest.split(separator: "\r\n", maxSplits: 1).first
             ?? httpRequest.split(separator: "\n", maxSplits: 1).first else { return nil }
         let parts = firstLine.split(separator: " ")
         guard parts.count >= 2,
               let components = URLComponents(string: "http://localhost\(String(parts[1]))"),
-              let error = components.queryItems?.first(where: { $0.name == "error" })?.value
+              let rawError = components.queryItems?.first(where: { $0.name == "error" })?.value
         else { return nil }
-        let description = components.queryItems?.first(where: { $0.name == "error_description" })?.value
-        return description.map { "\(error): \($0)" } ?? error
+        let normalized = rawError
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let knownCodes: Set<String> = [
+            "access_denied",
+            "account_selection_required",
+            "consent_required",
+            "interaction_required",
+            "invalid_request",
+            "invalid_request_object",
+            "invalid_request_uri",
+            "invalid_scope",
+            "login_required",
+            "request_not_supported",
+            "request_uri_not_supported",
+            "server_error",
+            "temporarily_unavailable",
+            "unauthorized_client",
+            "unsupported_response_type",
+        ]
+        return knownCodes.contains(normalized) ? normalized : "unknown_error"
     }
 
     static func callbackHTML(succeeded: Bool, localizer: AppLocalizer) -> String {

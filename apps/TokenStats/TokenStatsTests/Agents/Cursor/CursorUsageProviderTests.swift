@@ -167,20 +167,33 @@ struct CursorUsageProviderTests {
         }
 
         await #expect(throws: UsageError.self) {
-            try await provider.fetchUsage()
+            _ = try await provider.fetchUsage()
         }
     }
 
-    @Test func throwsBadResponseOnNon200() async {
+    @Test func non200DiagnosticsNeverRetainRawUsageBody() async {
         let provider = makeProvider { request in
             let response = HTTPURLResponse(
                 url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil
             )!
-            return (response, Data(#"{"code":"unauthenticated"}"#.utf8))
+            return (response, Data(
+                #"{"code":"unauthenticated","detail":"SENSITIVE-ACCOUNT-MARKER"}"#.utf8
+            ))
         }
 
-        await #expect(throws: UsageError.self) {
+        do {
             try await provider.fetchUsage()
+            Issue.record("Expected usage fetch to fail")
+        } catch let error as UsageError {
+            guard case .badResponse(let status, let body) = error else {
+                Issue.record("Expected bad response, got \(error)")
+                return
+            }
+            #expect(status == 401)
+            #expect(body == "Cursor usage response (unauthenticated)")
+            #expect(!body.contains("SENSITIVE-ACCOUNT-MARKER"))
+        } catch {
+            Issue.record("Unexpected error: \(error)")
         }
     }
 

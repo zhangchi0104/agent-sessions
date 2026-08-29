@@ -43,9 +43,14 @@ struct OAuthClient {
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await session.data(for: request)
-        let body = String(data: data.prefix(800), encoding: .utf8) ?? "<non-utf8 \(data.count) bytes>"
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw UsageError.badResponse(status: (response as? HTTPURLResponse)?.statusCode ?? -1, body: body)
+            throw UsageError.badResponse(
+                status: (response as? HTTPURLResponse)?.statusCode ?? -1,
+                body: OAuthErrorDiagnostics.summary(
+                    data,
+                    operation: "OAuth request rejected"
+                )
+            )
         }
         return try OAuthFlow.parseTokens(data)
     }

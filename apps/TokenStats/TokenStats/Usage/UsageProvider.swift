@@ -21,10 +21,16 @@ protocol UsageProvider {
 
 enum UsageError: Error {
     case notSignedIn
-    /// Non-2xx from the usage endpoint; body prefix kept for diagnosis.
+    /// The usage endpoint rejected the bearer token. The coordinator may force
+    /// one token rotation and retry before deciding the session is invalid.
+    case unauthorized(body: String)
+    /// The bearer token was understood but cannot access this usage resource.
+    /// This is not, by itself, proof that the OAuth session was revoked.
+    case forbidden(body: String)
+    /// Non-2xx from the usage endpoint; only a sanitized response summary is kept.
     case badResponse(status: Int, body: String)
     /// 200 OK but no recognized Usage Windows — likely the response shape
-    /// changed (see ADR-0001). Body prefix kept for diagnosis.
+    /// changed (see ADR-0001). Only a sanitized response summary is kept.
     case noWindows(body: String)
     /// The OAuth login could not complete (e.g. state mismatch, listener error).
     case loginFailed(String)
@@ -37,6 +43,20 @@ extension UsageError {
         case .notSignedIn:
             return localizer.localized(
                 LocalizedStringResource.usageErrorNotSignedInDetail
+            )
+        case .unauthorized(let body):
+            return localizer.localized(
+                LocalizedStringResource.usageErrorHttpResponseDetail(
+                    401,
+                    String(body.prefix(200))
+                )
+            )
+        case .forbidden(let body):
+            return localizer.localized(
+                LocalizedStringResource.usageErrorHttpResponseDetail(
+                    403,
+                    String(body.prefix(200))
+                )
             )
         case .badResponse(let status, let body):
             return localizer.localized(
