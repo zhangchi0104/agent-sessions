@@ -129,6 +129,27 @@ struct CodexOAuthClientTests {
         }
     }
 
+    @Test(arguments: [0, -1])
+    func nonPositiveExpiresInIsTransientAndMalformed(expiresIn: Int) async {
+        let client = makeClient { request in
+            self.response(
+                request,
+                status: 200,
+                body: #"{"access_token":"expired-access","expires_in":\#(expiresIn)}"#
+            )
+        }
+
+        do {
+            _ = try await client.refresh(tokens: previous)
+            Issue.record("Expected refresh to fail")
+        } catch let error as OAuthRefreshError {
+            #expect(error.kind == .malformedResponse)
+            #expect(error.reauthenticationReason == nil)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
     @Test func refreshTransportFailureIsTransientAndSanitized() async {
         CodexOAuthClientStub.handler = nil
         let configuration = URLSessionConfiguration.ephemeral

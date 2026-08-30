@@ -2016,6 +2016,12 @@ internal static class Program
             HttpStatusCode.OK,
             """{"unexpected":"value"}""");
         handler.Enqueue(
+            HttpStatusCode.OK,
+            """{"access_token":"expired-access","expires_in":0}""");
+        handler.Enqueue(
+            HttpStatusCode.OK,
+            """{"access_token":"expired-access","expires_in":-1}""");
+        handler.Enqueue(
             HttpStatusCode.BadRequest,
             JsonSerializer.Serialize(new
             {
@@ -2135,7 +2141,7 @@ internal static class Program
         Check.True(expiresOnlyRejected);
 
         var malformedResponses = 0;
-        for (var index = 0; index < 2; index++)
+        for (var index = 0; index < 4; index++)
         {
             try
             {
@@ -2147,7 +2153,7 @@ internal static class Program
             }
         }
 
-        Check.Equal(2, malformedResponses);
+        Check.Equal(4, malformedResponses);
 
         var reused = await CaptureCodexRefreshFailure(oauth, previous)
             .ConfigureAwait(false);

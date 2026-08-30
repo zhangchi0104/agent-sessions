@@ -2493,6 +2493,7 @@ internal static class Program
                 ? (IAgentAuthSession)codexAuth
                 : new ConnectedAuth());
         var codexProvider = new SequencedProvider(AgentId.Codex);
+        codexProvider.EnqueueFailure(401);
         var providers = AgentRegistry.All.ToDictionary(
             definition => definition.Id,
             definition => definition.Id == AgentId.Codex
@@ -2505,11 +2506,23 @@ internal static class Program
             if (codexAuth.ForceValidationCalls != 1 ||
                 codexProvider.FetchCalls != 1 ||
                 coordinator.GetAgent(AgentId.Codex).SessionState.Kind !=
-                    AuthSessionStateKind.Valid ||
-                coordinator.ConnectedCount != AgentRegistry.All.Count)
+                    AuthSessionStateKind.ReauthenticationRequired ||
+                coordinator.ConnectedCount != AgentRegistry.All.Count - 1)
             {
                 throw new InvalidOperationException(
-                    "Startup did not force-validate only the independent Codex session.");
+                    "A startup Usage 401 repeated proactive validation instead of quarantining the rejected session.");
+            }
+
+            coordinator.BeginSignInAsync(AgentId.Codex)
+                .GetAwaiter()
+                .GetResult();
+            if (codexAuth.ForceValidationCalls != 1 ||
+                codexProvider.FetchCalls != 2 ||
+                coordinator.GetAgent(AgentId.Codex).SessionState.Kind !=
+                    AuthSessionStateKind.Valid)
+            {
+                throw new InvalidOperationException(
+                    "Reconnect did not recover after startup session rejection.");
             }
 
             foreach (var statusCode in new[] { 403, 429 })
@@ -2551,7 +2564,7 @@ internal static class Program
                 .GetResult();
             var manuallyRejected = coordinator.GetAgent(AgentId.Codex);
             if (codexAuth.ForceValidationCalls != 3 ||
-                codexProvider.FetchCalls != 5 ||
+                codexProvider.FetchCalls != 6 ||
                 manuallyRejected.SessionState.Kind !=
                     AuthSessionStateKind.ReauthenticationRequired ||
                 manuallyRejected.State.Kind != AgentStateKind.StaleDisclosed)
@@ -2564,7 +2577,7 @@ internal static class Program
                 .GetAwaiter()
                 .GetResult();
             if (codexAuth.ForceValidationCalls != 3 ||
-                codexProvider.FetchCalls != 6 ||
+                codexProvider.FetchCalls != 7 ||
                 coordinator.GetAgent(AgentId.Codex).SessionState.Kind !=
                     AuthSessionStateKind.Valid)
             {
@@ -2579,7 +2592,7 @@ internal static class Program
                 .GetResult();
             var recovered = coordinator.GetAgent(AgentId.Codex);
             if (codexAuth.ForceValidationCalls != 4 ||
-                codexProvider.FetchCalls != 8 ||
+                codexProvider.FetchCalls != 9 ||
                 recovered.SessionState.Kind != AuthSessionStateKind.Valid ||
                 recovered.State.Kind != AgentStateKind.Fresh)
             {
@@ -2594,7 +2607,7 @@ internal static class Program
                 .GetResult();
             var rejected = coordinator.GetAgent(AgentId.Codex);
             if (codexAuth.ForceValidationCalls != 5 ||
-                codexProvider.FetchCalls != 10 ||
+                codexProvider.FetchCalls != 11 ||
                 rejected.SessionState.Kind !=
                     AuthSessionStateKind.ReauthenticationRequired ||
                 rejected.State.Kind != AgentStateKind.StaleDisclosed ||
@@ -2609,7 +2622,7 @@ internal static class Program
                 .GetAwaiter()
                 .GetResult();
             if (codexAuth.ForceValidationCalls != 5 ||
-                codexProvider.FetchCalls != 10)
+                codexProvider.FetchCalls != 11)
             {
                 throw new InvalidOperationException(
                     "A quarantined Codex session was retried by the timer.");

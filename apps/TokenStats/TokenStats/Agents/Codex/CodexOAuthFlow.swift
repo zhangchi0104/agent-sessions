@@ -100,6 +100,12 @@ nonisolated enum CodexOAuthFlow {
 
         let expiresAt: Date
         if refreshedAccessToken != nil, let expiresIn = raw.expires_in {
+            guard expiresIn.isFinite, expiresIn > 0 else {
+                throw DecodingError.dataCorrupted(.init(
+                    codingPath: [],
+                    debugDescription: "Invalid expires_in"
+                ))
+            }
             expiresAt = now.addingTimeInterval(expiresIn)
         } else if let refreshedExpiry = expirationDate(fromAccessToken: refreshedAccessToken) {
             expiresAt = refreshedExpiry

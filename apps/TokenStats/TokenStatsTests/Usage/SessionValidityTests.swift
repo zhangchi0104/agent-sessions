@@ -7,6 +7,11 @@ import Foundation
 import SwiftUI
 import Testing
 
+enum Proactive401Trigger: Equatable, Sendable {
+    case startup
+    case manual
+}
+
 @MainActor
 struct SessionValidityTests {
     private func snapshot(percent: Double = 24) -> UsageSnapshot {
@@ -373,6 +378,59 @@ struct SessionValidityTests {
             return
         }
         #expect(retained == stale)
+    }
+
+    @Test(arguments: [Proactive401Trigger.startup, .manual])
+    func proactiveValidationFollowedBy401DoesNotForceRefreshAgain(
+        trigger: Proactive401Trigger
+    ) async {
+        let defaults = InMemoryUserDefaults()
+        let unauthorized = UsageError.unauthorized(body: #"{"detail":"unauthorized"}"#)
+        let auth: SessionTestAuthSession
+        let provider: SessionTestProvider
+        let expectedForceCount: Int
+        let expectedFetchCount: Int
+
+        switch trigger {
+        case .startup:
+            auth = SessionTestAuthSession(forceResults: [.success("startup-access")])
+            provider = SessionTestProvider([.failure(unauthorized)])
+            expectedForceCount = 1
+            expectedFetchCount = 1
+        case .manual:
+            auth = SessionTestAuthSession(forceResults: [
+                .success("startup-access"),
+                .success("manual-access"),
+            ])
+            provider = SessionTestProvider([
+                .success(reading(percent: 10)),
+                .failure(unauthorized),
+            ])
+            expectedForceCount = 2
+            expectedFetchCount = 2
+        }
+
+        let model = makeModel(auth: auth, provider: provider, defaults: defaults)
+        model.start()
+
+        if trigger == .manual {
+            #expect(await waitUntil {
+                if case .fresh = model.agentStates[.codex] {
+                    return provider.fetchCount == 1
+                }
+                return false
+            })
+            let manualRefresh = model.refreshManually(.codex)
+            await manualRefresh.value
+        }
+
+        #expect(await waitUntil {
+            model.sessionStates[.codex]
+                == .reauthenticationRequired(reason: .unauthorized)
+        })
+        #expect(auth.isSignedIn)
+        #expect(auth.forceRefreshCount == expectedForceCount)
+        #expect(provider.fetchCount == expectedFetchCount)
     }
 
     @Test func usage401ForcesOneRefreshAndRetriesOnce() async {

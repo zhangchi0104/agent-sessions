@@ -92,8 +92,12 @@ keeps account-session validity separate from Usage Window freshness:
 - A normal timer or wake refresh reuses a sufficiently fresh access token and
   refreshes only near expiry, avoiding an unnecessary token rotation every 30
   minutes.
-- A Usage request that returns `401` forces one refresh and retries that Usage
-  request once. A second `401` requires a new login.
+- If the current top-level refresh has not already completed proactive forced
+  validation, a Usage `401` forces one refresh and retries Usage once. If a
+  startup or explicit user refresh already completed proactive forced
+  validation, the immediately following Usage request is the post-refresh
+  attempt; a `401` requires a new login without a second coordinator-initiated
+  refresh-token exchange.
 - Refresh `401`, `invalid_grant`, `refresh_token_expired`,
   `refresh_token_reused`, and `refresh_token_invalidated` are terminal for the
   saved session. Network failures, timeouts, server failures, and unrecognized
