@@ -69,6 +69,10 @@ jobs:
         working-directory: apps/TokenStats
         run: npm test
 
+      - name: Test release candidate DMG packaging
+        working-directory: apps/TokenStats
+        run: npm run test:dmg-packaging:integration
+
       - name: Test release candidate UI (isolated CI desktop)
         working-directory: apps/TokenStats
         run: npm run test:ui
@@ -122,6 +126,18 @@ jobs:
             -p @semantic-release/exec \
             -p @semantic-release/github \
             semantic-release
+
+      - name: Upload failed DMG candidate
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tokenstats-failed-dmg-${{ github.run_number }}-${{ github.run_attempt }}
+          path: |
+            apps/TokenStats/dist/.failed/*.dmg
+            apps/TokenStats/dist/.*.building.dmg
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 7
 
       - name: Clean up keychain
         if: always()
