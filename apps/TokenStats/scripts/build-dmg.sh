@@ -113,15 +113,17 @@ hdiutil create \
   "$DMG_PATH"
 rm -rf "$STAGE"
 
+# Verify the freshly-created UDIF before signing it. This distinguishes a bad
+# image from notarytool's client-side format preflight and prevents a corrupt
+# container from being submitted with --force by the guarded fallback below.
+hdiutil verify "$DMG_PATH"
+
 # Sign the DMG itself so the download carries a valid signature.
 codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG_PATH"
+codesign --verify --strict --verbose=2 "$DMG_PATH"
 
 echo "==> Notarizing"
-xcrun notarytool submit "$DMG_PATH" \
-  --key "${NOTARY_KEY_PATH:?NOTARY_KEY_PATH is required}" \
-  --key-id "${NOTARY_KEY_ID:?NOTARY_KEY_ID is required}" \
-  --issuer "${NOTARY_ISSUER_ID:?NOTARY_ISSUER_ID is required}" \
-  --wait
+./scripts/notarize-dmg.sh "$DMG_PATH"
 
 echo "==> Stapling"
 xcrun stapler staple "$DMG_PATH"
