@@ -31,7 +31,8 @@ ENTITLEMENTS="TokenStats/TokenStats.entitlements"
 DERIVED="build"
 APP_PATH="${DERIVED}/Build/Products/Release/${APP_NAME}.app"
 DIST="dist"
-DMG_PATH="${DIST}/${APP_NAME}-${VERSION}.dmg"
+DMG_PATH="${DIST}/.${APP_NAME}-${VERSION}.building.dmg"
+FINAL_DMG_PATH="${DIST}/${APP_NAME}-${VERSION}.dmg"
 
 # Run from the app root (apps/TokenStats) regardless of caller's cwd.
 cd "$(dirname "$0")/.."
@@ -97,36 +98,35 @@ case "$SIGNED_ENTITLEMENTS" in
     ;;
 esac
 
-echo "==> Packaging DMG: $DMG_PATH"
+echo "==> Packaging DMG: $FINAL_DMG_PATH"
 mkdir -p "$DIST"
-rm -f "$DMG_PATH"
-STAGE="$(mktemp -d)"
-cp -R "$APP_PATH" "$STAGE/"
-ln -s /Applications "$STAGE/Applications"
-# hdiutil is the most reliable DMG builder in headless CI (no AppleScript/GUI).
-hdiutil create \
-  -volname "${APP_NAME} ${VERSION}" \
-  -srcfolder "$STAGE" \
-  -fs HFS+ \
-  -format UDZO \
-  -ov \
-  "$DMG_PATH"
-rm -rf "$STAGE"
-
-# Verify the freshly-created UDIF before signing it. This distinguishes a bad
-# image from notarytool's client-side format preflight and prevents a corrupt
-# container from being submitted with --force by the guarded fallback below.
-hdiutil verify "$DMG_PATH"
+rm -f "$FINAL_DMG_PATH"
+./scripts/create-dmg.sh \
+  "$APP_PATH" \
+  "$DMG_PATH" \
+  "${APP_NAME} ${VERSION}"
 
 # Sign the DMG itself so the download carries a valid signature.
-codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG_PATH"
+codesign --force --timestamp \
+  --identifier "dev.otakuma.TokenStats.dmg" \
+  --sign "$SIGN_IDENTITY" \
+  "$DMG_PATH"
+./scripts/verify-dmg.sh "$DMG_PATH" "$APP_NAME"
 codesign --verify --strict --verbose=2 "$DMG_PATH"
 
 echo "==> Notarizing"
-./scripts/notarize-dmg.sh "$DMG_PATH"
+xcrun notarytool submit "$DMG_PATH" \
+  --key "${NOTARY_KEY_PATH:?NOTARY_KEY_PATH is required}" \
+  --key-id "${NOTARY_KEY_ID:?NOTARY_KEY_ID is required}" \
+  --issuer "${NOTARY_ISSUER_ID:?NOTARY_ISSUER_ID is required}" \
+  --wait \
+  --verbose
 
 echo "==> Stapling"
 xcrun stapler staple "$DMG_PATH"
 xcrun stapler validate "$DMG_PATH"
+./scripts/verify-dmg.sh "$DMG_PATH" "$APP_NAME"
+codesign --verify --strict --verbose=2 "$DMG_PATH"
 
-echo "==> Done: $DMG_PATH"
+mv -f "$DMG_PATH" "$FINAL_DMG_PATH"
+echo "==> Done: $FINAL_DMG_PATH"
