@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Text.Json;
 
@@ -13,14 +14,47 @@ public interface ITokenStore
 
 public sealed class AgentTokenCache
 {
+    private const string PersistenceDiagnostic =
+        "The refreshed session could not be saved to Windows Credential Manager.";
     private readonly ITokenStore _store;
     private readonly Func<OAuthTokens, CancellationToken, Task<OAuthTokens>> _refreshTokens;
     private readonly Func<DateTimeOffset> _now;
-    private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly object _commitGate = new();
     private volatile OAuthTokens? _cached;
     private volatile bool _loaded;
+    private bool _credentialLoadUnavailable;
     private int _signOutGeneration;
+    private int _tokenRevision;
+    private RefreshFlight? _refreshFlight;
+    private OAuthRefreshException? _terminalRefreshFailure;
+    private PendingTokenPersistence? _pendingTokenPersistence;
+
+    private sealed class RefreshFlight
+    {
+        public RefreshFlight(
+            int credentialGeneration,
+            int tokenRevision,
+            OAuthTokens source)
+        {
+            CredentialGeneration = credentialGeneration;
+            TokenRevision = tokenRevision;
+            Source = source;
+        }
+
+        public int CredentialGeneration { get; private set; }
+        public int TokenRevision { get; }
+        public OAuthTokens Source { get; }
+        public CancellationTokenSource Lifetime { get; } = new();
+        public TaskCompletionSource<string> Completion { get; } = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public void RebaseCredentialGeneration(int credentialGeneration) =>
+            CredentialGeneration = credentialGeneration;
+    }
+
+    private sealed record PendingTokenPersistence(
+        OAuthTokens Tokens,
+        OAuthTokens Replacing);
 
     public AgentTokenCache(
         ITokenStore store,
@@ -38,111 +72,492 @@ public sealed class AgentTokenCache
         {
             lock (_commitGate)
             {
-                if (_loaded)
-                {
-                    return _cached;
-                }
-
-                try
-                {
-                    _cached = _store.Load();
-                    _loaded = true;
-                }
-                catch
-                {
-                    // A locked/unavailable credential store is not the same as
-                    // no account. Leave it unloaded so a later read can retry.
-                    _cached = null;
-                }
-
-                return _cached;
+                return LoadTokensLocked();
             }
         }
     }
 
-    public bool IsSignedIn => Tokens is not null;
-
-    public string? AccountId => Tokens?.AccountId;
-
-    public async Task AdoptAsync(
-        OAuthTokens tokens,
-        CancellationToken cancellationToken = default)
+    public CredentialPresence CredentialStatus
     {
-        var generation = Volatile.Read(ref _signOutGeneration);
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        get
         {
             lock (_commitGate)
             {
-                if (generation != Volatile.Read(ref _signOutGeneration))
+                _ = LoadTokensLocked();
+                if (_credentialLoadUnavailable)
                 {
-                    throw UsageException.NotSignedIn();
+                    return CredentialPresence.TemporarilyUnavailable;
                 }
 
-                // Publish the new in-memory value only after persistence
-                // succeeds, so a failed save cannot create a phantom login.
-                _store.Save(tokens);
-                _cached = tokens;
-                _loaded = true;
+                return _cached is null
+                    ? CredentialPresence.Absent
+                    : CredentialPresence.Present;
             }
         }
-        finally
+    }
+
+    public bool IsSignedIn => CredentialStatus == CredentialPresence.Present;
+
+    public string? AccountId => Tokens?.AccountId;
+
+    /// <summary>
+    /// A safe, token-free diagnostic while an accepted rotation exists only in
+    /// memory. Session presentation retains this warning across successful Usage
+    /// calls until compare-and-replace persistence succeeds or durable state wins.
+    /// </summary>
+    public string? PendingPersistenceDiagnostic
+    {
+        get
         {
-            _gate.Release();
+            lock (_commitGate)
+            {
+                return _pendingTokenPersistence is null
+                    ? null
+                    : PersistenceDiagnostic;
+            }
         }
+    }
+
+    /// <summary>
+    /// Captures the current credential ownership generation before an OAuth
+    /// round trip. Passing it back to AdoptAsync prevents a sign-out that
+    /// happened while the browser was open from being overwritten by a late
+    /// token response.
+    /// </summary>
+    public int CaptureCredentialGeneration() =>
+        Volatile.Read(ref _signOutGeneration);
+
+    public Task AdoptAsync(
+        OAuthTokens tokens,
+        CancellationToken cancellationToken = default) =>
+        AdoptAsync(
+            tokens,
+            CaptureCredentialGeneration(),
+            cancellationToken);
+
+    public Task AdoptAsync(
+        OAuthTokens tokens,
+        int expectedCredentialGeneration,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        RefreshFlight? abandonedFlight;
+        lock (_commitGate)
+        {
+            if (expectedCredentialGeneration !=
+                Volatile.Read(ref _signOutGeneration))
+            {
+                throw UsageException.NotSignedIn();
+            }
+
+            // Persist first so a failed save cannot create a phantom login.
+            // Once it succeeds, the replacement owns a new generation and any
+            // old refresh flight becomes stale immediately.
+            _store.Save(tokens);
+            abandonedFlight = _refreshFlight;
+            _refreshFlight = null;
+            _cached = tokens;
+            _loaded = true;
+            _credentialLoadUnavailable = false;
+            _tokenRevision++;
+            _signOutGeneration++;
+            _terminalRefreshFailure = null;
+            _pendingTokenPersistence = null;
+        }
+
+        InvalidateFlight(abandonedFlight);
+        return Task.CompletedTask;
     }
 
     public void SignOut()
     {
+        RefreshFlight? abandonedFlight = null;
+        ExceptionDispatchInfo? clearFailure = null;
         lock (_commitGate)
         {
-            Interlocked.Increment(ref _signOutGeneration);
-            _store.Clear();
-            _cached = null;
-            _loaded = true;
+            try
+            {
+                _store.Clear();
+            }
+            catch (Exception exception)
+            {
+                clearFailure = ExceptionDispatchInfo.Capture(exception);
+            }
+
+            if (clearFailure is null)
+            {
+                // Durable deletion committed, so no late OAuth response may
+                // restore the account that the user explicitly removed.
+                abandonedFlight = _refreshFlight;
+                _refreshFlight = null;
+                _signOutGeneration++;
+                _cached = null;
+                _loaded = true;
+                _credentialLoadUnavailable = false;
+                _tokenRevision++;
+                _terminalRefreshFailure = null;
+                _pendingTokenPersistence = null;
+            }
+            else
+            {
+                // The account remains connected when Credential Manager rejects
+                // deletion. Invalidate browser login responses captured before
+                // the attempt, but preserve an accepted in-flight refresh and
+                // let it publish the only usable rotated credential.
+                _signOutGeneration++;
+                _refreshFlight?.RebaseCredentialGeneration(_signOutGeneration);
+            }
+        }
+
+        try
+        {
+            InvalidateFlight(abandonedFlight);
+        }
+        finally
+        {
+            // Preserve the Credential Manager exception even if cancellation
+            // callbacks on the abandoned flight also fail.
+            clearFailure?.Throw();
         }
     }
 
     public async Task<string> ValidAccessTokenAsync(
-        CancellationToken cancellationToken = default)
-    {
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var generation = Volatile.Read(ref _signOutGeneration);
-            var current = Tokens ?? throw UsageException.NotSignedIn();
-            if (!current.IsExpired(_now()))
-            {
-                lock (_commitGate)
-                {
-                    if (generation != Volatile.Read(ref _signOutGeneration))
-                    {
-                        throw UsageException.NotSignedIn();
-                    }
+        CancellationToken cancellationToken = default) =>
+        await AccessTokenAsync(forceRefresh: false, cancellationToken)
+            .ConfigureAwait(false);
 
+    /// <summary>
+    /// Refreshes even an unexpired token. Concurrent callers that observed the
+    /// same token revision share the first rotation instead of reusing the old
+    /// refresh token or immediately rotating the replacement again.
+    /// </summary>
+    public async Task<string> ForceRefreshAccessTokenAsync(
+        CancellationToken cancellationToken = default) =>
+        await AccessTokenAsync(forceRefresh: true, cancellationToken)
+            .ConfigureAwait(false);
+
+    private async Task<string> AccessTokenAsync(
+        bool forceRefresh,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        RefreshFlight flight;
+        var ownsFlight = false;
+        var canFallbackAfterTransient = false;
+        int requestedGeneration;
+        lock (_commitGate)
+        {
+            var current = LoadTokensLocked() ?? throw UsageException.NotSignedIn();
+            requestedGeneration = _signOutGeneration;
+            var persistenceFailure = ResolvePendingTokenPersistenceLocked();
+            current = LoadTokensLocked() ?? throw UsageException.NotSignedIn();
+            if (persistenceFailure is not null)
+            {
+                // A still-fresh bearer remains usable in this process while the
+                // durable compare-and-replace is retried later. Never consume a
+                // second refresh grant until the accepted rotation is durable.
+                if (!forceRefresh && !current.IsExpired(_now()))
+                {
                     return current.AccessToken;
                 }
+
+                throw persistenceFailure;
             }
 
-            var refreshed = await _refreshTokens(current, cancellationToken)
-                .ConfigureAwait(false);
-            lock (_commitGate)
+            if (_terminalRefreshFailure is { } terminalFailure)
             {
-                if (generation != Volatile.Read(ref _signOutGeneration))
+                throw terminalFailure;
+            }
+
+            // Join an already registered rotation before considering the
+            // unexpired access-token fast path. A normal usage caller then
+            // observes terminal quarantine, while transient validation failure
+            // can still fall back to the valid bearer below.
+            if (_refreshFlight is { } existing)
+            {
+                if (existing.CredentialGeneration != requestedGeneration ||
+                    existing.TokenRevision != _tokenRevision)
                 {
                     throw UsageException.NotSignedIn();
                 }
 
-                _store.Save(refreshed);
-                _cached = refreshed;
-                _loaded = true;
-                return refreshed.AccessToken;
+                flight = existing;
+                canFallbackAfterTransient =
+                    !forceRefresh && !current.IsExpired(_now());
+            }
+            else if (!forceRefresh && !current.IsExpired(_now()))
+            {
+                return current.AccessToken;
+            }
+            else
+            {
+                flight = new RefreshFlight(
+                    requestedGeneration,
+                    _tokenRevision,
+                    current);
+                _refreshFlight = flight;
+                ownsFlight = true;
             }
         }
-        finally
+
+        if (ownsFlight)
         {
-            _gate.Release();
+            _ = RunRefreshFlightAsync(flight);
         }
+
+        try
+        {
+            return await flight.Completion.Task.WaitAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception) when (
+            canFallbackAfterTransient &&
+            exception is not TokenPersistenceException &&
+            exception is not OAuthRefreshException { IsTerminal: true })
+        {
+            // A proactive check that is only temporarily unverifiable must not
+            // block ordinary usage while the old access token remains valid.
+            // Credential replacement and terminal rejection never take this
+            // fallback path.
+            lock (_commitGate)
+            {
+                if (requestedGeneration != _signOutGeneration)
+                {
+                    throw UsageException.NotSignedIn();
+                }
+
+                if (_terminalRefreshFailure is { } terminalFailure)
+                {
+                    throw terminalFailure;
+                }
+
+                var current = LoadTokensLocked() ??
+                    throw UsageException.NotSignedIn();
+                if (!current.IsExpired(_now()))
+                {
+                    return current.AccessToken;
+                }
+            }
+
+            throw;
+        }
+    }
+
+    private async Task RunRefreshFlightAsync(RefreshFlight flight)
+    {
+        OAuthTokens refreshed;
+        try
+        {
+            refreshed = await _refreshTokens(flight.Source, flight.Lifetime.Token)
+                .ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Exception refreshFailure;
+            lock (_commitGate)
+            {
+                if (!IsCurrentFlightLocked(flight))
+                {
+                    refreshFailure = UsageException.NotSignedIn();
+                }
+                else
+                {
+                    _refreshFlight = null;
+                    if (exception is OAuthRefreshException
+                        {
+                            IsTerminal: true,
+                        } terminal)
+                    {
+                        _terminalRefreshFailure = terminal;
+                    }
+
+                    refreshFailure = exception;
+                }
+            }
+
+            flight.Completion.TrySetException(refreshFailure);
+            return;
+        }
+
+        string? accessToken = null;
+        Exception? completionFailure = null;
+        lock (_commitGate)
+        {
+            if (!IsCurrentFlightLocked(flight))
+            {
+                completionFailure = UsageException.NotSignedIn();
+            }
+            else
+            {
+                // A refresh token may be single-use. Publish the rotated token
+                // before durable persistence so this process never retries the
+                // now-invalid predecessor after a credential-store failure.
+                _cached = refreshed;
+                _loaded = true;
+                _credentialLoadUnavailable = false;
+                _tokenRevision++;
+                _refreshFlight = null;
+                _terminalRefreshFailure = null;
+                TokenPersistenceException? persistenceFailure = null;
+                if (refreshed != flight.Source)
+                {
+                    try
+                    {
+                        _store.Save(refreshed);
+                        _pendingTokenPersistence = null;
+                    }
+                    catch (Exception exception)
+                    {
+                        // Keep the exact predecessor so a later retry cannot
+                        // overwrite a newer login, rotation, or sign-out.
+                        _pendingTokenPersistence = new PendingTokenPersistence(
+                            refreshed,
+                            flight.Source);
+                        persistenceFailure = CredentialPersistenceFailure(exception);
+                    }
+                }
+                else
+                {
+                    _pendingTokenPersistence = null;
+                }
+
+                if (refreshed.IsExpired(_now()))
+                {
+                    completionFailure = new RefreshedAccessTokenUnavailableException(
+                        persistenceFailure is not null);
+                }
+                else if (persistenceFailure is not null)
+                {
+                    completionFailure = persistenceFailure;
+                }
+                else
+                {
+                    accessToken = refreshed.AccessToken;
+                }
+            }
+        }
+
+        if (completionFailure is { } failure)
+        {
+            flight.Completion.TrySetException(failure);
+        }
+        else
+        {
+            flight.Completion.TrySetResult(accessToken!);
+        }
+    }
+
+    private bool IsCurrentFlightLocked(RefreshFlight flight) =>
+        ReferenceEquals(_refreshFlight, flight) &&
+        flight.CredentialGeneration == _signOutGeneration &&
+        flight.TokenRevision == _tokenRevision;
+
+    private static void InvalidateFlight(RefreshFlight? flight)
+    {
+        if (flight is null)
+        {
+            return;
+        }
+
+        flight.Completion.TrySetException(UsageException.NotSignedIn());
+        try
+        {
+            flight.Lifetime.Cancel();
+        }
+        catch (AggregateException)
+        {
+            // Callback failures belong to the abandoned refresh. Credential
+            // replacement or deletion has already committed, so cleanup must
+            // not make the completed operation appear to have failed.
+        }
+    }
+
+    /// <summary>
+    /// Retries a previously accepted token rotation without consuming another
+    /// refresh grant. The durable predecessor acts as the compare value: a
+    /// different value belongs to a newer credential operation and is adopted
+    /// instead of being overwritten.
+    /// </summary>
+    private TokenPersistenceException? ResolvePendingTokenPersistenceLocked()
+    {
+        if (_pendingTokenPersistence is not { } pending)
+        {
+            return null;
+        }
+
+        OAuthTokens? persisted;
+        try
+        {
+            persisted = _store.Load();
+        }
+        catch (Exception exception)
+        {
+            return CredentialPersistenceFailure(exception);
+        }
+
+        if (persisted == pending.Tokens)
+        {
+            _pendingTokenPersistence = null;
+            return null;
+        }
+
+        if (persisted == pending.Replacing)
+        {
+            try
+            {
+                _store.Save(pending.Tokens);
+                _pendingTokenPersistence = null;
+                return null;
+            }
+            catch (Exception exception)
+            {
+                return CredentialPersistenceFailure(exception);
+            }
+        }
+
+        // Another credential operation already changed or deleted durable
+        // state. Converge on that result and discard the stale persistence debt.
+        _pendingTokenPersistence = null;
+        _cached = persisted;
+        _loaded = true;
+        _credentialLoadUnavailable = false;
+        _tokenRevision++;
+        _terminalRefreshFailure = null;
+        return null;
+    }
+
+    private static TokenPersistenceException CredentialPersistenceFailure(
+        Exception exception) =>
+        new(
+            PersistenceDiagnostic,
+            exception);
+
+    private OAuthTokens? LoadTokensLocked()
+    {
+        if (_loaded)
+        {
+            return _cached;
+        }
+
+        try
+        {
+            _cached = _store.Load();
+            _loaded = true;
+            _credentialLoadUnavailable = false;
+        }
+        catch
+        {
+            // A locked/unavailable credential store is not the same as no
+            // account. Leave it unloaded so a later read can retry.
+            _cached = null;
+            _credentialLoadUnavailable = true;
+        }
+
+        return _cached;
     }
 }
 
@@ -150,12 +565,40 @@ public interface IAgentAuthSession
 {
     bool IsSignedIn { get; }
     string? AccountId { get; }
+    AuthSessionState SessionState { get; }
     Task<string> ValidAccessTokenAsync(CancellationToken cancellationToken = default);
     Task BeginSignInAsync(CancellationToken cancellationToken = default);
     Task CompleteSignInAsync(
         string pastedCode,
         CancellationToken cancellationToken = default);
+    void MarkUsageSucceeded(DateTimeOffset validatedAt);
+    void MarkUsageFailed(string diagnostic);
     void SignOut();
+}
+
+/// <summary>
+/// Optional capability for sessions that can rotate credentials after a usage
+/// request rejects the current access token. This is separate from proactive
+/// validation: Claude and Cursor use it only to recover from HTTP 401, while
+/// Codex also validates at startup and on manual refresh.
+/// </summary>
+public interface IUnauthorizedRecoveryAuthSession
+{
+    Task<AuthSessionState> ForceValidateSessionAsync(
+        CancellationToken cancellationToken = default);
+
+    void RequireReauthentication(
+        OAuthRefreshFailureReason reason,
+        string diagnostic);
+}
+
+/// <summary>
+/// Marker capability for sessions whose refresh grant is authoritative enough
+/// to validate proactively. Only Codex is rotated merely because TokenStats
+/// started or the user requested a manual refresh.
+/// </summary>
+public interface IProactiveAuthSession : IUnauthorizedRecoveryAuthSession
+{
 }
 
 public interface IUsageProvider
@@ -225,7 +668,7 @@ public sealed class OAuthHttpClient
             ["refresh_token"] = refreshToken,
             ["client_id"] = ClaudeOAuthFlow.ClientId,
         };
-        var json = await PostJsonAsync(
+        var json = await PostRefreshJsonAsync(
             ClaudeOAuthFlow.TokenEndpoint,
             body,
             cancellationToken).ConfigureAwait(false);
@@ -246,7 +689,7 @@ public sealed class OAuthHttpClient
             ["client_id"] = CodexOAuthFlow.ClientId,
             ["code_verifier"] = verifier,
         };
-        var json = await PostFormAsync(
+        var json = await PostCodexCodeExchangeFormAsync(
             CodexOAuthFlow.TokenEndpoint,
             body,
             cancellationToken).ConfigureAwait(false);
@@ -262,20 +705,12 @@ public sealed class OAuthHttpClient
             ["grant_type"] = "refresh_token",
             ["refresh_token"] = previous.RefreshToken,
             ["client_id"] = CodexOAuthFlow.ClientId,
-            ["scope"] = CodexOAuthFlow.Scopes,
         };
-        var json = await PostFormAsync(
+        var json = await PostRefreshJsonAsync(
             CodexOAuthFlow.TokenEndpoint,
             body,
             cancellationToken).ConfigureAwait(false);
-        var refreshed = CodexOAuthFlow.ParseTokens(json);
-        return refreshed with
-        {
-            RefreshToken = string.IsNullOrEmpty(refreshed.RefreshToken)
-                ? previous.RefreshToken
-                : refreshed.RefreshToken,
-            AccountId = refreshed.AccountId ?? previous.AccountId,
-        };
+        return CodexOAuthFlow.ParseRefreshTokens(json, previous);
     }
 
     public async Task<OAuthTokens> WaitForCursorLoginAsync(
@@ -310,7 +745,9 @@ public sealed class OAuthHttpClient
 
                 if (response.StatusCode != System.Net.HttpStatusCode.NotFound)
                 {
-                    throw UsageException.BadResponse((int)response.StatusCode, body);
+                    throw UsageException.BadResponse(
+                        (int)response.StatusCode,
+                        OAuthFailureSummary(body, "OAuth login rejected"));
                 }
             }
             catch (OperationCanceledException)
@@ -355,7 +792,7 @@ public sealed class OAuthHttpClient
             ["client_id"] = CursorOAuthFlow.ClientId,
             ["refresh_token"] = previous.RefreshToken,
         };
-        var json = await PostJsonAsync(
+        var json = await PostRefreshJsonAsync(
             CursorOAuthFlow.TokenEndpoint,
             body,
             cancellationToken).ConfigureAwait(false);
@@ -377,7 +814,7 @@ public sealed class OAuthHttpClient
         return await SendAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<string> PostFormAsync(
+    private async Task<string> PostCodexCodeExchangeFormAsync(
         string endpoint,
         IReadOnlyDictionary<string, string> body,
         CancellationToken cancellationToken)
@@ -386,7 +823,178 @@ public sealed class OAuthHttpClient
         {
             Content = new FormUrlEncodedContent(body),
         };
-        return await SendAsync(request, cancellationToken).ConfigureAwait(false);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken);
+        timeout.CancelAfter(RequestTimeout);
+        using var response = await _httpClient.SendAsync(request, timeout.Token)
+            .ConfigureAwait(false);
+        var responseBody = await response.Content.ReadAsStringAsync(timeout.Token)
+            .ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw UsageException.BadResponse(
+                (int)response.StatusCode,
+                OAuthFailureSummary(
+                    responseBody,
+                    "OAuth token exchange rejected"));
+        }
+
+        return responseBody;
+    }
+
+    private async Task<string> PostRefreshJsonAsync(
+        string endpoint,
+        IReadOnlyDictionary<string, string> body,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+        {
+            Content = new StringContent(
+                JsonSerializer.Serialize(body),
+                Encoding.UTF8,
+                "application/json"),
+        };
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken);
+        timeout.CancelAfter(RequestTimeout);
+        using var response = await _httpClient.SendAsync(request, timeout.Token)
+            .ConfigureAwait(false);
+        var responseBody = await response.Content.ReadAsStringAsync(timeout.Token)
+            .ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw ClassifyRefreshFailure(
+                (int)response.StatusCode,
+                responseBody);
+        }
+
+        return responseBody;
+    }
+
+    private static OAuthRefreshException ClassifyRefreshFailure(
+        int statusCode,
+        string responseBody)
+    {
+        var candidates = ExtractOAuthErrorCodes(responseBody);
+        var known = candidates
+            .Select(code => (Code: code, Reason: KnownTerminalReason(code)))
+            .FirstOrDefault(item => item.Reason is not null);
+        if (known.Reason is { } knownReason)
+        {
+            return new OAuthRefreshException(
+                statusCode,
+                known.Code,
+                knownReason,
+                isTerminal: true);
+        }
+
+        var errorCode = candidates.FirstOrDefault();
+        if (statusCode == 401)
+        {
+            return new OAuthRefreshException(
+                statusCode,
+                errorCode,
+                OAuthRefreshFailureReason.Unauthorized,
+                isTerminal: true);
+        }
+
+        return new OAuthRefreshException(
+            statusCode,
+            errorCode,
+            OAuthRefreshFailureReason.Other,
+            isTerminal: false);
+    }
+
+    private static OAuthRefreshFailureReason? KnownTerminalReason(string code) =>
+        code.ToLowerInvariant() switch
+        {
+            "refresh_token_expired" => OAuthRefreshFailureReason.Expired,
+            "refresh_token_reused" => OAuthRefreshFailureReason.Reused,
+            "refresh_token_invalidated" => OAuthRefreshFailureReason.Revoked,
+            "invalid_grant" => OAuthRefreshFailureReason.InvalidGrant,
+            _ => null,
+        };
+
+    private static IReadOnlyList<string> ExtractOAuthErrorCodes(string responseBody)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(responseBody);
+            var candidates = new List<string>();
+            CollectOAuthErrorCodes(document.RootElement, candidates, depth: 0);
+            return candidates.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static void CollectOAuthErrorCodes(
+        JsonElement element,
+        ICollection<string> candidates,
+        int depth)
+    {
+        if (depth > 6)
+        {
+            return;
+        }
+
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in element.EnumerateObject())
+            {
+                var isCodeProperty =
+                    property.NameEquals("code") ||
+                    property.NameEquals("error_code") ||
+                    property.NameEquals("type") ||
+                    property.NameEquals("error");
+                if (property.Value.ValueKind == JsonValueKind.String &&
+                    SanitizeOAuthErrorCode(property.Value.GetString()) is { } code &&
+                    (isCodeProperty ||
+                     (property.NameEquals("message") &&
+                      KnownTerminalReason(code) is not null)))
+                {
+                    candidates.Add(code);
+                }
+
+                if (property.Value.ValueKind is JsonValueKind.Object or
+                    JsonValueKind.Array)
+                {
+                    CollectOAuthErrorCodes(property.Value, candidates, depth + 1);
+                }
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+            {
+                CollectOAuthErrorCodes(item, candidates, depth + 1);
+            }
+        }
+    }
+
+    private static string? SanitizeOAuthErrorCode(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var trimmed = value.Trim();
+        return trimmed.Length <= 80 && trimmed.All(character =>
+            char.IsAsciiLetterOrDigit(character) ||
+            character is '_' or '-' or '.')
+            ? trimmed
+            : null;
+    }
+
+    private static string OAuthFailureSummary(
+        string responseBody,
+        string operation)
+    {
+        var code = ExtractOAuthErrorCodes(responseBody).FirstOrDefault();
+        return code is null ? operation : $"{operation} ({code})";
     }
 
     private async Task<string> SendAsync(
@@ -401,7 +1009,9 @@ public sealed class OAuthHttpClient
             .ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {
-            throw UsageException.BadResponse((int)response.StatusCode, body);
+            throw UsageException.BadResponse(
+                (int)response.StatusCode,
+                OAuthFailureSummary(body, "OAuth request rejected"));
         }
 
         return body;
@@ -498,17 +1108,118 @@ public sealed class CodexUsageProvider : IUsageProvider
             .ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {
-            throw UsageException.BadResponse((int)response.StatusCode, body);
+            throw UsageException.BadResponse(
+                (int)response.StatusCode,
+                FailureSummary(body));
         }
 
         var windows = CodexUsageParser.Parse(body);
         if (windows.Count == 0 &&
             !CodexUsageParser.IsRecognizedNoLimit(body))
         {
-            throw UsageException.NoWindows(body);
+            throw UsageException.NoWindows(FailureSummary(body));
         }
 
         return windows;
+    }
+
+    private static string FailureSummary(string body)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            if (FindSafeDiagnostic(
+                    document.RootElement,
+                    depth: 0,
+                    out var field,
+                    out var value))
+            {
+                return $"Codex usage request failed ({field}: {value}).";
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return "Codex usage request failed.";
+    }
+
+    private static bool FindSafeDiagnostic(
+        JsonElement element,
+        int depth,
+        out string field,
+        out string value)
+    {
+        field = string.Empty;
+        value = string.Empty;
+        if (depth > 6)
+        {
+            return false;
+        }
+
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in element.EnumerateObject())
+            {
+                var allowedField =
+                    property.Name.Equals("code", StringComparison.OrdinalIgnoreCase) ||
+                    property.Name.Equals("type", StringComparison.OrdinalIgnoreCase);
+                if (allowedField &&
+                    property.Value.ValueKind == JsonValueKind.String &&
+                    SafeDiagnosticValue(property.Value.GetString()) is { } safe)
+                {
+                    field = property.Name.Equals(
+                        "code",
+                        StringComparison.OrdinalIgnoreCase)
+                        ? "code"
+                        : "type";
+                    value = safe;
+                    return true;
+                }
+
+                if ((property.Value.ValueKind is JsonValueKind.Object or
+                     JsonValueKind.Array) &&
+                    FindSafeDiagnostic(
+                        property.Value,
+                        depth + 1,
+                        out field,
+                        out value))
+                {
+                    return true;
+                }
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+            {
+                if (FindSafeDiagnostic(
+                        item,
+                        depth + 1,
+                        out field,
+                        out value))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static string? SafeDiagnosticValue(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var trimmed = value.Trim();
+        return trimmed.Length <= 80 && trimmed.All(character =>
+            char.IsAsciiLetterOrDigit(character) ||
+            character is '_' or '-' or '.')
+            ? trimmed
+            : null;
     }
 }
 

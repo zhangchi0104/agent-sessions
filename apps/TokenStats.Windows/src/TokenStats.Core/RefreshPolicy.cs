@@ -2,10 +2,12 @@ namespace TokenStats.Core;
 
 public enum RefreshTrigger
 {
+    Startup,
     Timer,
     Wake,
     PopoverOpen,
     Manual,
+    SignIn,
 }
 
 public sealed record RefreshDecision(bool ShouldFetch, TimeSpan NextInterval);

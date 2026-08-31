@@ -15,7 +15,7 @@
 
 import Foundation
 
-enum CodexOAuthFlow {
+nonisolated enum CodexOAuthFlow {
     static let clientID = "app_EMoamEEZ73f0CkXaXp7hrann"
     static let issuer = "https://auth.openai.com"
     static let authorizeEndpoint = URL(string: "https://auth.openai.com/oauth/authorize")!
@@ -47,9 +47,9 @@ enum CodexOAuthFlow {
         return components.url!
     }
 
-    /// Parse a token response. `refresh_token` and `id_token` are optional
-    /// because a refresh response may omit a rotated refresh token or id_token;
-    /// callers carry the previous values forward when these come back empty.
+    /// Parse the authorization-code exchange. A new login must provide an
+    /// access token and lifetime; refresh responses use the more tolerant
+    /// parser below because the server may return only the fields it rotated.
     static func parseTokens(_ data: Data, now: Date = Date()) throws -> OAuthTokens {
         struct Raw: Decodable {
             let access_token: String
@@ -64,6 +64,83 @@ enum CodexOAuthFlow {
             expiresAt: now.addingTimeInterval(raw.expires_in),
             accountID: raw.id_token.flatMap(accountID(fromIDToken:))
         )
+    }
+
+    /// Parse an accepted refresh grant without discarding a rotated token just
+    /// because another field was omitted. The current Codex service treats all
+    /// token fields as optional on refresh; absent values inherit the previous
+    /// credential. When `expires_in` is absent, prefer the new access JWT's
+    /// `exp`, then retain the previous expiry as the final compatibility path.
+    static func parseRefreshTokens(
+        _ data: Data,
+        previous: OAuthTokens,
+        now: Date = Date()
+    ) throws -> OAuthTokens {
+        struct Raw: Decodable {
+            let access_token: String?
+            let refresh_token: String?
+            let expires_in: Double?
+            let id_token: String?
+        }
+
+        let raw = try JSONDecoder().decode(Raw.self, from: data)
+        let accessToken = nonempty(raw.access_token) ?? previous.accessToken
+        let refreshToken = nonempty(raw.refresh_token) ?? previous.refreshToken
+        let idToken = nonempty(raw.id_token)
+        let refreshedAccessToken = nonempty(raw.access_token)
+        let containsAcceptedField = refreshedAccessToken != nil
+            || nonempty(raw.refresh_token) != nil
+            || idToken != nil
+        guard containsAcceptedField, !accessToken.isEmpty, !refreshToken.isEmpty else {
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: [],
+                debugDescription: "Refresh response contained no usable token fields"
+            ))
+        }
+
+        let expiresAt: Date
+        if refreshedAccessToken != nil, let expiresIn = raw.expires_in {
+            guard expiresIn.isFinite, expiresIn > 0 else {
+                throw DecodingError.dataCorrupted(.init(
+                    codingPath: [],
+                    debugDescription: "Invalid expires_in"
+                ))
+            }
+            expiresAt = now.addingTimeInterval(expiresIn)
+        } else if let refreshedExpiry = expirationDate(fromAccessToken: refreshedAccessToken) {
+            expiresAt = refreshedExpiry
+        } else {
+            expiresAt = previous.expiresAt
+        }
+
+        return OAuthTokens(
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            expiresAt: expiresAt,
+            accountID: idToken.flatMap(accountID(fromIDToken:)) ?? previous.accountID
+        )
+    }
+
+    static func expirationDate(fromAccessToken accessToken: String?) -> Date? {
+        guard let accessToken else { return nil }
+        let segments = accessToken.split(separator: ".")
+        guard segments.count >= 2,
+              let payload = Data(base64URLEncoded: String(segments[1])),
+              let json = try? JSONSerialization.jsonObject(with: payload) as? [String: Any]
+        else { return nil }
+
+        if let seconds = json["exp"] as? Double {
+            return Date(timeIntervalSince1970: seconds)
+        }
+        if let seconds = json["exp"] as? Int {
+            return Date(timeIntervalSince1970: TimeInterval(seconds))
+        }
+        return nil
+    }
+
+    private static func nonempty(_ value: String?) -> String? {
+        guard let value, !value.isEmpty else { return nil }
+        return value
     }
 
     /// Pull the ChatGPT account id out of the id_token's claims. The CLI reads

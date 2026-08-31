@@ -56,7 +56,7 @@ struct SubscriptionsPane: View {
     private var displayedSubscriptions: [CodingAgentID] {
         SubscriptionListPresentation.displayedSubscriptions(
             in: model.appearance.displayOrder,
-            states: model.agentStates,
+            states: model.sessionStates,
             pending: pendingSubscriptions
         )
     }
@@ -64,7 +64,7 @@ struct SubscriptionsPane: View {
     private var availableSubscriptions: [CodingAgentID] {
         SubscriptionListPresentation.availableSubscriptions(
             in: model.appearance.displayOrder,
-            states: model.agentStates,
+            states: model.sessionStates,
             pending: pendingSubscriptions
         )
     }
@@ -96,15 +96,15 @@ struct SubscriptionsPane: View {
 enum SubscriptionListPresentation {
     static func displayedSubscriptions(
         in displayOrder: [CodingAgentID],
-        states: CodingAgentStates,
+        states: CodingAgentSessionStates,
         pending: Set<CodingAgentID>
     ) -> [CodingAgentID] {
-        displayOrder.filter { pending.contains($0) || states.isConnected($0) }
+        displayOrder.filter { pending.contains($0) || states.isPresent($0) }
     }
 
     static func availableSubscriptions(
         in displayOrder: [CodingAgentID],
-        states: CodingAgentStates,
+        states: CodingAgentSessionStates,
         pending: Set<CodingAgentID>
     ) -> [CodingAgentID] {
         let displayed = Set(displayedSubscriptions(
@@ -116,8 +116,8 @@ enum SubscriptionListPresentation {
     }
 }
 
-/// One Coding Agent's subscription block: a status row plus the state-dependent
-/// connect / disconnect controls and any sign-in error.
+/// One Coding Agent's subscription block: a verified session status plus the
+/// state-dependent recovery / disconnect controls and any sign-in error.
 private struct SubscriptionSection: View {
     let model: UsageModel
     let id: CodingAgentID
@@ -131,14 +131,22 @@ private struct SubscriptionSection: View {
             // a button stranded on a near-empty row beneath it.
             LabeledContent {
                 HStack(spacing: 10) {
-                    if model.isRefreshing(id) || model.isSigningIn(id) {
+                    if model.isRefreshing(id) || model.isSigningIn(id) || model.isSigningOut(id)
+                        || SessionPresentation.isChecking(sessionState) {
                         ProgressView().controlSize(.small)
                     }
                     ConnectionStatusLabel(status: status)
-                    if isConnected {
+                    if SessionPresentation.isTemporarilyUnverifiable(sessionState) {
+                        Button(SubscriptionsCopy.retryVerificationButton) {
+                            model.refreshManually(id)
+                        }
+                        .disabled(model.isRefreshing(id))
+                    }
+                    if hasSubscription {
                         Button(role: .destructive, action: onSignOut) {
                             Text(SubscriptionsCopy.signOutButton)
                         }
+                        .disabled(model.isSigningOut(id))
                     }
                 }
             } label: {
@@ -148,7 +156,10 @@ private struct SubscriptionSection: View {
                 }
             }
 
-            if !isConnected {
+            if SessionPresentation.showsSignInControls(
+                sessionState,
+                awaitingCode: model.isAwaitingCode(id)
+            ) {
                 AgentSignInControls(model: model, id: id, font: .callout)
             }
 
@@ -161,11 +172,15 @@ private struct SubscriptionSection: View {
         }
     }
 
-    private var isConnected: Bool { model.agentStates.isConnected(id) }
+    private var sessionState: SessionState { model.sessionStates[id] }
+
+    private var hasSubscription: Bool {
+        SessionPresentation.keepsSubscriptionVisible(sessionState)
+    }
 
     private var status: ConnectionStatus {
         ConnectionStatus(
-            state: model.agentStates[id],
+            sessionState: sessionState,
             awaitingCode: model.isAwaitingCode(id),
             signingIn: model.isSigningIn(id)
         )
@@ -184,4 +199,7 @@ private enum SubscriptionsCopy {
     static let keychainPrivacyFooter = LocalizedStringResource.settingsSubscriptionsKeychainPrivacyFooter
 
     static let signOutButton = LocalizedStringResource.settingsSubscriptionsSignOutButton
+
+    static let retryVerificationButton =
+        LocalizedStringResource.settingsSubscriptionsRetryVerificationButton
 }

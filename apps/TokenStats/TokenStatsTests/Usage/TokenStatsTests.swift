@@ -71,24 +71,6 @@ struct TokenStatsTests {
         #expect(text == "—")
     }
 
-    @Test func usageTabExcludesSignedOutAgentsAndKeepsConnectedOrder() {
-        var states = CodingAgentStates()
-
-        #expect(
-            states.connected(in: [.claudeCode, .codex]).isEmpty
-        )
-
-        states[.codex] = .loading
-        #expect(
-            states.connected(in: [.claudeCode, .codex]) == [.codex]
-        )
-
-        states[.claudeCode] = .staleDisclosed(snapshot())
-        #expect(
-            states.connected(in: [.claudeCode, .codex]) == [.claudeCode, .codex]
-        )
-    }
-
     @Test func resetCountdownUsesDaysAndHoursPastADay() {
         let now = Date(timeIntervalSince1970: 0)
         let resetAt = now.addingTimeInterval((2 * 24 + 3) * 3600)
@@ -180,7 +162,7 @@ private final class ControlledSignInAuthSession: AgentAuthSession {
     var hasPendingSignIn: Bool { signInContinuation != nil }
 
     func validAccessToken() async throws -> String { throw UsageError.notSignedIn }
-    func signOut() {}
+    func signOut() async throws {}
 
     func beginSignIn() async throws {
         beginSignInCount += 1

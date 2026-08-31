@@ -69,15 +69,47 @@ struct CodexUsageProviderTests {
         #expect(sent.value(forHTTPHeaderField: "ChatGPT-Account-Id") == nil)
     }
 
-    @Test func throwsBadResponseOnNon200() async {
+    @Test func classifiesUnauthorizedSeparatelyForRefreshRecovery() async {
         let provider = makeProvider { request in
             let response = HTTPURLResponse(url: request.url!, statusCode: 401,
                                            httpVersion: nil, headerFields: nil)!
-            return (response, Data(#"{"detail":"unauthorized"}"#.utf8))
+            return (response, Data(#"{"code":"unauthorized","detail":"RAW-ACCOUNT-MARKER"}"#.utf8))
         }
 
-        await #expect(throws: UsageError.self) {
+        do {
             try await provider.fetchUsage()
+            Issue.record("Expected usage fetch to fail")
+        } catch let error as UsageError {
+            guard case .unauthorized(let body) = error else {
+                Issue.record("Expected unauthorized, got \(error)")
+                return
+            }
+            #expect(body == "Codex usage response (unauthorized)")
+            #expect(!body.contains("RAW-ACCOUNT-MARKER"))
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test func classifiesForbiddenWithoutTreatingItAsSignedOut() async {
+        let provider = makeProvider { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 403,
+                                           httpVersion: nil, headerFields: nil)!
+            return (response, Data(#"{"type":"forbidden","detail":"RAW-ACCOUNT-MARKER"}"#.utf8))
+        }
+
+        do {
+            try await provider.fetchUsage()
+            Issue.record("Expected usage fetch to fail")
+        } catch let error as UsageError {
+            guard case .forbidden(let body) = error else {
+                Issue.record("Expected forbidden, got \(error)")
+                return
+            }
+            #expect(body == "Codex usage response (forbidden)")
+            #expect(!body.contains("RAW-ACCOUNT-MARKER"))
+        } catch {
+            Issue.record("Unexpected error: \(error)")
         }
     }
 
@@ -88,6 +120,29 @@ struct CodexUsageProviderTests {
 
         await #expect(throws: UsageError.self) {
             try await provider.fetchUsage()
+        }
+    }
+
+    @Test func serverErrorDiagnosticsNeverRetainRawUsageBody() async {
+        let provider = makeProvider { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 503,
+                                           httpVersion: nil, headerFields: nil)!
+            return (response, Data(#"{"message":"RAW-ACCOUNT-MARKER"}"#.utf8))
+        }
+
+        do {
+            try await provider.fetchUsage()
+            Issue.record("Expected usage fetch to fail")
+        } catch let error as UsageError {
+            guard case .badResponse(let status, let body) = error else {
+                Issue.record("Expected bad response, got \(error)")
+                return
+            }
+            #expect(status == 503)
+            #expect(body == "Codex usage response")
+            #expect(!body.contains("RAW-ACCOUNT-MARKER"))
+        } catch {
+            Issue.record("Unexpected error: \(error)")
         }
     }
 }

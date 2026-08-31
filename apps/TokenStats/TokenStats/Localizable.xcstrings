@@ -631,6 +631,48 @@
         }
       }
     },
+    "account.sign_out.failed.summary": {
+      "comment": "User-facing summary when secure credential deletion failed and sign-out was not completed.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign-out couldn’t be completed. Try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法完成退出登录，请重试。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abmeldung konnte nicht abgeschlossen werden. Versuchen Sie es erneut."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La déconnexion n’a pas pu aboutir. Réessayez."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインアウトを完了できませんでした。もう一度お試しください。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось завершить выход. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
     "account.sign_in.paste_code.field": {
       "comment": "Placeholder for the OAuth code text field.",
       "extractionState": "manual",
@@ -841,6 +883,48 @@
         }
       }
     },
+    "account.status.checking": {
+      "comment": "Status label while TokenStats verifies whether a saved Coding Agent session is still renewable.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在检查…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird geprüft …"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérification…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "確認中…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проверка…"
+          }
+        }
+      }
+    },
     "account.status.connected": {
       "comment": "Status label for a connected Coding Agent account.",
       "extractionState": "manual",
@@ -879,6 +963,48 @@
           "stringUnit": {
             "state": "translated",
             "value": "Подключено"
+          }
+        }
+      }
+    },
+    "account.status.reauthentication_required": {
+      "comment": "Status label when a saved Coding Agent session was rejected and the user must sign in again.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in again"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要重新登录"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut anmelden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se reconnecter"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再度サインイン"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Войдите снова"
           }
         }
       }
@@ -963,6 +1089,48 @@
           "stringUnit": {
             "state": "translated",
             "value": "Выполняется вход…"
+          }
+        }
+      }
+    },
+    "account.status.temporarily_unverifiable": {
+      "comment": "Status label when a saved Coding Agent session cannot currently be verified because the check failed transiently.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can’t verify right now"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂时无法验证"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prüfung derzeit nicht möglich"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérification impossible pour le moment"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在確認できません"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сейчас проверить не удаётся"
           }
         }
       }
@@ -2811,6 +2979,48 @@
           "stringUnit": {
             "state": "translated",
             "value": "TokenStats хранит токены входа для каждой подписки в Связке ключей и никуда больше их не отправляет."
+          }
+        }
+      }
+    },
+    "settings.subscriptions.retry_verification.button": {
+      "comment": "Button that retries validation of a temporarily unverifiable Coding Agent session.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut versuchen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réessayer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再試行"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Повторить"
           }
         }
       }
@@ -13017,6 +13227,258 @@
           "stringUnit": {
             "state": "translated",
             "value": "Не удалось обновить · последнее обновление %@"
+          }
+        }
+      }
+    },
+    "usage.session.checking.status": {
+      "comment": "Stale Usage status while TokenStats checks whether the saved account session is renewable. The argument is a localized relative time.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking account · last updated %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在检查账号 · 上次更新：%@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konto wird geprüft · zuletzt aktualisiert %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérification du compte · dernière mise à jour %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウントを確認中 · 最終更新 %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проверка аккаунта · последнее обновление %@"
+          }
+        }
+      }
+    },
+    "usage.session.credentials_unavailable": {
+      "comment": "Diagnostic shown when TokenStats cannot currently read or delete a securely stored OAuth credential.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Secure credentials can’t be accessed right now."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前无法访问安全保存的登录凭据。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf die sicher gespeicherten Anmeldedaten kann derzeit nicht zugegriffen werden."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d’accéder aux identifiants sécurisés pour le moment."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在、安全に保存された認証情報にアクセスできません。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сейчас нет доступа к безопасно сохранённым учётным данным."
+          }
+        }
+      }
+    },
+    "usage.session.credentials_persistence_warning": {
+      "comment": "Diagnostic shown when a refreshed OAuth credential works in memory but could not be saved to Keychain.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refreshed credentials couldn’t be saved securely."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新后的登录凭据无法安全保存。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die aktualisierten Anmeldedaten konnten nicht sicher gespeichert werden."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les identifiants actualisés n’ont pas pu être enregistrés de manière sécurisée."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新された認証情報を安全に保存できませんでした。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось безопасно сохранить обновлённые учётные данные."
+          }
+        }
+      }
+    },
+    "usage.session.refreshed_access_unavailable": {
+      "comment": "Diagnostic shown when the refresh grant was accepted but no usable access token was returned.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The session was refreshed, but no usable access token was returned."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话已刷新，但服务端未返回可用的访问令牌。"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Sitzung wurde aktualisiert, aber es wurde kein verwendbares Zugriffstoken zurückgegeben."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La session a été actualisée, mais aucun jeton d’accès utilisable n’a été renvoyé."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッションは更新されましたが、使用可能なアクセストークンが返されませんでした。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сеанс обновлён, но пригодный токен доступа не был возвращён."
+          }
+        }
+      }
+    },
+    "usage.session.reauthentication_required.status": {
+      "comment": "Stale Usage status after the saved account session was rejected. The argument is a localized relative time.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in again · last updated %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要重新登录 · 上次更新：%@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut anmelden · zuletzt aktualisiert %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnectez-vous · dernière mise à jour %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再度サインインしてください · 最終更新 %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Войдите снова · последнее обновление %@"
+          }
+        }
+      }
+    },
+    "usage.session.temporarily_unverifiable.status": {
+      "comment": "Stale Usage status when the saved account session cannot currently be verified. The argument is a localized relative time.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can’t verify account · last updated %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂时无法验证账号 · 上次更新：%@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konto derzeit nicht prüfbar · zuletzt aktualisiert %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compte invérifiable pour le moment · dernière mise à jour %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在アカウントを確認できません · 最終更新 %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сейчас не удаётся проверить аккаунт · последнее обновление %@"
           }
         }
       }

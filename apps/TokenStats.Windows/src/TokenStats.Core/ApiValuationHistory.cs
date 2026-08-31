@@ -24,6 +24,8 @@ public sealed record ApiValuationSnapshot(
     IReadOnlyList<string> PriceObservationIds)
 {
     public const int CurrentSchemaVersion = 1;
+    private const string CanonicalDecimalFormat =
+        "0.############################";
 
     public string StorageKey => $"{ScopeKey}|{CatalogRevision}";
 
@@ -118,7 +120,13 @@ public sealed record ApiValuationSnapshot(
             firstDay,
             lastDay,
             calculatedAt,
-            estimate.CostUsd.ToString(CultureInfo.InvariantCulture),
+            // Decimal arithmetic preserves operand scale, so numerically equal
+            // estimates can otherwise persist as either "9" or "9.00". Keep
+            // the audit key canonical without allowing scientific notation,
+            // which `IsValid` deliberately rejects.
+            estimate.CostUsd.ToString(
+                CanonicalDecimalFormat,
+                CultureInfo.InvariantCulture),
             estimate.PricedTokens,
             estimate.UnpricedTokens,
             usage.InputTokens,

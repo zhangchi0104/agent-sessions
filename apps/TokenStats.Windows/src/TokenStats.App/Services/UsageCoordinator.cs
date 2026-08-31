@@ -5,6 +5,7 @@ namespace TokenStats.App.Services;
 public sealed record AgentPresentation(
     AgentDefinition Definition,
     AgentState State,
+    AuthSessionState SessionState,
     bool IsRefreshing,
     string? Diagnostics,
     string? LoginError,
@@ -18,6 +19,8 @@ public sealed record AgentPresentation(
 public sealed class UsageCoordinator : IAsyncDisposable
 {
     private static readonly TimeSpan SignInRestartDelay = TimeSpan.FromSeconds(2);
+    private const string SignOutFailureDiagnostic =
+        "TokenStats could not remove the saved credentials. The account remains connected.";
     private readonly object _stateGate = new();
     private readonly AppSettingsStore _settings;
     private readonly IReadOnlyDictionary<AgentId, IAgentAuthSession> _auth;
@@ -31,10 +34,12 @@ public sealed class UsageCoordinator : IAsyncDisposable
     private readonly HashSet<AgentId> _beginningSignIn = [];
     private readonly HashSet<AgentId> _completingSignIn = [];
     private readonly Dictionary<AgentId, DateTimeOffset> _signInStartedAt = [];
+    private readonly Dictionary<AgentId, long> _signInAttemptGenerations = [];
     private readonly Dictionary<AgentId, DateTimeOffset?> _lastFetch = [];
     private readonly Dictionary<AgentId, int> _failures = [];
     private readonly Dictionary<AgentId, long> _sessionGenerations = [];
     private readonly Dictionary<AgentId, SemaphoreSlim> _refreshGates = [];
+    private readonly Dictionary<AgentId, long> _pendingManualRefreshes = [];
     private readonly Dictionary<AgentId, CancellationTokenSource> _timers = [];
     private readonly CancellationTokenSource _lifetime = new();
     private bool _started;
@@ -103,8 +108,9 @@ public sealed class UsageCoordinator : IAsyncDisposable
         {
             lock (_stateGate)
             {
-                return _states.Values.Count(
-                    state => state.Kind != AgentStateKind.SignedOut);
+                return _auth.Values.Count(
+                    session =>
+                        session.SessionState.Kind == AuthSessionStateKind.Valid);
             }
         }
     }
@@ -141,7 +147,7 @@ public sealed class UsageCoordinator : IAsyncDisposable
                         new AgentEvent(AgentEventKind.FetchFailed));
                 }
 
-                if (!_auth[id].IsSignedIn)
+                if (_auth[id].SessionState.Kind == AuthSessionStateKind.SignedOut)
                 {
                     _states[id] = AgentState.SignedOut;
                 }
@@ -149,7 +155,7 @@ public sealed class UsageCoordinator : IAsyncDisposable
         }
 
         RaiseChanged();
-        await RefreshAllAsync(RefreshTrigger.Timer, _lifetime.Token)
+        await RefreshAllAsync(RefreshTrigger.Startup, _lifetime.Token)
             .ConfigureAwait(false);
     }
 
@@ -169,17 +175,90 @@ public sealed class UsageCoordinator : IAsyncDisposable
     public async Task RefreshAsync(
         AgentId id,
         RefreshTrigger trigger,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool waitForExisting = false)
     {
         ThrowIfDisposed();
         var gate = _refreshGates[id];
-        if (!await gate.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+        long? acquiredSessionGeneration = null;
+        if (waitForExisting)
         {
-            return;
+            await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            lock (_stateGate)
+            {
+                acquiredSessionGeneration = _sessionGenerations[id];
+            }
+        }
+        else
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var acquired = false;
+            lock (_stateGate)
+            {
+                if (trigger != RefreshTrigger.SignIn &&
+                    _signingIn.Contains(id))
+                {
+                    if (trigger == RefreshTrigger.Manual)
+                    {
+                        // The accepted code exchange and its SignIn usage fetch
+                        // satisfy this click. Never validate the old credential
+                        // pair while its replacement is still in the browser.
+                        _pendingManualRefreshes[id] = _sessionGenerations[id];
+                    }
+
+                    return;
+                }
+
+                acquired = gate.Wait(0);
+                if (acquired)
+                {
+                    // Linearize refresh ownership with BeginSignIn, which uses
+                    // this same lock to advance the credential generation.
+                    acquiredSessionGeneration = _sessionGenerations[id];
+                }
+                if (!acquired &&
+                    trigger == RefreshTrigger.Manual &&
+                    _auth[id].SessionState.Kind is not (
+                        AuthSessionStateKind.SignedOut or
+                        AuthSessionStateKind.ReauthenticationRequired))
+                {
+                    // Bind the pending click to the credential generation that
+                    // existed when it was made. An old timer must not replay it
+                    // against replacement credentials after reconnect.
+                    _pendingManualRefreshes[id] = _sessionGenerations[id];
+                }
+            }
+
+            if (!acquired)
+            {
+                return;
+            }
         }
 
+        long? refreshGeneration = null;
         try
         {
+            var authSession = _auth[id];
+            var currentSessionState = authSession.SessionState;
+            if (currentSessionState.Kind ==
+                AuthSessionStateKind.ReauthenticationRequired)
+            {
+                lock (_stateGate)
+                {
+                    _diagnostics[id] = currentSessionState.Diagnostic;
+                    _states[id] = AgentStateReducer.Reduce(
+                        _states[id],
+                        new AgentEvent(AgentEventKind.FetchFailed));
+                }
+
+                RaiseChanged();
+                // Quarantined credentials are retained for explicit user
+                // replacement, but timers must not keep presenting them to
+                // either the token or usage endpoint.
+                CancelTimer(id);
+                return;
+            }
+
             DateTimeOffset? lastFetch;
             int failures;
             long sessionGeneration;
@@ -187,7 +266,14 @@ public sealed class UsageCoordinator : IAsyncDisposable
             {
                 lastFetch = _lastFetch.GetValueOrDefault(id);
                 failures = _failures.GetValueOrDefault(id);
-                sessionGeneration = _sessionGenerations[id];
+                sessionGeneration = acquiredSessionGeneration ??
+                    _sessionGenerations[id];
+                refreshGeneration = sessionGeneration;
+            }
+
+            if (!IsCurrentSessionGeneration(id, sessionGeneration))
+            {
+                return;
             }
 
             var decision = RefreshPolicy.Decide(
@@ -201,15 +287,46 @@ public sealed class UsageCoordinator : IAsyncDisposable
                 return;
             }
 
-            if (!_auth[id].IsSignedIn)
+            if (!authSession.IsSignedIn)
             {
+                var sessionState = authSession.SessionState;
+                var retryInterval = decision.NextInterval;
                 lock (_stateGate)
                 {
-                    _states[id] = AgentState.SignedOut;
+                    switch (sessionState.Kind)
+                    {
+                    case AuthSessionStateKind.ReauthenticationRequired:
+                        _diagnostics[id] = sessionState.Diagnostic;
+                        _states[id] = AgentStateReducer.Reduce(
+                            _states[id],
+                            new AgentEvent(AgentEventKind.FetchFailed));
+                        break;
+                    case AuthSessionStateKind.TemporarilyUnverifiable:
+                    case AuthSessionStateKind.Checking:
+                        _failures[id] = _failures.GetValueOrDefault(id) + 1;
+                        _diagnostics[id] = sessionState.Diagnostic;
+                        _states[id] = AgentStateReducer.Reduce(
+                            _states[id],
+                            new AgentEvent(AgentEventKind.FetchFailed));
+                        retryInterval = RefreshPolicy.Decide(
+                            RefreshTrigger.Timer,
+                            _lastFetch.GetValueOrDefault(id),
+                            DateTimeOffset.Now,
+                            _failures[id]).NextInterval;
+                        break;
+                    default:
+                        _states[id] = AgentState.SignedOut;
+                        break;
+                    }
                 }
 
                 RaiseChanged();
-                ScheduleTimer(id, decision.NextInterval);
+                if (sessionState.Kind !=
+                    AuthSessionStateKind.ReauthenticationRequired)
+                {
+                    ScheduleTimer(id, retryInterval);
+                }
+
                 return;
             }
 
@@ -227,10 +344,189 @@ public sealed class UsageCoordinator : IAsyncDisposable
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(
                     cancellationToken,
                     _lifetime.Token);
-                var windows = await _providers[id]
-                    .FetchUsageAsync(linked.Token)
-                    .ConfigureAwait(false);
-                if (!_auth[id].IsSignedIn)
+                var proactive = authSession as IProactiveAuthSession;
+                var unauthorizedRecovery =
+                    authSession as IUnauthorizedRecoveryAuthSession;
+                var forceAttempted = false;
+                if (proactive is not null &&
+                    trigger is RefreshTrigger.Startup or RefreshTrigger.Manual)
+                {
+                    Task<AuthSessionState>? validationTask = null;
+                    lock (_stateGate)
+                    {
+                        if (_sessionGenerations[id] == sessionGeneration)
+                        {
+                            // Invoking the async method while holding the
+                            // generation lock lets the auth session capture its
+                            // own revision before a reconnect can advance it.
+                            validationTask = proactive.ForceValidateSessionAsync(
+                                linked.Token);
+                        }
+                    }
+                    if (validationTask is null)
+                    {
+                        return;
+                    }
+
+                    forceAttempted = true;
+                    RaiseChanged();
+                    var validation = await validationTask.ConfigureAwait(false);
+                    if (!IsCurrentSessionGeneration(id, sessionGeneration))
+                    {
+                        return;
+                    }
+
+                    RaiseChanged();
+                    if (validation.Kind != AuthSessionStateKind.Valid)
+                    {
+                        throw new InvalidOperationException(
+                            validation.Diagnostic ??
+                            "The session could not be verified.");
+                    }
+                }
+
+                IReadOnlyList<UsageWindow> windows;
+                try
+                {
+                    Task<IReadOnlyList<UsageWindow>>? usageTask = null;
+                    lock (_stateGate)
+                    {
+                        if (_sessionGenerations[id] == sessionGeneration)
+                        {
+                            usageTask = _providers[id].FetchUsageAsync(linked.Token);
+                        }
+                    }
+                    if (usageTask is null)
+                    {
+                        return;
+                    }
+
+                    windows = await usageTask.ConfigureAwait(false);
+                    if (!IsCurrentSessionGeneration(id, sessionGeneration))
+                    {
+                        return;
+                    }
+                }
+                catch (UsageException exception) when (
+                    exception.StatusCode == 401 &&
+                    unauthorizedRecovery is not null)
+                {
+                    if (!IsCurrentSessionGeneration(id, sessionGeneration))
+                    {
+                        return;
+                    }
+
+                    if (authSession.SessionState.Kind ==
+                        AuthSessionStateKind.ReauthenticationRequired)
+                    {
+                        throw new InvalidOperationException(
+                            authSession.SessionState.Diagnostic ??
+                            UsageUnauthorizedDiagnostic(id),
+                            exception);
+                    }
+
+                    if (forceAttempted)
+                    {
+                        var applied = ApplyAuthMutationIfCurrent(
+                            id,
+                            sessionGeneration,
+                            () =>
+                            {
+                                if (authSession.SessionState.Kind ==
+                                    AuthSessionStateKind.Valid)
+                                {
+                                    unauthorizedRecovery.RequireReauthentication(
+                                        OAuthRefreshFailureReason.Unauthorized,
+                                        UsageUnauthorizedDiagnostic(id));
+                                }
+                            });
+                        if (!applied)
+                        {
+                            return;
+                        }
+
+                        throw new InvalidOperationException(
+                            authSession.SessionState.Diagnostic ??
+                            UsageUnauthorizedDiagnostic(id));
+                    }
+
+                    Task<AuthSessionState>? validationTask = null;
+                    lock (_stateGate)
+                    {
+                        if (_sessionGenerations[id] == sessionGeneration)
+                        {
+                            validationTask =
+                                unauthorizedRecovery.ForceValidateSessionAsync(
+                                    linked.Token);
+                        }
+                    }
+                    if (validationTask is null)
+                    {
+                        return;
+                    }
+
+                    forceAttempted = true;
+                    RaiseChanged();
+                    var validation = await validationTask.ConfigureAwait(false);
+                    if (!IsCurrentSessionGeneration(id, sessionGeneration))
+                    {
+                        return;
+                    }
+
+                    RaiseChanged();
+                    if (validation.Kind != AuthSessionStateKind.Valid)
+                    {
+                        throw new InvalidOperationException(
+                            validation.Diagnostic ??
+                            "The session could not be verified.");
+                    }
+
+                    // A successful forced refresh is the session proof. A
+                    // non-401 retry failure only stales usage; another 401
+                    // means the refreshed session is unusable and quarantined.
+                    try
+                    {
+                        Task<IReadOnlyList<UsageWindow>>? retryTask = null;
+                        lock (_stateGate)
+                        {
+                            if (_sessionGenerations[id] == sessionGeneration)
+                            {
+                                retryTask = _providers[id].FetchUsageAsync(
+                                    linked.Token);
+                            }
+                        }
+                        if (retryTask is null)
+                        {
+                            return;
+                        }
+
+                        windows = await retryTask.ConfigureAwait(false);
+                        if (!IsCurrentSessionGeneration(id, sessionGeneration))
+                        {
+                            return;
+                        }
+                    }
+                    catch (UsageException retryException) when (
+                        retryException.StatusCode == 401)
+                    {
+                        if (!ApplyAuthMutationIfCurrent(
+                                id,
+                                sessionGeneration,
+                                () => unauthorizedRecovery.RequireReauthentication(
+                                    OAuthRefreshFailureReason.Unauthorized,
+                                    UsageUnauthorizedDiagnostic(id))))
+                        {
+                            return;
+                        }
+
+                        throw new InvalidOperationException(
+                            authSession.SessionState.Diagnostic ??
+                            UsageUnauthorizedDiagnostic(id),
+                            retryException);
+                    }
+                }
+
+                if (!authSession.IsSignedIn)
                 {
                     ScheduleTimer(id, RefreshPolicy.BaseInterval);
                     return;
@@ -247,6 +543,7 @@ public sealed class UsageCoordinator : IAsyncDisposable
                     }
                     else
                     {
+                        authSession.MarkUsageSucceeded(now);
                         // Commit cached data and presentation state under the
                         // same lock used by SignOut, so sign-out always wins.
                         _settings.SaveLastSnapshot(id, snapshot);
@@ -261,7 +558,6 @@ public sealed class UsageCoordinator : IAsyncDisposable
 
                 if (sessionChanged)
                 {
-                    ScheduleTimer(id, RefreshPolicy.BaseInterval);
                     return;
                 }
             }
@@ -273,22 +569,29 @@ public sealed class UsageCoordinator : IAsyncDisposable
             }
             catch (Exception exception)
             {
-                if (!_auth[id].IsSignedIn)
-                {
-                    ScheduleTimer(id, RefreshPolicy.BaseInterval);
-                    return;
-                }
-
+                var friendly = FriendlyError(exception);
                 lock (_stateGate)
                 {
-                    if (_sessionGenerations[id] == sessionGeneration)
+                    if (_sessionGenerations[id] != sessionGeneration)
                     {
-                        _failures[id] = _failures.GetValueOrDefault(id) + 1;
-                        _diagnostics[id] = FriendlyError(exception);
-                        _states[id] = AgentStateReducer.Reduce(
-                            _states[id],
-                            new AgentEvent(AgentEventKind.FetchFailed));
+                        return;
                     }
+
+                    authSession.MarkUsageFailed(friendly);
+                    var sessionState = authSession.SessionState;
+                    if (sessionState.Kind == AuthSessionStateKind.SignedOut)
+                    {
+                        return;
+                    }
+
+                    _failures[id] = _failures.GetValueOrDefault(id) + 1;
+                    // Keep the usage failure separate from an authentication
+                    // diagnostic (for example, a rotated-token persistence
+                    // warning). CreatePresentationLocked combines both.
+                    _diagnostics[id] = friendly;
+                    _states[id] = AgentStateReducer.Reduce(
+                        _states[id],
+                        new AgentEvent(AgentEventKind.FetchFailed));
                 }
             }
             finally
@@ -299,6 +602,18 @@ public sealed class UsageCoordinator : IAsyncDisposable
                 }
 
                 RaiseChanged();
+            }
+
+            if (!IsCurrentSessionGeneration(id, sessionGeneration))
+            {
+                return;
+            }
+
+            if (authSession.SessionState.Kind ==
+                AuthSessionStateKind.ReauthenticationRequired)
+            {
+                CancelTimer(id);
+                return;
             }
 
             int currentFailures;
@@ -319,7 +634,37 @@ public sealed class UsageCoordinator : IAsyncDisposable
         }
         finally
         {
-            gate.Release();
+            var replayManual = false;
+            lock (_stateGate)
+            {
+                var matchedPendingManual = false;
+                if (refreshGeneration is { } completedGeneration &&
+                    _pendingManualRefreshes.TryGetValue(
+                        id,
+                        out var pendingGeneration) &&
+                    pendingGeneration == completedGeneration)
+                {
+                    _pendingManualRefreshes.Remove(id);
+                    matchedPendingManual = true;
+                }
+
+                if (matchedPendingManual &&
+                    trigger is not (RefreshTrigger.Startup or RefreshTrigger.Manual) &&
+                    !_disposed)
+                {
+                    replayManual = true;
+                }
+
+                // Manual enqueue and zero-time acquisition use this same lock,
+                // so no caller can slip into the release/removal window and
+                // leave a pending validation stranded or incorrectly consumed.
+                gate.Release();
+            }
+
+            if (replayManual)
+            {
+                _ = ReplayPendingManualRefreshAsync(id);
+            }
         }
     }
 
@@ -330,6 +675,7 @@ public sealed class UsageCoordinator : IAsyncDisposable
         ThrowIfDisposed();
         var definition = AgentRegistry.Get(id);
         var canBegin = false;
+        long attemptGeneration = -1;
         lock (_stateGate)
         {
             var now = DateTimeOffset.Now;
@@ -350,6 +696,9 @@ public sealed class UsageCoordinator : IAsyncDisposable
             else
             {
                 canBegin = true;
+                attemptGeneration = ++_sessionGenerations[id];
+                _pendingManualRefreshes.Remove(id);
+                _signInAttemptGenerations[id] = attemptGeneration;
                 _beginningSignIn.Add(id);
                 _signingIn.Add(id);
                 _signInStartedAt[id] = now;
@@ -369,38 +718,90 @@ public sealed class UsageCoordinator : IAsyncDisposable
 
         try
         {
-            await _auth[id].BeginSignInAsync(cancellationToken).ConfigureAwait(false);
+            Task beginTask;
             lock (_stateGate)
             {
-                _beginningSignIn.Remove(id);
-                _loginErrors[id] = null;
-                if (definition.SignInStyle == SignInStyle.SelfCompleting)
+                if (_sessionGenerations[id] != attemptGeneration)
                 {
-                    _signingIn.Remove(id);
-                    _signInStartedAt.Remove(id);
-                    _awaitingCode.Remove(id);
+                    return;
                 }
+
+                beginTask = _auth[id].BeginSignInAsync(cancellationToken);
+            }
+
+            await beginTask.ConfigureAwait(false);
+            var staleAttempt = false;
+            lock (_stateGate)
+            {
+                staleAttempt = _sessionGenerations[id] != attemptGeneration ||
+                    _signInAttemptGenerations.GetValueOrDefault(id, -1) !=
+                    attemptGeneration;
+                if (!staleAttempt)
+                {
+                    _beginningSignIn.Remove(id);
+                    _loginErrors[id] = null;
+                    if (definition.SignInStyle == SignInStyle.SelfCompleting)
+                    {
+                        if (_pendingManualRefreshes.GetValueOrDefault(id, -1) ==
+                            attemptGeneration)
+                        {
+                            _pendingManualRefreshes.Remove(id);
+                        }
+                        _signInAttemptGenerations.Remove(id);
+                        _lastFetch[id] = null;
+                        _failures[id] = 0;
+                        _diagnostics[id] = null;
+                        _signingIn.Remove(id);
+                        _signInStartedAt.Remove(id);
+                        _awaitingCode.Remove(id);
+                    }
+                }
+            }
+
+            if (staleAttempt)
+            {
+                return;
             }
 
             RaiseChanged();
             if (definition.SignInStyle == SignInStyle.SelfCompleting)
             {
-                await RefreshAsync(id, RefreshTrigger.Manual, cancellationToken)
+                await RefreshAsync(
+                        id,
+                        RefreshTrigger.SignIn,
+                        cancellationToken,
+                        waitForExisting: true)
                     .ConfigureAwait(false);
             }
         }
         catch (Exception exception)
         {
+            var staleAttempt = false;
             lock (_stateGate)
             {
-                _beginningSignIn.Remove(id);
-                _signingIn.Remove(id);
-                _signInStartedAt.Remove(id);
-                _awaitingCode.Remove(id);
-                _loginErrors[id] = $"Sign-in failed: {FriendlyError(exception)}";
+                staleAttempt = _sessionGenerations[id] != attemptGeneration ||
+                    _signInAttemptGenerations.GetValueOrDefault(id, -1) !=
+                    attemptGeneration;
+                if (!staleAttempt)
+                {
+                    if (_pendingManualRefreshes.GetValueOrDefault(id, -1) ==
+                        attemptGeneration)
+                    {
+                        _pendingManualRefreshes.Remove(id);
+                    }
+                    _signInAttemptGenerations.Remove(id);
+                    _beginningSignIn.Remove(id);
+                    _signingIn.Remove(id);
+                    _signInStartedAt.Remove(id);
+                    _awaitingCode.Remove(id);
+                    _loginErrors[id] = $"Sign-in failed: {FriendlyError(exception)}";
+                }
             }
 
-            RaiseChanged();
+            if (!staleAttempt)
+            {
+                RaiseChanged();
+            }
         }
     }
 
@@ -411,6 +812,7 @@ public sealed class UsageCoordinator : IAsyncDisposable
     {
         ThrowIfDisposed();
         var canComplete = false;
+        long attemptGeneration = -1;
         lock (_stateGate)
         {
             if (!_signingIn.Contains(id) ||
@@ -424,6 +826,9 @@ public sealed class UsageCoordinator : IAsyncDisposable
             else
             {
                 canComplete = true;
+                attemptGeneration = _signInAttemptGenerations.GetValueOrDefault(
+                    id,
+                    -1);
                 _loginErrors[id] = null;
             }
         }
@@ -436,81 +841,160 @@ public sealed class UsageCoordinator : IAsyncDisposable
 
         try
         {
-            await _auth[id]
-                .CompleteSignInAsync(pastedCode, cancellationToken)
-                .ConfigureAwait(false);
+            Task completionTask;
             lock (_stateGate)
             {
-                _completingSignIn.Remove(id);
-                _signingIn.Remove(id);
-                _signInStartedAt.Remove(id);
-                _awaitingCode.Remove(id);
-                _loginErrors[id] = null;
+                if (_sessionGenerations[id] != attemptGeneration)
+                {
+                    return;
+                }
+
+                completionTask = _auth[id].CompleteSignInAsync(
+                    pastedCode,
+                    cancellationToken);
+            }
+
+            await completionTask.ConfigureAwait(false);
+            var staleAttempt = false;
+            lock (_stateGate)
+            {
+                staleAttempt = _sessionGenerations[id] != attemptGeneration ||
+                    _signInAttemptGenerations.GetValueOrDefault(id, -1) !=
+                    attemptGeneration;
+                if (!staleAttempt)
+                {
+                    if (_pendingManualRefreshes.GetValueOrDefault(id, -1) ==
+                        attemptGeneration)
+                    {
+                        _pendingManualRefreshes.Remove(id);
+                    }
+                    _signInAttemptGenerations.Remove(id);
+                    _lastFetch[id] = null;
+                    _failures[id] = 0;
+                    _diagnostics[id] = null;
+                    _completingSignIn.Remove(id);
+                    _signingIn.Remove(id);
+                    _signInStartedAt.Remove(id);
+                    _awaitingCode.Remove(id);
+                    _loginErrors[id] = null;
+                }
+            }
+
+            if (staleAttempt)
+            {
+                return;
             }
 
             RaiseChanged();
-            await RefreshAsync(id, RefreshTrigger.Manual, cancellationToken)
+            await RefreshAsync(
+                    id,
+                    RefreshTrigger.SignIn,
+                    cancellationToken,
+                    waitForExisting: true)
                 .ConfigureAwait(false);
         }
         catch (Exception exception)
         {
+            var staleAttempt = false;
             lock (_stateGate)
             {
-                _completingSignIn.Remove(id);
-                _signingIn.Remove(id);
-                _signInStartedAt.Remove(id);
-                _awaitingCode.Remove(id);
-                _loginErrors[id] = $"Sign-in failed: {FriendlyError(exception)}";
+                staleAttempt = _sessionGenerations[id] != attemptGeneration ||
+                    _signInAttemptGenerations.GetValueOrDefault(id, -1) !=
+                    attemptGeneration;
+                if (!staleAttempt)
+                {
+                    if (_pendingManualRefreshes.GetValueOrDefault(id, -1) ==
+                        attemptGeneration)
+                    {
+                        _pendingManualRefreshes.Remove(id);
+                    }
+                    _signInAttemptGenerations.Remove(id);
+                    _completingSignIn.Remove(id);
+                    _signingIn.Remove(id);
+                    _signInStartedAt.Remove(id);
+                    _awaitingCode.Remove(id);
+                    _loginErrors[id] = $"Sign-in failed: {FriendlyError(exception)}";
+                }
             }
 
-            RaiseChanged();
+            if (!staleAttempt)
+            {
+                RaiseChanged();
+            }
         }
     }
 
     public void SignOut(AgentId id)
     {
         ThrowIfDisposed();
-        try
-        {
-            _auth[id].SignOut();
-        }
-        catch (Exception exception)
-        {
-            lock (_stateGate)
-            {
-                _loginErrors[id] = $"Sign-out failed: {FriendlyError(exception)}";
-            }
-
-            RaiseChanged();
-            return;
-        }
-
+        var signOutSucceeded = false;
         lock (_stateGate)
         {
+            // Advance coordinator ownership and clear pending sign-in state in
+            // the same critical section as auth.SignOut. A late BeginSignIn can
+            // therefore only linearize before this clear (and be invalidated by
+            // the auth generation) or after it as an intentional new login.
             _sessionGenerations[id]++;
+            _signInAttemptGenerations.Remove(id);
+            _pendingManualRefreshes.Remove(id);
             _beginningSignIn.Remove(id);
             _completingSignIn.Remove(id);
             _signingIn.Remove(id);
             _signInStartedAt.Remove(id);
             _awaitingCode.Remove(id);
-            _lastFetch[id] = null;
-            _failures[id] = 0;
-            _diagnostics[id] = null;
-            _loginErrors[id] = null;
-            _states[id] = AgentState.SignedOut;
             try
             {
-                _settings.ClearLastSnapshot(id);
+                _auth[id].SignOut();
+                signOutSucceeded = true;
             }
-            catch (Exception exception)
+            catch (Exception)
             {
-                _loginErrors[id] =
-                    "Signed out, but cached usage could not be removed: " +
-                    FriendlyError(exception);
+                // Durable credential removal failed, so the account remains
+                // owned by this coordinator generation. Do not clear usage or
+                // present SignedOut. Keep the backend exception out of UI and
+                // arrange a later refresh to reconcile the retained session.
+                _auth[id].MarkUsageFailed(SignOutFailureDiagnostic);
+                _refreshing[id] = false;
+                _diagnostics[id] = SignOutFailureDiagnostic;
+                _loginErrors[id] = $"Sign-out failed. {SignOutFailureDiagnostic}";
+                var failedState = AgentStateReducer.Reduce(
+                    _states[id],
+                    new AgentEvent(AgentEventKind.FetchFailed));
+                _states[id] = failedState.Kind == AgentStateKind.SignedOut
+                    ? AgentState.Loading
+                    : failedState;
+            }
+
+            if (signOutSucceeded)
+            {
+                _lastFetch[id] = null;
+                _failures[id] = 0;
+                _diagnostics[id] = null;
+                _loginErrors[id] = null;
+                _refreshing[id] = false;
+                _states[id] = AgentState.SignedOut;
+                try
+                {
+                    _settings.ClearLastSnapshot(id);
+                }
+                catch (Exception exception)
+                {
+                    _loginErrors[id] =
+                        "Signed out, but cached usage could not be removed: " +
+                        FriendlyError(exception);
+                }
             }
         }
 
         RaiseChanged();
+        if (signOutSucceeded)
+        {
+            CancelTimer(id);
+        }
+        else
+        {
+            ScheduleTimer(id, RefreshPolicy.BaseInterval);
+        }
     }
 
     public async ValueTask DisposeAsync()
@@ -531,6 +1015,7 @@ public sealed class UsageCoordinator : IAsyncDisposable
             }
 
             _timers.Clear();
+            _pendingManualRefreshes.Clear();
         }
 
         await Task.Yield();
@@ -546,11 +1031,81 @@ public sealed class UsageCoordinator : IAsyncDisposable
         new(
             AgentRegistry.Get(id),
             _states[id],
+            _auth[id].SessionState,
             _refreshing.GetValueOrDefault(id),
-            _diagnostics.GetValueOrDefault(id),
+            CombineDiagnostics(
+                _auth[id].SessionState.Diagnostic,
+                _diagnostics.GetValueOrDefault(id)),
             _loginErrors.GetValueOrDefault(id),
             _awaitingCode.Contains(id),
             _signingIn.Contains(id));
+
+    private static string? CombineDiagnostics(string? session, string? usage)
+    {
+        if (string.IsNullOrWhiteSpace(session))
+        {
+            return usage;
+        }
+
+        if (string.IsNullOrWhiteSpace(usage) ||
+            string.Equals(session, usage, StringComparison.Ordinal))
+        {
+            return session;
+        }
+
+        return $"{session}{Environment.NewLine}{usage}";
+    }
+
+    private bool IsCurrentSessionGeneration(AgentId id, long generation)
+    {
+        lock (_stateGate)
+        {
+            return _sessionGenerations[id] == generation;
+        }
+    }
+
+    private bool ApplyAuthMutationIfCurrent(
+        AgentId id,
+        long generation,
+        Action mutation)
+    {
+        lock (_stateGate)
+        {
+            if (_sessionGenerations[id] != generation)
+            {
+                return false;
+            }
+
+            mutation();
+            return true;
+        }
+    }
+
+    private async Task ReplayPendingManualRefreshAsync(AgentId id)
+    {
+        try
+        {
+            await RefreshAsync(id, RefreshTrigger.Manual, _lifetime.Token)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private void CancelTimer(AgentId id)
+    {
+        lock (_stateGate)
+        {
+            if (_timers.Remove(id, out var timer))
+            {
+                timer.Cancel();
+            }
+        }
+    }
 
     private void ScheduleTimer(AgentId id, TimeSpan interval)
     {
@@ -616,6 +1171,10 @@ public sealed class UsageCoordinator : IAsyncDisposable
             ? exception.GetType().Name
             : exception.Message;
     }
+
+    private static string UsageUnauthorizedDiagnostic(AgentId id) =>
+        $"The refreshed {AgentRegistry.Get(id).DisplayName} session was rejected " +
+        "by the usage service. Sign in again.";
 
     private void Settings_OnChanged(object? sender, EventArgs eventArgs) =>
         RaiseChanged();

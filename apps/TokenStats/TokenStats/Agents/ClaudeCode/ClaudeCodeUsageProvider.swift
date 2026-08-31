@@ -23,16 +23,24 @@ struct ClaudeCodeUsageProvider: UsageProvider {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         let (data, response) = try await session.data(for: request)
-        let body = String(data: data.prefix(800), encoding: .utf8) ?? "<non-utf8 \(data.count) bytes>"
+        let diagnostic = OAuthErrorDiagnostics.summary(
+            data,
+            operation: "Claude Code usage response"
+        )
         guard let http = response as? HTTPURLResponse else {
-            throw UsageError.badResponse(status: -1, body: body)
+            throw UsageError.badResponse(status: -1, body: diagnostic)
         }
-        guard http.statusCode == 200 else {
-            throw UsageError.badResponse(status: http.statusCode, body: body)
+        switch http.statusCode {
+        case 200:
+            break
+        case 401:
+            throw UsageError.unauthorized(body: diagnostic)
+        default:
+            throw UsageError.badResponse(status: http.statusCode, body: diagnostic)
         }
         let windows = try UsageSnapshotParser.parse(data)
         guard !windows.isEmpty else {
-            throw UsageError.noWindows(body: body)
+            throw UsageError.noWindows(body: diagnostic)
         }
         return UsageReading(windows: windows)
     }

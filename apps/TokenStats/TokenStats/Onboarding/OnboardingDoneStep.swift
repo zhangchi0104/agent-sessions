@@ -50,7 +50,9 @@ struct OnboardingDoneStep: View {
     }
 
     private var connectedCount: Int {
-        CodingAgentID.allCases.filter { model.agentStates[$0] != .signedOut }.count
+        CodingAgentID.allCases.filter {
+            SessionPresentation.isVerified(model.sessionStates[$0])
+        }.count
     }
 
     private func summaryRow(_ icon: String,

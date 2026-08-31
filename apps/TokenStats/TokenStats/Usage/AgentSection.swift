@@ -2,7 +2,7 @@
 //  AgentSection.swift
 //  TokenStats
 //
-//  One connected Coding Agent's section of the popover: name (with the Primary
+//  One present Coding Agent subscription's section of the popover: name (with the Primary
 //  badge per the Appearance setting), the agent's Usage Window gauges, and the
 //  right-aligned last-updated / staleness line with inline-expandable error
 //  diagnostics.
@@ -20,6 +20,7 @@ struct AgentSection: View {
     private var displayName: String { id.integration.displayName }
     private var isPrimary: Bool { model.appearance.primaryAgent == id }
     private var localizer: AppLocalizer { AppLocalizer(locale: locale) }
+    private var sessionState: SessionState { model.sessionStates[id] }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -27,7 +28,7 @@ struct AgentSection: View {
                 Text(displayName).font(.body.weight(.semibold))
                 if isPrimary { PrimaryBadge() }
                 Spacer()
-                if model.isRefreshing(id) {
+                if model.isRefreshing(id) || SessionPresentation.isChecking(sessionState) {
                     ProgressView().controlSize(.small)
                 }
             }
@@ -38,15 +39,32 @@ struct AgentSection: View {
     @ViewBuilder private var content: some View {
         switch model.agentStates[id] {
         case .signedOut:
+            sessionStatusWithoutSnapshot
+        case .loading:
+            sessionStatusWithoutSnapshot
+        case .fresh(let snapshot):
+            windows(snapshot)
+            snapshotStatus(snapshot, usageIsFresh: true)
+        case .staleDisclosed(let snapshot):
+            windows(snapshot)
+            snapshotStatus(snapshot, usageIsFresh: false)
+        }
+    }
+
+    @ViewBuilder private var sessionStatusWithoutSnapshot: some View {
+        switch sessionState {
+        case .signedOut:
             // Exhaustiveness only; PopoverView never instantiates a signed-out section.
             EmptyView()
-        case .loading:
-            if model.isRefreshing(id) {
-                Text(
-                    LocalizedStringResource.usageLoading
-                )
+        case .checking:
+            Text(LocalizedStringResource.accountStatusChecking)
                 .font(.callout)
                 .foregroundStyle(.secondary)
+        case .valid:
+            if model.isRefreshing(id) {
+                Text(LocalizedStringResource.usageLoading)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             } else {
                 statusLine(text: localizer.localized(
                     LocalizedStringResource.usageLoadFailedSummary
@@ -54,18 +72,58 @@ struct AgentSection: View {
                            isStale: true,
                            diagnostics: model.diagnostics[id])
             }
-        case .fresh(let snapshot):
-            windows(snapshot)
-            let age = UsageFormatting.relativeAge(of: snapshot.fetchedAt, locale: locale)
+        case .reauthenticationRequired:
             statusLine(text: localizer.localized(
-                LocalizedStringResource.usageUpdatedStatus(age)
+                LocalizedStringResource.accountStatusReauthenticationRequired
             ),
-                       isStale: false)
-        case .staleDisclosed(let snapshot):
-            windows(snapshot)
-            let age = UsageFormatting.relativeAge(of: snapshot.fetchedAt, locale: locale)
+                       isStale: true,
+                       diagnostics: model.diagnostics[id])
+        case .temporarilyUnverifiable:
             statusLine(text: localizer.localized(
-                LocalizedStringResource.usageRefreshFailedStatus(age)
+                LocalizedStringResource.accountStatusTemporarilyUnverifiable
+            ),
+                       isStale: true,
+                       diagnostics: model.diagnostics[id])
+        }
+    }
+
+    @ViewBuilder private func snapshotStatus(
+        _ snapshot: UsageSnapshot,
+        usageIsFresh: Bool
+    ) -> some View {
+        let age = UsageFormatting.relativeAge(of: snapshot.fetchedAt, locale: locale)
+        switch sessionState {
+        case .signedOut:
+            EmptyView()
+        case .checking:
+            statusLine(text: localizer.localized(
+                LocalizedStringResource.usageSessionCheckingStatus(age)
+            ),
+                       isStale: true,
+                       diagnostics: model.diagnostics[id])
+        case .valid:
+            if usageIsFresh {
+                statusLine(text: localizer.localized(
+                    LocalizedStringResource.usageUpdatedStatus(age)
+                ),
+                           isStale: false,
+                           diagnostics: model.diagnostics[id])
+            } else {
+                statusLine(text: localizer.localized(
+                    LocalizedStringResource.usageRefreshFailedStatus(age)
+                ),
+                           isStale: true,
+                           diagnostics: model.diagnostics[id])
+            }
+        case .reauthenticationRequired:
+            statusLine(text: localizer.localized(
+                LocalizedStringResource.usageSessionReauthenticationRequiredStatus(age)
+            ),
+                       isStale: true,
+                       diagnostics: model.diagnostics[id])
+        case .temporarilyUnverifiable:
+            statusLine(text: localizer.localized(
+                LocalizedStringResource.usageSessionTemporarilyUnverifiableStatus(age)
             ),
                        isStale: true,
                        diagnostics: model.diagnostics[id])

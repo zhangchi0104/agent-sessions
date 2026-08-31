@@ -70,3 +70,48 @@ Codex authenticates with ChatGPT/OpenAI via OAuth (PKCE, **loopback redirect** �
 Other authorize params the CLI sends: `id_token_add_organizations=true`, `codex_cli_simplified_flow=true`, `state`, and an `originator`. The `ChatGPT-Account-Id` needed for the usage call comes from the id_token claims, so it is available from TokenStats' own login without touching Codex's files.
 
 Flow: build the authorize URL with PKCE → open in browser → user approves → OpenAI redirects to the loopback callback with the code → exchange code + verifier at the token URL → store tokens in TokenStats' own store → refresh on expiry. Unlike Claude Code's paste-the-code flow, the registered redirect is a localhost callback, so TokenStats can capture the code via a short-lived loopback listener instead of asking the user to paste.
+
+The authorization-code exchange remains `application/x-www-form-urlencoded`.
+Refresh uses `application/json` with exactly `client_id`, `grant_type`, and
+`refresh_token`. A successful refresh response may contain only the fields the
+server rotated: TokenStats carries forward omitted access/refresh/account
+values, derives expiry from a returned access JWT when `expires_in` is absent,
+and otherwise retains the prior expiry. `expires_in` alone never extends an old
+access token. If an accepted response rotates a refresh token but leaves no
+usable access token, TokenStats persists the rotation, keeps the session
+verified, and leaves Usage stale rather than sending an expired bearer.
+
+## Session validity
+
+The presence or JWT expiry of TokenStats' locally stored credential does not
+prove that the ChatGPT session is still refreshable. TokenStats therefore
+keeps account-session validity separate from Usage Window freshness:
+
+- At launch and on an explicit user refresh, TokenStats forces one refresh-token
+  exchange even when the access token has not expired, then fetches Usage.
+- A normal timer or wake refresh reuses a sufficiently fresh access token and
+  refreshes only near expiry, avoiding an unnecessary token rotation every 30
+  minutes.
+- If the current top-level refresh has not already completed proactive forced
+  validation, a Usage `401` forces one refresh and retries Usage once. If a
+  startup or explicit user refresh already completed proactive forced
+  validation, the immediately following Usage request is the post-refresh
+  attempt; a `401` requires a new login without a second coordinator-initiated
+  refresh-token exchange.
+- Refresh `401`, `invalid_grant`, `refresh_token_expired`,
+  `refresh_token_reused`, and `refresh_token_invalidated` are terminal for the
+  saved session. Network failures, timeouts, server failures, and unrecognized
+  OAuth errors are temporarily unverifiable instead of signed out.
+- Usage `403`, `429`, server failures, and parsing failures make the Usage
+  reading stale but do not by themselves invalidate a successfully verified
+  session.
+
+All refresh paths for one account share one in-flight exchange. A rotated token
+is adopted in memory before persistence, and a sign-out generation prevents a
+late refresh from restoring credentials after the user signs out. A remotely
+invalid session keeps its last-known Usage reading visible until the user
+reconnects or explicitly signs out.
+
+Diagnostics retain only error categories, HTTP status, and validated short
+`code`/`type` values. Raw OAuth and Codex Usage error responses, bearer tokens,
+and refresh tokens are never copied into user-visible diagnostics.

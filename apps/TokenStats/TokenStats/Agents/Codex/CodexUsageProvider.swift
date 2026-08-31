@@ -31,16 +31,29 @@ struct CodexUsageProvider: UsageProvider {
         }
 
         let (data, response) = try await session.data(for: request)
-        let body = String(data: data.prefix(800), encoding: .utf8) ?? "<non-utf8 \(data.count) bytes>"
+        // Usage failures can still contain account or backend detail. Preserve
+        // only an allow-listed code/type summary for UI diagnostics, never the
+        // raw response body or its arbitrary message fields.
+        let diagnostic = OAuthErrorDiagnostics.summary(
+            data,
+            operation: "Codex usage response"
+        )
         guard let http = response as? HTTPURLResponse else {
-            throw UsageError.badResponse(status: -1, body: body)
+            throw UsageError.badResponse(status: -1, body: diagnostic)
         }
-        guard http.statusCode == 200 else {
-            throw UsageError.badResponse(status: http.statusCode, body: body)
+        switch http.statusCode {
+        case 200:
+            break
+        case 401:
+            throw UsageError.unauthorized(body: diagnostic)
+        case 403:
+            throw UsageError.forbidden(body: diagnostic)
+        default:
+            throw UsageError.badResponse(status: http.statusCode, body: diagnostic)
         }
         let windows = try CodexUsageSnapshotParser.parse(data)
         guard !windows.isEmpty else {
-            throw UsageError.noWindows(body: body)
+            throw UsageError.noWindows(body: diagnostic)
         }
         return UsageReading(windows: windows)
     }

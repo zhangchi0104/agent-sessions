@@ -8,6 +8,12 @@ import Testing
 
 @Suite(.serialized)
 struct CursorUsageProviderTests {
+    private let previous = OAuthTokens(
+        accessToken: "old-access",
+        refreshToken: "old-refresh",
+        expiresAt: .distantFuture
+    )
+
     private func makeProvider(
         handler: @escaping (URLRequest) -> (HTTPURLResponse, Data)
     ) -> CursorUsageProvider {
@@ -167,20 +173,111 @@ struct CursorUsageProviderTests {
         }
 
         await #expect(throws: UsageError.self) {
-            try await provider.fetchUsage()
+            _ = try await provider.fetchUsage()
         }
     }
 
-    @Test func throwsBadResponseOnNon200() async {
+    @Test func classifiesUnauthorizedWithoutRetainingRawUsageBody() async {
         let provider = makeProvider { request in
             let response = HTTPURLResponse(
                 url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil
             )!
-            return (response, Data(#"{"code":"unauthenticated"}"#.utf8))
+            return (response, Data(
+                #"{"code":"unauthenticated","detail":"SENSITIVE-ACCOUNT-MARKER"}"#.utf8
+            ))
         }
 
-        await #expect(throws: UsageError.self) {
+        do {
             try await provider.fetchUsage()
+            Issue.record("Expected usage fetch to fail")
+        } catch let error as UsageError {
+            guard case .unauthorized(let body) = error else {
+                Issue.record("Expected unauthorized, got \(error)")
+                return
+            }
+            #expect(body == "Cursor usage response (unauthenticated)")
+            #expect(!body.contains("SENSITIVE-ACCOUNT-MARKER"))
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test(arguments: [
+        (#"{"error":"invalid_grant","error_description":"SENSITIVE"}"#,
+         SessionReauthenticationReason.invalidGrant),
+        (#"{"error":{"code":"refresh_token_expired","message":"SENSITIVE"}}"#, .expired),
+        (#"{"code":"refresh_token_reused","message":"SENSITIVE"}"#, .reused),
+        (#"{"error":{"error_code":"refresh_token_invalidated","message":"SENSITIVE"}}"#,
+         .invalidated),
+    ])
+    func structuredRefreshRejectionsRequireReauthentication(
+        body: String,
+        reason: SessionReauthenticationReason
+    ) async {
+        CursorStubURLProtocol.handler = { request in
+            let response = HTTPURLResponse(
+                url: request.url!, statusCode: 400, httpVersion: nil, headerFields: nil
+            )!
+            return (response, Data(body.utf8))
+        }
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [CursorStubURLProtocol.self]
+        let client = CursorOAuthClient(session: URLSession(configuration: config))
+
+        do {
+            _ = try await client.refresh(tokens: previous)
+            Issue.record("Expected refresh to fail")
+        } catch let error as OAuthRefreshError {
+            #expect(error.reauthenticationReason == reason)
+            #expect(!error.diagnosticSummary.contains("SENSITIVE"))
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test func refresh401RequiresReauthenticationWithoutRetainingTheBody() async {
+        CursorStubURLProtocol.handler = { request in
+            let response = HTTPURLResponse(
+                url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil
+            )!
+            return (response, Data("not-json SENSITIVE".utf8))
+        }
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [CursorStubURLProtocol.self]
+        let client = CursorOAuthClient(session: URLSession(configuration: config))
+
+        do {
+            _ = try await client.refresh(tokens: previous)
+            Issue.record("Expected refresh to fail")
+        } catch let error as OAuthRefreshError {
+            #expect(error.reauthenticationReason == .unauthorized)
+            #expect(error.code == nil)
+            #expect(!error.diagnosticSummary.contains("SENSITIVE"))
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test func malformedSuccessfulRefreshIsTemporaryAndSanitized() async {
+        CursorStubURLProtocol.handler = { request in
+            let response = HTTPURLResponse(
+                url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil
+            )!
+            return (response, Data(#"{"secret":"SENSITIVE"}"#.utf8))
+        }
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [CursorStubURLProtocol.self]
+        let client = CursorOAuthClient(session: URLSession(configuration: config))
+
+        do {
+            _ = try await client.refresh(tokens: previous)
+            Issue.record("Expected refresh to fail")
+        } catch let error as OAuthRefreshError {
+            #expect(error.kind == .malformedResponse)
+            #expect(error.reauthenticationReason == nil)
+            #expect(!error.diagnosticSummary.contains("SENSITIVE"))
+        } catch {
+            Issue.record("Unexpected error: \(error)")
         }
     }
 

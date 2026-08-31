@@ -154,6 +154,75 @@ public static class CodexOAuthFlow
             accountId);
     }
 
+    /// <summary>
+    /// Parses a refresh response without assuming every token field is returned.
+    /// The Codex auth service can rotate only part of the credential set, so an
+    /// omitted value retains the last accepted value instead of discarding a
+    /// successfully rotated refresh grant.
+    /// </summary>
+    public static OAuthTokens ParseRefreshTokens(
+        string json,
+        OAuthTokens previous,
+        DateTimeOffset? now = null)
+    {
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            throw new JsonException("Codex refresh response must be a JSON object.");
+        }
+
+        var hasRecognizedValue = false;
+        var newAccessToken = OptionalNonEmptyString(
+            root,
+            "access_token",
+            ref hasRecognizedValue);
+        var newRefreshToken = OptionalNonEmptyString(
+            root,
+            "refresh_token",
+            ref hasRecognizedValue);
+        var idToken = OptionalNonEmptyString(
+            root,
+            "id_token",
+            ref hasRecognizedValue);
+
+        var current = now ?? DateTimeOffset.Now;
+        var expiresAt = previous.ExpiresAt;
+        if (newAccessToken is not null &&
+            root.TryGetProperty("expires_in", out var expires))
+        {
+            if (expires.ValueKind != JsonValueKind.Number ||
+                !expires.TryGetDouble(out var seconds) ||
+                !double.IsFinite(seconds) ||
+                seconds <= 0)
+            {
+                throw new JsonException("Invalid expires_in.");
+            }
+
+            hasRecognizedValue = true;
+            expiresAt = current.AddSeconds(seconds);
+        }
+        else if (newAccessToken is not null &&
+                 AccessTokenExpiration(newAccessToken) is { } jwtExpiration)
+        {
+            expiresAt = jwtExpiration;
+        }
+
+        if (!hasRecognizedValue)
+        {
+            throw new JsonException(
+                "Codex refresh response contained no recognized token fields.");
+        }
+
+        return new OAuthTokens(
+            newAccessToken ?? previous.AccessToken,
+            newRefreshToken ?? previous.RefreshToken,
+            expiresAt,
+            idToken is null
+                ? previous.AccountId
+                : AccountIdFromIdToken(idToken) ?? previous.AccountId);
+    }
+
     public static string? AccountIdFromIdToken(string idToken)
     {
         var segments = idToken.Split('.');
@@ -187,6 +256,61 @@ public static class CodexOAuthFlow
         {
             return null;
         }
+    }
+
+    private static string? OptionalNonEmptyString(
+        JsonElement root,
+        string propertyName,
+        ref bool hasRecognizedValue)
+    {
+        if (!root.TryGetProperty(propertyName, out var property) ||
+            property.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        if (property.ValueKind != JsonValueKind.String)
+        {
+            throw new JsonException($"Invalid {propertyName}.");
+        }
+
+        var value = property.GetString();
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        hasRecognizedValue = true;
+        return value;
+    }
+
+    private static DateTimeOffset? AccessTokenExpiration(string accessToken)
+    {
+        var segments = accessToken.Split('.');
+        if (segments.Length < 2 ||
+            OAuthHelpers.DecodeBase64Url(segments[1]) is not { } payload)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(payload);
+            if (document.RootElement.TryGetProperty("exp", out var expiration) &&
+                expiration.TryGetInt64(out var seconds) &&
+                seconds > 0)
+            {
+                return DateTimeOffset.FromUnixTimeSeconds(seconds);
+            }
+        }
+        catch (JsonException)
+        {
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+        }
+
+        return null;
     }
 }
 

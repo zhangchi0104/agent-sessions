@@ -12,6 +12,7 @@ public partial class OnboardingWindow : Window
     private readonly UsageCoordinator _coordinator;
     private readonly AppSettingsStore _settings;
     private readonly HashSet<AgentId> _busy = [];
+    private readonly HashSet<AgentId> _validationBusy = [];
     private readonly Dictionary<AgentId, string> _codes = [];
     private int _step;
     private bool _isRendering;
@@ -121,7 +122,7 @@ public partial class OnboardingWindow : Window
             });
             row.Children.Add(identity);
 
-            if (agent.State.Kind != AgentStateKind.SignedOut)
+            if (agent.SessionState.Kind == AuthSessionStateKind.Valid)
             {
                 var check = new TextBlock
                 {
@@ -144,6 +145,15 @@ public partial class OnboardingWindow : Window
                 {
                     connectText = "Waiting…";
                 }
+                else if (agent.SessionState.Kind == AuthSessionStateKind.Checking)
+                {
+                    connectText = "Checking…";
+                }
+                else if (agent.SessionState.Kind ==
+                         AuthSessionStateKind.TemporarilyUnverifiable)
+                {
+                    connectText = "Try again";
+                }
                 else if (agent.AwaitingCode)
                 {
                     connectText = "Re-open browser";
@@ -156,10 +166,27 @@ public partial class OnboardingWindow : Window
                 var connect = new Button
                 {
                     Content = connectText,
-                    IsEnabled = !signInBusy,
+                    IsEnabled = !signInBusy &&
+                                !_validationBusy.Contains(
+                                    agent.Definition.Id) &&
+                                !(agent.SessionState.Kind ==
+                                  AuthSessionStateKind.Checking &&
+                                  agent.IsRefreshing),
                 };
-                connect.Click += async (_, _) =>
-                    await BeginLoginAsync(agent.Definition.Id).ConfigureAwait(true);
+                if (agent.SessionState.Kind is
+                    AuthSessionStateKind.Checking or
+                    AuthSessionStateKind.TemporarilyUnverifiable)
+                {
+                    connect.Click += async (_, _) =>
+                        await CheckSessionAsync(agent.Definition.Id)
+                            .ConfigureAwait(true);
+                }
+                else
+                {
+                    connect.Click += async (_, _) =>
+                        await BeginLoginAsync(agent.Definition.Id)
+                            .ConfigureAwait(true);
+                }
                 Grid.SetColumn(connect, 1);
                 row.Children.Add(connect);
             }
@@ -223,7 +250,7 @@ public partial class OnboardingWindow : Window
 
     private async Task BeginLoginAsync(AgentId id)
     {
-        if (!_busy.Add(id))
+        if (_validationBusy.Contains(id) || !_busy.Add(id))
         {
             return;
         }
@@ -251,7 +278,8 @@ public partial class OnboardingWindow : Window
         try
         {
             await _coordinator.CompleteSignInAsync(id, code).ConfigureAwait(true);
-            if (_coordinator.GetAgent(id).State.Kind != AgentStateKind.SignedOut)
+            if (_coordinator.GetAgent(id).SessionState.Kind ==
+                AuthSessionStateKind.Valid)
             {
                 _codes.Remove(id);
             }
@@ -259,6 +287,26 @@ public partial class OnboardingWindow : Window
         finally
         {
             _busy.Remove(id);
+            Render();
+        }
+    }
+
+    private async Task CheckSessionAsync(AgentId id)
+    {
+        if (_busy.Contains(id) || !_validationBusy.Add(id))
+        {
+            return;
+        }
+
+        Render();
+        try
+        {
+            await _coordinator.RefreshAsync(id, RefreshTrigger.Manual)
+                .ConfigureAwait(true);
+        }
+        finally
+        {
+            _validationBusy.Remove(id);
             Render();
         }
     }
@@ -350,6 +398,11 @@ public partial class OnboardingWindow : Window
 
     private string StatusText(AgentPresentation agent)
     {
+        if (_validationBusy.Contains(agent.Definition.Id))
+        {
+            return "Checking connection…";
+        }
+
         if (_busy.Contains(agent.Definition.Id) ||
             (agent.IsSigningIn && !agent.AwaitingCode))
         {
@@ -363,23 +416,39 @@ public partial class OnboardingWindow : Window
             return "Awaiting code";
         }
 
-        return agent.State.Kind == AgentStateKind.SignedOut
-            ? "Not signed in"
-            : "Connected";
+        return agent.SessionState.Kind switch
+        {
+            AuthSessionStateKind.SignedOut => "Not signed in",
+            AuthSessionStateKind.Checking => "Checking connection…",
+            AuthSessionStateKind.Valid => "Connected",
+            AuthSessionStateKind.TemporarilyUnverifiable =>
+                "Couldn’t verify connection",
+            AuthSessionStateKind.ReauthenticationRequired =>
+                "Session expired — sign in again",
+            _ => "Not signed in",
+        };
     }
 
     private Brush StatusBrush(AgentPresentation agent)
     {
-        if (_busy.Contains(agent.Definition.Id) ||
+        if (_validationBusy.Contains(agent.Definition.Id) ||
+            _busy.Contains(agent.Definition.Id) ||
             agent.IsSigningIn ||
             agent.AwaitingCode)
         {
             return FindBrush("WarningBrush");
         }
 
-        return agent.State.Kind == AgentStateKind.SignedOut
-            ? FindBrush("SecondaryTextBrush")
-            : FindBrush("AccentBrush");
+        return agent.SessionState.Kind switch
+        {
+            AuthSessionStateKind.Valid => FindBrush("AccentBrush"),
+            AuthSessionStateKind.Checking or
+            AuthSessionStateKind.TemporarilyUnverifiable =>
+                FindBrush("WarningBrush"),
+            AuthSessionStateKind.ReauthenticationRequired =>
+                FindBrush("DangerBrush"),
+            _ => FindBrush("SecondaryTextBrush"),
+        };
     }
 
     private static Brush FindBrush(string key) =>

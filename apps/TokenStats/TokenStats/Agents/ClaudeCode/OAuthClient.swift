@@ -24,7 +24,7 @@ struct OAuthClient {
             "client_id": OAuthFlow.clientID,
             "code_verifier": verifier,
             "state": state,
-        ])
+        ], requestKind: .authorizationCode)
     }
 
     func refresh(refreshToken: String) async throws -> OAuthTokens {
@@ -32,21 +32,66 @@ struct OAuthClient {
             "grant_type": "refresh_token",
             "refresh_token": refreshToken,
             "client_id": OAuthFlow.clientID,
-        ])
+        ], requestKind: .refresh)
     }
 
-    private func postToken(_ body: [String: String]) async throws -> OAuthTokens {
+    private enum TokenRequestKind {
+        case authorizationCode
+        case refresh
+    }
+
+    private func postToken(
+        _ body: [String: String],
+        requestKind: TokenRequestKind
+    ) async throws -> OAuthTokens {
         var request = URLRequest(url: OAuthFlow.tokenEndpoint)
         request.timeoutInterval = 20
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, response) = try await session.data(for: request)
-        let body = String(data: data.prefix(800), encoding: .utf8) ?? "<non-utf8 \(data.count) bytes>"
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw UsageError.badResponse(status: (response as? HTTPURLResponse)?.statusCode ?? -1, body: body)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            if requestKind == .refresh {
+                if let urlError = error as? URLError, urlError.code == .cancelled {
+                    throw CancellationError()
+                }
+                if error is CancellationError { throw CancellationError() }
+                throw OAuthRefreshError(
+                    status: -1,
+                    code: nil,
+                    reauthenticationReason: nil,
+                    kind: .transport
+                )
+            }
+            throw error
         }
-        return try OAuthFlow.parseTokens(data)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            if requestKind == .refresh {
+                throw OAuthErrorDiagnostics.refreshError(data, status: status)
+            }
+            throw UsageError.badResponse(
+                status: status,
+                body: OAuthErrorDiagnostics.summary(data, operation: "OAuth request rejected")
+            )
+        }
+        do {
+            return try OAuthFlow.parseTokens(data)
+        } catch {
+            if requestKind == .refresh {
+                if error is CancellationError { throw CancellationError() }
+                throw OAuthRefreshError(
+                    status: http.statusCode,
+                    code: nil,
+                    reauthenticationReason: nil,
+                    kind: .malformedResponse
+                )
+            }
+            throw error
+        }
     }
 }

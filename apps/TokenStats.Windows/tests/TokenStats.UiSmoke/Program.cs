@@ -4,6 +4,7 @@ using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.IO;
+using System.Net.Http;
 using System.Reflection;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -249,6 +250,29 @@ internal static class Program
                     "The loopback OAuth callback parser rejected a valid request.");
             }
 
+            const string oauthErrorMarker = "raw-oauth-description-must-not-escape";
+            var denied = LoopbackAuthListener.ParseRequest(
+                "GET /auth/callback?error=ACCESS_DENIED&error_description=" +
+                oauthErrorMarker + "&state=state-123 HTTP/1.1\r\n\r\n");
+            if (denied.Error != "access_denied" ||
+                denied.Error.Contains(oauthErrorMarker, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "The loopback OAuth parser exposed an error description.");
+            }
+
+            var unknownOAuthError = LoopbackAuthListener.ParseRequest(
+                "GET /auth/callback?error=attacker_controlled&error_description=" +
+                oauthErrorMarker + "&state=state-123 HTTP/1.1\r\n\r\n");
+            if (unknownOAuthError.Error != "unknown_error" ||
+                unknownOAuthError.Error.Contains(
+                    oauthErrorMarker,
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "The loopback OAuth parser exposed an untrusted error value.");
+            }
+
             if (LoopbackAuthListener.FallbackPort != 1457 ||
                 CodexOAuthFlow.RedirectUri(LoopbackAuthListener.FallbackPort) !=
                 "http://localhost:1457/auth/callback")
@@ -263,7 +287,10 @@ internal static class Program
             VerifyWatcherDebounceDrainsWithoutCanceling(temporary);
             VerifyWatcherScanFailureRetries(temporary);
             VerifyDirectoryChangesForceReconciliation(temporary);
+            VerifyCredentialLoadRecovery(temporary);
             VerifySignOutWinsInFlightRefresh(temporary);
+            VerifyFailedSignOutPreservesSessionAndSchedulesRefresh(temporary);
+            VerifyCodexSessionValidityFlow(temporary);
 
             var auth = AgentRegistry.All.ToDictionary(
                 definition => definition.Id,
@@ -402,6 +429,7 @@ internal static class Program
 
             watcherNow = watcherNow.AddDays(-1);
             tokens.SetVisibleAsync(true).GetAwaiter().GetResult();
+            VerifySessionValidityPresentation(temporary, tokens);
             VerifyFlyoutDisplayInteractions(coordinator, settings, tokens);
 
             VerifyRuntimeThemeSwitch(
@@ -2252,20 +2280,1274 @@ internal static class Program
             }
 
             coordinator.SignOut(AgentId.ClaudeCode);
-            blocking.Release.TrySetResult();
-            start.GetAwaiter().GetResult();
             if (coordinator.GetAgent(AgentId.ClaudeCode).State.Kind !=
                     AgentStateKind.SignedOut ||
                 settings.LoadLastSnapshot(AgentId.ClaudeCode) is not null)
             {
                 throw new InvalidOperationException(
-                    "An in-flight usage refresh overwrote sign-out state.");
+                    "Sign out did not immediately clear the controlled account.");
+            }
+
+            coordinator.BeginSignInAsync(AgentId.ClaudeCode)
+                .GetAwaiter()
+                .GetResult();
+            var reconnect = coordinator.CompleteSignInAsync(
+                AgentId.ClaudeCode,
+                "replacement-code");
+            blocking.Release.TrySetResult();
+            Task.WhenAll(start, reconnect).GetAwaiter().GetResult();
+            var recovered = coordinator.GetAgent(AgentId.ClaudeCode);
+            if (recovered.State.Kind != AgentStateKind.Fresh ||
+                recovered.SessionState.Kind != AuthSessionStateKind.Valid ||
+                settings.LoadLastSnapshot(AgentId.ClaudeCode) is null)
+            {
+                throw new InvalidOperationException(
+                    "An old usage refresh overwrote or delayed the replacement session.");
             }
         }
         finally
         {
             blocking.Release.TrySetResult();
             coordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    private static void VerifyFailedSignOutPreservesSessionAndSchedulesRefresh(
+        string temporary)
+    {
+        const string rawMarker = "private-credential-clear-detail";
+        var settings = new AppSettingsStore(
+            Path.Combine(temporary, "failed-sign-out-settings.json"));
+        var cached = new UsageSnapshot(
+            [new UsageWindow("5-hour", 27, DateTimeOffset.Now.AddHours(2))],
+            DateTimeOffset.Now.AddHours(-1));
+        settings.SaveLastSnapshot(AgentId.ClaudeCode, cached);
+        var failingAuth = new FailingSignOutAuth(rawMarker);
+        var auth = AgentRegistry.All.ToDictionary(
+            definition => definition.Id,
+            definition => definition.Id == AgentId.ClaudeCode
+                ? (IAgentAuthSession)failingAuth
+                : new ConnectedAuth());
+        var blocking = new BlockingProvider();
+        var providers = new Dictionary<AgentId, IUsageProvider>
+        {
+            [AgentId.ClaudeCode] = blocking,
+            [AgentId.Codex] = new StaticProvider(AgentId.Codex),
+            [AgentId.Cursor] = new StaticProvider(AgentId.Cursor),
+        };
+        var coordinator = new UsageCoordinator(settings, auth, providers);
+        var start = coordinator.StartAsync();
+        try
+        {
+            if (!blocking.Started.Task.Wait(TimeSpan.FromSeconds(5)))
+            {
+                throw new TimeoutException(
+                    "The failed-sign-out refresh did not start.");
+            }
+
+            coordinator.SignOut(AgentId.ClaudeCode);
+            var retained = coordinator.GetAgent(AgentId.ClaudeCode);
+            var timers = typeof(UsageCoordinator)
+                .GetField("_timers", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.GetValue(coordinator) as
+                Dictionary<AgentId, CancellationTokenSource>;
+            if (!failingAuth.IsSignedIn ||
+                failingAuth.SignOutCalls != 1 ||
+                retained.SessionState.Kind !=
+                    AuthSessionStateKind.TemporarilyUnverifiable ||
+                retained.IsRefreshing ||
+                retained.State.Kind != AgentStateKind.StaleDisclosed ||
+                !SnapshotsEqual(retained.State.Snapshot, cached) ||
+                !SnapshotsEqual(
+                    settings.LoadLastSnapshot(AgentId.ClaudeCode),
+                    cached) ||
+                retained.Diagnostics?.Contains(rawMarker, StringComparison.Ordinal) == true ||
+                retained.LoginError?.Contains(rawMarker, StringComparison.Ordinal) == true ||
+                retained.LoginError?.Contains(
+                    "account remains connected",
+                    StringComparison.OrdinalIgnoreCase) != true ||
+                timers?.ContainsKey(AgentId.ClaudeCode) != true)
+            {
+                throw new InvalidOperationException(
+                    "A durable sign-out failure cleared or stranded the retained session.");
+            }
+
+            blocking.Release.TrySetResult();
+            start.GetAwaiter().GetResult();
+        }
+        finally
+        {
+            blocking.Release.TrySetResult();
+            coordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    private static bool SnapshotsEqual(
+        UsageSnapshot? left,
+        UsageSnapshot? right) =>
+        ReferenceEquals(left, right) ||
+        left is not null &&
+        right is not null &&
+        left.FetchedAt == right.FetchedAt &&
+        left.Windows.SequenceEqual(right.Windows);
+
+    private static void VerifyCredentialLoadRecovery(string temporary)
+    {
+        using var httpClient = new HttpClient(new FailFastHttpHandler());
+        var oauth = new OAuthHttpClient(httpClient);
+        var tokens = new OAuthTokens(
+            "recovered-access",
+            "recovered-refresh",
+            DateTimeOffset.Now.AddHours(1),
+            "recovered-account");
+        IAgentAuthSession[] sessions =
+        [
+            new ClaudeAuthSession(new FailFirstLoadTokenStore(tokens), oauth),
+            new CodexAuthSession(new FailFirstLoadTokenStore(tokens), oauth),
+            new CursorAuthSession(new FailFirstLoadTokenStore(tokens), oauth),
+        ];
+
+        foreach (var session in sessions)
+        {
+            if (session.SessionState.Kind !=
+                    AuthSessionStateKind.TemporarilyUnverifiable ||
+                session.SessionState.Diagnostic?.Contains(
+                    "saved credentials",
+                    StringComparison.OrdinalIgnoreCase) != true)
+            {
+                throw new InvalidOperationException(
+                    "A transient credential-store read failure was shown as signed out.");
+            }
+
+            if (!session.IsSignedIn ||
+                session.SessionState.Kind != AuthSessionStateKind.Checking)
+            {
+                throw new InvalidOperationException(
+                    "A recovered credential store did not restore session checking.");
+            }
+        }
+
+        var settings = new AppSettingsStore(
+            Path.Combine(temporary, "credential-load-recovery-settings.json"));
+        var cached = new UsageSnapshot(
+            [new UsageWindow("weekly", 19, DateTimeOffset.Now.AddDays(3))],
+            DateTimeOffset.Now.AddHours(-2));
+        settings.SaveLastSnapshot(AgentId.Codex, cached);
+        var unavailableCodex = new CodexAuthSession(
+            new UnavailableTokenStore(),
+            oauth);
+        var auth = AgentRegistry.All.ToDictionary(
+            definition => definition.Id,
+            definition => definition.Id == AgentId.Codex
+                ? (IAgentAuthSession)unavailableCodex
+                : new ConnectedAuth());
+        var codexProvider = new SequencedProvider(AgentId.Codex);
+        var providers = AgentRegistry.All.ToDictionary(
+            definition => definition.Id,
+            definition => definition.Id == AgentId.Codex
+                ? (IUsageProvider)codexProvider
+                : new StaticProvider(definition.Id));
+        var coordinator = new UsageCoordinator(settings, auth, providers);
+        try
+        {
+            coordinator.StartAsync().GetAwaiter().GetResult();
+            var retained = coordinator.GetAgent(AgentId.Codex);
+            if (retained.SessionState.Kind !=
+                    AuthSessionStateKind.TemporarilyUnverifiable ||
+                retained.State.Kind != AgentStateKind.StaleDisclosed ||
+                !SnapshotsEqual(retained.State.Snapshot, cached) ||
+                !SnapshotsEqual(
+                    settings.LoadLastSnapshot(AgentId.Codex),
+                    cached) ||
+                codexProvider.FetchCalls != 0 ||
+                coordinator.ConnectedCount != AgentRegistry.All.Count - 1)
+            {
+                throw new InvalidOperationException(
+                    "An unavailable credential store hid cached usage or appeared signed out.");
+            }
+        }
+        finally
+        {
+            coordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    private static void VerifyCodexSessionValidityFlow(string temporary)
+    {
+        VerifyNonCodexUnauthorizedRecovery(temporary);
+        VerifySessionPersistenceWarningLifecycle();
+        VerifyConcurrentPersistenceWarningCommit();
+        VerifyCodexTerminalRefreshQuarantine();
+        VerifyCodexNaturalRefreshFailureBecomesTemporary();
+        VerifyCodexRefreshOnlyStalesUsageButValidatesSession(temporary);
+        VerifyTransientForcedRefreshStopsBeforeUsage(temporary);
+        VerifyManualRefreshCoalescesAfterBackgroundRequest(temporary);
+        VerifyManualRefreshDoesNotValidateOldCredentialsDuringReconnect(temporary);
+
+        var settings = new AppSettingsStore(
+            Path.Combine(temporary, "codex-session-flow-settings.json"));
+        var codexAuth = new ProactiveTestAuth(AuthSessionState.Checking());
+        var auth = AgentRegistry.All.ToDictionary(
+            definition => definition.Id,
+            definition => definition.Id == AgentId.Codex
+                ? (IAgentAuthSession)codexAuth
+                : new ConnectedAuth());
+        var codexProvider = new SequencedProvider(AgentId.Codex);
+        codexProvider.EnqueueFailure(401);
+        var providers = AgentRegistry.All.ToDictionary(
+            definition => definition.Id,
+            definition => definition.Id == AgentId.Codex
+                ? (IUsageProvider)codexProvider
+                : new StaticProvider(definition.Id));
+        var coordinator = new UsageCoordinator(settings, auth, providers);
+        try
+        {
+            coordinator.StartAsync().GetAwaiter().GetResult();
+            if (codexAuth.ForceValidationCalls != 1 ||
+                codexProvider.FetchCalls != 1 ||
+                coordinator.GetAgent(AgentId.Codex).SessionState.Kind !=
+                    AuthSessionStateKind.ReauthenticationRequired ||
+                coordinator.ConnectedCount != AgentRegistry.All.Count - 1)
+            {
+                throw new InvalidOperationException(
+                    "A startup Usage 401 repeated proactive validation instead of quarantining the rejected session.");
+            }
+
+            coordinator.BeginSignInAsync(AgentId.Codex)
+                .GetAwaiter()
+                .GetResult();
+            if (codexAuth.ForceValidationCalls != 1 ||
+                codexProvider.FetchCalls != 2 ||
+                coordinator.GetAgent(AgentId.Codex).SessionState.Kind !=
+                    AuthSessionStateKind.Valid)
+            {
+                throw new InvalidOperationException(
+                    "Reconnect did not recover after startup session rejection.");
+            }
+
+            foreach (var statusCode in new[] { 403, 429 })
+            {
+                codexProvider.EnqueueFailure(statusCode);
+                coordinator.RefreshAsync(
+                        AgentId.Codex,
+                        RefreshTrigger.PopoverOpen)
+                    .GetAwaiter()
+                    .GetResult();
+                var unavailable = coordinator.GetAgent(AgentId.Codex);
+                if (codexAuth.ForceValidationCalls != 1 ||
+                    unavailable.SessionState.Kind !=
+                        AuthSessionStateKind.Valid ||
+                    unavailable.State.Kind != AgentStateKind.StaleDisclosed)
+                {
+                    throw new InvalidOperationException(
+                        $"Usage HTTP {statusCode} changed Codex session validity.");
+                }
+            }
+
+            codexProvider.EnqueueFailure(500);
+            coordinator.RefreshAsync(AgentId.Codex, RefreshTrigger.Manual)
+                .GetAwaiter()
+                .GetResult();
+            var afterServerFailure = coordinator.GetAgent(AgentId.Codex);
+            if (codexAuth.ForceValidationCalls != 2 ||
+                afterServerFailure.SessionState.Kind !=
+                    AuthSessionStateKind.Valid ||
+                afterServerFailure.State.Kind != AgentStateKind.StaleDisclosed)
+            {
+                throw new InvalidOperationException(
+                    "A non-auth usage failure changed a successfully refreshed Codex session.");
+            }
+
+            codexProvider.EnqueueFailure(401);
+            coordinator.RefreshAsync(AgentId.Codex, RefreshTrigger.Manual)
+                .GetAwaiter()
+                .GetResult();
+            var manuallyRejected = coordinator.GetAgent(AgentId.Codex);
+            if (codexAuth.ForceValidationCalls != 3 ||
+                codexProvider.FetchCalls != 6 ||
+                manuallyRejected.SessionState.Kind !=
+                    AuthSessionStateKind.ReauthenticationRequired ||
+                manuallyRejected.State.Kind != AgentStateKind.StaleDisclosed)
+            {
+                throw new InvalidOperationException(
+                    "A usage 401 after manual force-validation was not quarantined without another rotation.");
+            }
+
+            coordinator.BeginSignInAsync(AgentId.Codex)
+                .GetAwaiter()
+                .GetResult();
+            if (codexAuth.ForceValidationCalls != 3 ||
+                codexProvider.FetchCalls != 7 ||
+                coordinator.GetAgent(AgentId.Codex).SessionState.Kind !=
+                    AuthSessionStateKind.Valid)
+            {
+                throw new InvalidOperationException(
+                    "Reconnect did not replace and validate a quarantined Codex session.");
+            }
+
+            codexProvider.EnqueueFailure(401);
+            codexProvider.EnqueueSuccess();
+            coordinator.RefreshAsync(AgentId.Codex, RefreshTrigger.PopoverOpen)
+                .GetAwaiter()
+                .GetResult();
+            var recovered = coordinator.GetAgent(AgentId.Codex);
+            if (codexAuth.ForceValidationCalls != 4 ||
+                codexProvider.FetchCalls != 9 ||
+                recovered.SessionState.Kind != AuthSessionStateKind.Valid ||
+                recovered.State.Kind != AgentStateKind.Fresh)
+            {
+                throw new InvalidOperationException(
+                    "A usage 401 did not force-refresh once and retry once.");
+            }
+
+            codexProvider.EnqueueFailure(401);
+            codexProvider.EnqueueFailure(401);
+            coordinator.RefreshAsync(AgentId.Codex, RefreshTrigger.PopoverOpen)
+                .GetAwaiter()
+                .GetResult();
+            var rejected = coordinator.GetAgent(AgentId.Codex);
+            if (codexAuth.ForceValidationCalls != 5 ||
+                codexProvider.FetchCalls != 11 ||
+                rejected.SessionState.Kind !=
+                    AuthSessionStateKind.ReauthenticationRequired ||
+                rejected.State.Kind != AgentStateKind.StaleDisclosed ||
+                rejected.State.Snapshot is null ||
+                settings.LoadLastSnapshot(AgentId.Codex) is null)
+            {
+                throw new InvalidOperationException(
+                    "A post-refresh usage 401 did not quarantine the session and retain usage.");
+            }
+
+            coordinator.RefreshAsync(AgentId.Codex, RefreshTrigger.Timer)
+                .GetAwaiter()
+                .GetResult();
+            if (codexAuth.ForceValidationCalls != 5 ||
+                codexProvider.FetchCalls != 11)
+            {
+                throw new InvalidOperationException(
+                    "A quarantined Codex session was retried by the timer.");
+            }
+        }
+        finally
+        {
+            coordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+
+        var transientSettings = new AppSettingsStore(
+            Path.Combine(temporary, "codex-session-transient-settings.json"));
+        var transientCodex = new ProactiveTestAuth(AuthSessionState.Checking());
+        transientCodex.EnqueueValidation(
+            AuthSessionState.TemporarilyUnverifiable(
+                null,
+                "Synthetic authentication outage."));
+        var transientAuth = AgentRegistry.All.ToDictionary(
+            definition => definition.Id,
+            definition => definition.Id == AgentId.Codex
+                ? (IAgentAuthSession)transientCodex
+                : new ConnectedAuth());
+        var transientCodexProvider = new SequencedProvider(AgentId.Codex);
+        var transientProviders = AgentRegistry.All.ToDictionary(
+            definition => definition.Id,
+            definition => definition.Id == AgentId.Codex
+                ? (IUsageProvider)transientCodexProvider
+                : new StaticProvider(definition.Id));
+        var transientCoordinator = new UsageCoordinator(
+            transientSettings,
+            transientAuth,
+            transientProviders);
+        try
+        {
+            transientCoordinator.StartAsync().GetAwaiter().GetResult();
+            var presentation = transientCoordinator.GetAgent(AgentId.Codex);
+            if (presentation.SessionState.Kind !=
+                    AuthSessionStateKind.TemporarilyUnverifiable ||
+                presentation.State.Kind != AgentStateKind.Loading ||
+                transientCodexProvider.FetchCalls != 0)
+            {
+                throw new InvalidOperationException(
+                    "A transient explicit validation failure continued into a usage request.");
+            }
+        }
+        finally
+        {
+            transientCoordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    private static void VerifyNonCodexUnauthorizedRecovery(string temporary)
+    {
+        foreach (var id in new[] { AgentId.ClaudeCode, AgentId.Cursor })
+        {
+            var now = DateTimeOffset.Now;
+            var store = new MemoryAuthTokenStore
+            {
+                Value = new OAuthTokens(
+                    $"{id}-access",
+                    $"{id}-refresh",
+                    now.AddHours(1)),
+            };
+            using var handler = new QueuedOAuthHandler();
+            handler.Enqueue(
+                200,
+                """{"access_token":"rotated-access","refresh_token":"rotated-refresh","expires_in":3600}""");
+            using var httpClient = new HttpClient(handler);
+            var session = CreateNonCodexAuthSession(
+                id,
+                store,
+                new OAuthHttpClient(httpClient),
+                () => now);
+            var provider = new SequencedProvider(id);
+            provider.EnqueueFailure(401);
+            provider.EnqueueSuccess();
+            var auth = AgentRegistry.All.ToDictionary(
+                definition => definition.Id,
+                definition => definition.Id == id
+                    ? session
+                    : new ConnectedAuth());
+            var providers = AgentRegistry.All.ToDictionary(
+                definition => definition.Id,
+                definition => definition.Id == id
+                    ? (IUsageProvider)provider
+                    : new StaticProvider(definition.Id));
+            var settings = new AppSettingsStore(Path.Combine(
+                temporary,
+                $"{id}-unauthorized-recovery-settings.json"));
+            var coordinator = new UsageCoordinator(settings, auth, providers);
+            try
+            {
+                coordinator.StartAsync().GetAwaiter().GetResult();
+                var recovered = coordinator.GetAgent(id);
+                if (handler.RequestCount != 1 ||
+                    provider.FetchCalls != 2 ||
+                    recovered.SessionState.Kind != AuthSessionStateKind.Valid ||
+                    recovered.State.Kind != AgentStateKind.Fresh ||
+                    store.Value?.RefreshToken != "rotated-refresh")
+                {
+                    throw new InvalidOperationException(
+                        $"{id} did not force-refresh once and retry Usage after HTTP 401.");
+                }
+
+                handler.Enqueue(
+                    200,
+                    """{"access_token":"second-access","refresh_token":"second-refresh","expires_in":3600}""");
+                provider.EnqueueFailure(401);
+                provider.EnqueueFailure(401);
+                coordinator.RefreshAsync(id, RefreshTrigger.Manual)
+                    .GetAwaiter()
+                    .GetResult();
+                var rejected = coordinator.GetAgent(id);
+                if (handler.RequestCount != 2 ||
+                    provider.FetchCalls != 4 ||
+                    rejected.SessionState.Kind !=
+                        AuthSessionStateKind.ReauthenticationRequired ||
+                    rejected.SessionState.ReauthenticationReason !=
+                        OAuthRefreshFailureReason.Unauthorized ||
+                    rejected.State.Kind != AgentStateKind.StaleDisclosed ||
+                    rejected.State.Snapshot is null ||
+                    settings.LoadLastSnapshot(id) is null ||
+                    coordinator.ConnectedCount != AgentRegistry.All.Count - 1)
+                {
+                    throw new InvalidOperationException(
+                        $"{id} did not quarantine a refreshed session after a second Usage HTTP 401.");
+                }
+
+                coordinator.RefreshAsync(id, RefreshTrigger.Timer)
+                    .GetAwaiter()
+                    .GetResult();
+                if (handler.RequestCount != 2 || provider.FetchCalls != 4)
+                {
+                    throw new InvalidOperationException(
+                        $"{id} retried a quarantined session automatically.");
+                }
+            }
+            finally
+            {
+                coordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            }
+
+            var expiredStore = new MemoryAuthTokenStore
+            {
+                Value = new OAuthTokens(
+                    $"{id}-expired-access",
+                    $"{id}-revoked-refresh",
+                    now.AddMinutes(-5)),
+            };
+            using var rejectedHandler = new QueuedOAuthHandler();
+            rejectedHandler.Enqueue(
+                401,
+                """{"error":{"code":"invalid_token"}}""");
+            using var rejectedHttpClient = new HttpClient(rejectedHandler);
+            var rejectedSession = CreateNonCodexAuthSession(
+                id,
+                expiredStore,
+                new OAuthHttpClient(rejectedHttpClient),
+                () => now);
+            rejectedSession.MarkUsageSucceeded(now.AddHours(-1));
+            var rejectedAuth = AgentRegistry.All.ToDictionary(
+                definition => definition.Id,
+                definition => definition.Id == id
+                    ? rejectedSession
+                    : new ConnectedAuth());
+            var accessBacked = new AccessTokenBackedProvider(
+                rejectedSession.ValidAccessTokenAsync,
+                id);
+            var rejectedProviders = AgentRegistry.All.ToDictionary(
+                definition => definition.Id,
+                definition => definition.Id == id
+                    ? (IUsageProvider)accessBacked
+                    : new StaticProvider(definition.Id));
+            var rejectedSettings = new AppSettingsStore(Path.Combine(
+                temporary,
+                $"{id}-refresh-rejection-settings.json"));
+            var rejectedCoordinator = new UsageCoordinator(
+                rejectedSettings,
+                rejectedAuth,
+                rejectedProviders);
+            try
+            {
+                rejectedCoordinator.StartAsync().GetAwaiter().GetResult();
+                var rejectedRefresh = rejectedCoordinator.GetAgent(id);
+                if (rejectedHandler.RequestCount != 1 ||
+                    accessBacked.FetchCalls != 1 ||
+                    rejectedRefresh.SessionState.Kind !=
+                        AuthSessionStateKind.ReauthenticationRequired ||
+                    rejectedRefresh.SessionState.ReauthenticationReason !=
+                        OAuthRefreshFailureReason.Unauthorized)
+                {
+                    throw new InvalidOperationException(
+                        $"{id} refresh HTTP 401 was not quarantined without a duplicate grant request.");
+                }
+            }
+            finally
+            {
+                rejectedCoordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            }
+
+            var passiveStore = new MemoryAuthTokenStore
+            {
+                Value = new OAuthTokens(
+                    $"{id}-passive-access",
+                    $"{id}-passive-refresh",
+                    now.AddHours(1)),
+            };
+            using var passiveHandler = new QueuedOAuthHandler();
+            using var passiveHttpClient = new HttpClient(passiveHandler);
+            var passiveSession = CreateNonCodexAuthSession(
+                id,
+                passiveStore,
+                new OAuthHttpClient(passiveHttpClient),
+                () => now);
+            var passiveAuth = AgentRegistry.All.ToDictionary(
+                definition => definition.Id,
+                definition => definition.Id == id
+                    ? passiveSession
+                    : new ConnectedAuth());
+            var passiveProvider = new AccessTokenBackedProvider(
+                passiveSession.ValidAccessTokenAsync,
+                id);
+            var passiveProviders = AgentRegistry.All.ToDictionary(
+                definition => definition.Id,
+                definition => definition.Id == id
+                    ? (IUsageProvider)passiveProvider
+                    : new StaticProvider(definition.Id));
+            var passiveSettings = new AppSettingsStore(Path.Combine(
+                temporary,
+                $"{id}-passive-validation-settings.json"));
+            var passiveCoordinator = new UsageCoordinator(
+                passiveSettings,
+                passiveAuth,
+                passiveProviders);
+            try
+            {
+                passiveCoordinator.StartAsync().GetAwaiter().GetResult();
+                passiveCoordinator.RefreshAsync(id, RefreshTrigger.Manual)
+                    .GetAwaiter()
+                    .GetResult();
+                if (passiveHandler.RequestCount != 0 ||
+                    passiveProvider.FetchCalls != 2 ||
+                    passiveCoordinator.GetAgent(id).SessionState.Kind !=
+                        AuthSessionStateKind.Valid)
+                {
+                    throw new InvalidOperationException(
+                        $"{id} rotated credentials proactively without a Usage HTTP 401.");
+                }
+            }
+            finally
+            {
+                passiveCoordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            }
+        }
+    }
+
+    private static IAgentAuthSession CreateNonCodexAuthSession(
+        AgentId id,
+        ITokenStore store,
+        OAuthHttpClient client,
+        Func<DateTimeOffset> now) => id switch
+        {
+            AgentId.ClaudeCode => new ClaudeAuthSession(store, client, now),
+            AgentId.Cursor => new CursorAuthSession(store, client, now),
+            _ => throw new ArgumentOutOfRangeException(nameof(id)),
+        };
+
+    private static void VerifySessionPersistenceWarningLifecycle()
+    {
+        foreach (var id in new[]
+                 {
+                     AgentId.ClaudeCode,
+                     AgentId.Codex,
+                     AgentId.Cursor,
+                 })
+        {
+            var now = DateTimeOffset.Now;
+            var original = new OAuthTokens(
+                $"{id}-access",
+                $"{id}-refresh",
+                now.AddHours(1),
+                id == AgentId.Codex ? "codex-account" : null);
+            var store = new MemoryAuthTokenStore
+            {
+                Value = original,
+                FailSaves = true,
+            };
+            using var handler = new QueuedOAuthHandler();
+            handler.Enqueue(
+                200,
+                """{"access_token":"rotated-access","refresh_token":"rotated-refresh","expires_in":3600}""");
+            using var httpClient = new HttpClient(handler);
+            var client = new OAuthHttpClient(httpClient);
+            IAgentAuthSession session = id switch
+            {
+                AgentId.ClaudeCode =>
+                    new ClaudeAuthSession(store, client, () => now),
+                AgentId.Codex => new CodexAuthSession(store, client, () => now),
+                AgentId.Cursor => new CursorAuthSession(store, client, () => now),
+                _ => throw new ArgumentOutOfRangeException(nameof(id)),
+            };
+            var recoverable = (IUnauthorizedRecoveryAuthSession)session;
+
+            var accepted = recoverable.ForceValidateSessionAsync()
+                .GetAwaiter()
+                .GetResult();
+            if (accepted.Kind != AuthSessionStateKind.Valid ||
+                accepted.Diagnostic?.Contains(
+                    "could not be saved",
+                    StringComparison.OrdinalIgnoreCase) != true ||
+                store.Value != original ||
+                handler.RequestCount != 1)
+            {
+                throw new InvalidOperationException(
+                    $"{id} did not retain a safe warning for an in-memory-only rotation.");
+            }
+
+            _ = session.ValidAccessTokenAsync().GetAwaiter().GetResult();
+            session.MarkUsageSucceeded(now.AddMinutes(1));
+            if (session.SessionState.Kind != AuthSessionStateKind.Valid ||
+                session.SessionState.Diagnostic?.Contains(
+                    "could not be saved",
+                    StringComparison.OrdinalIgnoreCase) != true ||
+                store.Value != original ||
+                handler.RequestCount != 1)
+            {
+                throw new InvalidOperationException(
+                    $"{id} cleared the persistence warning after another failed save and successful Usage.");
+            }
+
+            store.FailSaves = false;
+            _ = session.ValidAccessTokenAsync().GetAwaiter().GetResult();
+            session.MarkUsageSucceeded(now.AddMinutes(2));
+            if (session.SessionState.Kind != AuthSessionStateKind.Valid ||
+                session.SessionState.Diagnostic is not null ||
+                store.Value?.RefreshToken != "rotated-refresh" ||
+                handler.RequestCount != 1)
+            {
+                throw new InvalidOperationException(
+                    $"{id} did not clear the persistence warning after compare-and-replace succeeded.");
+            }
+        }
+    }
+
+    private static void VerifyConcurrentPersistenceWarningCommit()
+    {
+        foreach (var id in new[]
+                 {
+                     AgentId.ClaudeCode,
+                     AgentId.Codex,
+                     AgentId.Cursor,
+                 })
+        {
+            var now = DateTimeOffset.Now;
+            var store = new MemoryAuthTokenStore
+            {
+                Value = new OAuthTokens(
+                    $"{id}-concurrent-access",
+                    $"{id}-concurrent-refresh",
+                    now.AddHours(1),
+                    id == AgentId.Codex ? "codex-account" : null),
+                FailSaves = true,
+            };
+            using var handler = new BlockingOAuthRefreshHandler(
+                """{"access_token":"rotated-access","refresh_token":"rotated-refresh","expires_in":3600}""");
+            using var httpClient = new HttpClient(handler);
+            var client = new OAuthHttpClient(httpClient);
+            IAgentAuthSession session = id switch
+            {
+                AgentId.ClaudeCode =>
+                    new ClaudeAuthSession(store, client, () => now),
+                AgentId.Codex => new CodexAuthSession(store, client, () => now),
+                AgentId.Cursor => new CursorAuthSession(store, client, () => now),
+                _ => throw new ArgumentOutOfRangeException(nameof(id)),
+            };
+            var recoverable = (IUnauthorizedRecoveryAuthSession)session;
+            var validation = recoverable.ForceValidateSessionAsync();
+            if (!handler.Started.Task.Wait(TimeSpan.FromSeconds(5)))
+            {
+                throw new TimeoutException(
+                    $"{id} controlled persistence refresh did not start.");
+            }
+
+            var stop = 0;
+            var warningObserved = 0;
+            var warningLost = 0;
+            var workers = Enumerable.Range(0, 6)
+                .Select(_ => Task.Run(() =>
+                {
+                    while (Volatile.Read(ref stop) == 0)
+                    {
+                        session.MarkUsageSucceeded(now.AddMinutes(1));
+                        var diagnostic = session.SessionState.Diagnostic;
+                        if (diagnostic?.Contains(
+                                "could not be saved",
+                                StringComparison.OrdinalIgnoreCase) == true)
+                        {
+                            Volatile.Write(ref warningObserved, 1);
+                        }
+                        else if (Volatile.Read(ref warningObserved) == 1)
+                        {
+                            Volatile.Write(ref warningLost, 1);
+                        }
+                    }
+                }))
+                .ToArray();
+
+            handler.Release.TrySetResult();
+            var validated = validation.GetAwaiter().GetResult();
+            if (!SpinWait.SpinUntil(
+                    () => Volatile.Read(ref warningObserved) == 1,
+                    TimeSpan.FromSeconds(5)))
+            {
+                Volatile.Write(ref stop, 1);
+                Task.WaitAll(workers);
+                throw new InvalidOperationException(
+                    $"{id} never published the controlled persistence warning.");
+            }
+
+            Thread.Sleep(25);
+            Volatile.Write(ref stop, 1);
+            Task.WaitAll(workers);
+            if (validated.Kind != AuthSessionStateKind.Valid ||
+                Volatile.Read(ref warningLost) != 0 ||
+                session.SessionState.Diagnostic?.Contains(
+                    "could not be saved",
+                    StringComparison.OrdinalIgnoreCase) != true)
+            {
+                throw new InvalidOperationException(
+                    $"{id} lost a refresh persistence warning during a concurrent Usage commit.");
+            }
+        }
+    }
+
+    private static void VerifyCodexNaturalRefreshFailureBecomesTemporary()
+    {
+        var now = DateTimeOffset.Parse("2026-08-29T08:00:00Z");
+        var store = new MemoryAuthTokenStore
+        {
+            Value = new OAuthTokens(
+                "expired-access",
+                "refresh-token",
+                now.AddMinutes(-5),
+                "account-id"),
+        };
+        var handler = new QueuedOAuthHandler();
+        handler.Enqueue(
+            500,
+            "{\"error\":{\"code\":\"server_error\"}}");
+        using var httpClient = new HttpClient(handler);
+        var session = new CodexAuthSession(
+            store,
+            new OAuthHttpClient(httpClient),
+            () => now);
+        session.MarkUsageSucceeded(now.AddHours(-1));
+
+        try
+        {
+            _ = session.ValidAccessTokenAsync().GetAwaiter().GetResult();
+            throw new InvalidOperationException(
+                "A transient natural token refresh unexpectedly succeeded.");
+        }
+        catch (OAuthRefreshException exception) when (!exception.IsTerminal)
+        {
+        }
+
+        if (handler.RequestCount != 1 ||
+            session.SessionState.Kind !=
+                AuthSessionStateKind.TemporarilyUnverifiable)
+        {
+            throw new InvalidOperationException(
+                "A transient natural token refresh left the session marked valid.");
+        }
+    }
+
+    private static void VerifyTransientForcedRefreshStopsBeforeUsage(
+        string temporary)
+    {
+        var now = DateTimeOffset.Parse("2026-08-29T08:00:00Z");
+        var store = new MemoryAuthTokenStore
+        {
+            Value = new OAuthTokens(
+                "expired-access",
+                "refresh-token",
+                now.AddMinutes(-5),
+                "account-id"),
+        };
+        var handler = new QueuedOAuthHandler();
+        handler.Enqueue(
+            500,
+            "{\"error\":{\"code\":\"server_error\"}}");
+        using var httpClient = new HttpClient(handler);
+        var codexAuth = new CodexAuthSession(
+            store,
+            new OAuthHttpClient(httpClient),
+            () => now);
+        var auth = AgentRegistry.All.ToDictionary(
+            definition => definition.Id,
+            definition => definition.Id == AgentId.Codex
+                ? (IAgentAuthSession)codexAuth
+                : new ConnectedAuth());
+        var codexProvider = new AccessTokenBackedProvider(
+            codexAuth.ValidAccessTokenAsync,
+            AgentId.Codex);
+        var providers = AgentRegistry.All.ToDictionary(
+            definition => definition.Id,
+            definition => definition.Id == AgentId.Codex
+                ? (IUsageProvider)codexProvider
+                : new StaticProvider(definition.Id));
+        var settings = new AppSettingsStore(
+            Path.Combine(temporary, "transient-force-stop-settings.json"));
+        var coordinator = new UsageCoordinator(settings, auth, providers);
+        try
+        {
+            coordinator.StartAsync().GetAwaiter().GetResult();
+            var presentation = coordinator.GetAgent(AgentId.Codex);
+            if (handler.RequestCount != 1 ||
+                codexProvider.FetchCalls != 0 ||
+                presentation.SessionState.Kind !=
+                    AuthSessionStateKind.TemporarilyUnverifiable)
+            {
+                throw new InvalidOperationException(
+                    "One startup trigger retried a transient token refresh through Usage.");
+            }
+        }
+        finally
+        {
+            coordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    private static void VerifyManualRefreshCoalescesAfterBackgroundRequest(
+        string temporary)
+    {
+        var settings = new AppSettingsStore(
+            Path.Combine(temporary, "manual-coalescing-settings.json"));
+        var codexAuth = new ProactiveTestAuth(AuthSessionState.Valid(
+            DateTimeOffset.Now));
+        var auth = AgentRegistry.All.ToDictionary(
+            definition => definition.Id,
+            definition => definition.Id == AgentId.Codex
+                ? (IAgentAuthSession)codexAuth
+                : new ConnectedAuth());
+        var blocking = new BlockingProvider();
+        var providers = AgentRegistry.All.ToDictionary(
+            definition => definition.Id,
+            definition => definition.Id == AgentId.Codex
+                ? (IUsageProvider)blocking
+                : new StaticProvider(definition.Id));
+        var coordinator = new UsageCoordinator(settings, auth, providers);
+        try
+        {
+            var background = coordinator.RefreshAsync(
+                AgentId.Codex,
+                RefreshTrigger.PopoverOpen);
+            if (!blocking.Started.Task.Wait(TimeSpan.FromSeconds(5)))
+            {
+                throw new TimeoutException(
+                    "The controlled background refresh did not start.");
+            }
+
+            coordinator.RefreshAsync(AgentId.Codex, RefreshTrigger.Manual)
+                .GetAwaiter()
+                .GetResult();
+            coordinator.RefreshAsync(AgentId.Codex, RefreshTrigger.Manual)
+                .GetAwaiter()
+                .GetResult();
+            blocking.Release.TrySetResult();
+            background.GetAwaiter().GetResult();
+            if (!SpinWait.SpinUntil(
+                    () => codexAuth.ForceValidationCalls == 1 &&
+                        blocking.FetchCalls == 2,
+                    TimeSpan.FromSeconds(5)))
+            {
+                throw new InvalidOperationException(
+                    "A manual session check was dropped or replayed more than once behind background usage.");
+            }
+        }
+        finally
+        {
+            blocking.Release.TrySetResult();
+            coordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    private static void VerifyManualRefreshDoesNotValidateOldCredentialsDuringReconnect(
+        string temporary)
+    {
+        var settings = new AppSettingsStore(
+            Path.Combine(temporary, "manual-during-reconnect-settings.json"));
+        var codexAuth = new ProactiveTestAuth(
+            AuthSessionState.Valid(DateTimeOffset.Now),
+            suspendSignIn: true);
+        var auth = AgentRegistry.All.ToDictionary(
+            definition => definition.Id,
+            definition => definition.Id == AgentId.Codex
+                ? (IAgentAuthSession)codexAuth
+                : new ConnectedAuth());
+        var codexProvider = new SequencedProvider(AgentId.Codex);
+        var providers = AgentRegistry.All.ToDictionary(
+            definition => definition.Id,
+            definition => definition.Id == AgentId.Codex
+                ? (IUsageProvider)codexProvider
+                : new StaticProvider(definition.Id));
+        var coordinator = new UsageCoordinator(settings, auth, providers);
+        try
+        {
+            var reconnect = coordinator.BeginSignInAsync(AgentId.Codex);
+            if (!codexAuth.SignInStarted.Task.Wait(TimeSpan.FromSeconds(5)))
+            {
+                throw new TimeoutException(
+                    "The controlled Codex reconnect did not start.");
+            }
+
+            coordinator.RefreshAsync(AgentId.Codex, RefreshTrigger.Manual)
+                .GetAwaiter()
+                .GetResult();
+            if (codexAuth.ForceValidationCalls != 0 ||
+                codexProvider.FetchCalls != 0)
+            {
+                throw new InvalidOperationException(
+                    "A manual refresh validated old credentials during reconnect.");
+            }
+
+            codexAuth.ReleaseSignIn.TrySetResult();
+            reconnect.GetAwaiter().GetResult();
+            var connected = coordinator.GetAgent(AgentId.Codex);
+            if (codexAuth.ForceValidationCalls != 0 ||
+                codexProvider.FetchCalls != 1 ||
+                connected.SessionState.Kind != AuthSessionStateKind.Valid ||
+                connected.State.Kind != AgentStateKind.Fresh ||
+                connected.IsSigningIn)
+            {
+                throw new InvalidOperationException(
+                    "Reconnect did not consume the pending manual click with one SignIn usage fetch.");
+            }
+        }
+        finally
+        {
+            codexAuth.ReleaseSignIn.TrySetResult();
+            coordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    private static void VerifyCodexTerminalRefreshQuarantine()
+    {
+        const string rawMarker = "private-token-endpoint-detail";
+        var now = DateTimeOffset.Parse("2026-08-29T08:00:00Z");
+        var store = new MemoryAuthTokenStore
+        {
+            Value = new OAuthTokens(
+                "access",
+                "refresh",
+                now.AddHours(1),
+                "account"),
+        };
+        using var handler = new QueuedOAuthHandler();
+        handler.Enqueue(
+            400,
+            JsonSerializer.Serialize(new
+            {
+                error = new
+                {
+                    code = "refresh_token_invalidated",
+                    message = rawMarker,
+                },
+            }));
+        using var httpClient = new HttpClient(handler);
+        var session = new CodexAuthSession(
+            store,
+            new OAuthHttpClient(httpClient),
+            () => now);
+
+        var state = session.ForceValidateSessionAsync()
+            .GetAwaiter()
+            .GetResult();
+        if (state.Kind != AuthSessionStateKind.ReauthenticationRequired ||
+            state.ReauthenticationReason != OAuthRefreshFailureReason.Revoked ||
+            state.Diagnostic?.Contains(rawMarker, StringComparison.Ordinal) == true ||
+            !session.IsSignedIn ||
+            store.Value?.RefreshToken != "refresh" ||
+            handler.RequestCount != 1)
+        {
+            throw new InvalidOperationException(
+                "A terminal Codex refresh was not sanitized and quarantined in place.");
+        }
+
+        try
+        {
+            _ = session.ValidAccessTokenAsync().GetAwaiter().GetResult();
+            throw new InvalidOperationException(
+                "A quarantined credential was returned to the usage provider.");
+        }
+        catch (UsageException)
+        {
+        }
+
+        if (handler.RequestCount != 1)
+        {
+            throw new InvalidOperationException(
+                "A quarantined credential retried the OAuth endpoint.");
+        }
+    }
+
+    private static void VerifyCodexRefreshOnlyStalesUsageButValidatesSession(
+        string temporary)
+    {
+        var now = DateTimeOffset.Parse("2026-08-29T08:00:00Z");
+        foreach (var persistenceFails in new[] { false, true })
+        {
+            var settings = new AppSettingsStore(Path.Combine(
+                temporary,
+                $"codex-refresh-only-{persistenceFails}.json"));
+            var cached = new UsageSnapshot(
+                [new UsageWindow("Weekly", 31, now.AddDays(2))],
+                now.AddHours(-2));
+            settings.SaveLastSnapshot(AgentId.Codex, cached);
+            var store = new MemoryAuthTokenStore
+            {
+                Value = new OAuthTokens(
+                    "expired-access",
+                    "old-refresh",
+                    now.AddHours(-1),
+                    "account"),
+                FailSaves = persistenceFails,
+            };
+            using var handler = new QueuedOAuthHandler();
+            handler.Enqueue(
+                200,
+                """{"refresh_token":"rotated-refresh"}""");
+            using var httpClient = new HttpClient(handler);
+            var codexSession = new CodexAuthSession(
+                store,
+                new OAuthHttpClient(httpClient),
+                () => now);
+            var auth = AgentRegistry.All.ToDictionary(
+                definition => definition.Id,
+                definition => definition.Id == AgentId.Codex
+                    ? (IAgentAuthSession)codexSession
+                    : new ConnectedAuth());
+            var codexProvider = new SequencedProvider(AgentId.Codex);
+            var providers = AgentRegistry.All.ToDictionary(
+                definition => definition.Id,
+                definition => definition.Id == AgentId.Codex
+                    ? (IUsageProvider)codexProvider
+                    : new StaticProvider(definition.Id));
+            var coordinator = new UsageCoordinator(settings, auth, providers);
+            try
+            {
+                coordinator.StartAsync().GetAwaiter().GetResult();
+                var retained = coordinator.GetAgent(AgentId.Codex);
+                if (!codexSession.IsSignedIn ||
+                    retained.SessionState.Kind != AuthSessionStateKind.Valid ||
+                    retained.State.Kind != AgentStateKind.StaleDisclosed ||
+                    !SnapshotsEqual(retained.State.Snapshot, cached) ||
+                    codexProvider.FetchCalls != 0 ||
+                    handler.RequestCount != 1 ||
+                    store.Value?.RefreshToken !=
+                        (persistenceFails ? "old-refresh" : "rotated-refresh") ||
+                    retained.Diagnostics?.Contains(
+                        "no usable access token",
+                        StringComparison.OrdinalIgnoreCase) != true ||
+                    (persistenceFails &&
+                     retained.Diagnostics?.Contains(
+                         "could not be saved",
+                         StringComparison.OrdinalIgnoreCase) != true))
+                {
+                    throw new InvalidOperationException(
+                        "A refresh-only response returned an expired bearer or invalidated the accepted session.");
+                }
+            }
+            finally
+            {
+                coordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            }
+        }
+    }
+
+    private static void VerifySessionValidityPresentation(
+        string temporary,
+        TokenOdometerWatcher tokens)
+    {
+        var settings = new AppSettingsStore(
+            Path.Combine(temporary, "session-presentation-settings.json"));
+        settings.SaveLastSnapshot(
+            AgentId.Codex,
+            new UsageSnapshot(
+                [new UsageWindow("Weekly", 35, DateTimeOffset.Now.AddDays(2))],
+                DateTimeOffset.Now.AddHours(-3)));
+        var codex = new ProactiveTestAuth(
+            AuthSessionState.ReauthenticationRequired(
+                OAuthRefreshFailureReason.Revoked,
+                "The Codex session was revoked. Sign in again."));
+        var auth = AgentRegistry.All.ToDictionary(
+            definition => definition.Id,
+            definition => definition.Id == AgentId.Codex
+                ? (IAgentAuthSession)codex
+                : new ConnectedAuth());
+        var providers = AgentRegistry.All.ToDictionary(
+            definition => definition.Id,
+            definition => (IUsageProvider)new StaticProvider(definition.Id));
+        var coordinator = new UsageCoordinator(settings, auth, providers);
+        coordinator.StartAsync().GetAwaiter().GetResult();
+        var openedSettings = false;
+        var flyout = new FlyoutWindow(
+            coordinator,
+            settings,
+            tokens,
+            () => openedSettings = true,
+            () => { })
+        {
+            ShowActivated = false,
+        };
+        var settingsWindow = new SettingsWindow(
+            coordinator,
+            settings,
+            () => { })
+        {
+            ShowActivated = false,
+        };
+        try
+        {
+            ShowAndCompleteLayout(settingsWindow);
+            var settingsTexts = EnumerateVisualDescendants<TextBlock>(settingsWindow)
+                .Select(text => text.Text)
+                .ToArray();
+            var settingsButtons = EnumerateVisualDescendants<Button>(settingsWindow)
+                .Select(button => button.Content as string)
+                .OfType<string>()
+                .ToArray();
+            if (!settingsTexts.Contains(
+                    "Session expired — sign in again",
+                    StringComparer.Ordinal) ||
+                !settingsButtons.Contains("Reconnect", StringComparer.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "Settings did not expose the reauthentication state and action.");
+            }
+
+            ShowAndCompleteLayout(flyout);
+            var flyoutTexts = EnumerateVisualDescendants<TextBlock>(flyout)
+                .Select(text => text.Text)
+                .Where(text => !string.IsNullOrWhiteSpace(text))
+                .ToArray();
+            var reconnect = EnumerateVisualDescendants<Button>(flyout)
+                .SingleOrDefault(button =>
+                    string.Equals(
+                        button.Content as string,
+                        "Reconnect…",
+                        StringComparison.Ordinal));
+            if (!flyoutTexts.Any(text => text.StartsWith(
+                    "Session expired · last updated",
+                    StringComparison.Ordinal)) ||
+                reconnect is null)
+            {
+                throw new InvalidOperationException(
+                    "Flyout did not retain stale usage beside the reconnect action.");
+            }
+
+            reconnect.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            PumpDispatcher(flyout.Dispatcher);
+            if (!openedSettings)
+            {
+                throw new InvalidOperationException(
+                    "The Flyout reconnect action did not route to Settings.");
+            }
+        }
+        finally
+        {
+            flyout.AllowClose();
+            flyout.Close();
+            settingsWindow.Close();
+            coordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+
+        var transientCodex = new ProactiveTestAuth(AuthSessionState.Checking());
+        transientCodex.EnqueueValidation(
+            AuthSessionState.TemporarilyUnverifiable(
+                null,
+                "Synthetic authentication outage."));
+        var transientAuth = AgentRegistry.All.ToDictionary(
+            definition => definition.Id,
+            definition => definition.Id == AgentId.Codex
+                ? (IAgentAuthSession)transientCodex
+                : new ConnectedAuth());
+        var transientCoordinator = new UsageCoordinator(
+            settings,
+            transientAuth,
+            providers);
+        transientCoordinator.StartAsync().GetAwaiter().GetResult();
+        var transientFlyout = new FlyoutWindow(
+            transientCoordinator,
+            settings,
+            tokens,
+            () => { },
+            () => { })
+        {
+            ShowActivated = false,
+        };
+        try
+        {
+            ShowAndCompleteLayout(transientFlyout);
+            var texts = EnumerateVisualDescendants<TextBlock>(transientFlyout)
+                .Select(text => text.Text)
+                .Where(text => !string.IsNullOrWhiteSpace(text))
+                .ToArray();
+            var hasRetry = EnumerateVisualDescendants<Button>(transientFlyout)
+                .Any(button => string.Equals(
+                    button.Content as string,
+                    "Try again",
+                    StringComparison.Ordinal));
+            if (!texts.Any(text => text.StartsWith(
+                    "Couldn’t verify account session · last updated",
+                    StringComparison.Ordinal)) ||
+                !hasRetry)
+            {
+                throw new InvalidOperationException(
+                    "Flyout presented temporarily unverifiable usage as fresh.");
+            }
+        }
+        finally
+        {
+            transientFlyout.AllowClose();
+            transientFlyout.Close();
+            transientCoordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
     }
 
@@ -2802,12 +4084,68 @@ internal static class Program
 
     private sealed class ConnectedAuth : IAgentAuthSession
     {
-        public bool IsSignedIn => true;
+        private bool signedIn = true;
+        private AuthSessionState sessionState = AuthSessionState.Checking();
+
+        public bool IsSignedIn => signedIn;
         public string? AccountId => "smoke-account";
+        public AuthSessionState SessionState => sessionState;
 
         public Task<string> ValidAccessTokenAsync(
             CancellationToken cancellationToken = default) =>
             Task.FromResult("smoke-access-token");
+
+        public Task BeginSignInAsync(
+            CancellationToken cancellationToken = default)
+        {
+            signedIn = true;
+            sessionState = AuthSessionState.Checking();
+            return Task.CompletedTask;
+        }
+
+        public Task CompleteSignInAsync(
+            string pastedCode,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public void MarkUsageSucceeded(DateTimeOffset validatedAt) =>
+            sessionState = AuthSessionState.Valid(validatedAt);
+
+        public void MarkUsageFailed(string diagnostic)
+        {
+            if (sessionState.Kind == AuthSessionStateKind.Checking)
+            {
+                sessionState = AuthSessionState.TemporarilyUnverifiable(
+                    sessionState.LastValidatedAt,
+                    diagnostic);
+            }
+        }
+
+        public void SignOut()
+        {
+            signedIn = false;
+            sessionState = AuthSessionState.SignedOut;
+        }
+    }
+
+    private sealed class FailingSignOutAuth : IAgentAuthSession
+    {
+        private readonly string failureDetail;
+        private AuthSessionState sessionState = AuthSessionState.Checking();
+
+        public FailingSignOutAuth(string failureDetail)
+        {
+            this.failureDetail = failureDetail;
+        }
+
+        public int SignOutCalls { get; private set; }
+        public bool IsSignedIn => true;
+        public string? AccountId => "retained-account";
+        public AuthSessionState SessionState => sessionState;
+
+        public Task<string> ValidAccessTokenAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult("retained-access");
 
         public Task BeginSignInAsync(
             CancellationToken cancellationToken = default) =>
@@ -2818,9 +4156,249 @@ internal static class Program
             CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 
+        public void MarkUsageSucceeded(DateTimeOffset validatedAt) =>
+            sessionState = AuthSessionState.Valid(validatedAt);
+
+        public void MarkUsageFailed(string diagnostic)
+        {
+            if (sessionState.Kind == AuthSessionStateKind.Checking)
+            {
+                sessionState = AuthSessionState.TemporarilyUnverifiable(
+                    sessionState.LastValidatedAt,
+                    diagnostic);
+            }
+        }
+
         public void SignOut()
         {
+            SignOutCalls++;
+            throw new IOException(failureDetail);
         }
+    }
+
+    private sealed class ProactiveTestAuth :
+        IAgentAuthSession,
+        IProactiveAuthSession
+    {
+        private readonly Queue<AuthSessionState> validations = [];
+        private readonly bool suspendSignIn;
+        private AuthSessionState sessionState;
+
+        public ProactiveTestAuth(
+            AuthSessionState initialState,
+            bool suspendSignIn = false)
+        {
+            sessionState = initialState;
+            this.suspendSignIn = suspendSignIn;
+        }
+
+        public int ForceValidationCalls { get; private set; }
+        public TaskCompletionSource SignInStarted { get; } = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource ReleaseSignIn { get; } = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        public bool IsSignedIn =>
+            sessionState.Kind != AuthSessionStateKind.SignedOut;
+        public string? AccountId => "codex-smoke-account";
+        public AuthSessionState SessionState => sessionState;
+
+        public void EnqueueValidation(AuthSessionState state) =>
+            validations.Enqueue(state);
+
+        public Task<string> ValidAccessTokenAsync(
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult("codex-smoke-access");
+        }
+
+        public Task<AuthSessionState> ForceValidateSessionAsync(
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ForceValidationCalls++;
+            sessionState = AuthSessionState.Checking(
+                sessionState.LastValidatedAt);
+            sessionState = validations.TryDequeue(out var next)
+                ? next
+                : AuthSessionState.Valid(DateTimeOffset.Now);
+            return Task.FromResult(sessionState);
+        }
+
+        public void RequireReauthentication(
+            OAuthRefreshFailureReason reason,
+            string diagnostic) =>
+            sessionState = AuthSessionState.ReauthenticationRequired(
+                reason,
+                diagnostic);
+
+        public async Task BeginSignInAsync(
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (suspendSignIn)
+            {
+                SignInStarted.TrySetResult();
+                await ReleaseSignIn.Task.WaitAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            // A completed code exchange is itself server-side validation; the
+            // coordinator should fetch usage without forcing a second rotation.
+            sessionState = AuthSessionState.Valid(DateTimeOffset.Now);
+        }
+
+        public Task CompleteSignInAsync(
+            string pastedCode,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public void MarkUsageSucceeded(DateTimeOffset validatedAt)
+        {
+            // Codex validity comes from refresh acceptance, not usage alone.
+        }
+
+        public void MarkUsageFailed(string diagnostic)
+        {
+            if (sessionState.Kind == AuthSessionStateKind.Checking)
+            {
+                sessionState = AuthSessionState.TemporarilyUnverifiable(
+                    sessionState.LastValidatedAt,
+                    diagnostic);
+            }
+        }
+
+        public void SignOut() => sessionState = AuthSessionState.SignedOut;
+    }
+
+    private sealed class MemoryAuthTokenStore : ITokenStore
+    {
+        public OAuthTokens? Value { get; set; }
+        public bool FailSaves { get; set; }
+
+        public OAuthTokens? Load() => Value;
+
+        public void Save(OAuthTokens tokens)
+        {
+            if (FailSaves)
+            {
+                throw new IOException("Synthetic credential persistence failure.");
+            }
+
+            Value = tokens;
+        }
+
+        public void Clear() => Value = null;
+    }
+
+    private sealed class FailFirstLoadTokenStore : ITokenStore
+    {
+        private OAuthTokens? value;
+        private int loadCount;
+
+        public FailFirstLoadTokenStore(OAuthTokens value)
+        {
+            this.value = value;
+        }
+
+        public OAuthTokens? Load()
+        {
+            if (Interlocked.Increment(ref loadCount) == 1)
+            {
+                throw new IOException("Synthetic credential-store lock.");
+            }
+
+            return value;
+        }
+
+        public void Save(OAuthTokens tokens) => value = tokens;
+
+        public void Clear() => value = null;
+    }
+
+    private sealed class UnavailableTokenStore : ITokenStore
+    {
+        public OAuthTokens? Load() =>
+            throw new IOException("Synthetic credential-store lock.");
+
+        public void Save(OAuthTokens tokens) =>
+            throw new IOException("Synthetic credential-store lock.");
+
+        public void Clear() =>
+            throw new IOException("Synthetic credential-store lock.");
+    }
+
+    private sealed class QueuedOAuthHandler : HttpMessageHandler
+    {
+        private readonly Queue<(int StatusCode, string Body)> responses = [];
+
+        public int RequestCount { get; private set; }
+
+        public void Enqueue(int statusCode, string body) =>
+            responses.Enqueue((statusCode, body));
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            RequestCount++;
+            if (!responses.TryDequeue(out var response))
+            {
+                throw new InvalidOperationException(
+                    "No synthetic OAuth response was queued.");
+            }
+
+            return Task.FromResult(new HttpResponseMessage(
+                (System.Net.HttpStatusCode)response.StatusCode)
+            {
+                Content = new StringContent(
+                    response.Body,
+                    System.Text.Encoding.UTF8,
+                    "application/json"),
+            });
+        }
+    }
+
+    private sealed class BlockingOAuthRefreshHandler : HttpMessageHandler
+    {
+        private readonly string responseBody;
+
+        public BlockingOAuthRefreshHandler(string responseBody)
+        {
+            this.responseBody = responseBody;
+        }
+
+        public TaskCompletionSource Started { get; } = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource Release { get; } = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            await Release.Task.WaitAsync(cancellationToken)
+                .ConfigureAwait(false);
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    responseBody,
+                    System.Text.Encoding.UTF8,
+                    "application/json"),
+            };
+        }
+    }
+
+    private sealed class FailFastHttpHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken) =>
+            Task.FromException<HttpResponseMessage>(new InvalidOperationException(
+                "Credential recovery smoke tests must not access the network."));
     }
 
     private sealed class StaticProvider : IUsageProvider
@@ -2856,17 +4434,80 @@ internal static class Program
         }
     }
 
+    private sealed class AccessTokenBackedProvider : IUsageProvider
+    {
+        private readonly Func<CancellationToken, Task<string>> accessToken;
+        private readonly StaticProvider fallback;
+
+        public AccessTokenBackedProvider(
+            Func<CancellationToken, Task<string>> accessToken,
+            AgentId id)
+        {
+            this.accessToken = accessToken;
+            fallback = new StaticProvider(id);
+        }
+
+        public int FetchCalls { get; private set; }
+
+        public async Task<IReadOnlyList<UsageWindow>> FetchUsageAsync(
+            CancellationToken cancellationToken = default)
+        {
+            FetchCalls++;
+            _ = await accessToken(cancellationToken).ConfigureAwait(false);
+            return await fallback.FetchUsageAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+    }
+
+    private sealed class SequencedProvider : IUsageProvider
+    {
+        private readonly StaticProvider fallback;
+        private readonly Queue<int?> responses = [];
+
+        public SequencedProvider(AgentId id)
+        {
+            fallback = new StaticProvider(id);
+        }
+
+        public int FetchCalls { get; private set; }
+
+        public void EnqueueFailure(int statusCode) =>
+            responses.Enqueue(statusCode);
+
+        public void EnqueueSuccess() => responses.Enqueue(null);
+
+        public Task<IReadOnlyList<UsageWindow>> FetchUsageAsync(
+            CancellationToken cancellationToken = default)
+        {
+            FetchCalls++;
+            if (responses.TryDequeue(out var statusCode) &&
+                statusCode is { } failure)
+            {
+                throw UsageException.BadResponse(
+                    failure,
+                    "Synthetic usage failure.");
+            }
+
+            return fallback.FetchUsageAsync(cancellationToken);
+        }
+    }
+
     private sealed class BlockingProvider : IUsageProvider
     {
+        private int fetchCalls;
+
         public TaskCompletionSource Started { get; } = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
         public TaskCompletionSource Release { get; } = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
+        public int FetchCalls => Volatile.Read(ref fetchCalls);
+
         public async Task<IReadOnlyList<UsageWindow>> FetchUsageAsync(
             CancellationToken cancellationToken = default)
         {
+            Interlocked.Increment(ref fetchCalls);
             Started.TrySetResult();
             await Release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
             return

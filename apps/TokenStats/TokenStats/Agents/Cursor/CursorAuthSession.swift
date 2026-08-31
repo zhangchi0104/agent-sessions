@@ -11,6 +11,7 @@ import Foundation
 final class CursorAuthSession: AgentAuthSession {
     private let cache: AgentTokenCache
     private let client: CursorOAuthClient
+    private var loginGeneration = 0
 
     init(store: any TokenStore = KeychainTokenStore(account: "cursor"),
          client: CursorOAuthClient = CursorOAuthClient(),
@@ -23,16 +24,36 @@ final class CursorAuthSession: AgentAuthSession {
 
     var isSignedIn: Bool { cache.isSignedIn }
 
+    var credentialPresence: CredentialPresence { cache.credentialPresence }
+
+    var hasPendingTokenPersistence: Bool { cache.hasPendingTokenPersistence }
+
     func validAccessToken() async throws -> String { try await cache.validAccessToken() }
 
-    func signOut() { cache.signOut() }
+    func forceRefreshAccessToken() async throws -> String {
+        try await cache.forceRefreshAccessToken()
+    }
+
+    func acquireRelaunchCoordination() async throws -> any RefreshCoordinationLease {
+        try await cache.acquireRelaunchCoordination()
+    }
+
+    func signOut() async throws {
+        loginGeneration += 1
+        try await cache.signOut()
+    }
 
     func beginSignIn() async throws {
+        loginGeneration += 1
+        let generation = loginGeneration
         let pkce = OAuthFlow.makePKCE()
         let uuid = UUID().uuidString.lowercased()
         client.openAuthorizePage(pkce: pkce, uuid: uuid)
         let tokens = try await client.waitForLogin(pkce: pkce, uuid: uuid)
         guard !tokens.refreshToken.isEmpty else { throw UsageError.notSignedIn }
-        try cache.adopt(tokens)
+        guard generation == loginGeneration else { throw UsageError.notSignedIn }
+        try await cache.adopt(tokens, ifCurrent: {
+            generation == self.loginGeneration
+        })
     }
 }

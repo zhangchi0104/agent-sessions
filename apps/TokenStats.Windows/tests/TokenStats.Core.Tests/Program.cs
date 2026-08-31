@@ -45,9 +45,40 @@ internal static class Program
             new(nameof(EffectiveDatedPricingAndValuationHistoryPreservePriorResults), EffectiveDatedPricingAndValuationHistoryPreservePriorResults),
             new(nameof(RefreshPolicyAppliesCadenceAndBackoff), Sync(RefreshPolicyAppliesCadenceAndBackoff)),
             new(nameof(StateReducerDisclosesStaleData), Sync(StateReducerDisclosesStaleData)),
+            new(
+                nameof(TokenCacheDistinguishesUnavailableCredentialStore),
+                Sync(TokenCacheDistinguishesUnavailableCredentialStore)),
             new(nameof(TokenCacheSignOutWinsInFlightRefresh), TokenCacheSignOutWinsInFlightRefresh),
+            new(
+                nameof(TokenCacheSignOutIgnoresRefreshCancellationCallbackFailure),
+                TokenCacheSignOutIgnoresRefreshCancellationCallbackFailure),
+            new(
+                nameof(TokenCacheAdoptionIgnoresRefreshCancellationCallbackFailure),
+                TokenCacheAdoptionIgnoresRefreshCancellationCallbackFailure),
+            new(nameof(TokenCacheRejectsLoginThatFinishedAfterSignOut), TokenCacheRejectsLoginThatFinishedAfterSignOut),
+            new(nameof(TokenCacheCoalescesConcurrentForcedRefresh), TokenCacheCoalescesConcurrentForcedRefresh),
+            new(nameof(TokenCacheCoalescesConcurrentFailedRefresh), TokenCacheCoalescesConcurrentFailedRefresh),
+            new(nameof(TokenCacheBindsWaitersToTheirRefreshFlight), TokenCacheBindsWaitersToTheirRefreshFlight),
+            new(nameof(TokenCacheCallerCancellationDoesNotCancelSharedFlight), TokenCacheCallerCancellationDoesNotCancelSharedFlight),
+            new(
+                nameof(TokenCacheAllowsConcurrentValidNormalReadAfterForcedFailure),
+                TokenCacheAllowsConcurrentValidNormalReadAfterForcedFailure),
+            new(
+                nameof(TokenCacheQuarantinesConcurrentNormalReadAfterTerminalFailure),
+                TokenCacheQuarantinesConcurrentNormalReadAfterTerminalFailure),
+            new(nameof(TokenCacheKeepsRotatedTokenAfterPersistenceFailure), TokenCacheKeepsRotatedTokenAfterPersistenceFailure),
+            new(
+                nameof(TokenCachePersistenceRetryDoesNotOverwriteChangedCredential),
+                TokenCachePersistenceRetryDoesNotOverwriteChangedCredential),
+            new(
+                nameof(TokenCacheAdoptsRotatedRefreshButRejectsExpiredAccess),
+                TokenCacheAdoptsRotatedRefreshButRejectsExpiredAccess),
+            new(
+                nameof(TokenCacheReconcilesInFlightRefreshWhenSignOutClearFails),
+                TokenCacheReconcilesInFlightRefreshWhenSignOutClearFails),
             new(nameof(TokenCacheDoesNotPublishFailedAdoption), TokenCacheDoesNotPublishFailedAdoption),
             new(nameof(OAuthHttpClientBuildsExpectedRequestsAndSurfacesErrors), OAuthHttpClientBuildsExpectedRequestsAndSurfacesErrors),
+            new(nameof(CodexRefreshUsesJsonAndClassifiesSanitizedErrors), CodexRefreshUsesJsonAndClassifiesSanitizedErrors),
             new(nameof(UsageProvidersSendExpectedHeadersAndRejectEmptyWindows), UsageProvidersSendExpectedHeadersAndRejectEmptyWindows),
             new(nameof(ClaudeTranscriptsDeduplicateByMessageIdAndUseLocalDay), ClaudeTranscriptsDeduplicateByMessageIdAndUseLocalDay),
             new(nameof(ClaudeTranscriptsCaptureModel), ClaudeTranscriptsCaptureModel),
@@ -839,9 +870,11 @@ internal static class Program
 
         foreach (var trigger in new[]
                  {
+                     RefreshTrigger.Startup,
                      RefreshTrigger.Wake,
                      RefreshTrigger.PopoverOpen,
                      RefreshTrigger.Manual,
+                     RefreshTrigger.SignIn,
                  })
         {
             Check.True(RefreshPolicy.Decide(
@@ -899,6 +932,39 @@ internal static class Program
         Check.True(state.Snapshot is null);
     }
 
+    private static void TokenCacheDistinguishesUnavailableCredentialStore()
+    {
+        var now = DateTimeOffset.Parse("2026-08-29T00:00:00Z", Invariant);
+        var store = new MemoryTokenStore
+        {
+            Value = new OAuthTokens(
+                "access",
+                "refresh",
+                now.AddHours(1)),
+            FailLoads = true,
+        };
+        var cache = new AgentTokenCache(
+            store,
+            (tokens, _) => Task.FromResult(tokens),
+            () => now);
+
+        Check.Equal(
+            CredentialPresence.TemporarilyUnavailable,
+            cache.CredentialStatus);
+        Check.False(cache.IsSignedIn);
+
+        store.FailLoads = false;
+        Check.Equal(CredentialPresence.Present, cache.CredentialStatus);
+        Check.True(cache.IsSignedIn);
+
+        var absent = new AgentTokenCache(
+            new MemoryTokenStore(),
+            (tokens, _) => Task.FromResult(tokens),
+            () => now);
+        Check.Equal(CredentialPresence.Absent, absent.CredentialStatus);
+        Check.False(absent.IsSignedIn);
+    }
+
     private static async Task TokenCacheSignOutWinsInFlightRefresh()
     {
         var now = DateTimeOffset.Parse("2026-07-27T00:00:00Z", Invariant);
@@ -947,6 +1013,802 @@ internal static class Program
         Check.False(cache.IsSignedIn);
     }
 
+    private static async Task TokenCacheSignOutIgnoresRefreshCancellationCallbackFailure()
+    {
+        var now = DateTimeOffset.Parse("2026-08-29T00:00:00Z", Invariant);
+        var store = new MemoryTokenStore
+        {
+            Value = new OAuthTokens(
+                "access",
+                "refresh",
+                now.AddHours(1)),
+        };
+        var refreshStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var cache = new AgentTokenCache(
+            store,
+            async (_, cancellationToken) =>
+            {
+                using var callbackFailure = cancellationToken.Register(
+                    static () => throw new InvalidOperationException(
+                        "Synthetic cancellation callback failure."));
+                refreshStarted.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken)
+                    .ConfigureAwait(false);
+                return new OAuthTokens(
+                    "unused-access",
+                    "unused-refresh",
+                    now.AddHours(2));
+            },
+            () => now);
+
+        var refresh = cache.ForceRefreshAccessTokenAsync();
+        await refreshStarted.Task.ConfigureAwait(false);
+
+        Exception? signOutFailure = null;
+        try
+        {
+            cache.SignOut();
+        }
+        catch (Exception exception)
+        {
+            signOutFailure = exception;
+        }
+
+        Check.True(
+            signOutFailure is null,
+            "A refresh cancellation callback made a completed sign-out appear to fail.");
+        Check.True(store.Value is null);
+        Check.False(cache.IsSignedIn);
+
+        var refreshRejected = false;
+        try
+        {
+            _ = await refresh.ConfigureAwait(false);
+        }
+        catch (UsageException)
+        {
+            refreshRejected = true;
+        }
+
+        Check.True(refreshRejected, "The canceled refresh survived sign-out.");
+    }
+
+    private static async Task TokenCacheAdoptionIgnoresRefreshCancellationCallbackFailure()
+    {
+        var now = DateTimeOffset.Parse("2026-08-29T00:00:00Z", Invariant);
+        var store = new MemoryTokenStore
+        {
+            Value = new OAuthTokens(
+                "old-access",
+                "old-refresh",
+                now.AddHours(1),
+                "old-account"),
+        };
+        var refreshStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var cache = new AgentTokenCache(
+            store,
+            async (_, cancellationToken) =>
+            {
+                using var callbackFailure = cancellationToken.Register(
+                    static () => throw new InvalidOperationException(
+                        "Synthetic cancellation callback failure."));
+                refreshStarted.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken)
+                    .ConfigureAwait(false);
+                return new OAuthTokens(
+                    "unused-access",
+                    "unused-refresh",
+                    now.AddHours(2));
+            },
+            () => now);
+        var expectedGeneration = cache.CaptureCredentialGeneration();
+        var refresh = cache.ForceRefreshAccessTokenAsync();
+        await refreshStarted.Task.ConfigureAwait(false);
+        var replacement = new OAuthTokens(
+            "replacement-access",
+            "replacement-refresh",
+            now.AddHours(2),
+            "replacement-account");
+
+        Exception? adoptionFailure = null;
+        try
+        {
+            await cache.AdoptAsync(replacement, expectedGeneration)
+                .ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            adoptionFailure = exception;
+        }
+
+        Check.True(
+            adoptionFailure is null,
+            "A refresh cancellation callback made a committed adoption appear to fail.");
+        Check.Equal(replacement, store.Value);
+        Check.Equal(replacement, cache.Tokens);
+        Check.Equal("replacement-account", cache.AccountId ?? "<missing>");
+
+        var refreshRejected = false;
+        try
+        {
+            _ = await refresh.ConfigureAwait(false);
+        }
+        catch (UsageException)
+        {
+            refreshRejected = true;
+        }
+
+        Check.True(refreshRejected, "The replaced account's refresh survived adoption.");
+    }
+
+    private static async Task TokenCacheCoalescesConcurrentForcedRefresh()
+    {
+        var now = DateTimeOffset.Parse("2026-08-29T00:00:00Z", Invariant);
+        var store = new MemoryTokenStore
+        {
+            Value = new OAuthTokens(
+                "still-valid-access",
+                "single-use-refresh",
+                now.AddHours(1)),
+        };
+        var refreshStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRefresh = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var refreshCalls = 0;
+        var cache = new AgentTokenCache(
+            store,
+            async (_, cancellationToken) =>
+            {
+                Interlocked.Increment(ref refreshCalls);
+                refreshStarted.TrySetResult();
+                await releaseRefresh.Task.WaitAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                return new OAuthTokens(
+                    "rotated-access",
+                    "rotated-refresh",
+                    now.AddHours(2));
+            },
+            () => now);
+
+        var first = cache.ForceRefreshAccessTokenAsync();
+        await refreshStarted.Task.ConfigureAwait(false);
+        var second = cache.ForceRefreshAccessTokenAsync();
+        await Task.Yield();
+        releaseRefresh.SetResult();
+
+        Check.Equal(
+            "rotated-access",
+            await first.ConfigureAwait(false));
+        Check.Equal(
+            "rotated-access",
+            await second.ConfigureAwait(false));
+        Check.Equal(1, refreshCalls);
+        Check.Equal(
+            "rotated-refresh",
+            store.Value?.RefreshToken ?? "<missing>");
+    }
+
+    private static async Task TokenCacheCoalescesConcurrentFailedRefresh()
+    {
+        var now = DateTimeOffset.Parse("2026-08-29T00:00:00Z", Invariant);
+        var store = new MemoryTokenStore
+        {
+            Value = new OAuthTokens(
+                "still-valid-access",
+                "single-use-refresh",
+                now.AddHours(1)),
+        };
+        var refreshStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRefresh = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var refreshCalls = 0;
+        var cache = new AgentTokenCache(
+            store,
+            async (_, cancellationToken) =>
+            {
+                var call = Interlocked.Increment(ref refreshCalls);
+                if (call == 1)
+                {
+                    refreshStarted.TrySetResult();
+                    await releaseRefresh.Task.WaitAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    throw new HttpRequestException("offline");
+                }
+
+                return new OAuthTokens(
+                    "retry-access",
+                    "retry-refresh",
+                    now.AddHours(2));
+            },
+            () => now);
+
+        var first = cache.ForceRefreshAccessTokenAsync();
+        await refreshStarted.Task.ConfigureAwait(false);
+        var second = cache.ForceRefreshAccessTokenAsync();
+        await Task.Yield();
+        releaseRefresh.SetResult();
+
+        var firstFailed = false;
+        var secondFailed = false;
+        try
+        {
+            _ = await first.ConfigureAwait(false);
+        }
+        catch (HttpRequestException)
+        {
+            firstFailed = true;
+        }
+
+        try
+        {
+            _ = await second.ConfigureAwait(false);
+        }
+        catch (HttpRequestException)
+        {
+            secondFailed = true;
+        }
+
+        Check.True(firstFailed && secondFailed);
+        Check.Equal(1, refreshCalls);
+        Check.Equal(
+            "retry-access",
+            await cache.ForceRefreshAccessTokenAsync().ConfigureAwait(false));
+        Check.Equal(2, refreshCalls);
+    }
+
+    private static async Task TokenCacheBindsWaitersToTheirRefreshFlight()
+    {
+        var now = DateTimeOffset.Parse("2026-08-29T00:00:00Z", Invariant);
+        var store = new MemoryTokenStore
+        {
+            Value = new OAuthTokens(
+                "old-access",
+                "old-refresh",
+                now.AddHours(1)),
+        };
+        var firstStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFirst = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var refreshCalls = 0;
+        var cache = new AgentTokenCache(
+            store,
+            async (_, cancellationToken) =>
+            {
+                var call = Interlocked.Increment(ref refreshCalls);
+                if (call == 1)
+                {
+                    firstStarted.TrySetResult();
+                    await releaseFirst.Task.WaitAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    return new OAuthTokens(
+                        "first-access",
+                        "first-refresh",
+                        now.AddHours(2));
+                }
+
+                throw new HttpRequestException("later flight failed");
+            },
+            () => now);
+
+        var firstOwner = cache.ForceRefreshAccessTokenAsync();
+        await firstStarted.Task.ConfigureAwait(false);
+        var firstWaiter = cache.ForceRefreshAccessTokenAsync();
+        releaseFirst.SetResult();
+
+        Check.Equal("first-access", await firstOwner.ConfigureAwait(false));
+        var laterFailed = false;
+        try
+        {
+            _ = await cache.ForceRefreshAccessTokenAsync().ConfigureAwait(false);
+        }
+        catch (HttpRequestException)
+        {
+            laterFailed = true;
+        }
+
+        Check.True(laterFailed);
+        Check.Equal("first-access", await firstWaiter.ConfigureAwait(false));
+        Check.Equal(2, refreshCalls);
+    }
+
+    private static async Task TokenCacheCallerCancellationDoesNotCancelSharedFlight()
+    {
+        var now = DateTimeOffset.Parse("2026-08-29T00:00:00Z", Invariant);
+        var store = new MemoryTokenStore
+        {
+            Value = new OAuthTokens(
+                "old-access",
+                "old-refresh",
+                now.AddHours(1)),
+        };
+        var refreshStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRefresh = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var refreshCalls = 0;
+        var cache = new AgentTokenCache(
+            store,
+            async (_, cancellationToken) =>
+            {
+                Interlocked.Increment(ref refreshCalls);
+                refreshStarted.TrySetResult();
+                await releaseRefresh.Task.WaitAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                return new OAuthTokens(
+                    "rotated-access",
+                    "rotated-refresh",
+                    now.AddHours(2));
+            },
+            () => now);
+
+        var surviving = cache.ForceRefreshAccessTokenAsync();
+        await refreshStarted.Task.ConfigureAwait(false);
+        using var canceledWaiter = new CancellationTokenSource();
+        var canceled = cache.ForceRefreshAccessTokenAsync(canceledWaiter.Token);
+        canceledWaiter.Cancel();
+
+        var canceledOnly = false;
+        try
+        {
+            _ = await canceled.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            canceledOnly = true;
+        }
+
+        releaseRefresh.SetResult();
+        Check.True(canceledOnly);
+        Check.Equal("rotated-access", await surviving.ConfigureAwait(false));
+        Check.Equal(1, refreshCalls);
+    }
+
+    private static async Task TokenCacheAllowsConcurrentValidNormalReadAfterForcedFailure()
+    {
+        var now = DateTimeOffset.Parse("2026-08-29T00:00:00Z", Invariant);
+        var store = new MemoryTokenStore
+        {
+            Value = new OAuthTokens(
+                "still-valid-access",
+                "single-use-refresh",
+                now.AddHours(1)),
+        };
+        var refreshStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRefresh = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var refreshCalls = 0;
+        var cache = new AgentTokenCache(
+            store,
+            async (_, cancellationToken) =>
+            {
+                Interlocked.Increment(ref refreshCalls);
+                refreshStarted.TrySetResult();
+                await releaseRefresh.Task.WaitAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                throw new HttpRequestException("offline");
+            },
+            () => now);
+
+        var forced = cache.ForceRefreshAccessTokenAsync();
+        await refreshStarted.Task.ConfigureAwait(false);
+        var normal = cache.ValidAccessTokenAsync();
+        await Task.Yield();
+        releaseRefresh.SetResult();
+
+        var forcedFailed = false;
+        try
+        {
+            _ = await forced.ConfigureAwait(false);
+        }
+        catch (HttpRequestException)
+        {
+            forcedFailed = true;
+        }
+
+        Check.True(forcedFailed);
+        Check.Equal(
+            "still-valid-access",
+            await normal.ConfigureAwait(false));
+        Check.Equal(1, refreshCalls);
+    }
+
+    private static async Task TokenCacheQuarantinesConcurrentNormalReadAfterTerminalFailure()
+    {
+        var now = DateTimeOffset.Parse("2026-08-29T00:00:00Z", Invariant);
+        var store = new MemoryTokenStore
+        {
+            Value = new OAuthTokens(
+                "still-valid-access",
+                "invalid-refresh",
+                now.AddHours(1)),
+        };
+        var refreshStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRefresh = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var refreshCalls = 0;
+        var cache = new AgentTokenCache(
+            store,
+            async (_, cancellationToken) =>
+            {
+                Interlocked.Increment(ref refreshCalls);
+                refreshStarted.TrySetResult();
+                await releaseRefresh.Task.WaitAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                throw new OAuthRefreshException(
+                    400,
+                    "invalid_grant",
+                    OAuthRefreshFailureReason.InvalidGrant,
+                    isTerminal: true);
+            },
+            () => now);
+
+        var forced = cache.ForceRefreshAccessTokenAsync();
+        await refreshStarted.Task.ConfigureAwait(false);
+        var normal = cache.ValidAccessTokenAsync();
+        await Task.Yield();
+        releaseRefresh.SetResult();
+
+        var forcedRejected = false;
+        var normalRejected = false;
+        try
+        {
+            _ = await forced.ConfigureAwait(false);
+        }
+        catch (OAuthRefreshException exception) when (exception.IsTerminal)
+        {
+            forcedRejected = true;
+        }
+
+        try
+        {
+            _ = await normal.ConfigureAwait(false);
+        }
+        catch (OAuthRefreshException exception) when (exception.IsTerminal)
+        {
+            normalRejected = true;
+        }
+
+        Check.True(forcedRejected && normalRejected);
+        Check.Equal(1, refreshCalls);
+
+        await cache.AdoptAsync(
+                new OAuthTokens(
+                    "replacement-access",
+                    "replacement-refresh",
+                    now.AddHours(2)),
+                cache.CaptureCredentialGeneration())
+            .ConfigureAwait(false);
+        Check.Equal(
+            "replacement-access",
+            await cache.ValidAccessTokenAsync().ConfigureAwait(false));
+        Check.Equal(1, refreshCalls);
+    }
+
+    private static async Task TokenCacheRejectsLoginThatFinishedAfterSignOut()
+    {
+        var store = new MemoryTokenStore();
+        var cache = new AgentTokenCache(
+            store,
+            (_, _) => Task.FromResult(
+                new OAuthTokens(
+                    "unused-access",
+                    "unused-refresh",
+                    DateTimeOffset.Now.AddHours(1))));
+        var loginGeneration = cache.CaptureCredentialGeneration();
+
+        cache.SignOut();
+        var rejected = false;
+        try
+        {
+            await cache.AdoptAsync(
+                    new OAuthTokens(
+                        "late-access",
+                        "late-refresh",
+                        DateTimeOffset.Now.AddHours(1)),
+                    loginGeneration)
+                .ConfigureAwait(false);
+        }
+        catch (UsageException)
+        {
+            rejected = true;
+        }
+
+        Check.True(rejected, "A login response survived sign-out.");
+        Check.True(store.Value is null);
+        Check.False(cache.IsSignedIn);
+    }
+
+    private static async Task TokenCacheKeepsRotatedTokenAfterPersistenceFailure()
+    {
+        var now = DateTimeOffset.Parse("2026-08-29T00:00:00Z", Invariant);
+        var store = new MemoryTokenStore
+        {
+            Value = new OAuthTokens(
+                "old-access",
+                "old-refresh",
+                now.AddHours(1)),
+        };
+        var refreshCalls = 0;
+        var cache = new AgentTokenCache(
+            store,
+            (_, _) =>
+            {
+                refreshCalls++;
+                return Task.FromResult(new OAuthTokens(
+                    "rotated-access",
+                    "rotated-refresh",
+                    now.AddHours(2)));
+            },
+            () => now);
+        _ = cache.Tokens;
+        store.FailSaves = true;
+
+        var failed = false;
+        try
+        {
+            _ = await cache.ForceRefreshAccessTokenAsync().ConfigureAwait(false);
+        }
+        catch (TokenPersistenceException)
+        {
+            failed = true;
+        }
+
+        Check.True(failed);
+        Check.Equal("rotated-refresh", cache.Tokens?.RefreshToken ?? "<missing>");
+        Check.Equal("old-refresh", store.Value?.RefreshToken ?? "<missing>");
+        Check.True(cache.PendingPersistenceDiagnostic is not null);
+
+        var blockedSecondRotation = false;
+        try
+        {
+            _ = await cache.ForceRefreshAccessTokenAsync().ConfigureAwait(false);
+        }
+        catch (TokenPersistenceException)
+        {
+            blockedSecondRotation = true;
+        }
+
+        Check.True(blockedSecondRotation);
+        Check.Equal(1, refreshCalls);
+        Check.Equal(
+            "rotated-access",
+            await cache.ValidAccessTokenAsync().ConfigureAwait(false));
+        Check.True(cache.PendingPersistenceDiagnostic is not null);
+        Check.Equal(1, refreshCalls);
+
+        store.FailSaves = false;
+        Check.Equal(
+            "rotated-access",
+            await cache.ValidAccessTokenAsync().ConfigureAwait(false));
+        Check.Equal("rotated-refresh", store.Value?.RefreshToken ?? "<missing>");
+        Check.Equal(1, store.SaveCount);
+        Check.Equal(1, refreshCalls);
+        Check.True(cache.PendingPersistenceDiagnostic is null);
+
+        var restartedRefreshCalls = 0;
+        var restarted = new AgentTokenCache(
+            store,
+            (_, _) =>
+            {
+                restartedRefreshCalls++;
+                throw new InvalidOperationException("A durable token unexpectedly refreshed.");
+            },
+            () => now);
+        Check.Equal(
+            "rotated-access",
+            await restarted.ValidAccessTokenAsync().ConfigureAwait(false));
+        Check.Equal(0, restartedRefreshCalls);
+    }
+
+    private static async Task TokenCachePersistenceRetryDoesNotOverwriteChangedCredential()
+    {
+        var now = DateTimeOffset.Parse("2026-08-29T00:00:00Z", Invariant);
+        var store = new MemoryTokenStore
+        {
+            Value = new OAuthTokens(
+                "old-access",
+                "old-refresh",
+                now.AddHours(1)),
+        };
+        var cache = new AgentTokenCache(
+            store,
+            (_, _) => Task.FromResult(new OAuthTokens(
+                "rotated-access",
+                "rotated-refresh",
+                now.AddHours(2))),
+            () => now);
+        _ = cache.Tokens;
+        store.FailSaves = true;
+
+        var persistenceFailed = false;
+        try
+        {
+            _ = await cache.ForceRefreshAccessTokenAsync().ConfigureAwait(false);
+        }
+        catch (TokenPersistenceException)
+        {
+            persistenceFailed = true;
+        }
+
+        Check.True(persistenceFailed);
+
+        var replacement = new OAuthTokens(
+            "replacement-access",
+            "replacement-refresh",
+            now.AddHours(3),
+            "replacement-account");
+        store.FailSaves = false;
+        store.Value = replacement;
+
+        Check.Equal(
+            "replacement-access",
+            await cache.ValidAccessTokenAsync().ConfigureAwait(false));
+        Check.Equal(replacement, store.Value);
+        Check.Equal(replacement, cache.Tokens);
+        Check.Equal(0, store.SaveCount);
+        Check.True(cache.PendingPersistenceDiagnostic is null);
+    }
+
+    private static async Task TokenCacheAdoptsRotatedRefreshButRejectsExpiredAccess()
+    {
+        var now = DateTimeOffset.Parse("2026-08-29T00:00:00Z", Invariant);
+        foreach (var persistenceFails in new[] { false, true })
+        {
+            var store = new MemoryTokenStore
+            {
+                Value = new OAuthTokens(
+                    "expired-access",
+                    "old-refresh",
+                    now.AddHours(-1)),
+            };
+            var refreshCalls = 0;
+            var cache = new AgentTokenCache(
+                store,
+                (_, _) =>
+                {
+                    refreshCalls++;
+                    return Task.FromResult(new OAuthTokens(
+                        "expired-access",
+                        "rotated-refresh",
+                        now.AddHours(-1)));
+                },
+                () => now);
+            _ = cache.Tokens;
+            store.FailSaves = persistenceFails;
+
+            RefreshedAccessTokenUnavailableException? rejected = null;
+            try
+            {
+                _ = await cache.ForceRefreshAccessTokenAsync().ConfigureAwait(false);
+            }
+            catch (RefreshedAccessTokenUnavailableException exception)
+            {
+                rejected = exception;
+            }
+
+            Check.True(rejected is not null);
+            Check.Equal(persistenceFails, rejected!.PersistenceFailed);
+            Check.Equal("rotated-refresh", cache.Tokens?.RefreshToken ?? "<missing>");
+            Check.True(cache.Tokens?.IsExpired(now) == true);
+            Check.Equal(
+                persistenceFails ? "old-refresh" : "rotated-refresh",
+                store.Value?.RefreshToken ?? "<missing>");
+            Check.Equal(1, refreshCalls);
+        }
+    }
+
+    private static async Task TokenCacheReconcilesInFlightRefreshWhenSignOutClearFails()
+    {
+        var now = DateTimeOffset.Parse("2026-08-29T00:00:00Z", Invariant);
+        var oldTokens = new OAuthTokens(
+            "access",
+            "refresh",
+            now.AddHours(1),
+            "old-account");
+        var store = new MemoryTokenStore
+        {
+            Value = oldTokens,
+            FailClears = true,
+        };
+        var refreshStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        using var releaseRefresh = new ManualResetEventSlim();
+        var lateRefresh = new OAuthTokens(
+            "late-refresh-access",
+            "late-refresh-token",
+            now.AddHours(2),
+            "late-refresh-account");
+        var cache = new AgentTokenCache(
+            store,
+            (_, cancellationToken) =>
+            {
+                using var callbackFailure = cancellationToken.Register(
+                    static () => throw new InvalidOperationException(
+                        "Synthetic cancellation callback failure."));
+                refreshStarted.TrySetResult();
+                // Keep RunRefreshFlightAsync synchronously inside this
+                // delegate. Once the event is released, the cache must perform
+                // its stale-generation commit check before this outer refresh
+                // call can complete, giving the assertions below a real barrier.
+                releaseRefresh.Wait();
+                return Task.FromResult(lateRefresh);
+            },
+            () => now);
+        _ = cache.Tokens;
+        var oldGeneration = cache.CaptureCredentialGeneration();
+        var oldFlight = Task.Run(
+            async () => await cache.ForceRefreshAccessTokenAsync().ConfigureAwait(false));
+        await refreshStarted.Task.ConfigureAwait(false);
+
+        Exception? signOutFailure = null;
+        try
+        {
+            cache.SignOut();
+        }
+        catch (Exception exception)
+        {
+            signOutFailure = exception;
+        }
+
+        Check.True(
+            signOutFailure is IOException,
+            "The credential-store clear failure was replaced by a cancellation callback failure.");
+        Check.Equal(
+            "Synthetic token-store clear failure.",
+            signOutFailure?.Message ?? "<missing>");
+        Check.True(cache.IsSignedIn);
+        Check.Equal("refresh", cache.Tokens?.RefreshToken ?? "<missing>");
+        Check.Equal("old-account", cache.AccountId ?? "<missing>");
+        Check.Equal("refresh", store.Value?.RefreshToken ?? "<missing>");
+
+        var lateAdoptionRejected = false;
+        try
+        {
+            await cache.AdoptAsync(
+                    new OAuthTokens(
+                        "late-login-access",
+                        "late-login-refresh",
+                        now.AddHours(2),
+                        "late-login-account"),
+                    oldGeneration)
+                .ConfigureAwait(false);
+        }
+        catch (UsageException)
+        {
+            lateAdoptionRejected = true;
+        }
+
+        Check.True(
+            lateAdoptionRejected,
+            "A failed clear left the old credential generation able to adopt a late login.");
+
+        releaseRefresh.Set();
+        Check.Equal(
+            "late-refresh-access",
+            await oldFlight.ConfigureAwait(false));
+        Check.Equal(1, store.SaveCount);
+        Check.Equal(lateRefresh, store.Value);
+        Check.Equal(lateRefresh, cache.Tokens);
+
+        await cache.AdoptAsync(
+                new OAuthTokens(
+                    "replacement-access",
+                    "replacement-refresh",
+                    now.AddHours(2),
+                    "replacement-account"),
+                cache.CaptureCredentialGeneration())
+            .ConfigureAwait(false);
+        Check.Equal(2, store.SaveCount);
+        Check.Equal("replacement-account", cache.AccountId ?? "<missing>");
+    }
+
     private static async Task TokenCacheDoesNotPublishFailedAdoption()
     {
         var store = new MemoryTokenStore { FailSaves = true };
@@ -986,7 +1848,36 @@ internal static class Program
         handler.Enqueue(
             HttpStatusCode.OK,
             """{"access_token":"codex-access","refresh_token":"codex-refresh","expires_in":3600}""");
-        handler.Enqueue(HttpStatusCode.Unauthorized, """{"error":"denied"}""");
+        const string rawOAuthMarker = "shared-auth-response-must-not-escape";
+        handler.Enqueue(
+            HttpStatusCode.Unauthorized,
+            JsonSerializer.Serialize(new
+            {
+                error = "denied",
+                message = rawOAuthMarker,
+            }));
+        const string rawCodexMarker = "codex-auth-response-must-not-escape";
+        handler.Enqueue(
+            HttpStatusCode.BadRequest,
+            JsonSerializer.Serialize(new
+            {
+                error = new
+                {
+                    code = "invalid_request",
+                    message = rawCodexMarker,
+                },
+            }));
+        const string rawCursorMarker = "cursor-auth-response-must-not-escape";
+        handler.Enqueue(
+            HttpStatusCode.BadRequest,
+            JsonSerializer.Serialize(new
+            {
+                error = new
+                {
+                    code = "invalid_grant",
+                    message = rawCursorMarker,
+                },
+            }));
         using var httpClient = new HttpClient(handler);
         var oauth = new OAuthHttpClient(httpClient);
 
@@ -1035,18 +1926,290 @@ internal static class Program
             _ = await oauth.RefreshClaudeCodeAsync("refresh")
                 .ConfigureAwait(false);
         }
-        catch (UsageException exception)
+        catch (OAuthRefreshException exception)
         {
-            surfaced = exception.Message.Contains(
-                "HTTP 401",
-                StringComparison.Ordinal);
+            surfaced = exception.StatusCode == 401 &&
+                exception.IsTerminal &&
+                exception.Reason == OAuthRefreshFailureReason.Unauthorized &&
+                !exception.Message.Contains(
+                    rawOAuthMarker,
+                    StringComparison.Ordinal);
         }
 
         Check.True(surfaced, "OAuth HTTP errors were not surfaced.");
+
+        var codexRejectedSafely = false;
+        try
+        {
+            _ = await oauth.ExchangeCodexAsync(
+                    "approval",
+                    "verifier",
+                    CodexOAuthFlow.RedirectUri(1455))
+                .ConfigureAwait(false);
+        }
+        catch (UsageException exception)
+        {
+            codexRejectedSafely = exception.Message.Contains(
+                    "invalid_request",
+                    StringComparison.Ordinal) &&
+                !exception.Message.Contains(
+                    rawCodexMarker,
+                    StringComparison.Ordinal);
+        }
+
+        Check.True(
+            codexRejectedSafely,
+            "Codex code exchange exposed the raw authentication response.");
+
+        var cursorRejectedSafely = false;
+        try
+        {
+            _ = await oauth.RefreshCursorAsync(
+                    new OAuthTokens(
+                        "cursor-access",
+                        "cursor-refresh",
+                        DateTimeOffset.Now.AddHours(1)))
+                .ConfigureAwait(false);
+        }
+        catch (OAuthRefreshException exception)
+        {
+            cursorRejectedSafely = exception.StatusCode == 400 &&
+                exception.IsTerminal &&
+                exception.Reason == OAuthRefreshFailureReason.InvalidGrant &&
+                !exception.Message.Contains(
+                    rawCursorMarker,
+                    StringComparison.Ordinal);
+        }
+
+        Check.True(
+            cursorRejectedSafely,
+            "Cursor refresh rejection was not classified or exposed raw authentication data.");
+    }
+
+    private static async Task CodexRefreshUsesJsonAndClassifiesSanitizedErrors()
+    {
+        const string rawMarker = "raw-token-endpoint-detail-must-not-escape";
+        var expectedJwtExpiration = DateTimeOffset.Parse(
+            "2031-08-29T12:00:00Z",
+            Invariant);
+        var jwtPayload = OAuthHelpers.Base64Url(
+            Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
+            {
+                exp = expectedJwtExpiration.ToUnixTimeSeconds(),
+            })));
+        var jwtAccess = $"header.{jwtPayload}.signature";
+        var handler = new RecordingHandler();
+        handler.Enqueue(
+            HttpStatusCode.OK,
+            """{"access_token":"rotated-access","refresh_token":"rotated-refresh","expires_in":3600}""");
+        handler.Enqueue(
+            HttpStatusCode.OK,
+            JsonSerializer.Serialize(new { access_token = jwtAccess }));
+        handler.Enqueue(
+            HttpStatusCode.OK,
+            """{"access_token":"opaque-access"}""");
+        handler.Enqueue(
+            HttpStatusCode.OK,
+            """{"refresh_token":"refresh-only"}""");
+        handler.Enqueue(HttpStatusCode.OK, "{}");
+        handler.Enqueue(
+            HttpStatusCode.OK,
+            """{"unexpected":"value"}""");
+        handler.Enqueue(
+            HttpStatusCode.OK,
+            """{"access_token":"expired-access","expires_in":0}""");
+        handler.Enqueue(
+            HttpStatusCode.OK,
+            """{"access_token":"expired-access","expires_in":-1}""");
+        handler.Enqueue(
+            HttpStatusCode.BadRequest,
+            JsonSerializer.Serialize(new
+            {
+                error = new
+                {
+                    code = "refresh_token_reused",
+                    message = rawMarker,
+                },
+            }));
+        handler.Enqueue(
+            HttpStatusCode.BadRequest,
+            JsonSerializer.Serialize(new
+            {
+                error = "invalid_grant",
+                message = rawMarker,
+            }));
+        handler.Enqueue(
+            HttpStatusCode.BadRequest,
+            JsonSerializer.Serialize(new
+            {
+                error = new
+                {
+                    message = "refresh_token_expired",
+                    detail = rawMarker,
+                },
+            }));
+        handler.Enqueue(
+            HttpStatusCode.BadRequest,
+            JsonSerializer.Serialize(new
+            {
+                error = new
+                {
+                    code = "invalid_request",
+                    message = rawMarker,
+                },
+            }));
+        handler.Enqueue(
+            HttpStatusCode.Unauthorized,
+            JsonSerializer.Serialize(new
+            {
+                error = new { message = rawMarker },
+            }));
+        using var httpClient = new HttpClient(handler);
+        var oauth = new OAuthHttpClient(httpClient);
+        var previous = new OAuthTokens(
+            "old-access",
+            "old-refresh",
+            DateTimeOffset.UtcNow.AddHours(1),
+            "account-123");
+
+        var refreshed = await oauth.RefreshCodexAsync(previous)
+            .ConfigureAwait(false);
+        Check.Equal("rotated-access", refreshed.AccessToken);
+        Check.Equal("rotated-refresh", refreshed.RefreshToken);
+        Check.Equal("account-123", refreshed.AccountId);
+
+        var request = handler.Requests[0];
+        Check.Equal("application/json", request.ContentType);
+        using (var body = JsonDocument.Parse(request.Body))
+        {
+            Check.Equal(
+                "refresh_token",
+                body.RootElement.GetProperty("grant_type").GetString());
+            Check.Equal(
+                "old-refresh",
+                body.RootElement.GetProperty("refresh_token").GetString());
+            Check.Equal(
+                CodexOAuthFlow.ClientId,
+                body.RootElement.GetProperty("client_id").GetString());
+            Check.False(body.RootElement.TryGetProperty("scope", out _));
+        }
+
+        var partialAccess = await oauth.RefreshCodexAsync(previous)
+            .ConfigureAwait(false);
+        Check.Equal(jwtAccess, partialAccess.AccessToken);
+        Check.Equal("old-refresh", partialAccess.RefreshToken);
+        Check.Equal("account-123", partialAccess.AccountId);
+        Check.Equal(expectedJwtExpiration, partialAccess.ExpiresAt);
+
+        var opaqueAccess = await oauth.RefreshCodexAsync(previous)
+            .ConfigureAwait(false);
+        Check.Equal("opaque-access", opaqueAccess.AccessToken);
+        Check.Equal("old-refresh", opaqueAccess.RefreshToken);
+        Check.Equal("account-123", opaqueAccess.AccountId);
+        Check.Equal(previous.ExpiresAt, opaqueAccess.ExpiresAt);
+
+        var partialRefresh = await oauth.RefreshCodexAsync(previous)
+            .ConfigureAwait(false);
+        Check.Equal("old-access", partialRefresh.AccessToken);
+        Check.Equal("refresh-only", partialRefresh.RefreshToken);
+        Check.Equal("account-123", partialRefresh.AccountId);
+        Check.Equal(previous.ExpiresAt, partialRefresh.ExpiresAt);
+
+        var expiredPrevious = previous with
+        {
+            ExpiresAt = DateTimeOffset.Parse("2026-08-28T00:00:00Z", Invariant),
+        };
+        var refreshWithUnboundExpiry = CodexOAuthFlow.ParseRefreshTokens(
+            """{"refresh_token":"next-refresh","expires_in":7200}""",
+            expiredPrevious,
+            DateTimeOffset.Parse("2026-08-29T00:00:00Z", Invariant));
+        Check.Equal("next-refresh", refreshWithUnboundExpiry.RefreshToken);
+        Check.Equal(expiredPrevious.ExpiresAt, refreshWithUnboundExpiry.ExpiresAt);
+
+        var expiresOnlyRejected = false;
+        try
+        {
+            _ = CodexOAuthFlow.ParseRefreshTokens(
+                """{"expires_in":7200}""",
+                previous);
+        }
+        catch (JsonException)
+        {
+            expiresOnlyRejected = true;
+        }
+
+        Check.True(expiresOnlyRejected);
+
+        var malformedResponses = 0;
+        for (var index = 0; index < 4; index++)
+        {
+            try
+            {
+                _ = await oauth.RefreshCodexAsync(previous).ConfigureAwait(false);
+            }
+            catch (JsonException)
+            {
+                malformedResponses++;
+            }
+        }
+
+        Check.Equal(4, malformedResponses);
+
+        var reused = await CaptureCodexRefreshFailure(oauth, previous)
+            .ConfigureAwait(false);
+        Check.True(reused.IsTerminal);
+        Check.Equal(OAuthRefreshFailureReason.Reused, reused.Reason);
+        Check.Equal("refresh_token_reused", reused.ErrorCode);
+        Check.False(reused.Message.Contains(rawMarker, StringComparison.Ordinal));
+
+        var invalidGrant = await CaptureCodexRefreshFailure(oauth, previous)
+            .ConfigureAwait(false);
+        Check.True(invalidGrant.IsTerminal);
+        Check.Equal(OAuthRefreshFailureReason.InvalidGrant, invalidGrant.Reason);
+        Check.Equal("invalid_grant", invalidGrant.ErrorCode);
+        Check.False(invalidGrant.Message.Contains(rawMarker, StringComparison.Ordinal));
+
+        var expiredMessage = await CaptureCodexRefreshFailure(oauth, previous)
+            .ConfigureAwait(false);
+        Check.True(expiredMessage.IsTerminal);
+        Check.Equal(OAuthRefreshFailureReason.Expired, expiredMessage.Reason);
+        Check.Equal("refresh_token_expired", expiredMessage.ErrorCode);
+        Check.False(expiredMessage.Message.Contains(rawMarker, StringComparison.Ordinal));
+
+        var invalidRequest = await CaptureCodexRefreshFailure(oauth, previous)
+            .ConfigureAwait(false);
+        Check.False(invalidRequest.IsTerminal);
+        Check.Equal(OAuthRefreshFailureReason.Other, invalidRequest.Reason);
+        Check.Equal("invalid_request", invalidRequest.ErrorCode);
+        Check.False(invalidRequest.Message.Contains(rawMarker, StringComparison.Ordinal));
+
+        var unauthorized = await CaptureCodexRefreshFailure(oauth, previous)
+            .ConfigureAwait(false);
+        Check.True(unauthorized.IsTerminal);
+        Check.Equal(OAuthRefreshFailureReason.Unauthorized, unauthorized.Reason);
+        Check.False(unauthorized.Message.Contains(rawMarker, StringComparison.Ordinal));
+    }
+
+    private static async Task<OAuthRefreshException> CaptureCodexRefreshFailure(
+        OAuthHttpClient oauth,
+        OAuthTokens previous)
+    {
+        try
+        {
+            _ = await oauth.RefreshCodexAsync(previous).ConfigureAwait(false);
+        }
+        catch (OAuthRefreshException exception)
+        {
+            return exception;
+        }
+
+        throw new InvalidOperationException(
+            "The synthetic Codex refresh unexpectedly succeeded.");
     }
 
     private static async Task UsageProvidersSendExpectedHeadersAndRejectEmptyWindows()
     {
+        const string rawUsageMarker = "raw-usage-response-must-not-escape";
         var handler = new RecordingHandler();
         handler.Enqueue(
             HttpStatusCode.OK,
@@ -1058,6 +2221,30 @@ internal static class Program
         handler.Enqueue(
             HttpStatusCode.OK,
             """{"plan_type":"pro","rate_limit":null}""");
+        handler.Enqueue(
+            HttpStatusCode.Forbidden,
+            JsonSerializer.Serialize(new
+            {
+                error = new
+                {
+                    code = "usage_denied",
+                    message = rawUsageMarker,
+                },
+            }));
+        handler.Enqueue(
+            HttpStatusCode.TooManyRequests,
+            JsonSerializer.Serialize(new
+            {
+                error = new
+                {
+                    type = "rate_limit_error",
+                    message = rawUsageMarker,
+                },
+            }));
+        handler.Enqueue(HttpStatusCode.InternalServerError, rawUsageMarker);
+        handler.Enqueue(
+            HttpStatusCode.OK,
+            JsonSerializer.Serialize(new { message = rawUsageMarker }));
         using var httpClient = new HttpClient(handler);
 
         var claude = new ClaudeUsageProvider(
@@ -1100,6 +2287,54 @@ internal static class Program
         Check.Equal(
             0,
             (await codex.FetchUsageAsync().ConfigureAwait(false)).Count);
+
+        var codeFailure = await CaptureUsageFailure(codex).ConfigureAwait(false);
+        Check.Equal(403, codeFailure.StatusCode);
+        Check.True(codeFailure.Message.Contains(
+            "usage_denied",
+            StringComparison.Ordinal));
+        Check.False(codeFailure.Message.Contains(
+            rawUsageMarker,
+            StringComparison.Ordinal));
+
+        var typeFailure = await CaptureUsageFailure(codex).ConfigureAwait(false);
+        Check.Equal(429, typeFailure.StatusCode);
+        Check.True(typeFailure.Message.Contains(
+            "rate_limit_error",
+            StringComparison.Ordinal));
+        Check.False(typeFailure.Message.Contains(
+            rawUsageMarker,
+            StringComparison.Ordinal));
+
+        var unstructuredFailure = await CaptureUsageFailure(codex)
+            .ConfigureAwait(false);
+        Check.Equal(500, unstructuredFailure.StatusCode);
+        Check.False(unstructuredFailure.Message.Contains(
+            rawUsageMarker,
+            StringComparison.Ordinal));
+
+        var unrecognizedSuccess = await CaptureUsageFailure(codex)
+            .ConfigureAwait(false);
+        Check.Equal((int?)null, unrecognizedSuccess.StatusCode);
+        Check.False(unrecognizedSuccess.Message.Contains(
+            rawUsageMarker,
+            StringComparison.Ordinal));
+    }
+
+    private static async Task<UsageException> CaptureUsageFailure(
+        IUsageProvider provider)
+    {
+        try
+        {
+            _ = await provider.FetchUsageAsync().ConfigureAwait(false);
+        }
+        catch (UsageException exception)
+        {
+            return exception;
+        }
+
+        throw new InvalidOperationException(
+            "The synthetic usage request unexpectedly succeeded.");
     }
 
     private static async Task ClaudeTranscriptsDeduplicateByMessageIdAndUseLocalDay()
@@ -2399,12 +3634,20 @@ internal static class Program
         private readonly object gate = new();
 
         public OAuthTokens? Value { get; set; }
+        public bool FailLoads { get; set; }
         public bool FailSaves { get; set; }
+        public bool FailClears { get; set; }
+        public int SaveCount { get; private set; }
 
         public OAuthTokens? Load()
         {
             lock (gate)
             {
+                if (FailLoads)
+                {
+                    throw new IOException("Synthetic token-store load failure.");
+                }
+
                 return Value;
             }
         }
@@ -2419,6 +3662,7 @@ internal static class Program
                 }
 
                 Value = tokens;
+                SaveCount++;
             }
         }
 
@@ -2426,6 +3670,11 @@ internal static class Program
         {
             lock (gate)
             {
+                if (FailClears)
+                {
+                    throw new IOException("Synthetic token-store clear failure.");
+                }
+
                 Value = null;
             }
         }

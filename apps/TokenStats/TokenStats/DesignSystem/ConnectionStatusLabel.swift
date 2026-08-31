@@ -12,22 +12,37 @@ import SwiftUI
 /// The connection state shown for one subscription.
 enum ConnectionStatus {
     case connected
+    case checking
+    case reauthenticationRequired
+    case temporarilyUnverifiable
     case awaitingCode
     case signingIn
     case signedOut
 
-    /// Joins usage state with the two sign-in phases: browser polling and the
-    /// paste-code handoff. Usage state wins — an agent that is serving data is
-    /// connected whatever a stale sign-in flag says.
-    init(state: AppState, awaitingCode: Bool, signingIn: Bool = false) {
-        if state != .signedOut {
+    /// Joins the server-verified session state with the two sign-in phases:
+    /// browser polling and the paste-code handoff. A verified session wins over
+    /// stale sign-in flags; otherwise an active reconnect flow wins over the
+    /// previous failure so the row immediately reflects what the user started.
+    init(sessionState: SessionState, awaitingCode: Bool, signingIn: Bool = false) {
+        if case .valid = sessionState {
             self = .connected
         } else if awaitingCode {
             self = .awaitingCode
         } else if signingIn {
             self = .signingIn
         } else {
-            self = .signedOut
+            switch sessionState {
+            case .signedOut:
+                self = .signedOut
+            case .checking:
+                self = .checking
+            case .valid:
+                self = .connected
+            case .reauthenticationRequired:
+                self = .reauthenticationRequired
+            case .temporarilyUnverifiable:
+                self = .temporarilyUnverifiable
+            }
         }
     }
 
@@ -35,6 +50,12 @@ enum ConnectionStatus {
         switch self {
         case .connected:
             return LocalizedStringResource.accountStatusConnected
+        case .checking:
+            return LocalizedStringResource.accountStatusChecking
+        case .reauthenticationRequired:
+            return LocalizedStringResource.accountStatusReauthenticationRequired
+        case .temporarilyUnverifiable:
+            return LocalizedStringResource.accountStatusTemporarilyUnverifiable
         case .awaitingCode:
             return LocalizedStringResource.accountStatusAwaitingCode
         case .signingIn:
@@ -49,9 +70,54 @@ enum ConnectionStatus {
     fileprivate var accent: Color? {
         switch self {
         case .connected: return .green
-        case .awaitingCode, .signingIn: return .orange
+        case .reauthenticationRequired: return .red
+        case .checking, .temporarilyUnverifiable, .awaitingCode, .signingIn: return .orange
         case .signedOut: return nil
         }
+    }
+}
+
+/// Pure session-state presentation rules shared by Settings, onboarding, and
+/// the popover. Keeping these queries here prevents each surface from silently
+/// redefining "connected" as "a token exists" again.
+enum SessionPresentation {
+    static func keepsSubscriptionVisible(_ state: SessionState) -> Bool {
+        if case .signedOut = state { return false }
+        return true
+    }
+
+    static func isVerified(_ state: SessionState) -> Bool {
+        if case .valid = state { return true }
+        return false
+    }
+
+    static func requiresSignIn(_ state: SessionState) -> Bool {
+        switch state {
+        case .signedOut, .reauthenticationRequired:
+            return true
+        case .checking, .valid, .temporarilyUnverifiable:
+            return false
+        }
+    }
+
+    /// A paste-code flow moves the stored session to `checking` while the
+    /// browser is open. Keep its controls visible until the user submits the
+    /// code even though `checking` does not normally offer a new sign-in.
+    static func showsSignInControls(
+        _ state: SessionState,
+        awaitingCode: Bool
+    ) -> Bool {
+        awaitingCode || requiresSignIn(state)
+    }
+
+    static func isChecking(_ state: SessionState) -> Bool {
+        if case .checking = state { return true }
+        return false
+    }
+
+    static func isTemporarilyUnverifiable(_ state: SessionState) -> Bool {
+        if case .temporarilyUnverifiable = state { return true }
+        return false
     }
 }
 
